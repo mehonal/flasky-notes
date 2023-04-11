@@ -1,0 +1,26 @@
+{% extends "template-loggedin.html" %}
+{% block body %}
+
+<body>
+
+<h1 class="text-center mt-5">{% if notes_of_category %}Category: "{{category}}"{% else %}All Notes{% endif %}</h1>
+<br>
+
+<div class="text-center">
+  <a href="/note/0" class="btn btn-success mb-2 w-75">Add New Note</a>
+  {% if notes_of_category %}
+  {% for note in notes %}
+  <a href="/note/{{note.id}}" class="btn btn-primary mb-2 w-75">
+    {{note.title}}
+  </a>
+  {% endfor %}
+  {% else %}
+  {% for note in g.user.return_notes() %}
+  <a href="/note/{{note.id}}" class="btn btn-primary mb-2 w-75">
+    {{note.title}}
+  </a>
+  {% endfor %}
+  {% endif %}
+</div>
+</body>
+{% endblock %}

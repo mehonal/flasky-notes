@@ -1,0 +1,6 @@
+flask
+requests
+flask_sqlalchemy
+bcrypt
+waitress
+flask_migrate

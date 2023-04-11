@@ -1,0 +1,108 @@
+{% extends "template-loggedin.html" %}
+{% block body %}
+<form method="POST">
+<div class="container-fluid">
+<div class="row">
+  <div class="col-12 {% if note %}col-md-9{% endif %}">
+  <div class="mt-3 p-3">
+    <h1 class="text-center text-sm-left">{% if note %}{{note.title}}{% else %}New Note{% endif %}</h1>
+      <div class="form-group">
+        {% if not note %}
+        <input type="text" name="title" class="form-control mb-2" placeholder="Note Title...">
+        <input type="text" name="category" class="form-control mb-2" placeholder="Category">
+        {% endif %}
+        <textarea class="form-control" id="post-content" name="content" rows="2" onkeyup="textAreaAdjust(this)" placeholder="Note Content...">{% if note and note.content %}{{note.content}}{% endif %}</textarea>
+        <style>
+          /* Removing scrollbar on text area */
+          #post-content {
+            -ms-overflow-style: none;  /* Internet Explorer 10+ */
+            scrollbar-width: none;  /* Firefox */
+          }
+          #post-content::-webkit-scrollbar {
+              display: none;  /* Safari, Chrome */
+          }
+        </style>
+        <script>
+          // for making the text area larger as more text gets added
+          function textAreaAdjust(element) {
+            maxWidth = document.body.scrollWidth;
+            maxHeight = document.body.scrollHeight;
+            if (maxWidth < 600){
+              maxHeight /= 3;
+            }
+            else{
+              maxHeight /= 1.7
+            }
+            element.style.height = "1px";
+            if (element.scrollHeight < maxHeight){
+            element.style.height = (25+element.scrollHeight)+"px";
+            }
+            else{
+              element.style.height = (maxHeight)+"px";
+            }
+          }
+
+          element = document.getElementById('post-content')
+          textAreaAdjust(element)
+        </script>
+      </div>
+      {% if note %}
+      {% set time_ago = note.return_time_ago() %}
+      <p id="last-updated" class="mt-2">{% if time_ago == "just now" %}<span class="text-success">Note edited just now.</span>{% else %}Note last edited {{time_ago}} ago.{% endif %}</p>
+      {% endif %}
+      <div class="form-group">
+      <input type="submit" name="update_note" class="btn btn-primary w-100 {% if not note %}mt-2{% endif %}" value="{% if note %}Update{% else %}Add{% endif %}">
+      </div>
+  </div>
+  <hr class="d-sm-none">
+  </div>
+{% if note %}
+<div class="col-12 col-md-3">
+<div class="mt-3">
+  <h2 class="text-center">Note Settings</h2>
+  Title:
+  <input type="text" name="title" class="form-control mb-2" placeholder="Note Title..." value="{% if note %}{{note.title}}{% endif %}">
+  Category:
+  <input type="text" name="category" class="form-control mb-2" placeholder="Category" value="{% if note.category %}{{note.category}}{% endif %}">
+  Font Size:
+  <input type="number" name="custom_font_size" id="custom_font_size" class="form-control mb-2" placeholder="Custom Font Size..." onchange="changeFontSize()">
+  <script>
+    function changeFontSize(){
+      document.getElementById('post-content').style.fontSize = document.getElementById('custom_font_size').value + "px";
+    }
+  </script>
+  <input type="submit" name="update_note" class="btn btn-primary w-100 mt-2" value="{% if note %}Update{% else %}Add{% endif %}">
+  <input type="submit" name="revert_to_last_version" class="btn btn-danger w-100 mt-2" value="Revert To Previous Version">
+  <input type="submit" name="delete_note" class="btn btn-danger w-100 mt-2" value="Delete Note">
+
+</div>
+<hr class="mt-5 d-sm-none w-100">
+
+</div>
+{% endif %}
+</div>
+</div>
+</form>
+{% if note %}
+<script>
+
+  function checkLastUpdated(){
+
+    fetch('/api/note/check_last_edited/{{note.id}}')
+    .then( response => response.json() )
+    .then( data =>
+    {
+      if (data.success == true){
+        document.getElementById('last-updated').innerHTML = data.last_updated;
+      }
+    }
+    )
+
+  }
+
+  setInterval(checkLastUpdated,15000);
+
+</script>
+{% endif %}
+
+{% endblock %}

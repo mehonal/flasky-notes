@@ -1,0 +1,17 @@
+
+{% extends "template-loggedout.html" %}
+{% block body %}
+<div class="p-5">
+<div class="text-center"><img class="mb-4" src="/static/images/amazing_logo.png" alt="Flasky Notes" width="128" height="128">
+</div>
+<form method="POST">
+
+  <input type="text" class="form-control mb-2" name="username" placeholder="Username...">
+
+<input type="password" class="form-control mb-2" name="password" placeholder="Password...">
+<p class="text-center">Need an account? <a href="/register">Register now!</a></p>
+
+<button class="w-100 btn btn-primary" type="submit">Sign in</button>
+</form>
+</div>
+{% endblock %}
