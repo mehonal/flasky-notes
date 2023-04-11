@@ -206,6 +206,16 @@ def check_last_edited_note_api(note_id):
     else:
         return jsonify(success=False,reason="Not logged in.")
 
+
+@app.route("/api/save_font_size/<int:font_size>")
+def save_font_size(font_size):
+    if g.user:
+        session['font_size'] = font_size
+        return jsonify(success=True,font_size=font_size)
+    else:
+        return jsonify(success=False,reason="Not logged in.")
+
+
 #==============================================request handling===============================================#
 
 
@@ -325,6 +335,12 @@ def notes_with_category_page(category):
 @app.route("/note/<int:note_id>", methods=['GET','POST'])
 def note_single_page(note_id):
     if g.user:
+        font_size = 16
+        try:
+            if 'font_size' in session:
+                font_size = int(session['font_size'])
+        except:
+            pass
         if note_id == 0:
             if request.method == "POST":
                 note_title = request.form['title']
@@ -338,7 +354,7 @@ def note_single_page(note_id):
                     note_category = None
                 note = g.user.add_note(note_title,note_content,note_category)
                 return redirect(url_for('note_single_page', note_id = note.id))
-            return render_template("note_single.html")
+            return render_template("note_single.html", font_size=font_size)
         note = UserNote.query.filter_by(id=note_id).first()
         if note and note is not None:
             if g.user == note.user:
@@ -362,7 +378,7 @@ def note_single_page(note_id):
                     note.change_content(note_content)
                     note.change_category(note_category)
                     return redirect(url_for('note_single_page', note_id = note.id))
-                return render_template("note_single.html", note = note)
+                return render_template("note_single.html", note = note, font_size=font_size)
     return "Not Found."
 
 #=============================================================================================================#

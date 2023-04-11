@@ -65,7 +65,7 @@
   Category:
   <input type="text" name="category" class="form-control mb-2" placeholder="Category" value="{% if note.category %}{{note.category}}{% endif %}">
   Font Size:
-  <input type="number" name="custom_font_size" id="custom_font_size" class="form-control mb-2" placeholder="Custom Font Size..." onchange="changeFontSize()">
+  <input type="number" name="custom_font_size" id="custom_font_size" class="form-control mb-2" placeholder="Custom Font Size..." value="{{font_size}}" onchange="changeFontSize()">
   <script>
     function changeFontSize(){
       document.getElementById('post-content').style.fontSize = document.getElementById('custom_font_size').value + "px";
@@ -86,6 +86,15 @@
 {% if note %}
 <script>
 
+function updateFontSize(){
+
+  fontSize = document.getElementById('custom_font_size').value
+
+    fetch('/api/save_font_size/' + fontSize)
+    .then( response => response.json() )
+
+}
+
   function checkLastUpdated(){
 
     fetch('/api/note/check_last_edited/{{note.id}}')
@@ -101,6 +110,10 @@
   }
 
   setInterval(checkLastUpdated,15000);
+
+  setInterval(updateFontSize,15000);
+
+  changeFontSize();
 
 </script>
 {% endif %}
