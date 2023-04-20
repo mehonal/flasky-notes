@@ -45,18 +45,32 @@
 </head>
 <body>
     <form id="note-form" method="POST">
-    <input type="text" placeholder="Note Title..." name="title">
-    <textarea placeholder="Note..." name="content"></textarea>
+    <input id="title" type="text" placeholder="Note Title..." name="title">
+    <textarea id="content" placeholder="Note..." name="content"></textarea>
     </form>
 
     <script>
+
+        title = document.getElementById('title');
+        content = document.getElementById('content');
+        noteForm = document.getElementById('note-form');
+
         document.addEventListener('keydown', e =>{
             if (e.ctrlKey && e.key == "s"){
                 e.preventDefault();
                 console.log("DONE.");
-                document.getElementById('note-form').submit();
+                noteForm.submit();
             }
         })
+
+        document.addEventListener('keydown', e =>{
+            if (e.ctrlKey && e.key == "l"){
+                e.preventDefault();
+                console.log("DONE.");
+                title.style.display == "none" ? title.style.display = "block" : title.style.display = "none";
+            }
+        })
+
     </script>
 
 </body>
