@@ -61,10 +61,7 @@
                 console.log("DONE.");
                 noteForm.submit();
             }
-        })
-
-        document.addEventListener('keydown', e =>{
-            if (e.ctrlKey && e.key == "l"){
+            else if (e.ctrlKey && e.key == "l"){
                 e.preventDefault();
                 console.log("DONE.");
                 title.style.display == "none" ? title.style.display = "block" : title.style.display = "none";
