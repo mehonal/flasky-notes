@@ -46,7 +46,7 @@
 <body>
     <form id="note-form" method="POST">
     <input id="title" type="text" placeholder="Note Title..." name="title">
-    <textarea id="content" placeholder="Note..." name="content"></textarea>
+    <textarea id="content" placeholder="Note..." name="content" style="font-size: 16px;"></textarea>
     </form>
 
     <script>
@@ -65,6 +65,16 @@
                 e.preventDefault();
                 console.log("DONE.");
                 title.style.display == "none" ? title.style.display = "block" : title.style.display = "none";
+            }
+            else if (e.ctrlKey && e.key == "ArrowUp"){
+                e.preventDefault();
+                console.log("DONE.");
+                content.style.fontSize = (parseInt(content.style.fontSize) + 1) + "px";
+            }
+            else if (e.ctrlKey && e.key == "ArrowDown"){
+                e.preventDefault();
+                console.log("DONE.");
+                content.style.fontSize = (parseInt(content.style.fontSize) - 1) + "px";
             }
         })
 
