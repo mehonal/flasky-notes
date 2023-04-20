@@ -381,6 +381,19 @@ def note_single_page(note_id):
                 return render_template("note_single.html", note = note, font_size=font_size)
     return "Not Found."
 
+@app.route("/note/fullscreen", methods=['GET','POST'])
+def note_fullscreen_page(): # work-in-progress.
+    if request.method == "POST":
+        note_title = request.form['title']
+        note_content = request.form['content']
+        if len(note_title) < 1:
+            note_title = None
+        if len(note_content) < 1:
+            note_content = None
+        note = g.user.add_note(note_title,note_content,None)
+        return redirect(url_for('note_single_page', note_id = note.id))
+    return render_template("note_single_full.html")
+
 #=============================================================================================================#
 #=================================================Validation==================================================#
 #=============================================================================================================#

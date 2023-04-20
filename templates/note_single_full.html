@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <!-- 
+
+        Notice: This page is a work-in-progress.
+
+        Page Concept:
+
+        The concept with this new "full" note file is to use key shortcuts for performing actions such as saving or deleting a note, and allowing the user a fullscreen noting experience.
+        On mobile, there can be a floating button on the bottom right or a topbar to access the menu with performing actions, since the keyboard of a mobile phone may be restrictive (i.e. no "Ctrl" key).
+    -->
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Note Single Full</title>
+    <style>
+        body{
+            margin: 0px;
+            padding: 0px;
+        }
+
+        textarea{
+            width: calc(100vw - 50px);
+            height: calc(90vh - 50px);
+            margin: 0px;
+            padding: 25px;
+            border-style: none;
+            border-radius: 0px;
+            border-width: 0px;
+        }
+
+        input[type=text]{
+            width: calc(100vw - 50px);
+            height: calc(10vh - 50px);
+            margin: 0px;
+            padding: 25px;
+            border-style: none;
+            border-radius: 0px;
+            border-width: 0px;
+            text-align: center;
+            font-size: 24px;
+        }
+    </style>
+</head>
+<body>
+    <form id="note-form" method="POST">
+    <input type="text" placeholder="Note Title..." name="title">
+    <textarea placeholder="Note..." name="content"></textarea>
+    </form>
+
+    <script>
+        document.addEventListener('keydown', e =>{
+            if (e.ctrlKey && e.key == "s"){
+                e.preventDefault();
+                console.log("DONE.");
+                document.getElementById('note-form').submit();
+            }
+        })
+    </script>
+
+</body>
+</html>
