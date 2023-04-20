@@ -28,7 +28,8 @@
             padding: 25px;
             border-style: none;
             border-radius: 0px;
-            border-width: 0px;
+            outline: none;
+            resize: none;
         }
 
         input[type=text]{
@@ -42,6 +43,63 @@
             text-align: center;
             font-size: 24px;
         }
+
+        #mobile-menu{
+            display: none;
+            position: fixed;
+            width: 100vw;
+            height: 100vh;
+            z-index: 9999;
+            top: 0px;
+            left: 0px;
+            background-color: rgb(204, 203, 203);
+        }
+
+
+        #mobile-menu-toggle{
+            display: none;
+            text-align: center;
+            width: 100%;
+            position: fixed;
+            top: 0px;
+            left: 0px;
+            height: 20px;
+            background-color: black;
+            color:white;
+            padding: 3px;
+        }
+        
+        @media screen and (max-width: 600px){
+            #mobile-menu-toggle{
+                display: block;
+            }
+        }
+
+        .btn{
+            border: none;
+            margin: 5px;
+            padding: 6px;
+            border-radius: 5px;
+            width: calc(100% - 10px);
+        }
+
+        .btn:hover{
+            cursor: pointer;
+        }
+
+        .btn-primary{
+            background-color: rgb(22, 22, 255);
+            color:white;
+        }
+        .btn-secondary{
+            background-color: gray;
+            color:white;
+        }
+        .btn-success{
+            background-color: green;
+            color:white;
+        }
+
     </style>
 </head>
 <body>
@@ -50,11 +108,35 @@
     <textarea id="content" placeholder="Note..." name="content" style="font-size: 16px;"></textarea>
     </form>
 
+    <!-- Mobile Menu Toggle -->
+    <div id="mobile-menu-toggle" onclick="toggleMobileMenu()">
+        Open Mobile Menu
+    </div>
+
+
+    <!-- Mobile Menu -->
+    <div id="mobile-menu">
+
+        <h1>Menu</h1>
+        <button class="btn btn-primary" onclick="toggleTitle()">Toggle Title</button>
+        <button class="btn btn-secondary" onclick="increaseFontSize()">Font +</button>
+        <button class="btn btn-secondary" onclick="decreaseFontSize()">Font -</button>
+        <button class="btn btn-success" onclick="submitForm()">Save Note</button>
+        <button class="btn btn-secondary" onclick="toggleMobileMenu()">Close Menu</button>
+        
+    </div>
+
     <script>
 
         title = document.getElementById('title');
         content = document.getElementById('content');
         noteForm = document.getElementById('note-form');
+        mobileMenu = document.getElementById('mobile-menu');
+
+        function toggleMobileMenu(){
+            mobileMenu.style.display == "block" ? mobileMenu.style.display = "none" : mobileMenu.style.display = "block";
+            console.log("Toggled mobile menu");
+        }
 
         function submitForm(){
             console.log("Submitting form.");
