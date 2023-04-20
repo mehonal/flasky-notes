@@ -55,26 +55,42 @@
         content = document.getElementById('content');
         noteForm = document.getElementById('note-form');
 
+        function submitForm(){
+            console.log("Submitting form.");
+            noteForm.submit();
+        }
+
+        function toggleTitle(){
+            title.style.display == "none" ? title.style.display = "block" : title.style.display = "none";
+            console.log("Toggled title");
+        }
+
+        function increaseFontSize(){
+            content.style.fontSize = (parseInt(content.style.fontSize) + 1) + "px";
+            console.log("Increased font size. New font size: " + (parseInt(content.style.fontSize) + 1) + "px.");
+        }
+
+        function decreaseFontSize(){
+            content.style.fontSize = (parseInt(content.style.fontSize) - 1) + "px";
+            console.log("Decreased font size. New font size: " + (parseInt(content.style.fontSize) - 1) + "px.");
+        }
+
         document.addEventListener('keydown', e =>{
             if (e.ctrlKey && e.key == "s"){
                 e.preventDefault();
-                console.log("Submitting form.");
-                noteForm.submit();
+                submitForm();
             }
             else if (e.ctrlKey && e.key == "l"){
                 e.preventDefault();
-                title.style.display == "none" ? title.style.display = "block" : title.style.display = "none";
-                console.log("Toggled title")
+                toggleTitle();
             }
             else if (e.ctrlKey && e.key == "ArrowUp"){
                 e.preventDefault();
-                content.style.fontSize = (parseInt(content.style.fontSize) + 1) + "px";
-                console.log("Increased font size. New font size: " + (parseInt(content.style.fontSize) + 1) + "px.");
+                increaseFontSize();
             }
             else if (e.ctrlKey && e.key == "ArrowDown"){
                 e.preventDefault();
-                content.style.fontSize = (parseInt(content.style.fontSize) - 1) + "px";
-                console.log("Decreased font size. New font size: " + (parseInt(content.style.fontSize) - 1) + "px.");
+                decreaseFontSize();
             }
         })
 
