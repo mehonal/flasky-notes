@@ -311,6 +311,13 @@ def notes_page():
     else:
         return "You must log in."
 
+@app.route("/notes/fullscreen")
+def notes_fullscreen_page():
+    if g.user:
+        return render_template("notes_full.html")
+    else:
+        return "You must log in."
+
 @app.route("/categories")
 def categories_page():
     if g.user:

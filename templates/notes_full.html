@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <!-- 
+
+        Notice: This page is a work-in-progress.
+
+        Page Concept:
+
+        The concept with this new "full" note archive file is to complement the new fullscreen note template.
+    
+    -->
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="shortcut icon" href="{{url_for('static',filename='images/amazing_logo.png')}}" type="image/x-icon">
+    <title>Notes Full</title>
+    <style>
+        body{
+            margin: 0px;
+            padding: 0px;
+        }
+        .notes{
+            display: flex;
+            flex-wrap: wrap;
+        }
+        .note-div{
+            display: flex;
+            width: 50%;
+            height: 100px;
+            justify-content: center;
+            align-items: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="notes">
+    {% for note in g.user.return_notes() %}
+    <a class="note-div" href="/note/{{note.id}}/fullscreen">
+    <div>
+        {{note.title}}
+    </div>
+    </a>
+    {% endfor %}
+    </div>
+</body>
+</html>
