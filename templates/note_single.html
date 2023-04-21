@@ -13,29 +13,6 @@
         <input type="text" name="category" class="form-control mb-2" placeholder="Category">
         {% endif %}
         <textarea class="form-control" id="post-content" name="content" rows="2" onkeyup="textAreaAdjust(this)" placeholder="Note Content...">{% if note and note.content %}{{note.content}}{% endif %}</textarea>
-        <script>
-          // for making the text area larger as more text gets added
-          function textAreaAdjust(element) {
-            maxWidth = document.body.scrollWidth;
-            maxHeight = document.body.scrollHeight;
-            if (maxWidth < 600){
-              maxHeight /= 3;
-            }
-            else{
-              maxHeight /= 1.7
-            }
-            element.style.height = "1px";
-            if (element.scrollHeight < maxHeight){
-            element.style.height = (25+element.scrollHeight)+"px";
-            }
-            else{
-              element.style.height = (maxHeight)+"px";
-            }
-          }
-
-          element = document.getElementById('post-content')
-          textAreaAdjust(element)
-        </script>
       </div>
       {% if note %}
       {% set time_ago = note.return_time_ago() %}
@@ -57,11 +34,6 @@
   <input type="text" name="category" class="form-control mb-2" placeholder="Category" value="{% if note.category %}{{note.category}}{% endif %}">
   Font Size:
   <input type="number" name="custom_font_size" id="custom_font_size" class="form-control mb-2" placeholder="Custom Font Size..." value="{{font_size}}" onchange="changeFontSize()">
-  <script>
-    function changeFontSize(){
-      document.getElementById('post-content').style.fontSize = document.getElementById('custom_font_size').value + "px";
-    }
-  </script>
   <input type="submit" name="update_note" class="btn btn-primary w-100 mt-2" value="{% if note %}Update{% else %}Add{% endif %}">
   <input type="submit" name="revert_to_last_version" class="btn btn-danger w-100 mt-2" value="Revert To Previous Version">
   <input type="submit" name="delete_note" class="btn btn-danger w-100 mt-2" value="Delete Note">
@@ -74,12 +46,13 @@
 </div>
 </div>
 </form>
+<script src="{{url_for('static',filename='script/note_single.js')}}"></script>
 {% if note %}
 <script>
 
 function updateFontSize(){
 
-  fontSize = document.getElementById('custom_font_size').value
+  fontSize = document.getElementById('custom_font_size').value;
 
     fetch('/api/save_font_size/' + fontSize)
     .then( response => response.json() )
