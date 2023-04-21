@@ -53,12 +53,41 @@
     <a class="note-div" href="/note/{{note.id}}/fullscreen">
     <div class="text-center">
         <h2>{{note.title}}</h2>
-        <br>
         {{note.return_description()}}
     </div>
     </a>
     {% endfor %}
     </div>
     
+    <script>
+
+        function addNewNote(){
+            window.location.href = "/note/0/fullscreen";
+        }
+
+        function decreaseNotesPerRow(){
+            // coming soon
+        }
+
+        function increaseNotesPerRow(){
+            // coming soon
+        }
+
+        document.addEventListener('keydown', e =>{
+            if (e.ctrlKey && e.key == "e"){
+                e.preventDefault();
+                addNewNote();
+            }
+            else if (e.ctrlKey && e.key == "ArrowUp"){
+                e.preventDefault();
+                increaseNotesPerRow();
+            }
+            else if (e.ctrlKey && e.key == "ArrowDown"){
+                e.preventDefault();
+                decreaseNotesPerRow();
+            }
+        })
+    </script>
+
 </body>
 </html>
