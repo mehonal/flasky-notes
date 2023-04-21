@@ -56,7 +56,7 @@
 <body>
     <div class="notes">
     {% for note in g.user.return_notes() %}
-    <a class="note-div" href="/note/{{note.id}}/fullscreen">
+    <a class="note-div" style="height: 150px;" href="/note/{{note.id}}/fullscreen">
     <div class="text-center">
         <h2>{{note.title}}</h2>
         {{note.return_description()}}
@@ -141,6 +141,18 @@
             tweakRows();
         }
 
+        function decreaseRowHeight(){
+            noteDivs.forEach((el)=>{
+                el.style.height = (parseInt(el.style.height) - 10) + "px";
+            })
+        }
+
+        function increaseRowHeight(){
+            noteDivs.forEach((el)=>{
+                el.style.height = (parseInt(el.style.height) + 10) + "px";
+            })
+        }
+
         document.addEventListener('keydown', e =>{
             if (e.ctrlKey && e.key == "e"){
                 e.preventDefault();
@@ -153,6 +165,14 @@
             else if (e.ctrlKey && e.key == "ArrowLeft"){
                 e.preventDefault();
                 decreaseNotesPerRow();
+            }
+            else if (e.ctrlKey && e.key == "ArrowUp"){
+                e.preventDefault();
+                increaseRowHeight();
+            }
+            else if (e.ctrlKey && e.key == "ArrowDown"){
+                e.preventDefault();
+                decreaseRowHeight();
             }
         })
     </script>
