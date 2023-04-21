@@ -136,7 +136,7 @@
         <button class="btn btn-secondary" onclick="increaseFontSize()">Font +</button>
         <button class="btn btn-secondary" onclick="decreaseFontSize()">Font -</button>
         <button class="btn btn-success" onclick="submitForm()">Save Note</button>
-        <button class="btn btn-secondary" onclick="navigateToHomepage()">Go To Homepage</button>
+        <button class="btn btn-secondary" onclick="navigateToNotes()">Go To Homepage</button>
         <button class="btn btn-secondary" onclick="toggleMobileMenu()">Close Menu</button>
         
     </div>
@@ -173,8 +173,8 @@
             console.log("Decreased font size. New font size: " + (parseInt(content.style.fontSize) - 1) + "px.");
         }
 
-        function navigateToHomepage(){
-            window.location.href = "/";
+        function navigateToNotes(){
+            window.location.href = "/notes/fullscreen";
         }
 
         document.addEventListener('keydown', e =>{
@@ -196,7 +196,7 @@
             }
             else if (e.ctrlKey && e.key == "e"){
                 e.preventDefault();
-                navigateToHomepage();
+                navigateToNotes();
             }
         })
 
