@@ -115,8 +115,11 @@
 </head>
 <body>
     <form id="note-form" method="POST">
-    <input id="title" type="text" placeholder="Note Title..." name="title">
-    <textarea id="content" placeholder="Note..." name="content" style="font-size: 16px;"></textarea>
+    {% if note %}
+    <input type="hidden" name="note_id" value="{{note.id}}">
+    {% endif %}
+    <input id="title" type="text" placeholder="Note Title..." name="title" {% if note %}value="{{note.title}}"{% endif %}>
+    <textarea id="content" placeholder="Note..." name="content" style="font-size: 16px;">{% if note %}{{note.content}}{% endif %}</textarea>
     </form>
 
     <!-- Mobile Menu Toggle -->
