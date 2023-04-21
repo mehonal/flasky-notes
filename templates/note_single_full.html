@@ -136,6 +136,7 @@
         <button class="btn btn-secondary" onclick="increaseFontSize()">Font +</button>
         <button class="btn btn-secondary" onclick="decreaseFontSize()">Font -</button>
         <button class="btn btn-success" onclick="submitForm()">Save Note</button>
+        <button class="btn btn-secondary" onclick="navigateToHomepage()">Go To Homepage</button>
         <button class="btn btn-secondary" onclick="toggleMobileMenu()">Close Menu</button>
         
     </div>
@@ -172,6 +173,10 @@
             console.log("Decreased font size. New font size: " + (parseInt(content.style.fontSize) - 1) + "px.");
         }
 
+        function navigateToHomepage(){
+            window.location.href = "/";
+        }
+
         document.addEventListener('keydown', e =>{
             if (e.ctrlKey && e.key == "s"){
                 e.preventDefault();
@@ -188,6 +193,10 @@
             else if (e.ctrlKey && e.key == "ArrowDown"){
                 e.preventDefault();
                 decreaseFontSize();
+            }
+            else if (e.ctrlKey && e.key == "e"){
+                e.preventDefault();
+                navigateToHomepage();
             }
         })
 
