@@ -1,0 +1,94 @@
+body{
+    margin: 0px;
+    padding: 0px;
+}
+
+textarea{
+    width: calc(100vw - 50px);
+    height: calc(90vh - 50px);
+    margin: 0px;
+    padding: 25px;
+    border-style: none;
+    border-radius: 0px;
+    outline: none;
+    resize: none;
+}
+
+input[type=text]{
+    width: calc(100vw - 50px);
+    height: calc(10vh - 50px);
+    margin: 0px;
+    padding: 25px;
+    border-style: none;
+    border-radius: 0px;
+    border-width: 0px;
+    text-align: center;
+    font-size: 24px;
+}
+
+#mobile-menu{
+    display: none;
+    position: fixed;
+    width: 100vw;
+    height: 100vh;
+    z-index: 9999;
+    top: 0px;
+    left: 0px;
+    background-color: rgb(204, 203, 203);
+    text-align: center;
+}
+
+
+#mobile-menu-toggle{
+    display: none;
+    text-align: center;
+    width: 100%;
+    position: fixed;
+    top: 0px;
+    left: 0px;
+    height: 20px;
+    background-color: black;
+    color:white;
+    padding: 3px;
+}
+
+@media screen and (max-width: 600px){
+    #mobile-menu-toggle{
+        display: block;
+    }
+
+    input[type=text]{
+        padding: 60px 20px 20px 20px;
+        width: calc(100vw - 40px);
+        height: calc(12.5vh - 80px);
+    }
+
+    textarea{
+        height: calc(87.5vh - 50px);
+    }
+}
+
+.btn{
+    border: none;
+    margin: 5px;
+    padding: 6px;
+    border-radius: 5px;
+    width: calc(100% - 10px);
+}
+
+.btn:hover{
+    cursor: pointer;
+}
+
+.btn-primary{
+    background-color: rgb(22, 22, 255);
+    color:white;
+}
+.btn-secondary{
+    background-color: gray;
+    color:white;
+}
+.btn-success{
+    background-color: green;
+    color:white;
+}

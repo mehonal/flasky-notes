@@ -1,5 +1,6 @@
 {% extends "template-loggedin.html" %}
 {% block body %}
+<link rel="stylesheet" href="{{url_for('static',filename='style/note_single.css')}}">
 <form method="POST">
 <div class="container-fluid">
 <div class="row">
@@ -12,16 +13,6 @@
         <input type="text" name="category" class="form-control mb-2" placeholder="Category">
         {% endif %}
         <textarea class="form-control" id="post-content" name="content" rows="2" onkeyup="textAreaAdjust(this)" placeholder="Note Content...">{% if note and note.content %}{{note.content}}{% endif %}</textarea>
-        <style>
-          /* Removing scrollbar on text area */
-          #post-content {
-            -ms-overflow-style: none;  /* Internet Explorer 10+ */
-            scrollbar-width: none;  /* Firefox */
-          }
-          #post-content::-webkit-scrollbar {
-              display: none;  /* Safari, Chrome */
-          }
-        </style>
         <script>
           // for making the text area larger as more text gets added
           function textAreaAdjust(element) {

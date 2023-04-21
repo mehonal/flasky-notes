@@ -14,44 +14,8 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="shortcut icon" href="{{url_for('static',filename='images/amazing_logo.png')}}" type="image/x-icon">
+    <link rel="stylesheet" href="{{url_for('static',filename='style/notes_full.css')}}">
     <title>Notes Full</title>
-    <style>
-        body{
-            margin: 0px;
-            padding: 0px;
-            font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
-        }
-        a{
-            text-decoration: none;
-        }
-        .notes{
-            display: flex;
-            flex-wrap: wrap;
-        }
-        .note-div{
-            display: flex;
-            width: calc(33.33% - 40px);
-            height: 150px;
-            justify-content: center;
-            align-items: center;
-            background-color: white;
-            color: rgb(28, 28, 28);
-            padding: 20px;
-        }
-        @media screen and (max-width: 600px) {
-            .note-div{
-                width: calc(100% - 20px);
-                padding: 10px;
-            }
-        }
-        .note-div:nth-child(2n+1){
-            background-color: rgb(28, 28, 28);
-            color: white;
-        }
-        .text-center{
-            text-align: center;
-        }
-    </style>
 </head>
 <body>
     <div class="notes">
