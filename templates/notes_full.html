@@ -19,6 +19,10 @@
         body{
             margin: 0px;
             padding: 0px;
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+        }
+        a{
+            text-decoration: none;
         }
         .notes{
             display: flex;
@@ -26,10 +30,20 @@
         }
         .note-div{
             display: flex;
-            width: 50%;
-            height: 100px;
+            width: calc(33.33% - 40px);
+            height: 150px;
             justify-content: center;
             align-items: center;
+            background-color: white;
+            color: rgb(28, 28, 28);
+            padding: 20px;
+        }
+        .note-div:nth-child(odd){
+            background-color: rgb(28, 28, 28);
+            color: white;
+        }
+        .text-center{
+            text-align: center;
         }
     </style>
 </head>
@@ -37,11 +51,14 @@
     <div class="notes">
     {% for note in g.user.return_notes() %}
     <a class="note-div" href="/note/{{note.id}}/fullscreen">
-    <div>
-        {{note.title}}
+    <div class="text-center">
+        <h2>{{note.title}}</h2>
+        <br>
+        {{note.return_description()}}
     </div>
     </a>
     {% endfor %}
     </div>
+    
 </body>
 </html>
