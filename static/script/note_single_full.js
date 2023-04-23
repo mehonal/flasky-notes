@@ -67,7 +67,7 @@ function toggleMarkdown(){
             contentMarkdown.innerHTML += `<h1>${l.slice(1)}</h1>`;
         }
         else {
-            contentMarkdown.innerHTML += `<p>${l}</p>`;
+            if (l.length != 0) contentMarkdown.innerHTML += `<p>${l}</p>`;
         }
     })
 
