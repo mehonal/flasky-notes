@@ -37,6 +37,17 @@ function toggleMarkdown(){
     contentMarkdown.innerHTML = "";
     lines = content.value.split("\n");
     lines.forEach(l =>{
+        // checking for bold
+        arr = l.split("**");
+        if (arr.length > 2){
+            bold = true;
+            newLine = "";
+            arr.forEach((el, i) =>{
+                bold == false ? newLine += "<b>" + el : newLine += "</b>" + el;
+                bold = !bold;
+            })
+            l = newLine;
+        }
         if (l.slice(0,6) == "######"){
             contentMarkdown.innerHTML += `<h6>${l.slice(6)}</h6>`;
         }
