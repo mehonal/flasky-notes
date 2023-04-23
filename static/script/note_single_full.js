@@ -76,6 +76,11 @@ function toggleMarkdown(){
             imageLink = l.slice(0,-1).split("(")[1];
             contentMarkdown.innerHTML += `<img src="${imageLink}">`;
         }
+        else if (l.slice(0,1) == "["){
+            linkText = l.slice(1).split("]")[0];
+            linkUrl = l.slice(0,-1).split("]")[1].slice(1);
+            contentMarkdown.innerHTML += `<a href="${linkUrl}">${linkText}</a>`;
+        }
         else {
             if (l.length != 0) contentMarkdown.innerHTML += `<p>${l}</p>`;
         }
