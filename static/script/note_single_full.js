@@ -72,6 +72,10 @@ function toggleMarkdown(){
         else if (l == "---"){
             contentMarkdown.innerHTML += "<hr>";
         }
+        else if (l.slice(0,2) == "!["){
+            imageLink = l.slice(0,-1).split("(")[1];
+            contentMarkdown.innerHTML += `<img src="${imageLink}">`;
+        }
         else {
             if (l.length != 0) contentMarkdown.innerHTML += `<p>${l}</p>`;
         }
