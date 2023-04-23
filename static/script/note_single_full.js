@@ -69,6 +69,9 @@ function toggleMarkdown(){
         else if (l[0] == ">"){
             contentMarkdown.innerHTML += `<div class="callout">${l.slice(1)}</div>`;
         }
+        else if (l == "---"){
+            contentMarkdown.innerHTML += "<hr>";
+        }
         else {
             if (l.length != 0) contentMarkdown.innerHTML += `<p>${l}</p>`;
         }
