@@ -5,7 +5,7 @@ noteForm = document.getElementById('note-form');
 mobileMenu = document.getElementById('mobile-menu');
 
 function toggleMobileMenu(){
-    mobileMenu.style.display == "block" ? mobileMenu.style.display = "none" : mobileMenu.style.display = "block";
+    mobileMenu.style.display == "flex" ? mobileMenu.style.display = "none" : mobileMenu.style.display = "flex";
     console.log("Toggled mobile menu");
 }
 

@@ -38,15 +38,19 @@ input[type=text]{
 }
 
 #mobile-menu{
-    display: none;
     position: fixed;
     width: 100vw;
     height: 100vh;
     z-index: 9999;
     top: 0px;
     left: 0px;
-    background-color: rgb(204, 203, 203);
-    text-align: center;
+    background-color: black;
+    opacity: 0.9;
+    color: white;
+    justify-content: center;
+    display: none;
+    flex-wrap: wrap;
+    align-content: center;
 }
 
 
