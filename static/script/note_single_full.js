@@ -1,5 +1,6 @@
 title = document.getElementById('title');
 content = document.getElementById('content');
+contentMarkdown = document.getElementById('content-markdown');
 noteForm = document.getElementById('note-form');
 mobileMenu = document.getElementById('mobile-menu');
 
@@ -32,6 +33,43 @@ function navigateToNotes(){
     window.location.href = "/notes/fullscreen";
 }
 
+function toggleMarkdown(){
+    contentMarkdown.innerHTML = "";
+    lines = content.value.split("\n");
+    lines.forEach(l =>{
+        if (l.slice(0,6) == "######"){
+            contentMarkdown.innerHTML += `<h6>${l.slice(6)}</h6>`;
+        }
+        else if (l.slice(0,5) == "#####"){
+            contentMarkdown.innerHTML += `<h5>${l.slice(5)}</h5>`;
+        }   
+        else if (l.slice(0,4) == "####"){
+            contentMarkdown.innerHTML += `<h4>${l.slice(4)}</h4>`;
+        }
+        else if (l.slice(0,3) == "###"){
+            contentMarkdown.innerHTML += `<h3>${l.slice(3)}</h3>`;
+        }
+        else if (l.slice(0,2) == "##"){
+            contentMarkdown.innerHTML += `<h2>${l.slice(2)}</h2>`;
+        }
+        else if (l[0] == "#"){
+            contentMarkdown.innerHTML += `<h1>${l.slice(1)}</h1>`;
+        }
+        else {
+            contentMarkdown.innerHTML += `<p>${l}</p>`;
+        }
+    })
+
+    if (content.style.display == "none"){
+        content.style.display = "block";
+        contentMarkdown.style.display = "none";
+    }
+    else{
+        content.style.display = "none";
+        contentMarkdown.style.display = "block";
+    }
+}
+
 document.addEventListener('keydown', e =>{
     if (e.ctrlKey && e.key == "s"){
         e.preventDefault();
@@ -52,5 +90,9 @@ document.addEventListener('keydown', e =>{
     else if (e.ctrlKey && e.key == "e"){
         e.preventDefault();
         navigateToNotes();
+    }
+    else if (e.ctrlKey && e.key == ","){
+        e.preventDefault();
+        toggleMarkdown();
     }
 })

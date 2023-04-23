@@ -14,6 +14,16 @@ textarea{
     resize: none;
 }
 
+#content-markdown{
+    display: none;
+    width: calc(100vw - 50px);
+    height: calc(90vh - 50px);
+    margin: 0px;
+    padding: 25px;
+    border-style: none;
+    border-radius: 0px;
+}
+
 input[type=text]{
     width: calc(100vw - 50px);
     height: calc(10vh - 50px);

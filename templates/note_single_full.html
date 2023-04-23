@@ -24,6 +24,7 @@
     {% endif %}
     <input id="title" type="text" placeholder="Note Title..." name="title" {% if note %}value="{{note.title}}"{% endif %}>
     <textarea id="content" placeholder="Note..." name="content" style="font-size: 16px;">{% if note %}{{note.content}}{% endif %}</textarea>
+    <div id="content-markdown"></div>
     </form>
 
     <!-- Mobile Menu Toggle -->
