@@ -107,3 +107,10 @@ input[type=text]{
     background-color: green;
     color:white;
 }
+
+
+.callout{
+    display: block;
+    padding: 5%;
+    background-color: lightgray;
+}

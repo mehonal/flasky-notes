@@ -66,6 +66,9 @@ function toggleMarkdown(){
         else if (l[0] == "#"){
             contentMarkdown.innerHTML += `<h1>${l.slice(1)}</h1>`;
         }
+        else if (l[0] == ">"){
+            contentMarkdown.innerHTML += `<div class="callout">${l.slice(1)}</div>`;
+        }
         else {
             if (l.length != 0) contentMarkdown.innerHTML += `<p>${l}</p>`;
         }
