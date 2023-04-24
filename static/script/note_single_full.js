@@ -20,13 +20,19 @@ function toggleTitle(){
 }
 
 function increaseFontSize(){
-    content.style.fontSize = (parseInt(content.style.fontSize) + 1) + "px";
-    console.log("Increased font size. New font size: " + (parseInt(content.style.fontSize) + 1) + "px.");
+    newFontSize = (parseInt(content.style.fontSize) + 1);
+    content.style.fontSize =  newFontSize + "px";
+    console.log("Increased font size. New font size: " + newFontSize + "px");
+    fetch('/api/save_font_size/' + newFontSize)
+    .then( response => response.json() )
 }
 
 function decreaseFontSize(){
-    content.style.fontSize = (parseInt(content.style.fontSize) - 1) + "px";
-    console.log("Decreased font size. New font size: " + (parseInt(content.style.fontSize) - 1) + "px.");
+    newFontSize = (parseInt(content.style.fontSize) - 1);
+    content.style.fontSize = newFontSize + "px";
+    console.log("Decreased font size. New font size: " + newFontSize + "px.");
+    fetch('/api/save_font_size/' + newFontSize)
+    .then( response => response.json() )
 }
 
 function navigateToNotes(){

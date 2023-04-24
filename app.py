@@ -390,6 +390,12 @@ def note_single_page(note_id):
 
 @app.route("/note/<int:note_id>/fullscreen", methods=['GET','POST'])
 def note_fullscreen_page(note_id): # work-in-progress.
+    font_size = 16
+    try:
+        if 'font_size' in session:
+            font_size = int(session['font_size'])
+    except:
+        pass
     if note_id != 0:
         note = UserNote.query.filter_by(id=note_id).first()
     else:
@@ -415,7 +421,7 @@ def note_fullscreen_page(note_id): # work-in-progress.
                 note_content = None
             note = g.user.add_note(note_title,note_content,None)
             return redirect(url_for('note_fullscreen_page', note_id = note.id))
-    return render_template("note_single_full.html", note = note, note_id = note_id)
+    return render_template("note_single_full.html", note = note, note_id = note_id, font_size = font_size)
 
 #=============================================================================================================#
 #=================================================Validation==================================================#
