@@ -3,6 +3,8 @@ content = document.getElementById('content');
 contentMarkdown = document.getElementById('content-markdown');
 noteForm = document.getElementById('note-form');
 mobileMenu = document.getElementById('mobile-menu');
+darkModeOn = false;
+
 
 function toggleMobileMenu(){
     mobileMenu.style.display == "flex" ? mobileMenu.style.display = "none" : mobileMenu.style.display = "flex";
@@ -102,6 +104,26 @@ function toggleMarkdown(){
     }
 }
 
+function toggleDarkMode(){
+    if (darkModeOn){
+        title.style.backgroundColor = "white";
+        title.style.color = "black";
+        content.style.backgroundColor = "white";
+        content.style.color = "black";
+        contentMarkdown.style.backgroundColor = "white";
+        contentMarkdown.style.color = "black";
+    }
+    else{
+        title.style.backgroundColor = "black";
+        title.style.color = "white";
+        content.style.backgroundColor = "black";
+        content.style.color = "white";
+        contentMarkdown.style.backgroundColor = "black";
+        contentMarkdown.style.color = "white";
+    }
+    darkModeOn = !darkModeOn;
+}
+
 document.addEventListener('keydown', e =>{
     if (e.ctrlKey && e.key == "s"){
         e.preventDefault();
@@ -126,5 +148,9 @@ document.addEventListener('keydown', e =>{
     else if (e.ctrlKey && e.key == ","){
         e.preventDefault();
         toggleMarkdown();
+    }
+    else if (e.ctrlKey && e.key == " "){
+        e.preventDefault();
+        toggleDarkMode();
     }
 })
