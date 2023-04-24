@@ -14,6 +14,6 @@ The `serve_live.py` file uses waitress to serve the web app. Alternatively, you 
 - Add Note Sharing with public links
 - Improve Design
 
-# Licence
+# License
 
 The code is licensed under MIT license.
