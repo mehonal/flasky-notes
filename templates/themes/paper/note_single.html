@@ -1,6 +1,6 @@
 {% extends "template-loggedin.html" %}
 {% block body %}
-<link rel="stylesheet" href="{{url_for('static',filename='style/note_single.css')}}">
+<link rel="stylesheet" href="{{url_for('static',filename='style/themes/paper/note_single.css')}}">
 <form method="POST">
 <div class="container-fluid">
 <div class="row">
@@ -46,7 +46,7 @@
 </div>
 </div>
 </form>
-<script src="{{url_for('static',filename='script/note_single.js')}}"></script>
+<script src="{{url_for('static',filename='script/themes/paper/note_single.js')}}"></script>
 {% if note %}
 <script>
 

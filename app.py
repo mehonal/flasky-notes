@@ -307,14 +307,14 @@ def logout():
 @app.route("/notes")
 def notes_page():
     if g.user:
-        return render_template("notes.html")
+        return render_template("themes/paper/notes.html")
     else:
         return "You must log in."
 
 @app.route("/notes/fullscreen")
 def notes_fullscreen_page():
     if g.user:
-        return render_template("notes_full.html")
+        return render_template("themes/full/notes.html")
     else:
         return "You must log in."
 
@@ -327,7 +327,7 @@ def categories_page():
             if c is not None:
                 if c not in categories:
                     categories.append(c)
-        return render_template("categories.html", categories = categories)
+        return render_template("themes/paper/categories.html", categories = categories)
     else:
         return "You must log in."
 
@@ -335,7 +335,7 @@ def categories_page():
 def notes_with_category_page(category):
     if g.user:
         notes = UserNote.query.filter_by(userid=g.user.id,category=category).order_by(UserNote.date_last_changed.desc()).all()
-        return render_template("notes.html", category= category, notes_of_category = True, notes = notes)
+        return render_template("themes/paper/notes.html", category= category, notes_of_category = True, notes = notes)
     else:
         return "You must log in."
 
@@ -361,7 +361,7 @@ def note_single_page(note_id):
                     note_category = None
                 note = g.user.add_note(note_title,note_content,note_category)
                 return redirect(url_for('note_single_page', note_id = note.id))
-            return render_template("note_single.html", font_size=font_size)
+            return render_template("themes/paper/note_single.html", font_size=font_size)
         note = UserNote.query.filter_by(id=note_id).first()
         if note and note is not None:
             if g.user == note.user:
@@ -385,7 +385,7 @@ def note_single_page(note_id):
                     note.change_content(note_content)
                     note.change_category(note_category)
                     return redirect(url_for('note_single_page', note_id = note.id))
-                return render_template("note_single.html", note = note, font_size=font_size)
+                return render_template("themes/paper/note_single.html", note = note, font_size=font_size)
     return "Not Found."
 
 @app.route("/note/<int:note_id>/fullscreen", methods=['GET','POST'])
@@ -421,7 +421,7 @@ def note_fullscreen_page(note_id): # work-in-progress.
                 note_content = None
             note = g.user.add_note(note_title,note_content,None)
             return redirect(url_for('note_fullscreen_page', note_id = note.id))
-    return render_template("note_single_full.html", note = note, note_id = note_id, font_size = font_size)
+    return render_template("themes/full/note_single.html", note = note, note_id = note_id, font_size = font_size)
 
 #=============================================================================================================#
 #=================================================Validation==================================================#
