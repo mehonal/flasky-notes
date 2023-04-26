@@ -85,6 +85,20 @@ class User(db.Model):
     user_type = db.Column(db.Integer, default = 0)
     settings = db.relationship('UserSettings', uselist = False, backref= "user")
 
+    def get_current_theme_font_size(self):
+        try:
+            settings = self.return_settings()
+            theme = settings.theme_preference
+            if theme == "paper":
+                return settings.theme_paper_font_size
+            elif theme == "full":
+                return settings.theme_full_font_size
+            print("Could not find theme to use for font size via User.return_current_theme_font_size. Using default (16)")
+            return 16
+        except:
+            print("Could not retrieve font size via User.return_current_theme_font_size. Using default (16)")
+            return 16
+
     def update_theme_notes_height(self, theme, new_height):
         settings = self.return_settings()
         if settings is None:
