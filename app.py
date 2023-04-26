@@ -380,7 +380,11 @@ def after_request(response):
 @app.route("/")
 def index_page():
     if g.user:
-        return redirect(url_for('paper_notes_page'))
+        theme = g.user.return_settings().theme_preference
+        if theme == "paper":
+            return redirect(url_for('paper_notes_page'))
+        else: # assuming it is "full"
+            return redirect(url_for('full_notes_page'))
     else:
         return redirect(url_for('login_page'))
 
