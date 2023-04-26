@@ -85,6 +85,20 @@ class User(db.Model):
     user_type = db.Column(db.Integer, default = 0)
     settings = db.relationship('UserSettings', uselist = False, backref= "user")
 
+    def get_current_theme_dark_mode(self):
+        try:
+            settings = self.return_settings()
+            theme = settings.theme_preference
+            if theme == "paper":
+                return settings.theme_paper_dark_theme
+            elif theme == "full":
+                return settings.theme_full_dark_theme
+            print("Could not find theme to use to retrieve dark mode preference via User.get_current_theme_dark_mode. Using default (off)")
+            return False
+        except:
+            print("Could not retrieve dark mode preference via User.get_current_theme_dark_mode. Using default (off)")
+            return False
+
     def get_current_theme_font_size(self):
         try:
             settings = self.return_settings()
