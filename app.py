@@ -388,6 +388,22 @@ def index_page():
     else:
         return redirect(url_for('login_page'))
 
+@app.route("/settings", methods=['GET','POST'])
+def settings_page():
+    if g.user:
+        if request.method == "POST":
+            if "update_theme_preference" in request.form:
+                theme_preference = request.form['theme_preference']
+                settings = g.user.return_settings()
+                if settings is not None:
+                    settings.theme_preference = theme_preference
+                    db.session.commit()
+                else:
+                    print("Could not update theme preference via route /settings")
+            return redirect(url_for('settings_page'))
+        return render_template("settings.html")
+    return "You must be logged in to access this page."
+
 @app.route("/register", methods = ['GET','POST'])
 def register_page():
     if request.method == 'POST':
