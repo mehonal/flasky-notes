@@ -22,7 +22,6 @@ app.permanent_session_lifetime = timedelta(days=7)
 
 db = SQLAlchemy(app)
 
-
 '''
 migrate = Migrate(app, db, render_as_batch=True) # this
 
@@ -56,14 +55,34 @@ def valid_email(email):
 #==================================================CLASSES====================================================#
 #=============================================================================================================#
 
+'''
+Current Theme List:
+
+- paper
+- full
+
+'''
+
+class UserSettings(db.Model):
+    id = db.Column(db.Integer, primary_key = True)
+    theme_preference = db.Column(db.String(100), default = "paper")
+    theme_paper_font_size = db.Column(db.Integer, default = 16)
+    theme_paper_dark_theme = db.Column(db.Boolean, default = False) # future plans
+    theme_full_font_size = db.Column(db.Integer, default = 16)
+    theme_full_dark_theme = db.Column(db.Boolean, default = False)
+    theme_full_notes_row_count = db.Column(db.Integer, default = 3)
+    theme_full_notes_height = db.Column(db.Integer, default = 150)
+
 
 class User(db.Model):
     id = db.Column(db.Integer, primary_key = True, autoincrement = True)
+    settingsid = db.Column(db.Integer, db.ForeignKey('user_settings.id'), unique = True)
     username = db.Column(db.String(30), unique = True)
     password = db.Column(db.String(280))
     email = db.Column(db.String(300), unique = True)
     plan = db.Column(db.Integer, default = 0)
     user_type = db.Column(db.Integer, default = 0)
+    settings = db.relationship('UserSettings', uselist = False, backref= "user")
 
     def delete_note(self,note_id):
         try:
@@ -104,6 +123,10 @@ class User(db.Model):
         self.password = hashed_pw
         self.email = email
         db.session.add(self)
+        db.session.commit()
+        settings = UserSettings(id=User.query.filter_by(username=self.username).first().id)
+        db.session.commit()
+        self.settings = settings
         db.session.commit()
 
 
