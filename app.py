@@ -352,6 +352,14 @@ def save_notes_row_count(row_count):
     else:
         return jsonify(success=False,reason="Not logged in.")
 
+@app.route("/api/save_notes_height/<int:height>")
+def save_notes_height(height):
+    if g.user:
+        theme = g.user.return_settings().theme_preference
+        g.user.update_theme_notes_height(theme, height)
+        return jsonify(success=True,theme=theme,new_height=height)
+    else:
+        return jsonify(success=False,reason="Not logged in.")
 
 #==============================================request handling===============================================#
 
