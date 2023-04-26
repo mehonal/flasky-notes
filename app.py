@@ -85,6 +85,18 @@ class User(db.Model):
     user_type = db.Column(db.Integer, default = 0)
     settings = db.relationship('UserSettings', uselist = False, backref= "user")
 
+    def get_current_theme_notes_height(self):
+        try:
+            settings = self.return_settings()
+            theme = settings.theme_preference
+            if theme == "full":
+                return settings.theme_full_notes_height
+            print("Could not find theme to use to retrieve note height for notes via User.get_current_theme_notes_height. Using default (150)")
+            return 150
+        except:
+            print("Could not retrieve note height for notes via User.get_current_theme_notes_height. Using default (150)")
+            return 150
+
     def get_current_theme_notes_row_count(self):
         try:
             settings = self.return_settings()
@@ -96,7 +108,6 @@ class User(db.Model):
         except:
             print("Could not retrieve row count preference for notes via User.get_current_theme_notes_row_count. Using default (3)")
             return 3
-
 
     def get_current_theme_dark_mode(self):
         try:
