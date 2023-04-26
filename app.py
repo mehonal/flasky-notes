@@ -85,6 +85,18 @@ class User(db.Model):
     user_type = db.Column(db.Integer, default = 0)
     settings = db.relationship('UserSettings', uselist = False, backref= "user")
 
+    def update_theme_dark_mode(self, theme, dark_mode):
+        settings = self.return_settings()
+        if settings is None:
+            print("Settings not found!")
+            return False
+        if theme == "paper":
+            settings.theme_paper_dark_theme = dark_mode
+        elif theme == "full":
+            settings.theme_full_dark_theme = dark_mode
+        db.session.commit()
+        return True
+
     def update_theme_font_size(self, theme, new_font_size):
         settings = self.return_settings()
         if settings is None:
@@ -96,7 +108,6 @@ class User(db.Model):
             settings.theme_full_font_size = new_font_size
         db.session.commit()
         return True
-            
 
     def return_settings(self):
         try:
