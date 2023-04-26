@@ -380,7 +380,7 @@ def after_request(response):
 @app.route("/")
 def index_page():
     if g.user:
-        return redirect(url_for('notes_page'))
+        return redirect(url_for('paper_notes_page'))
     else:
         return redirect(url_for('login_page'))
 
@@ -419,7 +419,7 @@ def login_page():
         if user and bcrypt.checkpw(str(password).encode('utf-8'),user.password):
             session['user_id'] = user.id
             session.permanent = True
-            return redirect(url_for('notes_page'))
+            return redirect(url_for('paper_notes_page'))
         else:
             return 'The username or password is not correct. You can try again via the <a href="/login">Login Page</a>.'
     return render_template("login.html")
@@ -433,14 +433,14 @@ def logout():
         return redirect(url_for('login_page'))
 
 @app.route("/notes")
-def notes_page():
+def paper_notes_page():
     if g.user:
         return render_template("themes/paper/notes.html")
     else:
         return "You must log in."
 
 @app.route("/notes/fullscreen")
-def notes_fullscreen_page():
+def full_notes_page():
     if g.user:
         return render_template("themes/full/notes.html")
     else:
@@ -460,7 +460,7 @@ def categories_page():
         return "You must log in."
 
 @app.route("/notes/<category>")
-def notes_with_category_page(category):
+def paper_notes_with_category_page(category):
     if g.user:
         notes = UserNote.query.filter_by(userid=g.user.id,category=category).order_by(UserNote.date_last_changed.desc()).all()
         return render_template("themes/paper/notes.html", category= category, notes_of_category = True, notes = notes)
@@ -468,7 +468,7 @@ def notes_with_category_page(category):
         return "You must log in."
 
 @app.route("/note/<int:note_id>", methods=['GET','POST'])
-def note_single_page(note_id):
+def paper_note_single_page(note_id):
     if g.user:
         font_size = g.user.get_current_theme_font_size()
         if note_id == 0:
@@ -483,7 +483,7 @@ def note_single_page(note_id):
                 if len(note_category) < 1:
                     note_category = None
                 note = g.user.add_note(note_title,note_content,note_category)
-                return redirect(url_for('note_single_page', note_id = note.id))
+                return redirect(url_for('paper_note_single_page', note_id = note.id))
             return render_template("themes/paper/note_single.html", font_size=font_size)
         note = UserNote.query.filter_by(id=note_id).first()
         if note and note is not None:
@@ -491,10 +491,10 @@ def note_single_page(note_id):
                 if request.method == "POST":
                     if "revert_to_last_version" in request.form:
                         note.revert_to_last_version()
-                        return redirect(url_for('note_single_page', note_id = note.id))
+                        return redirect(url_for('paper_note_single_page', note_id = note.id))
                     if "delete_note" in request.form:
                         g.user.delete_note(note_id)
-                        return redirect(url_for('notes_page'))
+                        return redirect(url_for('paper_notes_page'))
                     note_title = request.form['title']
                     note_content = request.form['content']
                     note_category = request.form['category']
@@ -507,12 +507,12 @@ def note_single_page(note_id):
                     note.change_title(note_title)
                     note.change_content(note_content)
                     note.change_category(note_category)
-                    return redirect(url_for('note_single_page', note_id = note.id))
+                    return redirect(url_for('paper_note_single_page', note_id = note.id))
                 return render_template("themes/paper/note_single.html", note = note, font_size=font_size)
     return "Not Found."
 
 @app.route("/note/<int:note_id>/fullscreen", methods=['GET','POST'])
-def note_fullscreen_page(note_id):
+def full_note_single_page(note_id):
     if g.user:
         font_size = g.user.get_current_theme_font_size()
         if note_id != 0:
@@ -529,7 +529,7 @@ def note_fullscreen_page(note_id):
                     note_title = None
                 if len(note_content) < 1:
                     note_content = None
-                return redirect(url_for('note_fullscreen_page', note_id = note.id))
+                return redirect(url_for('full_note_single_page', note_id = note.id))
         else:
             if request.method == "POST":
                 note_title = request.form['title']
@@ -539,7 +539,7 @@ def note_fullscreen_page(note_id):
                 if len(note_content) < 1:
                     note_content = None
                 note = g.user.add_note(note_title,note_content,None)
-                return redirect(url_for('note_fullscreen_page', note_id = note.id))
+                return redirect(url_for('full_note_single_page', note_id = note.id))
         return render_template("themes/full/note_single.html", note = note, note_id = note_id, font_size = font_size)
 
 #=============================================================================================================#
