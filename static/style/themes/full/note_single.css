@@ -108,9 +108,8 @@ input[type=text]{
     color:white;
 }
 
-
 .callout{
     display: block;
-    padding: 5%;
+    padding: 20px;
     background-color: lightgray;
 }
