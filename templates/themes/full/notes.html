@@ -33,6 +33,8 @@
 
     <script>
         numberOfRows = {{g.user.get_current_theme_notes_row_count()}};
+        rowHeight = {{g.user.get_current_theme_notes_height()}};
+        tweakRowHeight();
         tweakRows();
     </script>
 

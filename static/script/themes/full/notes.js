@@ -1,4 +1,5 @@
 numberOfRows = 3;
+rowHeight = 150;
 noteDivs = document.querySelectorAll(".note-div");
 
 function addNewNote(){
@@ -80,14 +81,25 @@ function saveNotesPerRow(){
 }
 
 function decreaseRowHeight(){
-    noteDivs.forEach((el)=>{
-        el.style.height = (parseInt(el.style.height) - 10) + "px";
-    })
+    rowHeight -= 10;
+    tweakRowHeight();
+    saveRowHeight();
 }
 
 function increaseRowHeight(){
+    rowHeight += 10;
+    tweakRowHeight();
+    saveRowHeight();
+}
+
+function saveRowHeight(){
+    fetch('/api/save_notes_height/' + rowHeight)
+    .then( response => response.json() )
+}
+
+function tweakRowHeight(){
     noteDivs.forEach((el)=>{
-        el.style.height = (parseInt(el.style.height) + 10) + "px";
+        el.style.height = rowHeight + "px";
     })
 }
 
