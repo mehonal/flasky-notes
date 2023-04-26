@@ -348,7 +348,7 @@ def save_notes_row_count(row_count):
     if g.user:
         theme = g.user.return_settings().theme_preference
         g.user.update_theme_notes_row_count(theme, row_count)
-        return jsonify(success=True,theme=theme,row_count=row_count)
+        return jsonify(success=True,theme=theme,new_row_count=row_count)
     else:
         return jsonify(success=False,reason="Not logged in.")
 
