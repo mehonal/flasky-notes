@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 import supersecret # file containing sensitive info
 import bcrypt # for encrypting/decrypting passwords
 import logging
-# from flask_migrate import Migrate
+# from flask_migrate import Migrate # uncomment for migrations
 # import urllib.parse # for parsing encoded URIComponents
 import re
 
@@ -23,9 +23,10 @@ app.permanent_session_lifetime = timedelta(days=7)
 db = SQLAlchemy(app)
 
 '''
-migrate = Migrate(app, db, render_as_batch=True) # this
+migrate = Migrate(app, db, render_as_batch=True) # uncomment for migrations
 
 TO RUN MIGRATIONS:
+$ flask db init
 $ flask db stamp head
 $ flask db migrate
 $ flask db upgrade
