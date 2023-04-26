@@ -85,6 +85,15 @@ class User(db.Model):
     user_type = db.Column(db.Integer, default = 0)
     settings = db.relationship('UserSettings', uselist = False, backref= "user")
 
+
+
+    def return_settings(self):
+        try:
+            return self.settings
+        except:
+            print("Could not return settings via User.return_settings.")
+            return None
+
     def delete_note(self,note_id):
         try:
             note = UserNote.query.filter_by(userid=self.id,id=note_id).first()
