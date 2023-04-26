@@ -512,34 +512,35 @@ def note_single_page(note_id):
     return "Not Found."
 
 @app.route("/note/<int:note_id>/fullscreen", methods=['GET','POST'])
-def note_fullscreen_page(note_id): # work-in-progress.
-    font_size = g.user.get_current_theme_font_size()
-    if note_id != 0:
-        note = UserNote.query.filter_by(id=note_id).first()
-    else:
-        note = None
-    if note and note is not None:
-        if request.method == "POST":
-            note_title = request.form['title']
-            note_content = request.form['content']
-            note.change_title(note_title)
-            note.change_content(note_content)
-            if len(note_title) < 1:
-                note_title = None
-            if len(note_content) < 1:
-                note_content = None
-            return redirect(url_for('note_fullscreen_page', note_id = note.id))
-    else:
-        if request.method == "POST":
-            note_title = request.form['title']
-            note_content = request.form['content']
-            if len(note_title) < 1:
-                note_title = None
-            if len(note_content) < 1:
-                note_content = None
-            note = g.user.add_note(note_title,note_content,None)
-            return redirect(url_for('note_fullscreen_page', note_id = note.id))
-    return render_template("themes/full/note_single.html", note = note, note_id = note_id, font_size = font_size)
+def note_fullscreen_page(note_id):
+    if g.user:
+        font_size = g.user.get_current_theme_font_size()
+        if note_id != 0:
+            note = UserNote.query.filter_by(id=note_id).first()
+        else:
+            note = None
+        if note and note is not None:
+            if request.method == "POST":
+                note_title = request.form['title']
+                note_content = request.form['content']
+                note.change_title(note_title)
+                note.change_content(note_content)
+                if len(note_title) < 1:
+                    note_title = None
+                if len(note_content) < 1:
+                    note_content = None
+                return redirect(url_for('note_fullscreen_page', note_id = note.id))
+        else:
+            if request.method == "POST":
+                note_title = request.form['title']
+                note_content = request.form['content']
+                if len(note_title) < 1:
+                    note_title = None
+                if len(note_content) < 1:
+                    note_content = None
+                note = g.user.add_note(note_title,note_content,None)
+                return redirect(url_for('note_fullscreen_page', note_id = note.id))
+        return render_template("themes/full/note_single.html", note = note, note_id = note_id, font_size = font_size)
 
 #=============================================================================================================#
 #=================================================Validation==================================================#
