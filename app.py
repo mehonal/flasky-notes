@@ -361,6 +361,19 @@ def save_notes_height(height):
     else:
         return jsonify(success=False,reason="Not logged in.")
 
+@app.route("/api/save_dark_mode/<int:dark_mode>")
+def save_dark_mode(dark_mode):
+    if g.user:
+        if dark_mode == 1:
+            dark_mode = True
+        else:
+            dark_mode = False
+        theme = g.user.return_settings().theme_preference
+        g.user.update_theme_dark_mode(theme, dark_mode)
+        return jsonify(success=True,theme=theme,new_dark_mode_setting=dark_mode)
+    else:
+        return jsonify(success=False,reason="Not logged in.")
+
 #==============================================request handling===============================================#
 
 
