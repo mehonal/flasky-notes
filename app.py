@@ -337,8 +337,9 @@ def check_last_edited_note_api(note_id):
 @app.route("/api/save_font_size/<int:font_size>")
 def save_font_size(font_size):
     if g.user:
-        session['font_size'] = font_size
-        return jsonify(success=True,font_size=font_size)
+        theme = g.user.return_settings().theme_preference
+        g.user.update_theme_font_size(theme, font_size)
+        return jsonify(success=True,theme=theme,font_size=font_size)
     else:
         return jsonify(success=False,reason="Not logged in.")
 
@@ -469,12 +470,7 @@ def notes_with_category_page(category):
 @app.route("/note/<int:note_id>", methods=['GET','POST'])
 def note_single_page(note_id):
     if g.user:
-        font_size = 16
-        try:
-            if 'font_size' in session:
-                font_size = int(session['font_size'])
-        except:
-            pass
+        font_size = g.user.get_current_theme_font_size()
         if note_id == 0:
             if request.method == "POST":
                 note_title = request.form['title']
@@ -517,12 +513,7 @@ def note_single_page(note_id):
 
 @app.route("/note/<int:note_id>/fullscreen", methods=['GET','POST'])
 def note_fullscreen_page(note_id): # work-in-progress.
-    font_size = 16
-    try:
-        if 'font_size' in session:
-            font_size = int(session['font_size'])
-    except:
-        pass
+    font_size = g.user.get_current_theme_font_size()
     if note_id != 0:
         note = UserNote.query.filter_by(id=note_id).first()
     else:
