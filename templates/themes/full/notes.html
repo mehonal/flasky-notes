@@ -31,6 +31,10 @@
 
     <script src="{{url_for('static',filename='script/themes/full/notes.js')}}"></script>
 
+    <script>
+        numberOfRows = {{g.user.get_current_theme_notes_row_count()}};
+        tweakRows();
+    </script>
 
 </body>
 </html>

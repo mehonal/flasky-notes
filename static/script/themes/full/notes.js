@@ -65,11 +65,18 @@ function tweakRows(){
 function decreaseNotesPerRow(){
     numberOfRows--;
     tweakRows();
+    saveNotesPerRow();
 }
 
 function increaseNotesPerRow(){
     numberOfRows++;
     tweakRows();
+    saveNotesPerRow();
+}
+
+function saveNotesPerRow(){
+    fetch('/api/save_notes_row_count/' + numberOfRows)
+    .then( response => response.json() )
 }
 
 function decreaseRowHeight(){
