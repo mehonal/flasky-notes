@@ -122,6 +122,8 @@ function toggleDarkMode(){
         contentMarkdown.style.color = "white";
     }
     darkModeOn = !darkModeOn;
+    fetch('/api/save_dark_mode/' + (darkModeOn ? 1 : 0))
+    .then( response => response.json() )
 }
 
 document.addEventListener('keydown', e =>{

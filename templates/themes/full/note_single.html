@@ -50,5 +50,12 @@
 
     <script src="{{url_for('static',filename='script/themes/full/note_single.js')}}"></script>
 
+    <script>
+        {% if g.user.get_current_theme_dark_mode() == True %}
+        toggleDarkMode();
+        {% else %}
+        darkModeOn = false;
+        {% endif %}
+    </script>
 </body>
 </html>
