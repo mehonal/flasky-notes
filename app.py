@@ -85,6 +85,16 @@ class User(db.Model):
     user_type = db.Column(db.Integer, default = 0)
     settings = db.relationship('UserSettings', uselist = False, backref= "user")
 
+    def update_theme_notes_row_count(self, theme, new_row_count):
+        settings = self.return_settings()
+        if settings is None:
+            print("Settings not found!")
+            return False
+        if theme == "full":
+            settings.theme_full_notes_row_count = new_row_count
+            db.session.commit()
+        return True
+
     def update_theme_dark_mode(self, theme, dark_mode):
         settings = self.return_settings()
         if settings is None:
