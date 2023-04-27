@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <!-- 
+
+        Notice: This page is a work-in-progress.
+
+        Page still lacks responsivity (currently optimized for laptops and larger screen devices).
+
+    -->
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="shortcut icon" href="{{url_for('static',filename='images/amazing_logo.png')}}" type="image/x-icon">
+    <link rel="stylesheet" href="{{url_for('static',filename='style/themes/dash/note_single.css')}}">
+    <title>Note Single Full</title>
+</head>
+<body>
+    <div id="menu">
+        <button class="btn btn-primary" onclick="toggleTitle()">Toggle Title</button>
+        <button class="btn btn-primary" onclick="toggleMarkdown()">Toggle Markdown</button>
+        <button class="btn btn-primary" onclick="toggleDarkMode()">Toggle Dark Mode</button>
+        <button class="btn btn-secondary" onclick="increaseFontSize()">Font +</button>
+        <button class="btn btn-secondary" onclick="decreaseFontSize()">Font -</button>
+        <button class="btn btn-success" onclick="submitForm()">Save Note</button>
+        <button class="btn btn-secondary" onclick="navigateToSettings()">Go To Settings</button>
+    </div>
+    <div class="main">
+    <div id="notes">
+        <a href="/note/0/dash" class="note new-note">
+            New Note...
+        </a>
+        {% for note in g.user.return_notes() %}
+        <a class="note" href="/note/{{note.id}}/dash">
+            {{note.title}}
+        </a>
+        {% endfor %}
+    </div>
+    <div id="note-content">
+        <form id="note-form" method="POST">
+        {% if note %}
+        <input type="hidden" name="note_id" value="{{note.id}}">
+        {% endif %}
+        <input id="title" type="text" placeholder="Note Title..." name="title" {% if note %}value="{{note.title}}"{% endif %}>
+        <textarea id="content" placeholder="Note..." name="content" style="font-size: {{font_size}}px;">{% if note %}{{note.content}}{% endif %}</textarea>
+        <div id="content-markdown"></div>
+        </form>
+    </div>
+    </div>
+
+
+    <script src="{{url_for('static',filename='script/themes/dash/note_single.js')}}"></script>
+
+    <script>
+        {% if g.user.get_current_theme_dark_mode() == True %}
+        toggleDarkMode();
+        {% else %}
+        darkModeOn = false;
+        {% endif %}
+    </script>
+</body>
+</html>

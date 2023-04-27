@@ -606,6 +606,39 @@ def full_note_single_page(note_id):
                 return redirect(url_for('full_note_single_page', note_id = note.id))
         return render_template("themes/full/note_single.html", note = note, note_id = note_id, font_size = font_size)
 
+@app.route("/note/<int:note_id>/dash", methods = ['GET','POST'])
+def dash_note_single_page(note_id):
+    if g.user:
+        font_size = g.user.get_current_theme_font_size()
+        if note_id != 0:
+            note = UserNote.query.filter_by(id=note_id).first()
+        else:
+            note = None
+        if note and note is not None:
+            if request.method == "POST":
+                note_title = request.form['title']
+                note_content = request.form['content']
+                note.change_title(note_title)
+                note.change_content(note_content)
+                if len(note_title) < 1:
+                    note_title = None
+                if len(note_content) < 1:
+                    note_content = None
+                return redirect(url_for('dash_note_single_page', note_id = note.id))
+        else:
+            if request.method == "POST":
+                note_title = request.form['title']
+                note_content = request.form['content']
+                if len(note_title) < 1:
+                    note_title = None
+                if len(note_content) < 1:
+                    note_content = None
+                note = g.user.add_note(note_title,note_content,None)
+                return redirect(url_for('dash_note_single_page', note_id = note.id))
+        return render_template("themes/dash/dash.html", note = note, font_size = font_size)
+    else:
+        return "You must log in."
+
 #=============================================================================================================#
 #=================================================Validation==================================================#
 #=============================================================================================================#
