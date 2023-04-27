@@ -469,7 +469,11 @@ def login_page():
         if user and bcrypt.checkpw(str(password).encode('utf-8'),user.password):
             session['user_id'] = user.id
             session.permanent = True
-            return redirect(url_for('paper_notes_page'))
+            theme = g.user.return_settings().theme_preference
+            if theme == "paper":
+                return redirect(url_for('paper_notes_page'))
+            else: # assuming it is "full"
+                return redirect(url_for('full_notes_page'))
         else:
             return 'The username or password is not correct. You can try again via the <a href="/login">Login Page</a>.'
     return render_template("login.html")
