@@ -73,7 +73,8 @@ class UserSettings(db.Model):
     theme_full_dark_theme = db.Column(db.Boolean, default = False)
     theme_full_notes_row_count = db.Column(db.Integer, default = 3)
     theme_full_notes_height = db.Column(db.Integer, default = 150)
-
+    theme_dash_font_size = db.Column(db.Integer, default = 16)
+    theme_dash_dark_theme = db.Column(db.Boolean, default = False)
 
 class User(db.Model):
     id = db.Column(db.Integer, primary_key = True, autoincrement = True)
