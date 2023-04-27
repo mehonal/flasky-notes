@@ -120,6 +120,8 @@ class User(db.Model):
                 return settings.theme_paper_dark_theme
             elif theme == "full":
                 return settings.theme_full_dark_theme
+            elif theme == "dash":
+                return settings.theme_dash_dark_theme
             print("Could not find theme to use to retrieve dark mode preference via User.get_current_theme_dark_mode. Using default (off)")
             return False
         except:
@@ -134,6 +136,8 @@ class User(db.Model):
                 return settings.theme_paper_font_size
             elif theme == "full":
                 return settings.theme_full_font_size
+            elif theme == "dash":
+                return settings.theme_dash_font_size
             print("Could not find theme to use for font size via User.return_current_theme_font_size. Using default (16)")
             return 16
         except:
@@ -169,6 +173,8 @@ class User(db.Model):
             settings.theme_paper_dark_theme = dark_mode
         elif theme == "full":
             settings.theme_full_dark_theme = dark_mode
+        elif theme == "dash":
+            settings.theme_dash_dark_theme = dark_mode
         db.session.commit()
         return True
 
@@ -181,6 +187,8 @@ class User(db.Model):
             settings.theme_paper_font_size = new_font_size
         elif theme == "full":
             settings.theme_full_font_size = new_font_size
+        elif theme == "dash":
+            settings.theme_dash_font_size = new_font_size
         db.session.commit()
         return True
 
