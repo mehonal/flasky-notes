@@ -4,7 +4,7 @@ contentMarkdown = document.getElementById('content-markdown');
 noteForm = document.getElementById('note-form');
 mobileMenu = document.getElementById('mobile-menu');
 darkModeOn = false;
-
+titleVisible = true;
 
 function toggleMobileMenu(){
     mobileMenu.style.display == "flex" ? mobileMenu.style.display = "none" : mobileMenu.style.display = "flex";
@@ -17,7 +17,15 @@ function submitForm(){
 }
 
 function toggleTitle(){
-    title.style.display == "none" ? title.style.display = "block" : title.style.display = "none";
+    if (titleVisible){
+        title.style.display = "none";
+        content.style.height = "calc(100vh - 50px)";
+    }
+    else{
+        title.style.display = "block";
+        content.style.height = "calc(90vh - 50px)";
+    }
+    titleToggled = !titleToggled;
     console.log("Toggled title");
 }
 
