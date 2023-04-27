@@ -18,6 +18,27 @@ The Paper theme has options provided via GUI and does not rely on keyboard short
 
 The Full theme features a fullscreen keyboard-shortcut intensive approach to noting. It's aimed to provide a swift and content-focused experience.
 
+### Keyboard Shortcuts
+
+#### Note Single
+
+- Ctrl + ArrowUp: Increase Font Size
+- Ctrl + ArrowDown: Decrease Font Size
+- Ctrl + s: Save Note
+- Ctrl + l: Toggle Title
+- Ctrl + e: Navigate to Notes
+- Ctrl + y: Navigate to Settings
+- Ctrl + ,: Toggle Markdown
+- Ctrl + Space: Toggle Dark Mode
+
+#### Notes
+
+- Ctrl + ArrowUp: Increase Height of Note
+- Ctrl + ArrowDown: Decrease Height of Note
+- Ctrl + ArrowRight: Increase Notes per Row
+- Ctrl + ArrowLeft: Decrease Notes per Row
+- Ctrl + e: Add New Note
+
 ## Dash
 
 Dash aims to combine the "best of two themes" by preserving keyboard-shortcuts available in Full and having the option to navigate around with a GUI, similar to Paper. Dash takes a single-page approach, allowing to add/edit notes and view the list of existing notes from the same page.
