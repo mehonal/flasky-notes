@@ -416,8 +416,10 @@ def index_page():
         theme = g.user.return_settings().theme_preference
         if theme == "paper":
             return redirect(url_for('paper_notes_page'))
-        else: # assuming it is "full"
-            return redirect(url_for('full_notes_page'))
+        elif theme == "full":
+                return redirect(url_for('full_notes_page'))
+        else: # assuming it is "dash"
+            return redirect(url_for('dash_note_single_page', note_id = 0))
     else:
         return redirect(url_for('login_page'))
 
@@ -488,8 +490,10 @@ def login_page():
             theme = user.return_settings().theme_preference
             if theme == "paper":
                 return redirect(url_for('paper_notes_page'))
-            else: # assuming it is "full"
+            elif theme == "full":
                 return redirect(url_for('full_notes_page'))
+            else: # assuming it is "dash"
+                return redirect(url_for('dash_note_single_page', note_id = 0))
         else:
             return 'The username or password is not correct. You can try again via the <a href="/login">Login Page</a>.'
     return render_template("login.html")
@@ -507,6 +511,8 @@ def paper_notes_page():
     if g.user:
         if g.user.return_settings().theme_preference == "full":
             return redirect(url_for('full_notes_page'))
+        elif g.user.return_settings().theme_preference == "dash":
+            return redirect(url_for('dash_note_single_page', note_id = 0))
         return render_template("themes/paper/notes.html")
     else:
         return "You must log in."
@@ -516,6 +522,8 @@ def full_notes_page():
     if g.user:
         if g.user.return_settings().theme_preference == "paper":
             return redirect(url_for('paper_notes_page'))
+        elif g.user.return_settings().theme_preference == "dash":
+            return redirect(url_for('dash_note_single_page', note_id = 0))
         return render_template("themes/full/notes.html")
     else:
         return "You must log in."
@@ -547,6 +555,8 @@ def paper_note_single_page(note_id):
         if request.method == "GET":
             if g.user.return_settings().theme_preference == "full":
                 return redirect(url_for('full_note_single_page', note_id = note_id))
+            elif g.user.return_settings().theme_preference == "dash":
+                return redirect(url_for('dash_note_single_page', note_id = note_id))
         font_size = g.user.get_current_theme_font_size()
         if note_id == 0:
             if request.method == "POST":
@@ -594,6 +604,8 @@ def full_note_single_page(note_id):
         if request.method == "GET":
             if g.user.return_settings().theme_preference == "paper":
                 return redirect(url_for('paper_note_single_page', note_id = note_id))
+            elif g.user.return_settings().theme_preference == "dash":
+                return redirect(url_for('dash_note_single_page', note_id = note_id))
         font_size = g.user.get_current_theme_font_size()
         if note_id != 0:
             note = UserNote.query.filter_by(id=note_id).first()
