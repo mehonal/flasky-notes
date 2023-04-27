@@ -489,6 +489,8 @@ def logout():
 @app.route("/notes")
 def paper_notes_page():
     if g.user:
+        if g.user.return_settings().theme_preference == "full":
+            return redirect(url_for('full_notes_page'))
         return render_template("themes/paper/notes.html")
     else:
         return "You must log in."
@@ -496,6 +498,8 @@ def paper_notes_page():
 @app.route("/notes/fullscreen")
 def full_notes_page():
     if g.user:
+        if g.user.return_settings().theme_preference == "paper":
+            return redirect(url_for('paper_notes_page'))
         return render_template("themes/full/notes.html")
     else:
         return "You must log in."
@@ -524,6 +528,9 @@ def paper_notes_with_category_page(category):
 @app.route("/note/<int:note_id>", methods=['GET','POST'])
 def paper_note_single_page(note_id):
     if g.user:
+        if request.method == "GET":
+            if g.user.return_settings().theme_preference == "full":
+                return redirect(url_for('full_note_single_page', note_id = note_id))
         font_size = g.user.get_current_theme_font_size()
         if note_id == 0:
             if request.method == "POST":
@@ -568,6 +575,9 @@ def paper_note_single_page(note_id):
 @app.route("/note/<int:note_id>/fullscreen", methods=['GET','POST'])
 def full_note_single_page(note_id):
     if g.user:
+        if request.method == "GET":
+            if g.user.return_settings().theme_preference == "paper":
+                return redirect(url_for('paper_note_single_page', note_id = note_id))
         font_size = g.user.get_current_theme_font_size()
         if note_id != 0:
             note = UserNote.query.filter_by(id=note_id).first()
