@@ -3,7 +3,7 @@ rowHeight = 150;
 noteDivs = document.querySelectorAll(".note-div");
 
 function addNewNote(){
-    window.location.href = "/note/0/fullscreen";
+    window.location.href = "/note/0/full";
 }
 
 function tweakRows(){

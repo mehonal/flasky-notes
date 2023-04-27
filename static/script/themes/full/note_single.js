@@ -46,7 +46,7 @@ function decreaseFontSize(){
 }
 
 function navigateToNotes(){
-    window.location.href = "/notes/fullscreen";
+    window.location.href = "/notes/full";
 }
 
 function navigateToSettings(){

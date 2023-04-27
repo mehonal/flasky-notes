@@ -537,7 +537,7 @@ def paper_notes_page():
     else:
         return "You must log in."
 
-@app.route("/notes/fullscreen")
+@app.route("/notes/full")
 def full_notes_page():
     if g.user:
         if g.user.return_settings().theme_preference == "paper":
@@ -618,7 +618,7 @@ def paper_note_single_page(note_id):
                 return render_template("themes/paper/note_single.html", note = note, font_size=font_size)
     return "Not Found."
 
-@app.route("/note/<int:note_id>/fullscreen", methods=['GET','POST'])
+@app.route("/note/<int:note_id>/full", methods=['GET','POST'])
 def full_note_single_page(note_id):
     if g.user:
         if request.method == "GET":
