@@ -45,16 +45,21 @@ Dash aims to combine the "best of two themes" by preserving keyboard-shortcuts a
 
 # How to deploy
 
-Currently all the Python code is packed in app.py.
+Currently all the Python code is packed in `app.py`.
 
-The `serve_live.py` file uses waitress to serve the web app. Alternatively, you can serve it using `serve_local.py` to serve it on localhost
+First you must ensure you have the required modules installed through pip. You can do this by running:
+
+`pip install -r requirements.txt`
+
+Once you've installed the requirements, you can serve the app.
+
+The `serve_live.py` file uses waitress to serve the web app. Alternatively, you can serve it using `serve_local.py` to serve it on localhost.
 
 # Future Goals
 
 - Add Support for Encryption
 - Add Note Sharing with public links
-- Improve Design
 
 # License
 
-The code is licensed under MIT license.
+Flasky Notes is an open source project from Mehonal, licensed under [MIT](https://opensource.org/licenses/MIT) license. Mehonal reserves the right to change the license of future releases of Flasky Notes.
