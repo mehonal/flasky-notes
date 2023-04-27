@@ -41,6 +41,10 @@ function navigateToNotes(){
     window.location.href = "/notes/fullscreen";
 }
 
+function navigateToSettings(){
+    window.location.href = "/settings";
+}
+
 function toggleMarkdown(){
     contentMarkdown.innerHTML = "";
     lines = content.value.split("\n");
@@ -146,6 +150,10 @@ document.addEventListener('keydown', e =>{
     else if (e.ctrlKey && e.key == "e"){
         e.preventDefault();
         navigateToNotes();
+    }
+    else if (e.ctrlKey && e.key == "y"){
+        e.preventDefault();
+        navigateToSettings();
     }
     else if (e.ctrlKey && e.key == ","){
         e.preventDefault();
