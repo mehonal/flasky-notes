@@ -133,11 +133,23 @@ class User(db.Model):
             settings = self.return_settings()
             theme = settings.theme_preference
             if theme == "paper":
-                return settings.theme_paper_font_size
+                font_size = settings.theme_paper_font_size
+                if font_size is None:
+                    font_size = 16
+                    db.session.commit()
+                return font_size
             elif theme == "full":
-                return settings.theme_full_font_size
+                font_size = settings.theme_full_font_size
+                if font_size is None:
+                    font_size = 16
+                    db.session.commit()
+                return font_size
             elif theme == "dash":
-                return settings.theme_dash_font_size
+                font_size = settings.theme_dash_font_size
+                if font_size is None:
+                    font_size = 16
+                    db.session.commit()
+                return font_size
             print("Could not find theme to use for font size via User.return_current_theme_font_size. Using default (16)")
             return 16
         except:
