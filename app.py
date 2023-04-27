@@ -469,7 +469,7 @@ def login_page():
         if user and bcrypt.checkpw(str(password).encode('utf-8'),user.password):
             session['user_id'] = user.id
             session.permanent = True
-            theme = g.user.return_settings().theme_preference
+            theme = user.return_settings().theme_preference
             if theme == "paper":
                 return redirect(url_for('paper_notes_page'))
             else: # assuming it is "full"
