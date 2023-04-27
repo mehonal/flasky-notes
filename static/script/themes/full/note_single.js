@@ -25,7 +25,7 @@ function toggleTitle(){
         title.style.display = "block";
         content.style.height = "calc(90vh - 50px)";
     }
-    titleToggled = !titleToggled;
+    titleVisible = !titleVisible;
     console.log("Toggled title");
 }
 
