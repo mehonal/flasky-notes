@@ -43,6 +43,19 @@ The Full theme features a fullscreen keyboard-shortcut intensive approach to not
 
 Dash aims to combine the "best of two themes" by preserving keyboard-shortcuts available in Full and having the option to navigate around with a GUI, similar to Paper. Dash takes a single-page approach, allowing to add/edit notes and view the list of existing notes from the same page.
 
+### Keyboard Shortcuts
+
+#### Note Single / Notes
+
+- Ctrl + ArrowUp: Increase Font Size
+- Ctrl + ArrowDown: Decrease Font Size
+- Ctrl + s: Save Note
+- Ctrl + l: Toggle Title
+- Ctrl + e: Add New Note
+- Ctrl + y: Navigate to Settings
+- Ctrl + ,: Toggle Markdown
+- Ctrl + Space: Toggle Dark Mode
+
 # How to deploy
 
 Currently all the Python code is packed in `app.py`.
