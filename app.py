@@ -61,6 +61,7 @@ Current Theme List:
 
 - paper
 - full
+- dash
 
 '''
 
@@ -75,6 +76,7 @@ class UserSettings(db.Model):
     theme_full_notes_height = db.Column(db.Integer, default = 150)
     theme_dash_font_size = db.Column(db.Integer, default = 16)
     theme_dash_dark_theme = db.Column(db.Boolean, default = False)
+
 
 class User(db.Model):
     id = db.Column(db.Integer, primary_key = True, autoincrement = True)
@@ -423,14 +425,27 @@ def index_page():
 def settings_page():
     if g.user:
         if request.method == "POST":
-            if "update_theme_preference" in request.form:
-                theme_preference = request.form['theme_preference']
+            if "update_to_paper" in request.form:
                 settings = g.user.return_settings()
                 if settings is not None:
-                    settings.theme_preference = theme_preference
+                    settings.theme_preference = "paper"
                     db.session.commit()
                 else:
-                    print("Could not update theme preference via route /settings")
+                    print("Could not update theme preference to full via route /settings")
+            elif "update_to_full" in request.form:
+                settings = g.user.return_settings()
+                if settings is not None:
+                    settings.theme_preference = "full"
+                    db.session.commit()
+                else:
+                    print("Could not update theme preference to full via route /settings")
+            elif "update_to_dash" in request.form:
+                settings = g.user.return_settings()
+                if settings is not None:
+                    settings.theme_preference = "dash"
+                    db.session.commit()
+                else:
+                    print("Could not update theme preference to full via route /settings")
             return redirect(url_for('settings_page'))
         return render_template("settings.html")
     return "You must be logged in to access this page."

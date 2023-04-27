@@ -4,18 +4,24 @@
     <h1>Settings</h1>
 
     <h2>Theme</h2>
+    {% if g.user.return_settings().theme_preference == "paper" %}
     <form method="POST">
-
-        {% if g.user.return_settings().theme_preference == "paper" %}
-        <input type="hidden" name="theme_preference" value="full">
         <input class="btn btn-success" type="submit" value="Paper (selected)" disabled>
-        <input name="update_theme_preference" class="btn btn-primary" type="submit" value="Full">
-        {% elif g.user.return_settings().theme_preference == "full" %}
-        <input type="hidden" name="theme_preference" value="paper">
-        <input name="update_theme_preference" class="btn btn-primary" type="submit" value="Paper">
-        <input class="btn btn-success" type="submit" value="Full (selected)" disabled>
-        {% endif %}
-        
+        <input name="update_to_full" class="btn btn-primary" type="submit" value="Full">
+        <input name="update_to_dash" class="btn btn-primary" type="submit" value="Dash">
     </form>
+    {% elif g.user.return_settings().theme_preference == "full" %}
+    <form method="POST">
+        <input name="update_to_paper" class="btn btn-primary" type="submit" value="Paper">
+        <input class="btn btn-success" type="submit" value="Full (selected)" disabled>
+        <input name="update_to_dash" class="btn btn-primary" type="submit" value="Dash">
+    </form>
+    {% elif g.user.return_settings().theme_preference == "dash" %}
+    <form method="POST">
+        <input name="update_to_paper" class="btn btn-primary" type="submit" value="Paper">
+        <input name="update_to_full" class="btn btn-primary" type="submit" value="Full">
+        <input class="btn btn-success" type="submit" value="Dash (selected)" disabled>
+    </form>
+    {% endif %}
 </div>
 {% endblock %}
