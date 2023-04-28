@@ -154,6 +154,10 @@ document.addEventListener('keydown', e =>{
         e.preventDefault();
         toggleTitle();
     }
+    else if (e.ctrlKey && e.key == "m"){
+        e.preventDefault();
+        toggleMobileMenu();
+    }
     else if (e.ctrlKey && e.key == "ArrowUp"){
         e.preventDefault();
         increaseFontSize();
