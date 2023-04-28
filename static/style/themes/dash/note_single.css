@@ -39,6 +39,10 @@ body{
     background-color: lightblue !important;
 }
 
+.current-note{
+    background-color: lightpink !important;
+}
+
 .main{
     display: flex;
     height: calc(100vh - 40px);

@@ -36,9 +36,9 @@
         <a href="/note/0/dash" class="note new-note">
             New Note...
         </a>
-        {% for note in g.user.return_notes() %}
-        <a class="note" href="/note/{{note.id}}/dash">
-            {{note.title}}
+        {% for nt in g.user.return_notes() %}
+        <a class="note {% if note and note.id == nt.id %}current-note{% endif %}" href="/note/{{nt.id}}/dash">
+            {{nt.title}}
         </a>
         {% endfor %}
     </div>
