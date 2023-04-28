@@ -21,11 +21,11 @@ function submitForm(){
 function toggleTitle(){
     if (titleVisible){
         title.style.display = "none";
-        content.style.height = "calc(100vh - 50px)";
+        content.style.height = "calc(100vh - 76px)";
     }
     else{
         title.style.display = "block";
-        content.style.height = "calc(90vh - 50px)";
+        content.style.height = "calc(90vh - 76px)";
     }
     titleVisible = !titleVisible;
     console.log("Toggled title");
