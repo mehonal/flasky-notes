@@ -36,6 +36,7 @@ The Full theme features a fullscreen keyboard-shortcut intensive approach to not
 
 - Ctrl + ArrowUp: Increase Font Size
 - Ctrl + ArrowDown: Decrease Font Size
+- Ctrl + m: Toggle Menu
 - Ctrl + s: Save Note
 - Ctrl + d: Delete Note
 - Ctrl + l: Toggle Title
@@ -68,6 +69,7 @@ Dash aims to combine the "best of two themes" by preserving keyboard-shortcuts a
 - Ctrl + ArrowUp: Increase Font Size
 - Ctrl + ArrowDown: Decrease Font Size
 - Ctrl + s: Save Note
+- Ctrl + d: Delete Note
 - Ctrl + l: Toggle Title
 - Ctrl + e: Add New Note
 - Ctrl + y: Navigate to Settings
