@@ -527,6 +527,19 @@ def logout():
         return redirect(url_for('login_page'))
 
 @app.route("/notes")
+def notes_page():
+    if g.user:
+        if g.user.return_settings().theme_preference == "paper":
+            return redirect(url_for('paper_notes_page'))
+        elif g.user.return_settings().theme_preference == "full":
+            return redirect(url_for('full_notes_page'))
+        elif g.user.return_settings().theme_preference == "dash":
+            return redirect(url_for('dash_note_single_page', note_id = 0))
+        return "No theme found. Please select one from <a href='/settings'>Settings</a>."
+    else:
+        return "You must log in."
+
+@app.route("/notes/paper")
 def paper_notes_page():
     if g.user:
         if g.user.return_settings().theme_preference == "full":
@@ -570,6 +583,18 @@ def paper_notes_with_category_page(category):
         return "You must log in."
 
 @app.route("/note/<int:note_id>", methods=['GET','POST'])
+def note_single_page(note_id):
+    if g.user:
+        if g.user.return_settings().theme_preference == "paper":
+            return redirect(url_for('paper_note_single_page', note_id = note_id))
+        elif g.user.return_settings().theme_preference == "full":
+            return redirect(url_for('full_note_single_page', note_id = note_id))
+        elif g.user.return_settings().theme_preference == "dash":
+            return redirect(url_for('dash_note_single_page', note_id = note_id))
+        return "No theme found. Please select one from <a href='/settings'>Settings</a>."
+    return "Not Found."
+
+@app.route("/note/<int:note_id>/paper", methods=['GET','POST'])
 def paper_note_single_page(note_id):
     if g.user:
         if request.method == "GET":
