@@ -4,6 +4,7 @@ contentMarkdown = document.getElementById('content-markdown');
 noteForm = document.getElementById('note-form');
 noteDeleteBtn = document.getElementById('note-delete-btn');
 mobileMenu = document.getElementById('mobile-menu');
+mobileMenuToggle = document.getElementById('mobile-menu-toggle');
 darkModeOn = false;
 titleVisible = true;
 
@@ -125,6 +126,8 @@ function toggleDarkMode(){
         content.style.color = "black";
         contentMarkdown.style.backgroundColor = "white";
         contentMarkdown.style.color = "black";
+        mobileMenuToggle.style.backgroundColor = "black";
+        mobileMenuToggle.style.color = "white";
     }
     else{
         title.style.backgroundColor = "black";
@@ -133,6 +136,8 @@ function toggleDarkMode(){
         content.style.color = "white";
         contentMarkdown.style.backgroundColor = "black";
         contentMarkdown.style.color = "white";
+        mobileMenuToggle.style.backgroundColor = "white";
+        mobileMenuToggle.style.color = "black";
     }
     darkModeOn = !darkModeOn;
     fetch('/api/save_dark_mode/' + (darkModeOn ? 1 : 0))
