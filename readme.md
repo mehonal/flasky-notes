@@ -14,9 +14,21 @@ The noting app aims to provide simple, fast and bloat-free noting with clean int
 
 The Paper theme has options provided via GUI and does not rely on keyboard shortcuts. It's the default theme and aims to be easy to use for the average user.
 
+### Theme-Specific Features
+
+- Fully Responsive & Optimized for all devices
+- Easy to Use
+- Notes can have categories
+
 ## Full
 
 The Full theme features a fullscreen keyboard-shortcut intensive approach to noting. It's aimed to provide a swift and content-focused experience.
+
+### Theme-Specific Features
+
+- Fullscreen Noting Experience
+- Keyboard Shortcuts
+- Clean, Bloat-Free Interface
 
 ### Keyboard Shortcuts
 
@@ -42,6 +54,11 @@ The Full theme features a fullscreen keyboard-shortcut intensive approach to not
 ## Dash
 
 Dash aims to combine the "best of two themes" by preserving keyboard-shortcuts available in Full and having the option to navigate around with a GUI, similar to Paper. Dash takes a single-page approach, allowing to add/edit notes and view the list of existing notes from the same page.
+
+### Theme-Specific Features
+
+- Controls via Keyboard Shortcuts + GUI
+- Everything on one page
 
 ### Keyboard Shortcuts
 
