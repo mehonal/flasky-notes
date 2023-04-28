@@ -19,6 +19,11 @@
 </head>
 <body>
     <div class="notes">
+    <a class="note-div add-new-note" style="height: 150px;" href="/note/0/full">
+        <div class="text-center">
+            <h2 class="add-new-note-text">Add New Note...</h2>
+        </div>
+    </a>
     {% for note in g.user.return_notes() %}
     <a class="note-div" style="height: 150px;" href="/note/{{note.id}}/full">
     <div class="text-center">

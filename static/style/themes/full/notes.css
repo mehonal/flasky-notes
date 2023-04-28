@@ -20,10 +20,23 @@ a{
     color: rgb(28, 28, 28);
     padding: 20px;
 }
+
+.add-new-note{
+    display:none;
+}
+
 @media screen and (max-width: 600px) {
     .note-div{
         width: calc(100% - 20px);
         padding: 10px;
+    }
+
+    .add-new-note{
+        display: flex;
+    }
+
+    .add-new-note-text{
+        font-weight: 100;
     }
 }
 .note-div:nth-child(2n+1){
