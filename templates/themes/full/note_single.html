@@ -18,6 +18,10 @@
     <title>Note Single Full</title>
 </head>
 <body>
+    <!-- Mobile Menu Toggle -->
+    <div id="mobile-menu-toggle" onclick="toggleMobileMenu()">
+        Open Mobile Menu
+    </div>
     <form method="POST" id="note-delete-form" style="display:none;">
         <input type="submit" id="note-delete-btn" name="delete_note" value="Delete Note">
     </form>
@@ -29,11 +33,6 @@
     <textarea id="content" placeholder="Note..." name="content" style="font-size: {{font_size}}px;">{% if note %}{{note.content}}{% endif %}</textarea>
     <div id="content-markdown"></div>
     </form>
-
-    <!-- Mobile Menu Toggle -->
-    <div id="mobile-menu-toggle" onclick="toggleMobileMenu()">
-        Open Mobile Menu
-    </div>
 
 
     <!-- Mobile Menu -->

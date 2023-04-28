@@ -58,8 +58,7 @@ body{
 #mobile-menu-toggle{
     display: none;
     text-align: center;
-    width: 100%;
-    position: fixed;
+    width: calc(100% - 6px);
     top: 0px;
     left: 0px;
     height: 20px;
@@ -71,6 +70,12 @@ body{
 @media screen and (max-width: 600px){
     #mobile-menu-toggle{
         display: block;
+    }
+    #content{
+        height: calc(90vh - 76px);
+    }
+    #content-markdown{
+        height: calc(90vh - 76px);
     }
 }
 
