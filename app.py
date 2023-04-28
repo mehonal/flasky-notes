@@ -582,7 +582,7 @@ def paper_notes_with_category_page(category):
     else:
         return "You must log in."
 
-@app.route("/note/<int:note_id>", methods=['GET','POST'])
+@app.route("/note/<int:note_id>")
 def note_single_page(note_id):
     if g.user:
         if g.user.return_settings().theme_preference == "paper":
