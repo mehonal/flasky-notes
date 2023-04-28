@@ -99,6 +99,11 @@ body{
     color:white;
 }
 
+.btn-danger{
+    background-color: red;
+    color: white;
+}
+
 .callout{
     display: block;
     padding: 20px;

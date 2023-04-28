@@ -658,6 +658,9 @@ def full_note_single_page(note_id):
             note = None
         if note and note is not None:
             if request.method == "POST":
+                if "delete_note" in request.form:
+                    g.user.delete_note(note_id)
+                    return redirect(url_for('full_notes_page'))
                 note_title = request.form['title']
                 note_content = request.form['content']
                 note.change_title(note_title)

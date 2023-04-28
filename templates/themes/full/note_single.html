@@ -18,6 +18,9 @@
     <title>Note Single Full</title>
 </head>
 <body>
+    <form method="POST" id="note-delete-form" style="display:none;">
+        <input type="submit" id="note-delete-btn" name="delete_note" value="Delete Note">
+    </form>
     <form id="note-form" method="POST">
     {% if note %}
     <input type="hidden" name="note_id" value="{{note.id}}">
@@ -43,6 +46,7 @@
         <button class="btn btn-secondary" onclick="increaseFontSize()">Font +</button>
         <button class="btn btn-secondary" onclick="decreaseFontSize()">Font -</button>
         <button class="btn btn-success" onclick="submitForm()">Save Note</button>
+        <button class="btn btn-danger" onclick="deleteNote()">Delete Note</button>
         <button class="btn btn-secondary" onclick="navigateToNotes()">Go To Notes</button>
         <button class="btn btn-secondary" onclick="navigateToSettings()">Go To Settings</button>
         <button class="btn btn-secondary" onclick="toggleMobileMenu()">Close Menu</button>

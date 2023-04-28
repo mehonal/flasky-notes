@@ -37,6 +37,7 @@ The Full theme features a fullscreen keyboard-shortcut intensive approach to not
 - Ctrl + ArrowUp: Increase Font Size
 - Ctrl + ArrowDown: Decrease Font Size
 - Ctrl + s: Save Note
+- Ctrl + d: Delete Note
 - Ctrl + l: Toggle Title
 - Ctrl + e: Navigate to Notes
 - Ctrl + y: Navigate to Settings

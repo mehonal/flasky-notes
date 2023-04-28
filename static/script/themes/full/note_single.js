@@ -2,6 +2,7 @@ title = document.getElementById('title');
 content = document.getElementById('content');
 contentMarkdown = document.getElementById('content-markdown');
 noteForm = document.getElementById('note-form');
+noteDeleteBtn = document.getElementById('note-delete-btn');
 mobileMenu = document.getElementById('mobile-menu');
 darkModeOn = false;
 titleVisible = true;
@@ -138,6 +139,12 @@ function toggleDarkMode(){
     .then( response => response.json() )
 }
 
+function deleteNote(){
+    if (window.confirm("Are you sure you want to delete this note?")){
+        noteDeleteBtn.click();
+    }
+}
+
 document.addEventListener('keydown', e =>{
     if (e.ctrlKey && e.key == "s"){
         e.preventDefault();
@@ -158,6 +165,10 @@ document.addEventListener('keydown', e =>{
     else if (e.ctrlKey && e.key == "e"){
         e.preventDefault();
         navigateToNotes();
+    }
+    else if (e.ctrlKey && e.key == "d"){
+        e.preventDefault();
+        deleteNote();
     }
     else if (e.ctrlKey && e.key == "y"){
         e.preventDefault();
