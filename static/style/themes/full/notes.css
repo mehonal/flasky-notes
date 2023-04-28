@@ -20,6 +20,9 @@ a{
     color: rgb(28, 28, 28);
     padding: 20px;
 }
+.note-div > div > h2{
+    overflow-wrap: anywhere;
+}
 
 .add-new-note{
     display:none;
