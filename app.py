@@ -682,6 +682,11 @@ def full_note_single_page(note_id):
 @app.route("/note/<int:note_id>/dash", methods = ['GET','POST'])
 def dash_note_single_page(note_id):
     if g.user:
+        if request.method == "GET":
+            if g.user.return_settings().theme_preference == "paper":
+                return redirect(url_for('paper_note_single_page', note_id = note_id))
+            elif g.user.return_settings().theme_preference == "full":
+                return redirect(url_for('full_note_single_page', note_id = note_id))
         font_size = g.user.get_current_theme_font_size()
         if note_id != 0:
             note = UserNote.query.filter_by(id=note_id).first()
