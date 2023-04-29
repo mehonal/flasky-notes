@@ -17,13 +17,25 @@ function submitForm(){
 }
 
 function toggleTitle(){
-    if (titleVisible){
-        title.style.display = "none";
-        content.style.height = "calc(100vh - 80px)";
+    if (innerWidth > 600){
+        if (titleVisible){
+            title.style.display = "none";
+            content.style.height = "calc(100vh - 80px)";
+        }
+        else{
+            title.style.display = "block";
+            content.style.height = "calc(90vh - 80px)";
+        }
     }
     else{
-        title.style.display = "block";
-        content.style.height = "calc(90vh - 80px)";
+        if (titleVisible){
+            title.style.display = "none";
+            content.style.height = "calc(100vh - " + (menu.offsetHeight + 40) + "px)";
+        }
+        else{
+            title.style.display = "block";
+            content.style.height = "calc(90vh - " + (menu.offsetHeight + 40) + "px)";
+        }
     }
     titleVisible = !titleVisible;
     console.log("Toggled title");
