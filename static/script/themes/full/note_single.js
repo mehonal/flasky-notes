@@ -70,6 +70,7 @@ function toggleMarkdown(){
             })
             l = newLine;
         }
+        // checking for code
         arr = l.split("`");
         if (arr.length > 2){
             code = true;
