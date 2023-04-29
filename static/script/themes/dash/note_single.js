@@ -6,6 +6,7 @@ noteForm = document.getElementById('note-form');
 noteDeleteBtn = document.getElementById('note-delete-btn');
 noteContent = document.getElementById('note-content');
 notes = document.getElementById('notes');
+menu = document.getElementById('menu');
 notesVisible = true;
 darkModeOn = false;
 titleVisible = true;
@@ -157,14 +158,25 @@ function deleteNote(){
 }
 
 function toggleNotes(){
-
-    if (notesVisible){
-        notes.style.display = "none";
-        noteContent.style.width = "100vw";
+    if (innerWidth > 600){
+        if (notesVisible){
+            notes.style.display = "none";
+            noteContent.style.width = "100vw";
+        }
+        else{
+            notes.style.display = "flex";
+            noteContent.style.width = "calc(100vw - 200px)";
+        }
     }
     else{
-        notes.style.display = "flex";
-        noteContent.style.width = "calc(100vw - 200px)";
+        if (notesVisible){
+            notes.style.display = "none";
+            noteContent.style.width = "100vw";
+        }
+        else{
+            notes.style.display = "flex";
+            noteContent.style.width = "100vw";
+        }
     }
     notesVisible = !notesVisible;
 }
@@ -211,3 +223,20 @@ document.addEventListener('keydown', e =>{
         toggleNotes();
     }
 })
+
+function optimizeForMobile(){
+    menu.style.position = "fixed";
+    noteContent.style.position = "fixed";
+    noteContent.style.top = menu.offsetHeight + "px";
+    noteContent.style.height = "calc(100vh - " + menu.offsetHeight + "px)";
+    content.style.height = "calc(100vh - " + (menu.offsetHeight + title.offsetHeight + 40) + "px)";
+}
+
+function initRun(){
+    if (innerWidth < 600){
+        toggleNotes();
+        optimizeForMobile();
+    }
+}
+
+initRun();

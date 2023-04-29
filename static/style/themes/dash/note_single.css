@@ -152,3 +152,16 @@ body{
     background: #f0f0f0; 
   }
    
+@media screen and (max-width: 600px){
+    #menu{
+        height: fit-content;
+        flex-wrap: wrap;
+        background-color: lightblue;
+    }
+    #notes{
+        position: fixed;
+        width: 100vw;
+        display: none;
+        z-index: 100;
+    }
+}
