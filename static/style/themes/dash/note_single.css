@@ -126,3 +126,21 @@ body{
     background-color: lightgray;
     color: black;
 }
+
+/* Scrollbar for Non-Firefox Browsers */
+::-webkit-scrollbar {
+    width: 9px;
+  }
+  
+  ::-webkit-scrollbar-thumb {
+    background: #a0a0a0; 
+  }
+  
+  ::-webkit-scrollbar-thumb:hover {
+    background: #7c7c7c; 
+  }
+
+  ::-webkit-scrollbar-track {
+    background: #f0f0f0; 
+  }
+   
