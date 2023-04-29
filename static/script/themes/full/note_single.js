@@ -70,6 +70,16 @@ function toggleMarkdown(){
             })
             l = newLine;
         }
+        arr = l.split("`");
+        if (arr.length > 2){
+            code = true;
+            newLine = "";
+            arr.forEach((el, i) =>{
+                code == false ? newLine += "<span class='code'>" + el : newLine += "</span>" + el;
+                code = !code;
+            })
+            l = newLine;
+        }
         if (l.slice(0,6) == "######"){
             contentMarkdown.innerHTML += `<h6>${l.slice(6)}</h6>`;
         }

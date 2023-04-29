@@ -117,6 +117,14 @@ body{
     color: black;
 }
 
+.code{
+    background-color: #bbb;
+    color: black;
+    padding: 2px 5px;
+    margin: 2px;
+    border-radius: 3px;
+}
+
 /* Scrollbar for Non-Firefox Browsers */
 ::-webkit-scrollbar {
     width: 9px;
