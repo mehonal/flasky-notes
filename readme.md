@@ -99,6 +99,10 @@ The `serve_live.py` file uses waitress to serve the web app. Alternatively, you 
 - Add Support for Encryption
 - Add Note Sharing with public links
 
+# Compatibility
+
+Flasky Notes has been tested primarily on Ubuntu using a Firefox browser, but should be compatible with all devices and operating systems that can run a browser that is up-to-date. 
+
 # License
 
 Flasky Notes is an open source project from Mehonal, licensed under [MIT](https://opensource.org/licenses/MIT) license. Mehonal reserves the right to change the license of future releases of Flasky Notes.
