@@ -4,6 +4,9 @@ content = document.getElementById('content');
 contentMarkdown = document.getElementById('content-markdown');
 noteForm = document.getElementById('note-form');
 noteDeleteBtn = document.getElementById('note-delete-btn');
+noteContent = document.getElementById('note-content');
+notes = document.getElementById('notes');
+notesVisible = true;
 darkModeOn = false;
 titleVisible = true;
 
@@ -153,6 +156,19 @@ function deleteNote(){
     }
 }
 
+function toggleNotes(){
+
+    if (notesVisible){
+        notes.style.display = "none";
+        noteContent.style.width = "100vw";
+    }
+    else{
+        notes.style.display = "flex";
+        noteContent.style.width = "calc(100vw - 200px)";
+    }
+    notesVisible = !notesVisible;
+}
+
 document.addEventListener('keydown', e =>{
     if (e.ctrlKey && e.key == "s"){
         e.preventDefault();
@@ -189,5 +205,9 @@ document.addEventListener('keydown', e =>{
     else if (e.ctrlKey && e.key == " "){
         e.preventDefault();
         toggleDarkMode();
+    }
+    else if (e.ctrlKey && e.key == "Enter"){
+        e.preventDefault();
+        toggleNotes();
     }
 })
