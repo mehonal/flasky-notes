@@ -97,7 +97,12 @@ The `serve_live.py` file uses waitress to serve the web app. Alternatively, you 
 # Future Goals
 
 - Add Support for Encryption
+- Security hardening
 - Add Note Sharing with public links
+- Automatic note saving (optional setting)
+- Improving Markdown Support for Full and Dash themes
+- Add Word Count
+- Add Font Selection
 
 # Compatibility
 
