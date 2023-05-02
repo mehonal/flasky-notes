@@ -433,6 +433,19 @@ def save_dark_mode(dark_mode):
     else:
         return jsonify(success=False,reason="Not logged in.")
 
+@app.route("/api/save_font", methods=['POST'])
+def save_font():
+    if g.user:
+        new_font = request.data
+        if len(new_font) < 250:
+            theme = g.user.return_settings().theme_preference
+            g.user.update_theme_font(theme, new_font)
+            return jsonify(success=True,theme=theme,new_font=new_font)
+        else:
+            return jsonify(success=False,reason="Font exceeds max allowed character limit of 250.")
+    else:
+        return jsonify(success=False,reason="Not logged in.")
+
 #==============================================request handling===============================================#
 
 
