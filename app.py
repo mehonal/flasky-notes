@@ -436,7 +436,7 @@ def save_dark_mode(dark_mode):
 @app.route("/api/save_font", methods=['POST'])
 def save_font():
     if g.user:
-        new_font = request.data
+        new_font = str(request.data)
         if len(new_font) < 250:
             theme = g.user.return_settings().theme_preference
             g.user.update_theme_font(theme, new_font)

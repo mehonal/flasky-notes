@@ -31,6 +31,11 @@
         <button class="btn btn-success" onclick="submitForm()">Save Note</button>
         {% if note %}<button class="btn btn-danger" onclick="deleteNote()">Delete Note</button>{% endif %}
         <button class="btn btn-secondary" onclick="navigateToSettings()">Go To Settings</button>
+        <select name="font-select" id="font-select" onchange="changeFont()">
+            <option value="serif">Serif</option>
+            <option value="sans-serif">Sans Serif</option>
+            <option value="'Times New Roman', serif">Times New Roman</option>
+        </select>
     </div>
     <div class="main">
     <div id="notes">
@@ -64,6 +69,9 @@
         {% else %}
         darkModeOn = false;
         {% endif %}
+
+        fontPreference = '{{g.user.get_current_theme_font()}}';
+        updateFont(fontPreference);
     </script>
 </body>
 </html>
