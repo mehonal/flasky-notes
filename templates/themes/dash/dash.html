@@ -1,3 +1,5 @@
+{% set font = g.user.get_current_theme_font() %}
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -32,14 +34,14 @@
         {% if note %}<button class="btn btn-danger" onclick="deleteNote()">Delete Note</button>{% endif %}
         <button class="btn btn-secondary" onclick="navigateToSettings()">Go To Settings</button>
         <select name="font-select" id="font-select" onchange="changeFont()">
-            <option value="monospace">Monospace</option>
-            <option value="serif">Serif</option>
-            <option value="sans-serif">Sans Serif</option>
-            <option value="Arial, sans-serif">Arial</option>
-            <option value="Courier, monospace">Courier</option>
-            <option value="Courier New, monospace">Courier New</option>
-            <option value="Ubuntu, sans-serif">Ubuntu</option>
-            <option value="Times New Roman, serif">Times New Roman</option>
+            <option value="monospace" {% if font == "monospace" %}selected{% endif %}>Monospace</option>
+            <option value="serif" {% if font == "serif" %}selected{% endif %}>Serif</option>
+            <option value="sans-serif" {% if font == "sans-serif" %}selected{% endif %}>Sans Serif</option>
+            <option value="Arial, sans-serif" {% if font == "Arial, sans-serif" %}selected{% endif %}>Arial</option>
+            <option value="Courier, monospace" {% if font == "Courier, monospace" %}selected{% endif %}>Courier</option>
+            <option value="Courier New, monospace" {% if font == "Courier New, monospace" %}selected{% endif %}>Courier New</option>
+            <option value="Ubuntu, sans-serif" {% if font == "Ubuntu, sans-serif" %}selected{% endif %}>Ubuntu</option>
+            <option value="Times New Roman, serif" {% if font == "Times New Roman, serif" %}selected{% endif %}>Times New Roman</option>
         </select>
     </div>
     <div class="main">
@@ -75,7 +77,7 @@
         darkModeOn = false;
         {% endif %}
 
-        fontPreference = '{{g.user.get_current_theme_font()}}';
+        fontPreference = '{{font}}';
         updateFont(fontPreference);
     </script>
 </body>
