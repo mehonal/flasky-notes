@@ -175,6 +175,23 @@ class User(db.Model):
             print("Could not retrieve font size via User.return_current_theme_font_size. Using default (16)")
             return 16
 
+    def update_theme_font(self, theme, new_font):
+        settings = self.return_settings()
+        if settings is None:
+            print("Settings not found!")
+            return False
+        if theme == "paper":
+            settings.theme_paper_font = new_font
+        elif theme == "full":
+            settings.theme_full_font = new_font
+        elif theme == "dash":
+            settings.theme_dash_font = new_font
+        else:
+            print("Could not find theme to update font via User.update_theme_font. No action was taken.")
+            return False
+        db.session.commit()
+        return True
+
     def update_theme_notes_height(self, theme, new_height):
         settings = self.return_settings()
         if settings is None:
