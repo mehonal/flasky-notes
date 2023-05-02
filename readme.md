@@ -102,7 +102,7 @@ The `serve_live.py` file uses waitress to serve the web app. Alternatively, you 
 - Automatic note saving (optional setting)
 - Improving Markdown Support for Full and Dash themes
 - Add Word Count
-- Add Font Selection
+- Add Font Selection for Full Theme
 
 # Compatibility
 
