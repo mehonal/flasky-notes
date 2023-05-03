@@ -690,6 +690,8 @@ def paper_note_single_page(note_id):
                     note.change_category(note_category)
                     return redirect(url_for('paper_note_single_page', note_id = note.id))
                 return render_template("themes/paper/note_single.html", note = note, font_size=font_size)
+            else:
+                return "You do not own this note. Click here to go to your <a href='/notes'>notes</a>."
     return "Not Found."
 
 @app.route("/note/<int:note_id>/full", methods=['GET','POST'])
@@ -706,19 +708,22 @@ def full_note_single_page(note_id):
         else:
             note = None
         if note and note is not None:
-            if request.method == "POST":
-                if "delete_note" in request.form:
-                    g.user.delete_note(note_id)
-                    return redirect(url_for('full_notes_page'))
-                note_title = request.form['title']
-                note_content = request.form['content']
-                note.change_title(note_title)
-                note.change_content(note_content)
-                if len(note_title) < 1:
-                    note_title = None
-                if len(note_content) < 1:
-                    note_content = None
-                return redirect(url_for('full_note_single_page', note_id = note.id))
+            if g.user == note.user:
+                if request.method == "POST":
+                    if "delete_note" in request.form:
+                        g.user.delete_note(note_id)
+                        return redirect(url_for('full_notes_page'))
+                    note_title = request.form['title']
+                    note_content = request.form['content']
+                    note.change_title(note_title)
+                    note.change_content(note_content)
+                    if len(note_title) < 1:
+                        note_title = None
+                    if len(note_content) < 1:
+                        note_content = None
+                    return redirect(url_for('full_note_single_page', note_id = note.id))
+            else:
+                return "You do not own this note. Click here to go to your <a href='/notes'>notes</a>."
         else:
             if request.method == "POST":
                 note_title = request.form['title']
@@ -745,19 +750,22 @@ def dash_note_single_page(note_id):
         else:
             note = None
         if note and note is not None:
-            if request.method == "POST":
-                if "delete_note" in request.form:
-                    g.user.delete_note(note_id)
-                    return redirect(url_for('dash_note_single_page', note_id = 0))
-                note_title = request.form['title']
-                note_content = request.form['content']
-                note.change_title(note_title)
-                note.change_content(note_content)
-                if len(note_title) < 1:
-                    note_title = None
-                if len(note_content) < 1:
-                    note_content = None
-                return redirect(url_for('dash_note_single_page', note_id = note.id))
+            if g.user == note.user:
+                if request.method == "POST":
+                    if "delete_note" in request.form:
+                        g.user.delete_note(note_id)
+                        return redirect(url_for('dash_note_single_page', note_id = 0))
+                    note_title = request.form['title']
+                    note_content = request.form['content']
+                    note.change_title(note_title)
+                    note.change_content(note_content)
+                    if len(note_title) < 1:
+                        note_title = None
+                    if len(note_content) < 1:
+                        note_content = None
+                    return redirect(url_for('dash_note_single_page', note_id = note.id))
+            else:
+                return "You do not own this note. Click here to go to your <a href='/notes'>notes</a>."
         else:
             if request.method == "POST":
                 note_title = request.form['title']
