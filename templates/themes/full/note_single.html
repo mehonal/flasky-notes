@@ -30,8 +30,8 @@
     {% if note %}
     <input type="hidden" name="note_id" value="{{note.id}}">
     {% endif %}
-    <input id="title" type="text" placeholder="Note Title..." name="title" {% if note %}value="{{note.title}}"{% endif %}>
-    <textarea id="content" placeholder="Note..." name="content" style="font-size: {{font_size}}px;">{% if note %}{{note.content}}{% endif %}</textarea>
+    <input id="title" type="text" placeholder="Note Title..." name="title" {% if note and note.title %}value="{{note.title}}"{% endif %}>
+    <textarea id="content" placeholder="Note..." name="content" style="font-size: {{font_size}}px;">{% if note and note.content %}{{note.content}}{% endif %}</textarea>
     <div id="content-markdown"></div>
     </form>
 
