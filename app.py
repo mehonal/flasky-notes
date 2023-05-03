@@ -75,7 +75,7 @@ class UserSettings(db.Model):
     theme_full_dark_theme = db.Column(db.Boolean, default = False)
     theme_full_notes_row_count = db.Column(db.Integer, default = 3)
     theme_full_notes_height = db.Column(db.Integer, default = 150)
-    theme_full_font = db.Column(db.String(250), default = "sans-serif") # not implemented yet
+    theme_full_font = db.Column(db.String(250), default = "sans-serif")
     theme_dash_font_size = db.Column(db.Integer, default = 16)
     theme_dash_dark_theme = db.Column(db.Boolean, default = False)
     theme_dash_font = db.Column(db.String(250), default = "sans-serif")
