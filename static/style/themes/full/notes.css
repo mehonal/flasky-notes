@@ -20,7 +20,8 @@ a{
     color: rgb(28, 28, 28);
     padding: 20px;
 }
-.note-div > div > h2{
+
+.note-div > div{
     overflow-wrap: anywhere;
 }
 
