@@ -33,7 +33,7 @@
         <button class="btn btn-success" onclick="submitForm()">Save Note</button>
         {% if note %}<button class="btn btn-danger" onclick="deleteNote()">Delete Note</button>{% endif %}
         <button class="btn btn-secondary" onclick="navigateToSettings()">Go To Settings</button>
-        <select name="font-select" id="font-select" onchange="changeFont()">
+        <select class="btn" name="font-select" id="font-select" onchange="changeFont()">
             <option value="monospace" {% if font == "monospace" %}selected{% endif %}>Monospace</option>
             <option value="serif" {% if font == "serif" %}selected{% endif %}>Serif</option>
             <option value="sans-serif" {% if font == "sans-serif" %}selected{% endif %}>Sans Serif</option>
