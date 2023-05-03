@@ -23,9 +23,11 @@
     <div id="mobile-menu-toggle" onclick="toggleMobileMenu()">
         Open Mobile Menu
     </div>
+    {% if note %}
     <form method="POST" id="note-delete-form" style="display:none;">
         <input type="submit" id="note-delete-btn" name="delete_note" value="Delete Note">
     </form>
+    {% endif %}
     <form id="note-form" method="POST">
     {% if note %}
     <input type="hidden" name="note_id" value="{{note.id}}">
