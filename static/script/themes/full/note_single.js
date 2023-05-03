@@ -161,6 +161,17 @@ function deleteNote(){
     }
 }
 
+function changeFont(){
+    newFont = document.getElementById('font-select').value;
+    updateFont(newFont);
+    fetch('/api/save_font', {method: 'POST', body: newFont});
+}
+
+function updateFont(newFont){
+    content.style.fontFamily = newFont;
+    contentMarkdown.style.fontFamily = newFont;
+}
+
 document.addEventListener('keydown', e =>{
     if (e.ctrlKey && e.key == "s"){
         e.preventDefault();

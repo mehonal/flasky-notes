@@ -125,6 +125,12 @@ body{
     border-radius: 3px;
 }
 
+#font-select{
+    width: calc(100% - 10px);
+    padding: 5px;
+    text-align: center;
+}
+
 /* Scrollbar for Non-Firefox Browsers */
 ::-webkit-scrollbar {
     width: 9px;
