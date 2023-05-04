@@ -19,7 +19,7 @@ app.config['SQLALCHEMY_DATABASE_URI'] = supersecret.db_uri
 app.config['SECRET_KEY'] = supersecret.secret_key
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-app.permanent_session_lifetime = timedelta(days=7)
+app.permanent_session_lifetime = timedelta(days=CONFIG.SESSION_LIFETIME)
 
 db = SQLAlchemy(app)
 

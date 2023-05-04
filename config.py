@@ -1,2 +1,3 @@
 ENFORCE_SSL = False
 DISABLE_CACHING = False
+SESSION_LIFETIME = 7 # in days
