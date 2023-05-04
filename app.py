@@ -281,6 +281,19 @@ class User(db.Model):
             print("Could not add note.")
             return False
 
+    def generate_missing_settings(self):
+        try:
+            self.settings
+            return True
+        except:
+            settings = UserSettings.query.filter_by(self.settingsid).first()
+            if settings and settings is not None:
+                return True
+            else:
+                settings = UserSettings(id=self.id)
+                db.session.commit()
+                return True
+
     def __init__(self,username,password,email):
         self.username = username
         hashed_pw = bcrypt.hashpw(password.encode('utf-8'),bcrypt.gensalt())
