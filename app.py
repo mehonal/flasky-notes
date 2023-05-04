@@ -782,6 +782,7 @@ def dash_note_single_page(note_id):
 #=================================================Validation==================================================#
 #=============================================================================================================#
 
-@app.route("/.well-known/pki-validation/valid.txt")
-def ssl_validation():
-    return "validate ssl here."
+if CONFIG.ENFORCE_SSL:
+    @app.route("/.well-known/pki-validation/valid.txt")
+    def ssl_validation():
+        return "validate ssl here."
