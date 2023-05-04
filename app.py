@@ -7,6 +7,7 @@ import logging
 # from flask_migrate import Migrate # uncomment for migrations
 # import urllib.parse # for parsing encoded URIComponents
 import re
+import config as CONFIG
 
 #=============================================================================================================#
 #================================================APP SETTINGS=================================================#
@@ -448,17 +449,14 @@ def save_font():
 
 #==============================================request handling===============================================#
 
-
-'''
-# Optionally Enforce SSL
-	if not request.is_secure:
-		url = request.url.replace('http://', 'https://', 1)
-		code = 301
-		return redirect(url, code=code)
-'''
-
 @app.before_request
 def before_request():
+    if CONFIG.ENFORCE_SSL:
+        "ENFORCING SSL"
+        if not request.is_secure:
+            url = request.url.replace('http://', 'https://', 1)
+            code = 301
+            return redirect(url, code=code)
     "CHECKING/SETTING GLOBAL USER"
     session.modified = True
     g.user = None
