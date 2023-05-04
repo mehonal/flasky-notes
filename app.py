@@ -798,10 +798,14 @@ def dash_note_single_page(note_id):
         return "You must log in."
 
 #=============================================================================================================#
-#=================================================Validation==================================================#
+#====================================================Other====================================================#
 #=============================================================================================================#
 
 if CONFIG.ENFORCE_SSL:
     @app.route("/.well-known/pki-validation/valid.txt")
     def ssl_validation():
         return "validate ssl here."
+
+@app.route("/manifest.json")
+def manifest_json():
+    return redirect("/static/script/manifest.json")

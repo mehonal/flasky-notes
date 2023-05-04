@@ -1,0 +1,65 @@
+{
+    "short_name": "Flasky",
+    "name": "Flasky Notes",
+    "icons": [
+      {
+        "src": "/static/images/amazing_logo_512.png",
+        "type": "image/png",
+        "sizes": "512x512"
+      },
+      {
+        "src": "/static/images/amazing_logo_256.png",
+        "type": "image/png",
+        "sizes": "256x256"
+      },
+      {
+        "src": "/static/images/amazing_logo_192.png",
+        "type": "image/png",
+        "sizes": "192x192"
+      },
+      {
+        "src": "/static/images/amazing_logo_128.png",
+        "type": "image/png",
+        "sizes": "128x128"
+      }
+    ],
+    "start_url": "/",
+    "background_color": "#1515FB",
+    "display": "fullscreen",
+    "scope": "/",
+    "theme_color": "#1515FB",
+    "shortcuts": [
+      {
+        "name": "Add a new note",
+        "short_name": "New Note",
+        "description": "Add a new note",
+        "url": "/note/0",
+        "icons": [{ "src": "/static/images/amazing_logo_256.png", "sizes": "256x256" }]
+      },
+      {
+        "name": "Notes",
+        "short_name": "Notes",
+        "description": "See all your notes",
+        "url": "/notes",
+        "icons": [{ "src": "/static/images/amazing_logo_256.png", "sizes": "256x256" }]
+      }
+    ],
+    "description": "Noting app",
+    "screenshots": [
+      {
+        "src": "/static/images/themes/dash/note_single.png",
+        "type": "image/png",
+        "sizes": "1920x912"
+      },
+      {
+        "src": "/static/images/themes/full/note_single.png",
+        "type": "image/png",
+        "sizes": "1920x912"
+      },
+      {
+        "src": "/static/images/themes/paper/note_single.png",
+        "type": "image/png",
+        "sizes": "1920x910"
+      }
+    ]
+  }
