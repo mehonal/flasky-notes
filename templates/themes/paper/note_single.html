@@ -12,7 +12,7 @@
         <input type="text" name="title" class="form-control mb-2" placeholder="Note Title...">
         <input type="text" name="category" class="form-control mb-2" placeholder="Category">
         {% endif %}
-        <textarea class="form-control" id="post-content" name="content" rows="2" onkeyup="textAreaAdjust(this)" placeholder="Note Content...">{% if note and note.content %}{{note.content}}{% endif %}</textarea>
+        <textarea class="form-control" id="{% if note %}post-content{% endif %}" name="content" rows="{% if note %}2{% else %}16{% endif %}" {% if note %}onkeyup="textAreaAdjust(this)"{% endif %} placeholder="Note Content...">{% if note and note.content %}{{note.content}}{% endif %}</textarea>
       </div>
       {% if note %}
       {% set time_ago = note.return_time_ago() %}
