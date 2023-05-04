@@ -1,1 +1,2 @@
 ENFORCE_SSL = False
+DISABLE_CACHING = False

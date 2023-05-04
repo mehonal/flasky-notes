@@ -467,12 +467,11 @@ def before_request():
                 g.user = user
 
 
-''' Optionally disable caching
-@app.after_request
-def after_request(response):
-    response.headers["Cache-Control"] = " no-store,  max-age=0"
-    return response
-'''
+if CONFIG.DISABLE_CACHING:
+    @app.after_request
+    def after_request(response):
+        response.headers["Cache-Control"] = " no-store,  max-age=0"
+        return response
 
 #==============================================Public Endpoints===============================================#
 
