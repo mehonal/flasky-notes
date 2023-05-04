@@ -246,7 +246,14 @@ class User(db.Model):
             return self.settings
         except:
             print("Could not return settings via User.return_settings.")
-            return None
+            print("Attempting to generate ")
+            gen = self.generate_missing_settings()
+            print(f"Attempt Status: {gen}")
+            try:
+                return self.settings
+            except:
+                print(f"It appears the settings were not able to be generated for the user {self.username}.")
+                return None
 
     def delete_note(self,note_id):
         try:
