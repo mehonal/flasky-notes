@@ -282,7 +282,7 @@ class User(db.Model):
 
     def add_note(self,title,content,category):
         try:
-            note = UserNote(self.id,title,content,category)
+            note = UserNote(self.id,title,content,category.strip())
             return note
         except:
             print("Could not add note.")
