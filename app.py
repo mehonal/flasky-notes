@@ -362,7 +362,7 @@ class UserNote(db.Model):
         db.session.commit()
 
     def change_category(self,new_category):
-        self.category = new_category
+        self.category = new_category.strip()
         self.date_last_changed = datetime.now()
         db.session.commit()
 
