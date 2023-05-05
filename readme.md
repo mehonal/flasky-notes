@@ -110,7 +110,6 @@ The `serve_live.py` file uses waitress to serve the web app. Alternatively, you 
 
 - Add Dark Mode Support
 - Add Font Selector
-- Add Support for Multiple Categories
 - Add To Do's
 
 ### Full Theme
