@@ -29,6 +29,7 @@ body{
     padding: 25px;
     border-style: none;
     border-radius: 0px;
+    overflow-y: auto;
 }
 
 #title{
