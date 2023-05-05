@@ -232,4 +232,12 @@ document.addEventListener('keydown', e =>{
         e.preventDefault();
         toggleDarkMode();
     }
+    else if (e.ctrlKey && e.key == "Enter"){
+        e.preventDefault();
+        addNewNote();
+    }
+    else if (e.ctrlKey && e.key == "Delete"){
+        e.preventDefault();
+        revertToLastVersion();
+    }
 })
