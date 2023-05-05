@@ -7,9 +7,13 @@
 
 <div class="text-center">
   <br>
+  {% if categories %}
   {% for category in categories %}
   <a href="/notes/{{category}}" class="btn btn-primary mb-2 w-75">{{category}}</a>
   {% endfor %}
+  {% else %}
+  <h2>You currently do not have any categories. To add a category, you can specify a category for any note.</h2>
+  {% endif %}
 </div>
 </body>
 {% endblock %}
