@@ -103,6 +103,7 @@ The `serve_live.py` file uses waitress to serve the web app. Alternatively, you 
 - Add Note Sharing with public links
 - Automatic note saving (optional setting)
 - Add Word Count
+- Ability to add images
 
 ## Theme-Specific
 
@@ -116,7 +117,6 @@ The `serve_live.py` file uses waitress to serve the web app. Alternatively, you 
 
 - Improving Markdown Support
 - Add Support for Categories
-- Improve Navigation
 
 ### Dash Theme
 
