@@ -118,7 +118,6 @@ The `serve_live.py` file uses waitress to serve the web app. Alternatively, you 
 ### Full Theme
 
 - Improving Markdown Support
-- Add Support for Categories
 
 ### Dash Theme
 
