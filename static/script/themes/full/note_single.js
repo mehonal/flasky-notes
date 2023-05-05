@@ -3,6 +3,7 @@ content = document.getElementById('content');
 contentMarkdown = document.getElementById('content-markdown');
 noteForm = document.getElementById('note-form');
 noteDeleteBtn = document.getElementById('note-delete-btn');
+revertToLastVersionBtn = document.getElementById('note-revert-btn');
 mobileMenu = document.getElementById('mobile-menu');
 mobileMenuToggle = document.getElementById('mobile-menu-toggle');
 darkModeOn = false;
@@ -170,6 +171,12 @@ function toggleDarkMode(){
 function deleteNote(){
     if (window.confirm("Are you sure you want to delete this note?")){
         noteDeleteBtn.click();
+    }
+}
+
+function revertToLastVersion(){
+    if (window.confirm("Are you sure you want to revert to the last version of the note?")){
+        revertToLastVersionBtn.click();
     }
 }
 

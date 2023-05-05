@@ -25,8 +25,9 @@
         Open Mobile Menu
     </div>
     {% if note %}
-    <form method="POST" id="note-delete-form" style="display:none;">
+    <form method="POST" id="note-actions-form" style="display:none;">
         <input type="submit" id="note-delete-btn" name="delete_note" value="Delete Note">
+        <input type="submit" id="note-revert-btn" name="revert_to_last_version" value="Revert To Last Version">
     </form>
     {% endif %}
     <form id="note-form" method="POST">
@@ -61,6 +62,7 @@
         </select>
         <button class="btn btn-secondary" onclick="increaseFontSize()">Font +</button>
         <button class="btn btn-secondary" onclick="decreaseFontSize()">Font -</button>
+        <button class="btn btn-success" onclick="revertToLastVersion()">Restore Last Save of Note</button>
         <button class="btn btn-success" onclick="submitForm()">Save Note</button>
         <button class="btn btn-danger" onclick="deleteNote()">Delete Note</button>
         <button class="btn btn-secondary" onclick="addNewNote()">Add New Note</button>

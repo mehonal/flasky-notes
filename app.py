@@ -820,6 +820,9 @@ def full_note_single_page(note_id):
         if note and note is not None:
             if g.user == note.user:
                 if request.method == "POST":
+                    if "revert_to_last_version" in request.form:
+                        note.revert_to_last_version()
+                        return redirect(url_for('full_note_single_page', note_id = note.id))
                     if "delete_note" in request.form:
                         g.user.delete_note(note_id)
                         return redirect(url_for('full_notes_page'))
