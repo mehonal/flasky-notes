@@ -22,10 +22,12 @@ function toggleTitle(){
     if (titleVisible){
         title.style.display = "none";
         content.style.height = (innerWidth > 600) ? "calc(100vh - 50px)" :  "calc(100vh - 76px)";
+        contentMarkdown.style.height = (innerWidth > 600) ? "calc(100vh - 50px)" :  "calc(100vh - 76px)";
     }
     else{
         title.style.display = "block";
         content.style.height = (innerWidth > 600) ? "calc(90vh - 50px)" :  "calc(90vh - 76px)";
+        contentMarkdown.style.height = (innerWidth > 600) ? "calc(90vh - 50px)" :  "calc(90vh - 76px)";
     }
     titleVisible = !titleVisible;
     console.log("Toggled title");
