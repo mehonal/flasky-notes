@@ -282,7 +282,9 @@ class User(db.Model):
 
     def add_note(self,title,content,category):
         try:
-            note = UserNote(self.id,title,content,category.strip())
+            if category is not None:
+                category = category.strip()
+            note = UserNote(self.id,title,content,category)
             return note
         except:
             print("Could not add note.")
@@ -362,7 +364,10 @@ class UserNote(db.Model):
         db.session.commit()
 
     def change_category(self,new_category):
-        self.category = new_category.strip()
+        if new_category is not None:
+            self.category = new_category.strip()
+        else:
+            self.category = new_category
         self.date_last_changed = datetime.now()
         db.session.commit()
 
