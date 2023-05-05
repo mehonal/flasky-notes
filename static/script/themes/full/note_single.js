@@ -51,6 +51,12 @@ function navigateToNotes(){
     window.location.href = "/notes/full";
 }
 
+function addNewNote(){
+    if (window.confirm("If you have unsaved changes in this note, they will not be saved. Are you sure you want to continue?")){
+        window.location.href = "/note/0/full";
+    }
+}
+
 function navigateToSettings(){
     window.location.href = "/settings";
 }
