@@ -48,6 +48,8 @@ The Full theme features a fullscreen keyboard-shortcut intensive approach to not
 - Ctrl + y: Navigate to Settings
 - Ctrl + ,: Toggle Markdown
 - Ctrl + Space: Toggle Dark Mode
+- Ctrl + Enter: Add New Note
+- Ctrl + Delete: Revert Note to Last Version
 
 #### Notes
 
