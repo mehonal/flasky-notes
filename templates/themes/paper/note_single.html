@@ -29,8 +29,8 @@
   <h2 class="text-center">Note Settings</h2>
   Title:
   <input type="text" name="title" class="form-control mb-2" placeholder="Note Title..." value="{% if note %}{{note.title}}{% endif %}">
-  Category:
-  <input type="text" name="category" class="form-control mb-2" placeholder="Category" value="{% if note.category %}{{note.category}}{% endif %}">
+  Categories:
+  <input type="text" name="category" class="form-control mb-2" placeholder="Categories" value="{% if note.category %}{{note.category}}{% endif %}">
   Font Size:
   <input type="number" name="custom_font_size" id="custom_font_size" class="form-control mb-2" placeholder="Custom Font Size..." value="{{font_size}}" onchange="changeFontSize()">
   <input type="submit" name="update_note" class="btn btn-primary w-100 mt-2" value="{% if note %}Update{% else %}Add{% endif %}">
