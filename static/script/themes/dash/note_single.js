@@ -21,20 +21,24 @@ function toggleTitle(){
         if (titleVisible){
             title.style.display = "none";
             content.style.height = "calc(100vh - 80px)";
+            contentMarkdown.style.height = "calc(100vh - 80px)";
         }
         else{
             title.style.display = "block";
             content.style.height = "calc(90vh - 80px)";
+            contentMarkdown.style.height = "calc(90vh - 80px)";
         }
     }
     else{
         if (titleVisible){
             title.style.display = "none";
             content.style.height = "calc(100vh - " + (menu.offsetHeight + 40) + "px)";
+            contentMarkdown.style.height = "calc(100vh - " + (menu.offsetHeight + 40) + "px)";
         }
         else{
             title.style.display = "block";
             content.style.height = "calc(90vh - " + (menu.offsetHeight + 40) + "px)";
+            contentMarkdown.style.height = "calc(90vh - " + (menu.offsetHeight + 40) + "px)";
         }
     }
     titleVisible = !titleVisible;
