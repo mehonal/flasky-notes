@@ -768,7 +768,13 @@ def paper_note_single_page(note_id):
                     note_category = None
                 note = g.user.add_note(note_title,note_content,note_category)
                 return redirect(url_for('paper_note_single_page', note_id = note.id))
-            return render_template("themes/paper/note_single.html", font_size=font_size)
+            args_category = None
+            try:
+                if request.args['category']:
+                    args_category = request.args['category']
+            except:
+                pass
+            return render_template("themes/paper/note_single.html", font_size=font_size, category = args_category)
         note = UserNote.query.filter_by(id=note_id).first()
         if note and note is not None:
             if g.user == note.user:
