@@ -48,7 +48,9 @@ function decreaseFontSize(){
 }
 
 function navigateToNotes(){
-    window.location.href = "/notes/full";
+    if (window.confirm("If you have unsaved changes in this note, they will not be saved. Are you sure you want to continue?")){
+        window.location.href = "/notes/full";
+    }
 }
 
 function addNewNote(){
@@ -58,7 +60,9 @@ function addNewNote(){
 }
 
 function navigateToSettings(){
-    window.location.href = "/settings";
+    if (window.confirm("If you have unsaved changes in this note, they will not be saved. Are you sure you want to continue?")){
+        window.location.href = "/settings";
+    }
 }
 
 function toggleMarkdown(){
