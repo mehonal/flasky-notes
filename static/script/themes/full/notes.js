@@ -17,6 +17,14 @@ function navigateToSettings(){
     window.location.href = "/settings";
 }
 
+function navigateToAllNotes(){
+    window.location.href = "/notes/full";
+}
+
+function navigateToCategories(){
+    window.location.href = "/categories/full";
+}
+
 function tweakRows(){
     if (window.innerWidth > 600){
         if (numberOfRows == 1){

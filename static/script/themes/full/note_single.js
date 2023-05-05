@@ -1,11 +1,13 @@
 title = document.getElementById('title');
 content = document.getElementById('content');
 contentMarkdown = document.getElementById('content-markdown');
-noteForm = document.getElementById('note-form');
+noteFormSubmit = document.getElementById('note-form-submit');
 noteDeleteBtn = document.getElementById('note-delete-btn');
 revertToLastVersionBtn = document.getElementById('note-revert-btn');
 mobileMenu = document.getElementById('mobile-menu');
 mobileMenuToggle = document.getElementById('mobile-menu-toggle');
+categoriesInput = document.getElementById('categories-input');
+category = document.getElementById('category');
 darkModeOn = false;
 titleVisible = true;
 
@@ -16,7 +18,8 @@ function toggleMobileMenu(){
 
 function submitForm(){
     console.log("Submitting form.");
-    noteForm.submit();
+    syncCategory();
+    noteFormSubmit.click();
 }
 
 function toggleTitle(){
@@ -53,6 +56,12 @@ function decreaseFontSize(){
 function navigateToNotes(){
     if (window.confirm("If you have unsaved changes in this note, they will not be saved. Are you sure you want to continue?")){
         window.location.href = "/notes/full";
+    }
+}
+
+function navigateToCategories(){
+    if (window.confirm("If you have unsaved changes in this note, they will not be saved. Are you sure you want to continue?")){
+        window.location.href = "/categories/full";
     }
 }
 
@@ -189,6 +198,10 @@ function changeFont(){
 function updateFont(newFont){
     content.style.fontFamily = newFont;
     contentMarkdown.style.fontFamily = newFont;
+}
+
+function syncCategory(){
+    category.value = categoriesInput.value;
 }
 
 document.addEventListener('keydown', e =>{

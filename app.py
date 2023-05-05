@@ -667,7 +667,7 @@ def full_categories_page():
             if note_categories is not None:
                 categories.extend(note_categories.lower().split(","))
         categories = set(categories)
-        return render_template("themes/paper/categories.html", categories = categories)
+        return render_template("themes/full/categories.html", categories = categories)
     else:
         return 'You are not logged in. Please login using the <a href="/login">Login Page</a>.'
 
@@ -718,7 +718,7 @@ def full_category_single_page(category):
                 for note_category in note.category.split(","):
                     if category.strip().lower() == note_category.strip().lower():
                         notes.append(note)
-        return render_template("themes/paper/notes.html", category = category, notes_of_category = True, notes = notes)
+        return render_template("themes/full/notes.html", category = category, notes_of_category = True, notes = notes)
     else:
         return "You must log in."
 
@@ -828,8 +828,14 @@ def full_note_single_page(note_id):
                         return redirect(url_for('full_notes_page'))
                     note_title = request.form['title']
                     note_content = request.form['content']
+                    note_category = None
+                    try:
+                        note_category = request.form['category']
+                    except:
+                        pass
                     note.change_title(note_title)
                     note.change_content(note_content)
+                    note.change_category(note_category)
                     if len(note_title) < 1:
                         note_title = None
                     if len(note_content) < 1:
@@ -847,7 +853,13 @@ def full_note_single_page(note_id):
                     note_content = None
                 note = g.user.add_note(note_title,note_content,None)
                 return redirect(url_for('full_note_single_page', note_id = note.id))
-        return render_template("themes/full/note_single.html", note = note, note_id = note_id, font_size = font_size)
+        args_category = None
+        try:
+            if request.args['category']:
+                args_category = request.args['category']
+        except:
+            pass
+        return render_template("themes/full/note_single.html", note = note, note_id = note_id, font_size = font_size, category=args_category)
 
 @app.route("/note/<int:note_id>/dash", methods = ['GET','POST'])
 def dash_note_single_page(note_id):

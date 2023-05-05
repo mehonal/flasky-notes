@@ -34,9 +34,11 @@
     {% if note %}
     <input type="hidden" name="note_id" value="{{note.id}}">
     {% endif %}
+    <input type="hidden" name="category" id="category" {% if note.category %}value="{{note.category}}"{% endif %}>
     <input id="title" type="text" placeholder="Note Title..." name="title" {% if note and note.title %}value="{{note.title}}"{% endif %}>
     <textarea id="content" placeholder="Note..." name="content" style="font-size: {{font_size}}px;">{% if note and note.content %}{{note.content}}{% endif %}</textarea>
     <div id="content-markdown"></div>
+    <input type="submit" id="note-form-submit" style="display:none;">
     </form>
 
 
@@ -47,7 +49,7 @@
         <button class="btn btn-primary" onclick="toggleTitle()">Toggle Title</button>
         <button class="btn btn-primary" onclick="toggleMarkdown()">Toggle Markdown</button>
         <button class="btn btn-primary" onclick="toggleDarkMode()">Toggle Dark Mode</button>
-        <select name="font-select" id="font-select" onchange="changeFont()">
+        <select name="font-select" id="font-select">
             <option value="monospace" {% if font == "monospace" %}selected{% endif %}>Monospace</option>
             <option value="serif" {% if font == "serif" %}selected{% endif %}>Serif</option>
             <option value="sans-serif" {% if font == "sans-serif" %}selected{% endif %}>Sans Serif</option>
@@ -60,14 +62,16 @@
             <option value="Times New Roman, serif" {% if font == "Times New Roman, serif" %}selected{% endif %}>Times New Roman</option>
             <option value="Trebuchet MS, sans-serif" {% if font == "Trebuchet MS, sans-serif" %}selected{% endif %}>Trebuchet MS</option>
         </select>
+        <input id="categories-input" class="categories-input" placeholder="Categories..." onchange="syncCategory()" {% if note.category %}value="{{note.category}}"{% endif %}>
         <button class="btn btn-secondary" onclick="increaseFontSize()">Font +</button>
         <button class="btn btn-secondary" onclick="decreaseFontSize()">Font -</button>
         <button class="btn btn-success" onclick="revertToLastVersion()">Restore Last Save of Note</button>
         <button class="btn btn-success" onclick="submitForm()">Save Note</button>
         <button class="btn btn-danger" onclick="deleteNote()">Delete Note</button>
-        <button class="btn btn-secondary" onclick="addNewNote()">Add New Note</button>
-        <button class="btn btn-secondary" onclick="navigateToNotes()">Go To Notes</button>
-        <button class="btn btn-secondary" onclick="navigateToSettings()">Go To Settings</button>
+        <button class="btn btn-primary" onclick="addNewNote()">Add New Note</button>
+        <button class="btn btn-primary" onclick="navigateToNotes()">Go To Notes</button>
+        <button class="btn btn-primary" onclick="navigateToCategories()">Go To Categories</button>
+        <button class="btn btn-primary" onclick="navigateToSettings()">Go To Settings</button>
         <button class="btn btn-secondary" onclick="toggleMobileMenu()">Close Menu</button>
         
     </div>
