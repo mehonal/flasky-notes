@@ -517,6 +517,7 @@ def index_page():
 @app.route("/settings", methods=['GET','POST'])
 def settings_page():
     if g.user:
+        g.user.generate_missing_settings()
         if request.method == "POST":
             if "update_to_paper" in request.form:
                 settings = g.user.return_settings()
