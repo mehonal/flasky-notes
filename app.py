@@ -652,7 +652,7 @@ def paper_notes_with_category_page(category):
         for note in g.user.notes:
             if note.category is not None:
                 for note_category in note.category.split(","):
-                    if category.lower() == note_category.lower():
+                    if category.strip().lower() == note_category.strip().lower():
                         notes.append(note)
         return render_template("themes/paper/notes.html", category = category, notes_of_category = True, notes = notes)
     else:
