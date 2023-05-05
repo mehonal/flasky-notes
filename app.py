@@ -635,6 +635,18 @@ def full_notes_page():
 @app.route("/categories")
 def categories_page():
     if g.user:
+        if g.user.return_settings().theme_preference == "paper":
+            return redirect(url_for('paper_categories_page'))
+        elif g.user.return_settings().theme_preference == "full":
+            return redirect(url_for('full_categories_page'))
+        elif g.user.return_settings().theme_preference == "dash":
+            return redirect(url_for('dash_categories_page'))
+        return "No theme found. Please select one from <a href='/settings'>Settings</a>."
+    return 'You are not logged in. Please login using the <a href="/login">Login Page</a>.'
+
+@app.route("/categories/paper")
+def paper_categories_page():
+    if g.user:
         categories = []
         for note in UserNote.query.filter_by(userid=g.user.id).all():
             note_categories = note.category
@@ -643,10 +655,74 @@ def categories_page():
         categories = set(categories)
         return render_template("themes/paper/categories.html", categories = categories)
     else:
+        return 'You are not logged in. Please login using the <a href="/login">Login Page</a>.'
+
+@app.route("/categories/full") # coming soon
+def full_categories_page():
+    if g.user:
+        categories = []
+        for note in UserNote.query.filter_by(userid=g.user.id).all():
+            note_categories = note.category
+            if note_categories is not None:
+                categories.extend(note_categories.lower().split(","))
+        categories = set(categories)
+        return render_template("themes/paper/categories.html", categories = categories)
+    else:
+        return 'You are not logged in. Please login using the <a href="/login">Login Page</a>.'
+
+@app.route("/categories/dash") # coming soon
+def dash_categories_page():
+    if g.user:
+        categories = []
+        for note in UserNote.query.filter_by(userid=g.user.id).all():
+            note_categories = note.category
+            if note_categories is not None:
+                categories.extend(note_categories.lower().split(","))
+        categories = set(categories)
+        return render_template("themes/paper/categories.html", categories = categories)
+    else:
+        return 'You are not logged in. Please login using the <a href="/login">Login Page</a>.'
+
+@app.route("/categories/<category>")
+def category_single_page(category):
+    if g.user:
+        if g.user.return_settings().theme_preference == "paper":
+            return redirect(url_for('paper_category_single_page', category = category))
+        elif g.user.return_settings().theme_preference == "full":
+            return redirect(url_for('full_category_single_page', category = category))
+        elif g.user.return_settings().theme_preference == "dash":
+            return redirect(url_for('dash_category_single_page', category = category))
+        return "No theme found. Please select one from <a href='/settings'>Settings</a>."
+    return 'You are not logged in. Please login using the <a href="/login">Login Page</a>.'
+
+@app.route("/categories/<category>/paper")
+def paper_category_single_page(category):
+    if g.user:
+        notes = []
+        for note in g.user.notes:
+            if note.category is not None:
+                for note_category in note.category.split(","):
+                    if category.strip().lower() == note_category.strip().lower():
+                        notes.append(note)
+        return render_template("themes/paper/notes.html", category = category, notes_of_category = True, notes = notes)
+    else:
         return "You must log in."
 
-@app.route("/notes/<category>")
-def paper_notes_with_category_page(category):
+@app.route("/categories/<category>/full") # coming soon
+def full_category_single_page(category):
+    if g.user:
+        notes = []
+        for note in g.user.notes:
+            if note.category is not None:
+                for note_category in note.category.split(","):
+                    if category.strip().lower() == note_category.strip().lower():
+                        notes.append(note)
+        return render_template("themes/paper/notes.html", category = category, notes_of_category = True, notes = notes)
+    else:
+        return "You must log in."
+
+@app.route("/categories/<category>/dash") # coming soon
+def dash_category_single_page(category):
     if g.user:
         notes = []
         for note in g.user.notes:
