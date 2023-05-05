@@ -636,11 +636,11 @@ def full_notes_page():
 def categories_page():
     if g.user:
         categories = []
-        for note in UserNote.query.filter_by(userid=g.user.id).order_by(UserNote.category).all():
-            c = note.category
-            if c is not None:
-                if c not in categories:
-                    categories.append(c)
+        for note in UserNote.query.filter_by(userid=g.user.id).all():
+            note_categories = note.category
+            if note_categories is not None:
+                categories.extend(note_categories.lower().split(","))
+        categories = set(categories)
         return render_template("themes/paper/categories.html", categories = categories)
     else:
         return "You must log in."
@@ -648,8 +648,13 @@ def categories_page():
 @app.route("/notes/<category>")
 def paper_notes_with_category_page(category):
     if g.user:
-        notes = UserNote.query.filter_by(userid=g.user.id,category=category).order_by(UserNote.date_last_changed.desc()).all()
-        return render_template("themes/paper/notes.html", category= category, notes_of_category = True, notes = notes)
+        notes = []
+        for note in g.user.notes:
+            if note.category is not None:
+                for note_category in note.category.split(","):
+                    if category.lower() == note_category.lower():
+                        notes.append(note)
+        return render_template("themes/paper/notes.html", category = category, notes_of_category = True, notes = notes)
     else:
         return "You must log in."
 
