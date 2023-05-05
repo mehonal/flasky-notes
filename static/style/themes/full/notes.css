@@ -67,4 +67,74 @@ a{
   ::-webkit-scrollbar-track {
     background: #f0f0f0; 
   }
-   
+
+.btn{
+    border: none;
+    margin: 5px;
+    padding: 6px;
+    border-radius: 5px;
+    width: calc(100% - 10px);
+}
+
+.btn:hover{
+    cursor: pointer;
+}
+
+.btn-primary{
+    background-color: rgb(22, 22, 255);
+    color:white;
+}
+.btn-secondary{
+    background-color: gray;
+    color:white;
+}
+.btn-success{
+    background-color: green;
+    color:white;
+}
+
+.btn-danger{
+    background-color: red;
+    color: white;
+}
+
+  #mobile-menu{
+    position: fixed;
+    width: 100vw;
+    height: 100vh;
+    z-index: 9999;
+    top: 0px;
+    left: 0px;
+    background-color: black;
+    opacity: 0.9;
+    color: white;
+    justify-content: center;
+    display: none;
+    flex-wrap: wrap;
+    align-content: center;
+}
+
+
+#mobile-menu-toggle{
+    display: none;
+    text-align: center;
+    width: calc(100% - 6px);
+    top: 0px;
+    left: 0px;
+    height: 20px;
+    background-color: white;
+    color:black;
+    padding: 3px;
+}
+
+@media screen and (max-width: 600px){
+    #mobile-menu-toggle{
+        display: block;
+    }
+    #content{
+        height: calc(90vh - 76px);
+    }
+    #content-markdown{
+        height: calc(90vh - 76px);
+    }
+}

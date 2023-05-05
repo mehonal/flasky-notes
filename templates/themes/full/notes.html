@@ -19,6 +19,21 @@
     <title>Notes Full</title>
 </head>
 <body>
+        <!-- Mobile Menu Toggle -->
+        <div id="mobile-menu-toggle" onclick="toggleMobileMenu()">
+            Open Mobile Menu
+        </div>
+
+        <!-- Mobile Menu -->
+        <div id="mobile-menu">
+            <h1>Menu</h1>
+            <button class="btn btn-secondary" onclick="increaseRowHeight()">Row Height +</button>
+            <button class="btn btn-secondary" onclick="decreaseRowHeight()">Row Height -</button>
+            <button class="btn btn-success" onclick="addNewNote()">Add New Note</button>
+            <button class="btn btn-primary" onclick="navigateToSettings()">Go To Settings</button>
+            <button class="btn btn-secondary" onclick="toggleMobileMenu()">Close Menu</button>
+        </div>
+
     <div class="notes">
     <a class="note-div add-new-note" style="height: 150px;" href="/note/0/full">
         <div class="text-center">

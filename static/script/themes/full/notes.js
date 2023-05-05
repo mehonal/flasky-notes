@@ -1,9 +1,20 @@
 numberOfRows = 3;
 rowHeight = 150;
 noteDivs = document.querySelectorAll(".note-div");
+mobileMenu = document.getElementById('mobile-menu');
+mobileMenuToggle = document.getElementById('mobile-menu-toggle');
+
+function toggleMobileMenu(){
+    mobileMenu.style.display == "flex" ? mobileMenu.style.display = "none" : mobileMenu.style.display = "flex";
+    console.log("Toggled mobile menu");
+}
 
 function addNewNote(){
     window.location.href = "/note/0/full";
+}
+
+function navigateToSettings(){
+    window.location.href = "/settings";
 }
 
 function tweakRows(){
