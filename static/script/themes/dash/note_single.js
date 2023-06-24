@@ -180,7 +180,7 @@ function toggleNotes(){
             noteContent.style.width = "100vw";
         }
         else{
-            notes.style.display = "flex";
+            notes.style.display = "block";
             noteContent.style.width = "calc(100vw - 200px)";
         }
     }
@@ -190,7 +190,7 @@ function toggleNotes(){
             noteContent.style.width = "100vw";
         }
         else{
-            notes.style.display = "flex";
+            notes.style.display = "block";
             noteContent.style.width = "100vw";
         }
     }

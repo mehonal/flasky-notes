@@ -20,8 +20,6 @@ body{
 
 #notes{
     width: 200px;
-    display: flex;
-    flex-wrap: wrap;
     background-color: rgb(143, 115, 63);
     overflow-y: auto;
     height: 100%;
@@ -30,7 +28,7 @@ body{
 .note{
     width: calc(100% - 44px);
     padding: 15px;
-    margin: 7px;
+    margin: 15px 7px;
     text-align: center;
     background-color: white;
     border-radius: 5px;
@@ -39,9 +37,11 @@ body{
     overflow-wrap: break-word;
     overflow-x: hidden;
     height: fit-content;
+    display: block;
 }
 
 .new-note{
+    margin-top: 10px;
     background-color: lightblue !important;
 }
 
