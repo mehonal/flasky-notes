@@ -412,6 +412,16 @@ class UserNote(db.Model):
         except:
             return False
 
+    def return_json(self):
+        return {
+            "id": self.id,
+            "title": self.title,
+            "content": self.content,
+            "category": self.category,
+            "date_added": self.date_added,
+            "date_last_changed": self.date_last_changed
+        }
+
     def __init__(self,userid,title,content,category):
         self.userid = userid
         self.title = title
@@ -428,6 +438,16 @@ class UserNote(db.Model):
 #=============================================================================================================#
 
 #=====================================================API=====================================================#
+
+@app.route("/api/get_all_notes")
+def get_all_notes_api():
+    if g.user:
+        notes = []
+        for note in UserNote.query.filter_by(userid=g.user.id):
+            notes.append(note.return_json())
+        return jsonify(notes)
+    else:
+        return jsonify(success=False,reason="Note logged in.")
 
 
 @app.route("/api/note/check_last_edited/<int:note_id>")
@@ -897,6 +917,10 @@ def dash_note_single_page(note_id):
         return render_template("themes/dash/dash.html", note = note, font_size = font_size)
     else:
         return "You must log in."
+
+@app.route("/cli")
+def cli():
+    return render_template("themes/cli/cli.html")
 
 #=============================================================================================================#
 #====================================================Other====================================================#
