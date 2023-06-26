@@ -920,7 +920,10 @@ def dash_note_single_page(note_id):
 
 @app.route("/cli")
 def cli():
-    return render_template("themes/cli/cli.html")
+    if g.user:
+        return render_template("themes/cli/cli.html")
+    else:
+        return "You must log in."
 
 #=============================================================================================================#
 #====================================================Other====================================================#
