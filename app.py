@@ -515,6 +515,29 @@ def save_font():
     else:
         return jsonify(success=False,reason="Not logged in.")
 
+#================================================EXTERNAL API=================================================#
+
+@app.route("/api/external/get-notes", methods=['POST'])
+def get_notes_external_api():
+    data = request.get_json()
+    username = data.get('username')
+    password = data.get('password')
+    limit = data.get('limit')
+    if limit is None:
+        limit = 10
+    if username is None or password is None:
+        return jsonify(success=False,reason="Missing username or password.")
+    user = User.query.filter_by(username=username).first()
+    if user:
+        if not bcrypt.checkpw(str(password).encode('utf-8'),user.password):
+            return jsonify(success=False,reason="Incorrect password.")
+    else:
+        return jsonify(success=False,reason="User does not exist.")
+    notes = []
+    for note in user.notes.order_by(UserNote.date_last_changed.desc()).limit(limit):
+        notes.append(note.return_json())
+    return jsonify(notes)
+
 #==============================================request handling===============================================#
 
 @app.before_request
