@@ -522,8 +522,9 @@ def get_notes_external_api():
     data = request.get_json()
     username = data.get('username')
     password = data.get('password')
-    limit = data.get('limit')
-    if limit is None:
+    try:
+        limit = int(data.get('limit'))
+    except:
         limit = 10
     if username is None or password is None:
         return jsonify(success=False,reason="Missing username or password.")
