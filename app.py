@@ -593,7 +593,37 @@ def add_note_external_api():
     else:
         return jsonify(success=False, reason="Could not add note.")
 
-
+@app.route("/api/external/edit-note", methods=['POST'])
+def edit_note_external_api():
+    data = request.get_json()
+    username = data.get('username', None)
+    password = data.get('password', None)
+    note_id = data.get('note-id', None)
+    title = data.get('title', None)
+    content = data.get('content', None)
+    category = data.get('category', None)
+    if username is None or password is None:
+        return jsonify(success=False,reason="Missing username or password.")
+    if note_id is None:
+        return jsonify(success=False,reason="Missing note id.")
+    user = User.query.filter_by(username=username).first()
+    if user:
+        if not bcrypt.checkpw(str(password).encode('utf-8'),user.password):
+            return jsonify(success=False,reason="Incorrect password.")
+    else:
+        return jsonify(success=False,reason="User does not exist.")
+    note = UserNote.query.filter_by(userid=user.id,id=note_id).first()
+    if note and note is not None:
+        if title is not None:
+            note.change_title(title)
+        if content is not None:
+            if note.content != content:
+                note.change_content(content)
+        if category is not None:
+            note.change_category(category)
+        return jsonify(success=True, note=note.return_json())
+    else:
+        return jsonify(success=False,reason="Note does not exist.")
 
 
 #==============================================request handling===============================================#
