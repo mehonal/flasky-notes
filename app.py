@@ -525,7 +525,7 @@ def get_notes_external_api():
     try:
         limit = int(data.get('limit'))
     except:
-        limit = 10
+        limit = None 
     if username is None or password is None:
         return jsonify(success=False,reason="Missing username or password.")
     user = User.query.filter_by(username=username).first()
@@ -535,9 +535,13 @@ def get_notes_external_api():
     else:
         return jsonify(success=False,reason="User does not exist.")
     notes = []
-    for note in user.notes.order_by(UserNote.date_last_changed.desc()).limit(limit):
+    notes_q = UserNote.query.filter_by(userid=user.id).order_by(UserNote.date_last_changed.desc())
+    if limit:
+        notes_q = notes_q.limit(limit)
+    for note in notes_q.all():
         notes.append(note.return_json())
     return jsonify(notes)
+
 
 #==============================================request handling===============================================#
 
