@@ -542,6 +542,30 @@ def get_notes_external_api():
         notes.append(note.return_json())
     return jsonify(notes)
 
+@app.route("/api/external/get-note", methods=['POST'])
+def get_note_external_api():
+    data = request.get_json()
+    username = data.get('username')
+    password = data.get('password')
+    try:
+        note_id = int(data.get('note-id'))
+    except:
+        return jsonify(success=False,reason="Invalid or missing note id.")
+    if username is None or password is None:
+        return jsonify(success=False,reason="Missing username or password.")
+    user = User.query.filter_by(username=username).first()
+    if user:
+        if not bcrypt.checkpw(str(password).encode('utf-8'),user.password):
+            return jsonify(success=False,reason="Incorrect password.")
+    else:
+        return jsonify(success=False,reason="User does not exist.")
+    note = UserNote.query.filter_by(userid=user.id,id=note_id).first()
+    if note:
+        return jsonify(success=True, note=note.return_json())
+    else:
+        return jsonify(success=False,reason="Note does not exist.")
+
+
 
 #==============================================request handling===============================================#
 
