@@ -107,6 +107,11 @@ body{
     cursor: pointer;
 }
 
+.btn-menu{
+    background-color: rgb(38, 38, 38) !important;
+    color: white;
+}
+
 .btn-primary{
     background-color: rgb(22, 22, 255);
     color:white;
@@ -161,6 +166,7 @@ body{
     #menu{
         height: fit-content;
         flex-wrap: wrap;
+        width: 100vw;
         background-color: lightblue;
     }
     #notes{
@@ -168,5 +174,11 @@ body{
         width: 100vw;
         display: none;
         z-index: 100;
+    }
+}
+
+@media screen and (max-width: 500px){
+    .hide-mobile{
+        display: none;
     }
 }
