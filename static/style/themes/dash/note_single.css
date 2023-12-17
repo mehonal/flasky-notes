@@ -107,6 +107,11 @@ body{
     cursor: pointer;
 }
 
+.btn-menu{
+    background-color: rgb(38, 38, 38) !important;
+    color: white;
+}
+
 .btn-primary{
     background-color: rgb(22, 22, 255);
     color:white;
@@ -144,11 +149,11 @@ body{
 ::-webkit-scrollbar {
     width: 9px;
   }
-  
+
   ::-webkit-scrollbar-thumb {
     background: #a0a0a0; 
   }
-  
+
   ::-webkit-scrollbar-thumb:hover {
     background: #7c7c7c; 
   }
@@ -156,11 +161,12 @@ body{
   ::-webkit-scrollbar-track {
     background: #f0f0f0; 
   }
-   
+
 @media screen and (max-width: 600px){
     #menu{
         height: fit-content;
         flex-wrap: wrap;
+        width: 100vw;
         background-color: lightblue;
     }
     #notes{
@@ -168,5 +174,11 @@ body{
         width: 100vw;
         display: none;
         z-index: 100;
+    }
+}
+
+@media screen and (max-width: 500px){
+    .hide-mobile{
+        display: none;
     }
 }

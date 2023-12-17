@@ -25,15 +25,15 @@
     </form>
     {% endif %}
     <div id="menu">
-        <button class="btn btn-primary" onclick="toggleTitle()">🪄 Title</button>
-        <button class="btn btn-primary" onclick="toggleMarkdown()">🪄 Markdown</button>
-        <button class="btn btn-primary" onclick="toggleDarkMode()">🪄 Dark Mode</button>
-        <button class="btn btn-primary" onclick="toggleNotes()">📒 Notes</button>
-        <button class="btn btn-secondary" onclick="increaseFontSize()">Font +</button>
-        <button class="btn btn-secondary" onclick="decreaseFontSize()">Font -</button>
-        <button class="btn btn-success" onclick="submitForm()">💾 Save Note</button>
-        {% if note %}<button class="btn btn-danger" onclick="deleteNote()">❌ Delete Note</button>{% endif %}
-        <button class="btn btn-primary" onclick="navigateToSettings()">⚙️ Settings</button>
+        <button class="btn btn-menu" onclick="toggleTitle()">🇹<span class="hide-mobile">  Title</span></button>
+        <button class="btn btn-menu" onclick="toggleMarkdown()">🇹<span class="hide-mobile">  Markdown</span></button>
+        <button class="btn btn-menu" onclick="toggleDarkMode()">🌙<span class="hide-mobile"> Dark Mode</span></button>
+        <button class="btn btn-menu" onclick="toggleNotes()">📒<span class="hide-mobile">  Notes</span></button>
+        <button class="btn btn-menu" onclick="increaseFontSize()">F<span class="hide-mobile">ont</span> +</button>
+        <button class="btn btn-menu" onclick="decreaseFontSize()">F<span class="hide-mobile">ont</span> -</button>
+        <button class="btn btn-menu" onclick="submitForm()">💾<span class="hide-mobile">  Save Note</span></button>
+        {% if note %}<button class="btn btn-menu" onclick="deleteNote()">❌<span class="hide-mobile">  Delete Note</span></button>{% endif %}
+            <button class="btn btn-menu" onclick="navigateToSettings()">⚙️ <span class="hide-mobile"> Settings</span></button>
         <select class="btn" name="font-select" id="font-select" onchange="changeFont()">
             <option value="monospace" {% if font == "monospace" %}selected{% endif %}>Monospace</option>
             <option value="serif" {% if font == "serif" %}selected{% endif %}>Serif</option>
