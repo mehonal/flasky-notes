@@ -181,4 +181,7 @@ body{
     .hide-mobile{
         display: none;
     }
-}
+
+    #font-select{
+        width: 20px;
+    }
