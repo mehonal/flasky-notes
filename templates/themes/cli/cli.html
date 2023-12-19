@@ -10,7 +10,7 @@
 
     *{
         font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
-        font-size: 32px;
+        font-size: 16px;
         color: white;
         font-weight: bold;
     }
@@ -22,6 +22,7 @@
         display: inline-block;
         width: fit-content;
         color: lightgray;
+        margin-right: 5px;
     }
 
     #command{
@@ -40,6 +41,11 @@
         display: block;
     }
 
+
+    form{
+        display: inline-block;
+
+    }
 </style>
 
 <body>
@@ -48,7 +54,7 @@
             
         </div>
         <div id="command-line">
-            <span id="location">notes > hello $</span> <input id="command" type="text" autofocus>
+            <span id="location">flasky > {{g.user.username}} $</span><form onsubmit="actionFormSubmitHandler(event)"><input id="command" type="text" autofocus></form>
         </div>
     </div>
 
@@ -67,8 +73,12 @@
         }
         fetchNotes();
 
-        function handleKeyPress(e){
-            if (e.code == "Enter"){
+        function actionFormSubmitHandler(e){
+            e.preventDefault();
+            handleAction();
+        }
+
+        function handleAction(){
                 if (command.value.startsWith("clear") || command.value.startsWith("cls")){
                     log.innerHTML = "";
                 }
@@ -128,7 +138,13 @@
                     log.appendChild(ntEl);
                 }
                 command.value = "";
-            }
+
+        }
+
+        function handleKeyPress(e){
+            if (e.code == "Enter"){
+                handleAction();
+           }
         }
 
         function adjustResize(){
