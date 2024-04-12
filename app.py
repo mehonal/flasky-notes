@@ -53,21 +53,21 @@ def valid_email(email):
     else:
         return False
 
-def theme_redirect(theme,page_type):
+def theme_redirect(theme,page_type, note_id: int = 0):
     if page_type == "note_single":
         if g.user.return_settings().theme_preference == "paper":
-            return redirect(url_for('paper_note_single_page', note_id = 0))
+            return redirect(url_for('paper_note_single_page', note_id = note_id))
         elif g.user.return_settings().theme_preference == "full":
-            return redirect(url_for('full_note_single_page', note_id = 0))
+            return redirect(url_for('full_note_single_page', note_id = note_id))
         elif g.user.return_settings().theme_preference == "dash":
-            return redirect(url_for('dash_note_single_page', note_id = 0))
+            return redirect(url_for('dash_note_single_page', note_id = note_id))
     elif page_type == "notes":
         if theme == "paper":
             return redirect(url_for('paper_notes_page'))
         elif theme == "full":
             return redirect(url_for('full_notes_page'))
         else: # assuming it is "dash"
-            return redirect(url_for('dash_note_single_page', note_id = 0))
+            return redirect(url_for('dash_note_single_page', note_id = note_id))
     elif page_type == "categories":
         if theme == "paper":
             return redirect(url_for('paper_categories_page'))
@@ -871,7 +871,7 @@ def dash_category_single_page(category):
 def note_single_page(note_id):
     if g.user:
         theme = g.user.return_settings().theme_preference
-        return theme_redirect(theme, "note_single")
+        return theme_redirect(theme, "note_single", note_id)
     return "You must log in."
 
 @app.route("/note/<int:note_id>/paper", methods=['GET','POST'])
@@ -1048,3 +1048,9 @@ if CONFIG.ENFORCE_SSL:
 @app.route("/manifest.json")
 def manifest_json():
     return redirect("/static/script/manifest.json")
+
+with app.app_context():
+    db.create_all()
+    db.session.commit()
+
+
