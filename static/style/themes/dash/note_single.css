@@ -1,3 +1,8 @@
+:root {
+    --primary-dark: rgb(25 52 62);
+    --primary: rgb(44 95 113);
+}
+
 body{
     margin: 0px;
     padding: 0px;
@@ -13,14 +18,14 @@ body{
 #menu{
     display: flex;
     justify-content: center;
-    background-color: rgb(199, 175, 43);
+    background-color: var(--primary); 
     height: 34px;
     padding: 3px;
 }
 
 #notes{
     width: 200px;
-    background-color: rgb(143, 115, 63);
+    background-color: var(--primary-dark);
     overflow-y: auto;
     height: 100%;
 }
