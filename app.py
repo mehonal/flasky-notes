@@ -53,29 +53,6 @@ def valid_email(email):
     else:
         return False
 
-def theme_redirect(theme,page_type, note_id: int = 0):
-    if page_type == "note_single":
-        if g.user.return_settings().theme_preference == "paper":
-            return redirect(url_for('paper_note_single_page', note_id = note_id))
-        elif g.user.return_settings().theme_preference == "full":
-            return redirect(url_for('full_note_single_page', note_id = note_id))
-        elif g.user.return_settings().theme_preference == "dash":
-            return redirect(url_for('dash_note_single_page', note_id = note_id))
-    elif page_type == "notes":
-        if theme == "paper":
-            return redirect(url_for('paper_notes_page'))
-        elif theme == "full":
-            return redirect(url_for('full_notes_page'))
-        else: # assuming it is "dash"
-            return redirect(url_for('dash_note_single_page', note_id = note_id))
-    elif page_type == "categories":
-        if theme == "paper":
-            return redirect(url_for('paper_categories_page'))
-        elif theme == "full":
-            return redirect(url_for('full_categories_page'))
-        else: # assuming it is "dash"
-            return redirect(url_for('dash_categories_page'))
-
 #=============================================================================================================#
 #==================================================CLASSES====================================================#
 #=============================================================================================================#
@@ -92,6 +69,9 @@ Current Theme List:
 class Theme(db.Model):
     id = db.Column(db.Integer, primary_key = True)
     name = db.Column(db.String(100), unique = True)
+    has_settings_page = db.Column(db.Boolean, default = False)
+    has_categories_page = db.Column(db.Boolean, default = False)
+    has_notes_page = db.Column(db.Boolean, default = False)
     slug = db.Column(db.String(100), unique = True)
 
 class UserTheme(db.Model):
@@ -123,20 +103,35 @@ class User(db.Model):
     user_type = db.Column(db.Integer, default = 0)
     settings = db.relationship('UserSettings', uselist = False, backref= "user")
 
+    def generate_theme_settings(self):
+        for theme in Theme.query.all():
+            if UserTheme.query.filter_by(user_id=self.id, theme_id=theme.id).first() is None:
+                user_theme = UserTheme(user_id=self.id, theme_id=theme.id)
+                db.session.add(user_theme)
+        db.session.commit()
+        return True
+
     def get_theme_settings(self, theme_slug: str = None): # gets current theme's settings
         if theme_slug is not None:
             theme = Theme.query.filter_by(slug=theme_slug).first()
-            if theme:
+            if theme and theme is not None:
                 user_theme = UserTheme.query.filter_by(user_id=self.id, theme_id=theme.id).first()
                 if user_theme:
                     return user_theme
                 else:
-                    print(f"Could not find theme with slug {theme_slug}.")
-                    return None
+                    self.generate_theme_settings()
+                    return UserTheme.query.filter_by(user_id=self.id, theme_id=theme.id).first()
             else:
-                print(f"Could not find theme with slug {theme_slug}.")
-                return None
-        return UserTheme.query.filter_by(user_id=self.id, theme_id=self.settings.theme_preference).first()
+                self.generate_theme_settings()
+                return UserTheme.query.filter_by(user_id=self.id, theme_id=theme.id).first()
+        theme_preference = self.return_settings().theme_preference
+        theme = Theme.query.filter_by(slug=theme_preference).first()
+        user_theme = UserTheme.query.filter_by(user_id=self.id, theme_id=theme.id).first()
+        if user_theme and user_theme is not None:
+            return user_theme
+        else:
+            self.generate_theme_settings()
+            return UserTheme.query.filter_by(user_id=self.id, theme_id=theme.id).first()
 
     def get_current_theme_font(self):
         try:
@@ -617,8 +612,7 @@ if CONFIG.DISABLE_CACHING:
 @app.route("/")
 def index_page():
     if g.user:
-        theme = g.user.return_settings().theme_preference
-        return theme_redirect(theme, "notes")
+        return redirect(url_for('notes_page'))
     else:
         return redirect(url_for('login_page'))
 
@@ -626,30 +620,14 @@ def index_page():
 def settings_page():
     if g.user:
         g.user.generate_missing_settings()
+        settings = g.user.return_settings()
         if request.method == "POST":
-            if "update_to_paper" in request.form:
-                settings = g.user.return_settings()
-                if settings is not None:
-                    settings.theme_preference = "paper"
-                    db.session.commit()
-                else:
-                    print("Could not update theme preference to full via route /settings")
-            elif "update_to_full" in request.form:
-                settings = g.user.return_settings()
-                if settings is not None:
-                    settings.theme_preference = "full"
-                    db.session.commit()
-                else:
-                    print("Could not update theme preference to full via route /settings")
-            elif "update_to_dash" in request.form:
-                settings = g.user.return_settings()
-                if settings is not None:
-                    settings.theme_preference = "dash"
-                    db.session.commit()
-                else:
-                    print("Could not update theme preference to full via route /settings")
+            if "update-theme" in request.form:
+                theme = request.form['theme']
+                g.user.settings.theme_preference = theme
+                db.session.commit()
             return redirect(url_for('settings_page'))
-        return render_template("settings.html")
+        return render_template("settings.html", themes = Theme.query.all())
     return "You must be logged in to access this page."
 
 @app.route("/register", methods = ['GET','POST'])
@@ -688,7 +666,7 @@ def login_page():
             session['user_id'] = user.id
             session.permanent = True
             theme = user.return_settings().theme_preference
-            return theme_redirect(theme,"notes")
+            return redirect(url_for('notes_page'))
         else:
             return 'The username or password is not correct. You can try again via the <a href="/login">Login Page</a>.'
     return render_template("login.html")
@@ -704,176 +682,88 @@ def logout():
 @app.route("/notes")
 def notes_page():
     if g.user:
-        theme = g.user.return_settings().theme_preference
-        return theme_redirect(theme, "notes")
-    else:
-        return "You must log in."
-
-@app.route("/notes/paper")
-def paper_notes_page():
-    if g.user:
-        theme = g.user.return_settings().theme_preference
-        if theme != "paper":
-            return theme_redirect(theme, "notes")
-        return render_template("themes/paper/notes.html")
-    else:
-        return "You must log in."
-
-@app.route("/notes/full")
-def full_notes_page():
-    if g.user:
-        theme = g.user.return_settings().theme_preference
-        if theme != "full":
-            return theme_redirect(theme, "notes")
-        return render_template("themes/full/notes.html")
+        theme_settings = g.user.get_theme_settings()
+        theme = theme_settings.theme
+        if theme.has_notes_page:
+            return render_template(f"themes/{theme_settings.theme.slug}/notes.html")
+        else:
+            return redirect(url_for('note_single_page', note_id = 0))
     else:
         return "You must log in."
 
 @app.route("/categories")
 def categories_page():
     if g.user:
-        theme = g.user.return_settings().theme_preference
-        return theme_redirect(theme, "categories")
+        theme_settings = g.user.get_theme_settings()
+        theme = theme_settings.theme
+        if theme.has_categories_page:
+            categories = []
+            for note in UserNote.query.filter_by(userid=g.user.id).all():
+                note_categories = note.category
+                if note_categories is not None:
+                    categories.extend(note_categories.lower().split(","))
+            categories = set(categories)
+            return render_template(f"themes/{theme_settings.theme.slug}/categories.html", categories = categories)
+        else:
+            return render_template(f"themes/{theme_settings.theme.slug}/notes.html")
     return 'You are not logged in. Please login using the <a href="/login">Login Page</a>.'
-
-@app.route("/categories/paper")
-def paper_categories_page():
-    if g.user:
-        categories = []
-        for note in UserNote.query.filter_by(userid=g.user.id).all():
-            note_categories = note.category
-            if note_categories is not None:
-                categories.extend(note_categories.lower().split(","))
-        categories = set(categories)
-        return render_template("themes/paper/categories.html", categories = categories)
-    else:
-        return 'You are not logged in. Please login using the <a href="/login">Login Page</a>.'
-
-@app.route("/categories/full") # coming soon
-def full_categories_page():
-    if g.user:
-        categories = []
-        for note in UserNote.query.filter_by(userid=g.user.id).all():
-            note_categories = note.category
-            if note_categories is not None:
-                categories.extend(note_categories.lower().split(","))
-        categories = set(categories)
-        return render_template("themes/full/categories.html", categories = categories)
-    else:
-        return 'You are not logged in. Please login using the <a href="/login">Login Page</a>.'
-
-@app.route("/categories/dash") # coming soon
-def dash_categories_page():
-    if g.user:
-        categories = []
-        for note in UserNote.query.filter_by(userid=g.user.id).all():
-            note_categories = note.category
-            if note_categories is not None:
-                categories.extend(note_categories.lower().split(","))
-        categories = set(categories)
-        return render_template("themes/paper/categories.html", categories = categories)
-    else:
-        return 'You are not logged in. Please login using the <a href="/login">Login Page</a>.'
 
 @app.route("/categories/<category>")
 def category_single_page(category):
     if g.user:
-        if g.user.return_settings().theme_preference == "paper":
-            return redirect(url_for('paper_category_single_page', category = category))
-        elif g.user.return_settings().theme_preference == "full":
-            return redirect(url_for('full_category_single_page', category = category))
-        elif g.user.return_settings().theme_preference == "dash":
-            return redirect(url_for('dash_category_single_page', category = category))
-        return "No theme found. Please select one from <a href='/settings'>Settings</a>."
+        theme_settings = g.user.get_theme_settings()
+        if theme.has_categories_page:
+            notes = []
+            for note in g.user.notes:
+                if note.category is not None:
+                    for note_category in note.category.split(","):
+                        if category.strip().lower() == note_category.strip().lower():
+                            notes.append(note)
+            return render_template(f"themes/{theme_settings.theme.slug}/notes.html", category = category, notes_of_category = True, notes = notes)
+        else:
+            return render_template(f"themes/{theme_settings.theme.slug}/notes.html")
     return 'You are not logged in. Please login using the <a href="/login">Login Page</a>.'
 
-@app.route("/categories/<category>/paper")
-def paper_category_single_page(category):
-    if g.user:
-        notes = []
-        for note in g.user.notes:
-            if note.category is not None:
-                for note_category in note.category.split(","):
-                    if category.strip().lower() == note_category.strip().lower():
-                        notes.append(note)
-        return render_template("themes/paper/notes.html", category = category, notes_of_category = True, notes = notes)
-    else:
-        return "You must log in."
-
-@app.route("/categories/<category>/full") # coming soon
-def full_category_single_page(category):
-    if g.user:
-        notes = []
-        for note in g.user.notes:
-            if note.category is not None:
-                for note_category in note.category.split(","):
-                    if category.strip().lower() == note_category.strip().lower():
-                        notes.append(note)
-        return render_template("themes/full/notes.html", category = category, notes_of_category = True, notes = notes)
-    else:
-        return "You must log in."
-
-@app.route("/categories/<category>/dash") # coming soon
-def dash_category_single_page(category):
-    if g.user:
-        notes = []
-        for note in g.user.notes:
-            if note.category is not None:
-                for note_category in note.category.split(","):
-                    if category.strip().lower() == note_category.strip().lower():
-                        notes.append(note)
-        return render_template("themes/paper/notes.html", category = category, notes_of_category = True, notes = notes)
-    else:
-        return "You must log in."
-
-@app.route("/note/<int:note_id>")
+@app.route("/note/<int:note_id>", methods=['GET','POST'])
 def note_single_page(note_id):
     if g.user:
-        theme = g.user.return_settings().theme_preference
-        return theme_redirect(theme, "note_single", note_id)
-    return "You must log in."
-
-@app.route("/note/<int:note_id>/paper", methods=['GET','POST'])
-def paper_note_single_page(note_id):
-    if g.user:
-        if request.method == "GET":
-            theme = g.user.return_settings().theme_preference
-            if theme != "paper":
-                return theme_redirect(theme, "note_single")
+        theme_settings = g.user.get_theme_settings()
         font_size = g.user.get_current_theme_font_size()
-        if note_id == 0:
-            if request.method == "POST":
-                note_title = request.form['title']
-                note_content = request.form['content']
-                note_category = request.form['category']
-                if len(note_title) < 1:
-                    note_title = None
-                if len(note_content) < 1:
-                    note_content = None
-                if len(note_category) < 1:
-                    note_category = None
-                note = g.user.add_note(note_title,note_content,note_category)
-                return redirect(url_for('paper_note_single_page', note_id = note.id))
-            args_category = None
-            try:
-                if request.args['category']:
-                    args_category = request.args['category']
-            except:
-                pass
-            return render_template("themes/paper/note_single.html", font_size=font_size, category = args_category)
         note = UserNote.query.filter_by(id=note_id).first()
         if note and note is not None:
-            if g.user == note.user:
-                if request.method == "POST":
-                    if "revert_to_last_version" in request.form:
-                        note.revert_to_last_version()
-                        return redirect(url_for('paper_note_single_page', note_id = note.id))
-                    if "delete_note" in request.form:
-                        g.user.delete_note(note_id)
-                        return redirect(url_for('paper_notes_page'))
+            if g.user != note.user:
+                return "You do not own this note. Click here to go to your <a href='/notes'>notes</a>."
+        if request.method == "POST":
+            if note_id == 0:
+                if "update-note" in request.form:
                     note_title = request.form['title']
                     note_content = request.form['content']
-                    note_category = request.form['category']
+                    try:
+                        note_category = request.form['category']
+                    except:
+                        note_category = ""
+                    if len(note_title) < 1:
+                        note_title = None
+                    if len(note_content) < 1:
+                        note_content = None
+                    if len(note_category) < 1:
+                        note_category = None
+                    note = g.user.add_note(note_title,note_content,note_category)
+                    return redirect(url_for('note_single_page', note_id = note.id))
+            else:
+                if "revert_to_last_version" in request.form:
+                    note.revert_to_last_version()
+                    return redirect(url_for('note_single_page', note_id = note.id))
+                elif "delete_note" in request.form:
+                    g.user.delete_note(note_id)
+                    return redirect(url_for('notes_page'))
+                elif "update-note" in request.form:
+                    note_title = request.form['title']
+                    note_content = request.form['content']
+                    try:
+                        note_category = request.form['category']
+                    except:
+                        note_category = ""
                     if len(note_title) < 1:
                         note_title = None
                     if len(note_content) < 1:
@@ -883,110 +773,10 @@ def paper_note_single_page(note_id):
                     note.change_title(note_title)
                     note.change_content(note_content)
                     note.change_category(note_category)
-                    return redirect(url_for('paper_note_single_page', note_id = note.id))
-                return render_template("themes/paper/note_single.html", note = note, font_size=font_size)
-            else:
-                return "You do not own this note. Click here to go to your <a href='/notes'>notes</a>."
-    return "Not Found."
-
-@app.route("/note/<int:note_id>/full", methods=['GET','POST'])
-def full_note_single_page(note_id):
-    if g.user:
-        if request.method == "GET":
-            theme = g.user.return_settings().theme_preference
-            if theme != "full":
-                return theme_redirect(theme, "note_single")
-        font_size = g.user.get_current_theme_font_size()
-        if note_id != 0:
-            note = UserNote.query.filter_by(id=note_id).first()
-        else:
-            note = None
-        if note and note is not None:
-            if g.user == note.user:
-                if request.method == "POST":
-                    if "revert_to_last_version" in request.form:
-                        note.revert_to_last_version()
-                        return redirect(url_for('full_note_single_page', note_id = note.id))
-                    if "delete_note" in request.form:
-                        g.user.delete_note(note_id)
-                        return redirect(url_for('full_notes_page'))
-                    note_title = request.form['title']
-                    note_content = request.form['content']
-                    note_category = None
-                    try:
-                        note_category = request.form['category']
-                    except:
-                        pass
-                    note.change_title(note_title)
-                    note.change_content(note_content)
-                    note.change_category(note_category)
-                    if len(note_title) < 1:
-                        note_title = None
-                    if len(note_content) < 1:
-                        note_content = None
-                    return redirect(url_for('full_note_single_page', note_id = note.id))
-            else:
-                return "You do not own this note. Click here to go to your <a href='/notes'>notes</a>."
-        else:
-            if request.method == "POST":
-                note_title = request.form['title']
-                note_content = request.form['content']
-                if len(note_title) < 1:
-                    note_title = None
-                if len(note_content) < 1:
-                    note_content = None
-                note = g.user.add_note(note_title,note_content,None)
-                return redirect(url_for('full_note_single_page', note_id = note.id))
-        args_category = None
-        try:
-            if request.args['category']:
-                args_category = request.args['category']
-        except:
-            pass
-        return render_template("themes/full/note_single.html", note = note, note_id = note_id, font_size = font_size, category=args_category)
-
-@app.route("/note/<int:note_id>/dash", methods = ['GET','POST'])
-def dash_note_single_page(note_id):
-    if g.user:
-        if request.method == "GET":
-            theme = g.user.return_settings().theme_preference
-            if theme != "dash":
-                return theme_redirect(theme, "note_single")
-        font_size = g.user.get_current_theme_font_size()
-        if note_id != 0:
-            note = UserNote.query.filter_by(id=note_id).first()
-        else:
-            note = None
-        if note and note is not None:
-            if g.user == note.user:
-                if request.method == "POST":
-                    if "delete_note" in request.form:
-                        g.user.delete_note(note_id)
-                        return redirect(url_for('dash_note_single_page', note_id = 0))
-                    note_title = request.form['title']
-                    note_content = request.form['content']
-                    note.change_title(note_title)
-                    note.change_content(note_content)
-                    if len(note_title) < 1:
-                        note_title = None
-                    if len(note_content) < 1:
-                        note_content = None
-                    return redirect(url_for('dash_note_single_page', note_id = note.id))
-            else:
-                return "You do not own this note. Click here to go to your <a href='/notes'>notes</a>."
-        else:
-            if request.method == "POST":
-                note_title = request.form['title']
-                note_content = request.form['content']
-                if len(note_title) < 1:
-                    note_title = None
-                if len(note_content) < 1:
-                    note_content = None
-                note = g.user.add_note(note_title,note_content,None)
-                return redirect(url_for('dash_note_single_page', note_id = note.id))
-        return render_template("themes/dash/dash.html", note = note, font_size = font_size)
-    else:
-        return "You must log in."
+                return redirect(url_for('note_single_page', note_id = note.id))
+        category = request.args.get('category')
+        return render_template(f"themes/{theme_settings.theme.slug}/note_single.html", note = note, note_id = note_id, font_size = font_size, category = category)
+    return "You must log in."
 
 @app.route("/cli")
 def cli():
@@ -1009,19 +799,20 @@ def manifest_json():
     return redirect("/static/script/manifest.json")
 
 with app.app_context():
+    db.create_all()
+    db.session.commit()
     if Theme.query.filter_by(slug="paper").first() is None:
-        paper = Theme(name="Paper",slug="paper")
+        paper = Theme(name="Paper",slug="paper", has_categories_page = True, has_notes_page = True)
         db.session.add(paper)
         db.session.commit()
     if Theme.query.filter_by(slug="full").first() is None:
-        full = Theme(name="Full",slug="full")
+        full = Theme(name="Full",slug="full", has_categories_page = True, has_notes_page = True)
         db.session.add(full)
         db.session.commit()
     if Theme.query.filter_by(slug="dash").first() is None:
-        dash = Theme(name="Dash",slug="dash")
+        dash = Theme(name="Dash",slug="dash", has_categories_page = False, has_notes_page = False)
         db.session.add(dash)
         db.session.commit()
-    db.create_all()
-    db.session.commit()
+    
 
 

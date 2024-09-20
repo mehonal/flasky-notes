@@ -4,25 +4,17 @@
     <h1>Settings</h1>
 
     <h2>Theme</h2>
-    {% if g.user.return_settings().theme_preference == "paper" %}
-    <form method="POST">
-        <input class="btn btn-success" type="submit" value="Paper (selected)" disabled>
-        <input name="update_to_full" class="btn btn-primary" type="submit" value="Full">
-        <input name="update_to_dash" class="btn btn-primary" type="submit" value="Dash">
+    <div class="container d-flex justify-content-center">
+    <form method="POST" class="col-12 col-md-6 col-lg-4">
+        <select class="form-select mb-2" name="theme">
+            {% for theme in themes %}
+                <option value="{{ theme.slug }}" {% if theme.slug == g.user.return_settings().theme_preference %}selected{% endif %}>{{ theme.name }}</option>
+            {% endfor %}
+        </select>
+        <input name="update-theme" class="btn btn-primary" type="submit" value="Update Theme">
     </form>
-    {% elif g.user.return_settings().theme_preference == "full" %}
-    <form method="POST">
-        <input name="update_to_paper" class="btn btn-primary" type="submit" value="Paper">
-        <input class="btn btn-success" type="submit" value="Full (selected)" disabled>
-        <input name="update_to_dash" class="btn btn-primary" type="submit" value="Dash">
-    </form>
-    {% elif g.user.return_settings().theme_preference == "dash" %}
-    <form method="POST">
-        <input name="update_to_paper" class="btn btn-primary" type="submit" value="Paper">
-        <input name="update_to_full" class="btn btn-primary" type="submit" value="Full">
-        <input class="btn btn-success" type="submit" value="Dash (selected)" disabled>
-    </form>
-    {% endif %}
+    </div>
+    
 
     <h2>Quick Access</h2>
     <a href="/notes" class="btn btn-primary">Notes</a>

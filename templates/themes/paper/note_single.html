@@ -22,7 +22,7 @@
       <p id="last-updated" class="mt-2">{% if time_ago == "just now" %}<span class="text-success">Note edited just now.</span>{% else %}Note last edited {{time_ago}} ago.{% endif %}</p>
       {% endif %}
       <div class="form-group">
-      <input type="submit" name="update_note" class="btn btn-primary w-100 {% if not note %}mt-2{% endif %}" value="{% if note %}Update{% else %}Add{% endif %}">
+      <input type="submit" name="update-note" class="btn btn-primary w-100 {% if not note %}mt-2{% endif %}" value="{% if note %}Update{% else %}Add{% endif %}">
       </div>
   </div>
   </div>
@@ -36,7 +36,7 @@
   <input type="text" name="category" class="form-control mb-2" placeholder="Categories" value="{% if note.category %}{{note.category}}{% endif %}">
   Font Size:
   <input type="number" name="custom_font_size" id="custom_font_size" class="form-control mb-2" placeholder="Custom Font Size..." value="{{font_size}}" onchange="changeFontSize()">
-  <input type="submit" name="update_note" class="btn btn-primary w-100 mt-2" value="{% if note %}Update{% else %}Add{% endif %}">
+  <input type="submit" name="update-note" class="btn btn-primary w-100 mt-2" value="{% if note %}Update{% else %}Add{% endif %}">
   <input type="submit" name="revert_to_last_version" class="btn btn-danger w-100 mt-2" value="Revert To Previous Version">
   <input type="submit" name="delete_note" class="btn btn-danger w-100 mt-2" value="Delete Note">
 

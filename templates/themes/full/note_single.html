@@ -38,7 +38,7 @@
     <input id="title" type="text" placeholder="Note Title..." name="title" {% if note and note.title %}value="{{note.title}}"{% endif %}>
     <textarea id="content" placeholder="Note..." name="content" style="font-size: {{font_size}}px;">{% if note and note.content %}{{note.content}}{% endif %}</textarea>
     <div id="content-markdown"></div>
-    <input type="submit" id="note-form-submit" style="display:none;">
+    <input type="submit" id="note-form-submit" name="update-note" style="display:none;">
     </form>
 
 

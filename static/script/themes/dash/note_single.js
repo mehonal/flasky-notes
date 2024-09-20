@@ -3,6 +3,7 @@ title = document.getElementById('title');
 content = document.getElementById('content');
 contentMarkdown = document.getElementById('content-markdown');
 noteForm = document.getElementById('note-form');
+noteSaveBtn = document.getElementById('note-save-btn');
 noteDeleteBtn = document.getElementById('note-delete-btn');
 noteContent = document.getElementById('note-content');
 notes = document.getElementById('notes');
@@ -13,7 +14,7 @@ titleVisible = true;
 
 function submitForm(){
     console.log("Submitting form.");
-    noteForm.submit();
+    noteSaveBtn.click();
 }
 
 function toggleTitle(){
