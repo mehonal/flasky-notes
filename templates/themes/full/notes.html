@@ -36,14 +36,14 @@
         </div>
 
     <div class="notes">
-    <a class="note-div add-new-note" style="height: 150px;" href="/note/0/full{% if notes_of_category %}?category={{category}}{% endif %}">
+    <a class="note-div add-new-note" style="height: 150px;" href="/note/0{% if notes_of_category %}?category={{category}}{% endif %}">
         <div class="text-center">
             <h2 class="add-new-note-text">Add New Note...</h2>
         </div>
     </a>
     {% if notes_of_category %}
     {% for note in notes %}
-    <a class="note-div" style="height: 150px;" href="/note/{{note.id}}/full">
+    <a class="note-div" style="height: 150px;" href="/note/{{note.id}}">
     <div class="text-center">
         <h2>{{note.title}}</h2>
         {{note.return_description()}}
@@ -52,7 +52,7 @@
     {% endfor %}
     {% else %}
     {% for note in g.user.return_notes() %}
-    <a class="note-div" style="height: 150px;" href="/note/{{note.id}}/full">
+    <a class="note-div" style="height: 150px;" href="/note/{{note.id}}">
     <div class="text-center">
         <h2>{{note.title}}</h2>
         {{note.return_description()}}

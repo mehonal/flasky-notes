@@ -7,7 +7,7 @@
 <br>
 
 <div class="text-center">
-  <a href="/note/0/paper{% if notes_of_category %}?category={{category}}{% endif %}" class="btn btn-success mb-2 w-75">Add New Note</a>
+  <a href="/note/0{% if notes_of_category %}?category={{category}}{% endif %}" class="btn btn-success mb-2 w-75">Add New Note</a>
   {% if notes_of_category %}
   {% for note in notes %}
   <a href="/note/{{note.id}}" class="btn btn-primary mb-2 w-75">

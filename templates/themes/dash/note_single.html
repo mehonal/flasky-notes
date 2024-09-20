@@ -50,11 +50,11 @@
     </div>
     <div class="main">
     <div id="notes">
-        <a href="/note/0/dash" class="note new-note">
+        <a href="/note/0" class="note new-note">
             New Note...
         </a>
         {% for nt in g.user.return_notes() %}
-        <a class="note {% if note and note.id == nt.id %}current-note{% endif %}" href="/note/{{nt.id}}/dash">
+        <a class="note {% if note and note.id == nt.id %}current-note{% endif %}" href="/note/{{nt.id}}">
             {{nt.title}}
         </a>
         {% endfor %}
