@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cozy Notes</title>
+    <style>
+        :root {
+            --bg-color: #f3d5c0;
+            --text-color: #5d4037;
+            --sidebar-bg: #e7bc91;
+            --button-bg: #cb997e;
+            --button-text: #ffffff;
+            --note-bg: #faf3e0;
+            --textbox-color: #000000;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            height: 100vh;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            transition: all 0.3s ease;
+        }
+
+        .sidebar {
+            width: 60px;
+            background-color: var(--sidebar-bg);
+            padding: 20px 10px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            transition: width 0.3s ease;
+            overflow: hidden;
+        }
+
+        .sidebar.expanded {
+            width: 200px;
+        }
+
+        .note-list {
+            flex-grow: 1;
+            overflow-y: auto;
+            margin-bottom: 20px;
+            width: 100%;
+            display: none;
+        }
+
+        .sidebar.expanded .note-list {
+            display: block;
+        }
+
+        .note-item {
+            padding: 10px;
+            margin-bottom: 5px;
+            background-color: var(--note-bg);
+            border-radius: 5px;
+            cursor: pointer;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .note-item:hover {
+            background-color: var(--button-bg);
+            color: var(--button-text);
+        }
+
+        button {
+            background-color: var(--button-bg);
+            color: var(--button-text);
+            border: none;
+            padding: 10px;
+            margin-bottom: 10px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .sidebar.expanded button {
+            width: 100%;
+        }
+
+        button:hover {
+            background-color: #e76f51;
+        }
+
+        .main-content {
+            flex-grow: 1;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        #note-title {
+            font-size: 24px;
+            margin-bottom: 20px;
+            padding: 10px;
+            border: none;
+            border-radius: 5px;
+            background-color: var(--note-bg);
+            color: var(--textbox-color);
+        }
+
+        #note-content {
+            flex-grow: 1;
+            background-color: var(--note-bg);
+            border: none;
+            border-radius: 5px;
+            padding: 20px;
+            font-size: 16px;
+            resize: none;
+        }
+
+        /* Dark mode styles */
+        body.dark-mode {
+            --bg-color: #2c2c2c;
+            --text-color: #e0e0e0;
+            --sidebar-bg: #3a3a3a;
+            --button-bg: #e76f51;
+            --button-text: #ffffff;
+            --note-bg: #4a4a4a;
+            --textbox-color: #ffffff;
+        }
+
+        .button-text {
+            display: none;
+        }
+
+        .sidebar.expanded .button-text {
+            display: inline;
+            margin-left: 5px;
+        }
+
+        textarea {
+            color: var(--textbox-color);
+        }
+
+        a {
+            text-decoration: none;
+            color: var(--text-color);
+        }
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+        <button id="toggle-sidebar" title="Toggle Sidebar">☰</button>
+        <div class="note-list">
+            {% for note in g.user.return_notes() %}
+            <a href="/note/{{ note.id }}"><div class="note-item">{{ note.title }}</div></a>
+            {% endfor %}
+        </div>
+        <button id="new-note" title="Add New Note">+<span class="button-text">New Note</span></button>
+        <button id="delete-note" title="Delete Note">🗑️<span class="button-text">Delete</span></button>
+        <button id="toggle-markdown" title="Toggle Markdown Mode">M<span class="button-text">Markdown</span></button>
+        <button id="toggle-dark-mode" title="Toggle Dark Mode">🌓<span class="button-text">Dark Mode</span></button>
+        <button id="increase-font" title="Increase Font Size">A+<span class="button-text">Increase Font</span></button>
+        <button id="decrease-font" title="Decrease Font Size">A-<span class="button-text">Decrease Font</span></button>
+        <button id="save-note" title="Save Note">💾<span class="button-text">Save</span></button>
+    </div>
+    <div class="main-content">
+        <input type="text" id="note-title" placeholder="Title" class="note-title" value="{% if note %}{{ note.title }}{% endif %}">
+        <textarea id="note-content" placeholder="Type your note here...">{% if note %}{{ note.content }}{% endif %}</textarea>
+    </div>
+
+    <script>
+        var noteId = {{ note_id }};
+
+        // Load Theme Settings
+        {% if g.user.get_theme_settings().dark_mode %}
+        document.body.classList.add('dark-mode');
+        {% endif %}
+        document.getElementById('note-content').style.fontSize = '{{ g.user.get_theme_settings().font_size }}px';
+
+        // Toggle sidebar
+        document.getElementById('toggle-sidebar').addEventListener('click', () => {
+            document.querySelector('.sidebar').classList.toggle('expanded');
+        });
+
+        // Toggle dark mode
+        document.getElementById('toggle-dark-mode').addEventListener('click', () => {
+            document.body.classList.toggle('dark-mode');
+            if (document.body.classList.contains('dark-mode')) {
+                fetch('/api/save_dark_mode/1')
+            } else {
+                fetch('/api/save_dark_mode/0')
+            }
+        });
+
+        // Increase font size
+        document.getElementById('increase-font').addEventListener('click', () => {
+            const textarea = document.getElementById('note-content');
+            let fontSize = parseInt(window.getComputedStyle(textarea).fontSize);
+            let newFontSize = fontSize + 2;
+            textarea.style.fontSize = newFontSize + 'px';
+            fetch('/api/save_font_size/' + newFontSize)
+        });
+
+        // Decrease font size
+        document.getElementById('decrease-font').addEventListener('click', () => {
+            const textarea = document.getElementById('note-content');
+            let fontSize = parseInt(window.getComputedStyle(textarea).fontSize);
+            let newFontSize = fontSize - 2;
+            if (fontSize > 8) {
+                textarea.style.fontSize = newFontSize + 'px';
+                fetch('/api/save_font_size/' + newFontSize)
+            }
+        });
+
+        // Save note
+        document.getElementById('save-note').addEventListener('click', () => {
+            const noteTitle = document.getElementById('note-title').value;
+            const noteContent = document.getElementById('note-content').value;
+            const noteCategory = "";
+            fetch('/api/save_note', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ noteId: noteId, title: noteTitle, content: noteContent, category: noteCategory })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('Note saved successfully!');
+                } else {
+                    alert('An error occurred. Please try again.');
+                }
+            });
+        });
+
+
+        document.addEventListener('keydown', e =>{
+            if (e.ctrlKey && e.key == "s") {
+                e.preventDefault();
+                document.getElementById('save-note').click();
+            }
+        })
+
+    </script>
+</body>
+</html>

@@ -469,6 +469,29 @@ def save_font():
     else:
         return jsonify(success=False,reason="Not logged in.")
 
+@app.route("/api/save_note", methods=['POST'])
+def save_note():
+    if g.user:
+        data = request.get_json()
+        note_id = data.get('noteId')
+        title = data.get('title')
+        content = data.get('content')
+        category = data.get('category')
+        if note_id == 0:
+            note = g.user.add_note(title,content,category)
+            return jsonify(success=True,note=note.return_json())
+        else:
+            note = UserNote.query.filter_by(id=note_id).first()
+            if note and g.user == note.user:
+                note.change_title(title)
+                note.change_content(content)
+                note.change_category(category)
+                return jsonify(success=True,note=note.return_json())
+            else:
+                return jsonify(success=False,reason="Note does not exist.")
+    else:
+        return jsonify(success=False,reason="Not logged in.")
+
 #================================================EXTERNAL API=================================================#
 
 @app.route("/api/external/get-notes", methods=['POST'])
@@ -685,7 +708,7 @@ def notes_page():
         theme_settings = g.user.get_theme_settings()
         theme = theme_settings.theme
         if theme.has_notes_page:
-            return render_template(f"themes/{theme_settings.theme.slug}/notes.html")
+            return render_template(f"themes/{theme_settings.theme.slug}/notes.html", notes = g.user.return_notes())
         else:
             return redirect(url_for('note_single_page', note_id = 0))
     else:
@@ -800,19 +823,19 @@ def manifest_json():
 
 with app.app_context():
     db.create_all()
-    db.session.commit()
     if Theme.query.filter_by(slug="paper").first() is None:
         paper = Theme(name="Paper",slug="paper", has_categories_page = True, has_notes_page = True)
         db.session.add(paper)
-        db.session.commit()
     if Theme.query.filter_by(slug="full").first() is None:
         full = Theme(name="Full",slug="full", has_categories_page = True, has_notes_page = True)
         db.session.add(full)
-        db.session.commit()
     if Theme.query.filter_by(slug="dash").first() is None:
         dash = Theme(name="Dash",slug="dash", has_categories_page = False, has_notes_page = False)
         db.session.add(dash)
-        db.session.commit()
+    if Theme.query.filter_by(slug="cozy").first() is None:
+        cozy = Theme(name="Cozy",slug="cozy", has_categories_page = False, has_notes_page = False)
+        db.session.add(cozy)
+    db.session.commit()
     
 
 
