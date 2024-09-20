@@ -12,7 +12,7 @@ The noting app aims to provide simple, fast and bloat-free noting with clean int
 
 ## Paper
 
-![Paper Theme - Note Single](https://raw.githubusercontent.com/mehonal/flasky-notes/main/static/images/themes/paper/note_single.png)
+![Paper Theme - Note Single](https://raw.githubusercontent.com/mehonal/flasky-notes/master/static/images/themes/paper/note_single.png)
 
 The Paper theme has options provided via GUI and does not rely on keyboard shortcuts. It's the default theme and aims to be easy to use for the average user.
 
@@ -24,7 +24,7 @@ The Paper theme has options provided via GUI and does not rely on keyboard short
 
 ## Full
 
-![Full Theme - Note Single](https://raw.githubusercontent.com/mehonal/flasky-notes/main/static/images/themes/full/note_single.png)
+![Full Theme - Note Single](https://raw.githubusercontent.com/mehonal/flasky-notes/master/static/images/themes/full/note_single.png)
 
 The Full theme features a fullscreen keyboard-shortcut intensive approach to noting. It's aimed to provide a swift and content-focused experience.
 
@@ -61,7 +61,7 @@ The Full theme features a fullscreen keyboard-shortcut intensive approach to not
 
 ## Dash
 
-![Dash Theme - Note Single](https://raw.githubusercontent.com/mehonal/flasky-notes/main/static/images/themes/dash/note_single.png)
+![Dash Theme - Note Single](https://raw.githubusercontent.com/mehonal/flasky-notes/master/static/images/themes/dash/note_single.png)
 
 Dash aims to combine the "best of two themes" by preserving keyboard-shortcuts available in Full and having the option to navigate around with a GUI, similar to Paper. Dash takes a single-page approach, allowing to add/edit notes and view the list of existing notes from the same page.
 
