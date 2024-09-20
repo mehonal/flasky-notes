@@ -89,20 +89,28 @@ Current Theme List:
 
 '''
 
+class Theme(db.Model):
+    id = db.Column(db.Integer, primary_key = True)
+    name = db.Column(db.String(100), unique = True)
+    slug = db.Column(db.String(100), unique = True)
+
+class UserTheme(db.Model):
+    id = db.Column(db.Integer, primary_key = True)
+    user_id = db.Column(db.ForeignKey('user.id'))
+    theme_id = db.Column(db.ForeignKey('theme.id'))
+    font = db.Column(db.String(250), default = "sans-serif")
+    font_size = db.Column(db.Integer, default = 16)
+    dark_mode = db.Column(db.Boolean, default = False)
+    hide_title = db.Column(db.Boolean, default = False)
+    notes_row_count = db.Column(db.Integer, default = 3)
+    notes_height = db.Column(db.Integer, default = 150)
+    user = db.relationship('User', backref="themes")
+    theme = db.relationship('Theme', backref="users")
+
+
 class UserSettings(db.Model):
     id = db.Column(db.Integer, primary_key = True)
     theme_preference = db.Column(db.String(100), default = "paper")
-    theme_paper_font_size = db.Column(db.Integer, default = 16)
-    theme_paper_dark_theme = db.Column(db.Boolean, default = False) # not implemented yet
-    theme_paper_font = db.Column(db.String(250), default = "sans-serif") # not implemented yet
-    theme_full_font_size = db.Column(db.Integer, default = 16)
-    theme_full_dark_theme = db.Column(db.Boolean, default = False)
-    theme_full_notes_row_count = db.Column(db.Integer, default = 3)
-    theme_full_notes_height = db.Column(db.Integer, default = 150)
-    theme_full_font = db.Column(db.String(250), default = "sans-serif")
-    theme_dash_font_size = db.Column(db.Integer, default = 16)
-    theme_dash_dark_theme = db.Column(db.Boolean, default = False)
-    theme_dash_font = db.Column(db.String(250), default = "sans-serif")
 
 
 class User(db.Model):
@@ -115,154 +123,105 @@ class User(db.Model):
     user_type = db.Column(db.Integer, default = 0)
     settings = db.relationship('UserSettings', uselist = False, backref= "user")
 
+    def get_theme_settings(self, theme_slug: str = None): # gets current theme's settings
+        if theme_slug is not None:
+            theme = Theme.query.filter_by(slug=theme_slug).first()
+            if theme:
+                user_theme = UserTheme.query.filter_by(user_id=self.id, theme_id=theme.id).first()
+                if user_theme:
+                    return user_theme
+                else:
+                    print(f"Could not find theme with slug {theme_slug}.")
+                    return None
+            else:
+                print(f"Could not find theme with slug {theme_slug}.")
+                return None
+        return UserTheme.query.filter_by(user_id=self.id, theme_id=self.settings.theme_preference).first()
+
     def get_current_theme_font(self):
         try:
-            settings = self.return_settings()
-            theme = settings.theme_preference
-            if theme == "paper":
-                return settings.theme_paper_font
-            elif theme == "full":
-                return settings.theme_full_font
-            elif theme == "dash":
-                return settings.theme_dash_font
-            print("Could not find theme to use to retrieve font via User.get_current_theme_font. Using default (sans-serif)")
-            return "sans-serif"
+            return self.get_theme_settings().font
         except:
             print("Could not retrieve font via User.get_current_theme_font. Using default (sans-serif)")
             return "sans-serif"
 
     def get_current_theme_notes_height(self):
         try:
-            settings = self.return_settings()
-            theme = settings.theme_preference
-            if theme == "full":
-                return settings.theme_full_notes_height
-            print("Could not find theme to use to retrieve note height for notes via User.get_current_theme_notes_height. Using default (150)")
-            return 150
+            return self.get_theme_settings().notes_height
         except:
             print("Could not retrieve note height for notes via User.get_current_theme_notes_height. Using default (150)")
             return 150
 
     def get_current_theme_notes_row_count(self):
         try:
-            settings = self.return_settings()
-            theme = settings.theme_preference
-            if theme == "full":
-                return settings.theme_full_notes_row_count
-            print("Could not find theme to use to retrieve row count preference for notes via User.get_current_theme_notes_row_count. Using default (3)")
-            return 3
+            return self.get_theme_settings().notes_row_count
         except:
             print("Could not retrieve row count preference for notes via User.get_current_theme_notes_row_count. Using default (3)")
             return 3
 
     def get_current_theme_dark_mode(self):
         try:
-            settings = self.return_settings()
-            theme = settings.theme_preference
-            if theme == "paper":
-                return settings.theme_paper_dark_theme
-            elif theme == "full":
-                return settings.theme_full_dark_theme
-            elif theme == "dash":
-                return settings.theme_dash_dark_theme
-            print("Could not find theme to use to retrieve dark mode preference via User.get_current_theme_dark_mode. Using default (off)")
-            return False
+            return self.get_theme_settings().dark_mode
         except:
             print("Could not retrieve dark mode preference via User.get_current_theme_dark_mode. Using default (off)")
             return False
 
     def get_current_theme_font_size(self):
         try:
-            settings = self.return_settings()
-            theme = settings.theme_preference
-            if theme == "paper":
-                font_size = settings.theme_paper_font_size
-                if font_size is None:
-                    font_size = 16
-                    db.session.commit()
-                return font_size
-            elif theme == "full":
-                font_size = settings.theme_full_font_size
-                if font_size is None:
-                    font_size = 16
-                    db.session.commit()
-                return font_size
-            elif theme == "dash":
-                font_size = settings.theme_dash_font_size
-                if font_size is None:
-                    font_size = 16
-                    db.session.commit()
-                return font_size
-            print("Could not find theme to use for font size via User.return_current_theme_font_size. Using default (16)")
-            return 16
+            return self.get_theme_settings().font_size
         except:
             print("Could not retrieve font size via User.return_current_theme_font_size. Using default (16)")
             return 16
 
     def update_theme_font(self, theme, new_font):
-        settings = self.return_settings()
-        if settings is None:
-            print("Settings not found!")
+        try:
+            theme_settings = self.get_theme_settings(theme)
+            theme_settings.font = new_font
+            db.session.commit()
+            return True
+        except:
+            print("Could not update font via User.update_theme_font.")
             return False
-        if theme == "paper":
-            settings.theme_paper_font = new_font
-        elif theme == "full":
-            settings.theme_full_font = new_font
-        elif theme == "dash":
-            settings.theme_dash_font = new_font
-        else:
-            print("Could not find theme to update font via User.update_theme_font. No action was taken.")
-            return False
-        db.session.commit()
-        return True
 
     def update_theme_notes_height(self, theme, new_height):
-        settings = self.return_settings()
-        if settings is None:
-            print("Settings not found!")
-            return False
-        if theme == "full":
-            settings.theme_full_notes_height = new_height
+        try:
+            theme_settings = self.get_theme_settings(theme)
+            theme_settings.notes_height = new_height
             db.session.commit()
-        return True
+            return True
+        except:
+            print("Could not update notes height via User.update_theme_notes_height.")
+            return False
 
     def update_theme_notes_row_count(self, theme, new_row_count):
-        settings = self.return_settings()
-        if settings is None:
-            print("Settings not found!")
-            return False
-        if theme == "full":
-            settings.theme_full_notes_row_count = new_row_count
+        try:
+            theme_settings = self.get_theme_settings(theme)
+            theme_settings.notes_row_count = new_row_count
             db.session.commit()
-        return True
+            return True
+        except:
+            print("Could not update notes row count via User.update_theme_notes_row_count.")
+            return False
 
     def update_theme_dark_mode(self, theme, dark_mode):
-        settings = self.return_settings()
-        if settings is None:
-            print("Settings not found!")
+        try:
+            theme_settings = self.get_theme_settings(theme)
+            theme_settings.dark_mode = dark_mode
+            db.session.commit()
+            return True
+        except:
+            print("Could not update dark mode via User.update_theme_dark_mode.")
             return False
-        if theme == "paper":
-            settings.theme_paper_dark_theme = dark_mode
-        elif theme == "full":
-            settings.theme_full_dark_theme = dark_mode
-        elif theme == "dash":
-            settings.theme_dash_dark_theme = dark_mode
-        db.session.commit()
-        return True
 
     def update_theme_font_size(self, theme, new_font_size):
-        settings = self.return_settings()
-        if settings is None:
-            print("Settings not found!")
+        try:
+            theme_settings = self.get_theme_settings(theme)
+            theme_settings.font_size = new_font_size
+            db.session.commit()
+            return True
+        except:
+            print("Could not update font size via User.update_theme_font_size.")
             return False
-        if theme == "paper":
-            settings.theme_paper_font_size = new_font_size
-        elif theme == "full":
-            settings.theme_full_font_size = new_font_size
-        elif theme == "dash":
-            settings.theme_dash_font_size = new_font_size
-        db.session.commit()
-        return True
 
     def return_settings(self):
         try:
@@ -1050,6 +1009,18 @@ def manifest_json():
     return redirect("/static/script/manifest.json")
 
 with app.app_context():
+    if Theme.query.filter_by(slug="paper").first() is None:
+        paper = Theme(name="Paper",slug="paper")
+        db.session.add(paper)
+        db.session.commit()
+    if Theme.query.filter_by(slug="full").first() is None:
+        full = Theme(name="Full",slug="full")
+        db.session.add(full)
+        db.session.commit()
+    if Theme.query.filter_by(slug="dash").first() is None:
+        dash = Theme(name="Dash",slug="dash")
+        db.session.add(dash)
+        db.session.commit()
     db.create_all()
     db.session.commit()
 
