@@ -109,6 +109,35 @@ class User(db.Model):
     user_type = db.Column(db.Integer, default = 0)
     settings = db.relationship('UserSettings', uselist = False, backref= "user")
 
+    def get_main_category(self):
+        try:
+            category = UserNoteCategory.query.filter_by(user_id=self.id,name="Main").first()
+            if category:
+                return category
+            else:
+                category = UserNoteCategory.query.filter_by(user_id=self.id,name="main").first()
+                if category is None:
+                    category = UserNoteCategory(user_id=self.id,name="Main")
+                    db.session.add(category)
+                    db.session.commit()
+            return category
+        except:
+            return None
+
+    def get_category(self,category,create = False):
+        if category is not None:
+            if isinstance(category, int):
+                category = UserNoteCategory.query.filter_by(user_id=self.id,id=category).first()
+            elif isinstance(category, str):
+                category = UserNoteCategory.query.filter_by(user_id=self.id,name=category).first()
+        if category is None and create and isinstance(category, str):
+            category = UserNoteCategory(user_id=self.id,name=category)
+            db.session.add(category)
+            db.session.commit()
+        if category is None:
+            return self.get_main_category()
+        return category
+
     def generate_theme_settings(self):
         for theme in Theme.query.all():
             if UserTheme.query.filter_by(user_id=self.id, theme_id=theme.id).first() is None:
@@ -295,9 +324,8 @@ class User(db.Model):
 
     def add_note(self,title,content,category):
         try:
-            if category is not None:
-                category = category.strip()
-            note = UserNote(self.id,title,content,category)
+            category = self.get_category(category,create=True)
+            note = UserNote(userid=self.id,title=title,content=content,category_id=category.id)
             return note
         except:
             print("Could not add note.")
@@ -333,13 +361,14 @@ class UserNote(db.Model):
     __tablename__ = "user_note"
     id = db.Column(db.Integer, primary_key = True, autoincrement = True)
     userid = db.Column(db.ForeignKey('user.id'))
+    category_id = db.Column(db.ForeignKey('user_note_category.id'))
     title = db.Column(db.String(1_000))
     content = db.Column(db.String(1_000_000))
     previous_content = db.Column(db.String(1_000_000))
-    category = db.Column(db.String(100))
     date_added = db.Column(db.DateTime)
     date_last_changed = db.Column(db.DateTime)
     user = db.relationship('User', backref="notes")
+    category = db.relationship('UserNoteCategory', backref="notes")
 
     def return_time_ago(self):
         now = datetime.now()
@@ -378,12 +407,15 @@ class UserNote(db.Model):
         db.session.commit()
 
     def change_category(self,new_category):
-        if new_category is not None:
-            self.category = new_category.strip()
-        else:
-            self.category = new_category
-        self.date_last_changed = datetime.now()
+        if isinstance(new_category, UserNoteCategory):
+            self.category_id = new_category.id
+        elif isinstance(new_category, int):
+            self.category_id = new_category
+        elif isinstance(new_category, str):
+            new_category = self.user.get_category(new_category,create=True)
+            self.category_id = new_category.id
         db.session.commit()
+        return True
 
     def change_title(self,new_title):
         self.title = new_title
@@ -408,21 +440,33 @@ class UserNote(db.Model):
             "id": self.id,
             "title": self.title,
             "content": self.content,
-            "category": self.category,
+            "category": self.get_category_name(),
             "date_added": self.date_added,
             "date_last_changed": self.date_last_changed
         }
 
-    def __init__(self,userid,title,content,category):
+    def __init__(self,userid,title,content,category_id):
         self.userid = userid
         self.title = title
         self.content = content
-        self.category = category
+        self.category_id = category_id
         self.date_added = datetime.now()
         self.date_last_changed = datetime.now()
         db.session.add(self)
         db.session.commit()
 
+class UserNoteCategory(db.Model):
+    __tablename__ = "user_note_category"
+    id = db.Column(db.Integer, primary_key = True)
+    user_id = db.Column(db.ForeignKey('user.id'))
+    name = db.Column(db.String(100))
+    user = db.relationship('User', backref="categories")
+
+    def __init__(self, user_id,name):
+        self.user_id = user_id 
+        self.name = name 
+        db.session.add(self)
+        db.session.commit()
 
 #=============================================================================================================#
 #=================================================APP ROUTES==================================================#
@@ -809,28 +853,20 @@ def categories_page():
         theme_settings = g.user.get_theme_settings()
         theme = theme_settings.theme
         if theme.has_categories_page:
-            categories = []
-            for note in UserNote.query.filter_by(userid=g.user.id).all():
-                note_categories = note.category
-                if note_categories is not None:
-                    categories.extend(note_categories.lower().split(","))
-            categories = set(categories)
+            categories = g.user.categories
             return render_template(f"themes/{theme_settings.theme.slug}/categories.html", categories = categories)
         else:
             return render_template(f"themes/{theme_settings.theme.slug}/notes.html")
     return 'You are not logged in. Please login using the <a href="/login">Login Page</a>.'
 
-@app.route("/categories/<category>")
+@app.route("/categories/<int:category>")
 def category_single_page(category):
     if g.user:
         theme_settings = g.user.get_theme_settings()
+        theme = theme_settings.theme
         if theme.has_categories_page:
-            notes = []
-            for note in g.user.notes:
-                if note.category is not None:
-                    for note_category in note.category.split(","):
-                        if category.strip().lower() == note_category.strip().lower():
-                            notes.append(note)
+            category = g.user.get_category(category)
+            notes = UserNote.query.filter_by(userid=g.user.id,category_id=category.id).all()
             return render_template(f"themes/{theme_settings.theme.slug}/notes.html", category = category, notes_of_category = True, notes = notes)
         else:
             return render_template(f"themes/{theme_settings.theme.slug}/notes.html")

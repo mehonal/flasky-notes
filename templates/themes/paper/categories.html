@@ -9,7 +9,7 @@
   <br>
   {% if categories %}
   {% for category in categories %}
-  <a href="/categories/{{category}}" class="btn btn-primary mb-2 w-75">{{category}}</a>
+  <a href="/categories/{{category.id}}" class="btn btn-primary mb-2 w-75">{{category.name}}</a>
   {% endfor %}
   {% else %}
   <h2>You currently do not have any categories. To add a category, you can specify a category for any note.</h2>

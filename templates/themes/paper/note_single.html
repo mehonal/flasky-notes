@@ -11,8 +11,8 @@
         {% if not note %}
         Note Title:
         <input type="text" name="title" class="form-control mb-2" placeholder="Title...">
-        Note Categories (comma-separated):
-        <input type="text" name="category" class="form-control mb-2" placeholder="Categories..." {% if category %}value="{{category}}"{% endif %}>
+        Note Category:
+        <input type="text" name="category" class="form-control mb-2" placeholder="Categories..." {% if category %}value="{{category.name}}"{% endif %}>
         {% endif %}
         Note Content:
         <textarea class="form-control" id="{% if note %}post-content{% endif %}" name="content" rows="{% if note %}2{% else %}13{% endif %}" {% if note %}onkeyup="textAreaAdjust(this)"{% endif %} placeholder="Note...">{% if note and note.content %}{{note.content}}{% endif %}</textarea>
@@ -32,8 +32,8 @@
   <h2 class="text-center">Note Settings</h2>
   Title:
   <input type="text" name="title" class="form-control mb-2" placeholder="Note Title..." value="{% if note %}{{note.title}}{% endif %}">
-  Categories:
-  <input type="text" name="category" class="form-control mb-2" placeholder="Categories" value="{% if note.category %}{{note.category}}{% endif %}">
+  Category:
+  <input type="text" name="category" class="form-control mb-2" placeholder="Categories" value="{% if note.category %}{{note.category.name }}{% endif %}">
   Font Size:
   <input type="number" name="custom_font_size" id="custom_font_size" class="form-control mb-2" placeholder="Custom Font Size..." value="{{font_size}}" onchange="changeFontSize()">
   <input type="submit" name="update-note" class="btn btn-primary w-100 mt-2" value="{% if note %}Update{% else %}Add{% endif %}">
