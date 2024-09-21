@@ -125,18 +125,19 @@ class User(db.Model):
             return None
 
     def get_category(self,category,create = False):
+        category_obj = None
         if category is not None:
             if isinstance(category, int):
-                category = UserNoteCategory.query.filter_by(user_id=self.id,id=category).first()
+                category_obj = UserNoteCategory.query.filter_by(user_id=self.id,id=category).first()
             elif isinstance(category, str):
-                category = UserNoteCategory.query.filter_by(user_id=self.id,name=category).first()
-        if category is None and create and isinstance(category, str):
-            category = UserNoteCategory(user_id=self.id,name=category)
+                category_obj = UserNoteCategory.query.filter_by(user_id=self.id,name=category).first()
+        if category_obj is None and create and isinstance(category, str):
+            category_obj = UserNoteCategory(user_id=self.id,name=category)
             db.session.add(category)
             db.session.commit()
         if category is None:
             return self.get_main_category()
-        return category
+        return category_obj
 
     def generate_theme_settings(self):
         for theme in Theme.query.all():
@@ -369,6 +370,12 @@ class UserNote(db.Model):
     date_last_changed = db.Column(db.DateTime)
     user = db.relationship('User', backref="notes")
     category = db.relationship('UserNoteCategory', backref="notes")
+
+    def get_category_name(self):
+        try:
+            return self.category.name
+        except:
+            return "Main"
 
     def return_time_ago(self):
         now = datetime.now()
@@ -856,7 +863,7 @@ def categories_page():
             categories = g.user.categories
             return render_template(f"themes/{theme_settings.theme.slug}/categories.html", categories = categories)
         else:
-            return render_template(f"themes/{theme_settings.theme.slug}/notes.html")
+            return render_template(f"themes/{theme_settings.theme.slug}/notes.html", categories = categories)
     return 'You are not logged in. Please login using the <a href="/login">Login Page</a>.'
 
 @app.route("/categories/<int:category>")
@@ -864,12 +871,9 @@ def category_single_page(category):
     if g.user:
         theme_settings = g.user.get_theme_settings()
         theme = theme_settings.theme
-        if theme.has_categories_page:
-            category = g.user.get_category(category)
-            notes = UserNote.query.filter_by(userid=g.user.id,category_id=category.id).all()
-            return render_template(f"themes/{theme_settings.theme.slug}/notes.html", category = category, notes_of_category = True, notes = notes)
-        else:
-            return render_template(f"themes/{theme_settings.theme.slug}/notes.html")
+        category = g.user.get_category(category)
+        notes = UserNote.query.filter_by(userid=g.user.id,category_id=category.id).all()
+        return render_template(f"themes/{theme_settings.theme.slug}/notes.html", category = category, notes_of_category = True, notes = notes)
     return 'You are not logged in. Please login using the <a href="/login">Login Page</a>.'
 
 @app.route("/note/<int:note_id>", methods=['GET','POST'])
@@ -963,6 +967,9 @@ with app.app_context():
     if Theme.query.filter_by(slug="sage").first() is None:
         sage = Theme(name="Sage",slug="sage", has_categories_page = False, has_notes_page = False)
         db.session.add(sage)
+    if Theme.query.filter_by(slug="segment").first() is None:
+        segment = Theme(name="Segment",slug="segment", has_categories_page = False, has_notes_page = False)
+        db.session.add(segment)
     db.session.commit()
     
 

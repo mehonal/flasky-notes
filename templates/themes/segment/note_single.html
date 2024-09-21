@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Segment</title>
+    <style>
+        :root {
+            --segment-dark: #36393f;
+            --segment-darker: #2f3136;
+            --segment-light: #dcddde;
+            --segment-accent: #7289da;
+            --segment-text: #ffffff;
+        }
+
+        body, html {
+            margin: 0;
+            padding: 0;
+            font-family: Arial, sans-serif;
+            height: 100%;
+            background-color: var(--segment-dark);
+            color: var(--segment-text);
+        }
+
+        .container {
+            display: flex;
+            height: 100%;
+        }
+
+        .category-sidebar {
+            width: 70px;
+            background-color: var(--segment-darker);
+            padding: 20px 10px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .category-icon {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background-color: var(--segment-accent);
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            font-size: 24px;
+            transition: background-color 0.3s;
+        }
+
+        .category-icon:hover {
+            background-color: var(--segment-light);
+            color: var(--segment-darker);
+        }
+
+        .notes-sidebar {
+            width: 200px;
+            background-color: var(--segment-dark);
+            padding: 7px 20px 20px 20px;
+            border-right: 1px solid var(--segment-light);
+        }
+
+        .note-item {
+            padding: 10px;
+            margin-bottom: 10px;
+            background-color: var(--segment-darker);
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        .note-item:hover {
+            background-color: var(--segment-accent);
+        }
+
+        .note-content {
+            flex-grow: 1;
+            padding: 20px;
+            background-color: var(--segment-dark);
+        }
+
+        .note-header {
+            font-size: 24px;
+            margin-bottom: 20px;
+            border-bottom: 1px solid var(--segment-light);
+            padding-bottom: 10px;
+        }
+
+        .note-body {
+            background-color: var(--segment-darker);
+            border-radius: 5px;
+            padding: 20px;
+            min-height: 300px;
+        }
+
+        a {
+            text-decoration: none;
+            color: var(--segment-text);
+        }
+
+        button {
+            padding: 10px 20px;
+            background-color: var(--segment-accent);
+            border: none;
+            border-radius: 5px;
+            color: var(--segment-text);
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        button:hover {
+            background-color: var(--segment-light);
+        }
+
+        select {
+            padding: 10px;
+            margin: 20px 0px;
+            background-color: var(--segment-light);
+            color: var(--segment-darker);
+            border: none;
+            border-radius: 5px;
+        }
+        
+        input {
+            padding: 10px;
+            background-color: var(--segment-light);
+            color: var(--segment-darker);
+            border: none;
+            border-radius: 5px;
+        }
+
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="category-sidebar">
+            <a href="/note/0"><div class="category-icon">All</div></a>
+            {% for category in g.user.categories %}
+                <a href="/categories/{{ category.id }}"><div class="category-icon">{{ category.name[0] }}</div></a>
+            {% endfor %}
+        </div>
+        <div class="notes-sidebar">
+            {% if note_id == 0 %}
+                <h2>All Notes</h2>
+                {% for note in g.user.return_notes() %}
+                <a href="/note/{{ note.id }}">
+                    <div class="note-item">{{ note.title }}</div>
+                </a>
+                {% endfor %}
+            {% else %}
+                <h2>{{ note.category.name }}</h2>
+                {% for note in note.category.notes %}
+                <a href="/note/{{ note.id }}">
+                    <div class="note-item">{{ note.title }}</div>
+                </a>
+                {% endfor %}
+            {% endif %}
+        </div>
+        <div class="note-content">
+            {% if note  %}
+            <div class="note-header" onclick="this.contentEditable = true;">{{ note.title }}</div>
+            <div class="note-body" onclick="this.contentEditable = true;">
+                {{ note.content }} 
+            </div>
+            {% else %}
+            <div class="note-header" onclick="this.contentEditable = true;">New Note</div>
+            <div class="note-body" onclick="this.contentEditable = true;">
+                Start typing here...
+            </div>
+            {% endif %}
+            <select name="category" id="category">
+                {% for category in g.user.categories %}
+                    <option value="{{ category.id }}" {% if category.id == note.category_id %} selected {% endif %}>{{ category.name }}</option>
+                {% endfor %}
+                <option value="new">New Category</option>
+            </select>
+            <input type="text" id="new-category" placeholder="New Category Name..." style="display: none;">
+            <br>
+            <button onclick="saveNote()" class="button" id="save-btn">Save</button>
+            <button onclick="deleteNote()" class="button" id="delete-btn">Delete</button>
+        </div>
+    </div>
+    <script>
+        
+        document.querySelector('#category').addEventListener('change', function() {
+            if (this.value === 'new') {
+                document.querySelector('#new-category').style.display = 'block';
+            }
+            else {
+                document.querySelector('#new-category').style.display = 'none';
+            }
+        });
+
+        function saveNote() {
+            const title = document.querySelector('.note-header').innerText;
+            const content = document.querySelector('.note-body').innerText;
+            let category = document.querySelector('#category').value;
+            if (category === 'new') {
+                category = document.querySelector('#new-category').value;
+            }
+            fetch('/api/save_note', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ noteId: {{ note_id }}, title: title, content: content, category: category })
+            })
+            .then(response => response.json())
+            .then(data => {
+                window.location.href = `/note/${data.note.id}`;
+            });
+        }
+
+        function deleteNote() {
+            fetch('/api/delete_note/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ noteId: {{ note_id }} })
+            }).then(() => {
+                window.location.href = '/note/0';
+            });
+        }
+
+    </script>
+</body>
+</html>
