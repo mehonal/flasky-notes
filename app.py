@@ -67,6 +67,7 @@ Current Theme List:
 '''
 
 class Theme(db.Model):
+    __tablename__ = "theme"
     id = db.Column(db.Integer, primary_key = True)
     name = db.Column(db.String(100), unique = True)
     has_settings_page = db.Column(db.Boolean, default = False)
@@ -75,6 +76,7 @@ class Theme(db.Model):
     slug = db.Column(db.String(100), unique = True)
 
 class UserTheme(db.Model):
+    __tablename__ = "user_theme"
     id = db.Column(db.Integer, primary_key = True)
     user_id = db.Column(db.ForeignKey('user.id'))
     theme_id = db.Column(db.ForeignKey('theme.id'))
@@ -89,11 +91,13 @@ class UserTheme(db.Model):
 
 
 class UserSettings(db.Model):
+    __tablename__ = "user_settings"
     id = db.Column(db.Integer, primary_key = True)
     theme_preference = db.Column(db.String(100), default = "paper")
 
 
 class User(db.Model):
+    __tablename__ = "user"
     id = db.Column(db.Integer, primary_key = True, autoincrement = True)
     settingsid = db.Column(db.Integer, db.ForeignKey('user_settings.id'), unique = True)
     username = db.Column(db.String(30), unique = True)
@@ -304,6 +308,7 @@ class User(db.Model):
 
 
 class UserNote(db.Model):
+    __tablename__ = "user_note"
     id = db.Column(db.Integer, primary_key = True, autoincrement = True)
     userid = db.Column(db.ForeignKey('user.id'))
     title = db.Column(db.String(1_000))
