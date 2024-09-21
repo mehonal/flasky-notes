@@ -34,7 +34,7 @@
             flex-direction: column;
             align-items: center;
             transition: width 0.3s ease;
-            overflow: hidden;
+            overflow-y: auto;
         }
 
         .sidebar.expanded {
@@ -171,7 +171,6 @@
             color: var(--text-color);
         }
 
-
         @media (max-width: 480px) {
 
             .sidebar {
@@ -237,6 +236,8 @@
         <button id="decrease-font" title="Decrease Font Size">A-<span class="button-text">Decrease Font</span></button>
         <button id="hide-title" title="Hide Title">📜<span class="button-text">Hide Title</span></button>
         <button id="save-note" title="Save Note"><span id="save-icon">💾</span><span class="button-text">Save</span></button>
+        <button id="auto-save" title="Auto-Save"><span id="autosave-icon">⏸️</span><span class="button-text">Auto Save</span></button>
+        <button id="settings" title="Settings">⚙️<span class="button-text">Settings</span></button>
     </div>
     <div class="main-content">
         <input type="text" id="note-title" placeholder="Title" class="note-title" value="{% if note %}{{ note.title }}{% endif %}">
@@ -245,6 +246,7 @@
 
     <script>
         var noteId = {{ note_id }};
+        var autoSaveInterval;
 
         // Load Theme Settings
         {% if g.user.get_theme_settings().dark_mode %}
@@ -253,9 +255,23 @@
         {% if g.user.get_theme_settings().hide_title %}
         document.getElementById('note-title').style.display = 'none';
         {% endif %}
-        document.getElementById('note-content').style.fontSize = '{{ g.user.get_theme_settings().font_size }}px';
+        {% if g.user.get_theme_settings().auto_save %}
+        document.getElementById('auto-save').classList.add('active');
+        autoSaveInterval = setInterval(() => {
+            document.getElementById('save-note').click();
+            console.log('Auto save');
+        }, 30000);
+        document.getElementById('autosave-icon').innerHTML = '🔄';
+        {% endif %}
 
 
+        // if on mobile, mobile font size
+        if (window.innerWidth < 480) {
+            document.getElementById('note-content').style.fontSize = '{{ g.user.get_theme_settings().font_size_mobile }}px';
+        }
+        else {
+            document.getElementById('note-content').style.fontSize = '{{ g.user.get_theme_settings().font_size }}px';
+        }
 
         // Toggle sidebar
         document.getElementById('toggle-sidebar').addEventListener('click', () => {
@@ -273,6 +289,13 @@
         // Toggle markdown
         document.getElementById('toggle-markdown').addEventListener('click', () => {
             alert('This feature is not yet implemented.');
+        });
+
+        // Go to settings
+        document.getElementById('settings').addEventListener('click', () => {
+            if (confirm('Are you sure you want to go to settings? Your changes will not be saved.')) {
+                window.location.href = '/settings';
+            }
         });
 
         // Hide title
@@ -330,13 +353,52 @@
             }
         });
 
+        // Toggle auto save
+        document.getElementById('auto-save').addEventListener('click', () => {
+            if (document.getElementById('auto-save').classList.contains('active')) {
+                document.getElementById('auto-save').classList.remove('active');
+                clearInterval(autoSaveInterval);
+            } else {
+                document.getElementById('auto-save').classList.add('active');
+                autoSaveInterval = setInterval(() => {
+                    document.getElementById('save-note').click();
+                    console.log('Auto save');
+                }, 5000);
+            }
+            if (document.getElementById('auto-save').classList.contains('active')) {
+                document.getElementById('autosave-icon').innerHTML = '🔄';
+                fetch('/api/save_auto_save', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ autoSave: 1 })
+                });
+            } else {
+                document.getElementById('autosave-icon').innerHTML = '⏸️';
+                fetch('/api/save_auto_save', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ autoSave: 0 })
+                });
+            }
+        });
+
+
         // Increase font size
         document.getElementById('increase-font').addEventListener('click', () => {
             const textarea = document.getElementById('note-content');
             let fontSize = parseInt(window.getComputedStyle(textarea).fontSize);
             let newFontSize = fontSize + 2;
             textarea.style.fontSize = newFontSize + 'px';
-            fetch('/api/save_font_size/' + newFontSize)
+            if (window.innerWidth < 480) {
+                fetch('/api/save_mobile_font_size/' + newFontSize)
+            }
+            else {
+                fetch('/api/save_font_size/' + newFontSize)
+            }
         });
 
         // Decrease font size
@@ -346,7 +408,12 @@
             let newFontSize = fontSize - 2;
             if (fontSize > 8) {
                 textarea.style.fontSize = newFontSize + 'px';
-                fetch('/api/save_font_size/' + newFontSize)
+                if (window.innerWidth < 480) {
+                    fetch('/api/save_mobile_font_size/' + newFontSize)
+                }
+                else {
+                    fetch('/api/save_font_size/' + newFontSize)
+                }
             }
         });
 

@@ -82,10 +82,12 @@ class UserTheme(db.Model):
     theme_id = db.Column(db.ForeignKey('theme.id'))
     font = db.Column(db.String(250), default = "sans-serif")
     font_size = db.Column(db.Integer, default = 16)
+    mobile_font_size = db.Column(db.Integer, default = 16)
     dark_mode = db.Column(db.Boolean, default = False)
     hide_title = db.Column(db.Boolean, default = False)
     notes_row_count = db.Column(db.Integer, default = 3)
     notes_height = db.Column(db.Integer, default = 150)
+    auto_save = db.Column(db.Boolean, default = False)
     user = db.relationship('User', backref="themes")
     theme = db.relationship('Theme', backref="users")
 
@@ -212,6 +214,16 @@ class User(db.Model):
             print("Could not update dark mode via User.update_theme_dark_mode.")
             return False
 
+    def update_theme_auto_save(self, theme, auto_save):
+        try:
+            theme_settings = self.get_theme_settings(theme)
+            theme_settings.auto_save = auto_save
+            db.session.commit()
+            return True
+        except:
+            print("Could not update auto save via User.update_theme_auto_save.")
+            return False
+
     def update_theme_font_size(self, theme, new_font_size):
         try:
             theme_settings = self.get_theme_settings(theme)
@@ -220,6 +232,16 @@ class User(db.Model):
             return True
         except:
             print("Could not update font size via User.update_theme_font_size.")
+            return False
+
+    def update_theme_mobile_font_size(self, theme, new_font_size):
+        try:
+            theme_settings = self.get_theme_settings(theme)
+            theme_settings.mobile_font_size = new_font_size
+            db.session.commit()
+            return True
+        except:
+            print("Could not update mobile font size via User.update_theme_mobile_font_size.")
             return False
 
     def update_theme_hide_title(self, theme, hide_title):
@@ -437,6 +459,29 @@ def save_font_size(font_size):
         theme = g.user.return_settings().theme_preference
         g.user.update_theme_font_size(theme, font_size)
         return jsonify(success=True,theme=theme,font_size=font_size)
+    else:
+        return jsonify(success=False,reason="Not logged in.")
+
+@app.route("/api/save_mobile_font_size/<int:font_size>")
+def save_mobile_font_size(font_size):
+    if g.user:
+        theme = g.user.return_settings().theme_preference
+        g.user.update_theme_mobile_font_size(theme, font_size)
+        return jsonify(success=True,theme=theme,font_size=font_size)
+    else:
+        return jsonify(success=False,reason="Not logged in.")
+
+@app.route("/api/save_auto_save", methods=['POST'])
+def save_auto_save():
+    if g.user:
+        theme = g.user.return_settings().theme_preference
+        auto_save = request.get_json().get('autoSave')
+        if auto_save == 1:
+            auto_save = True
+        else:
+            auto_save = False
+        g.user.update_theme_auto_save(theme, auto_save)
+        return jsonify(success=True,theme=theme,new_auto_save_setting=auto_save)
     else:
         return jsonify(success=False,reason="Not logged in.")
 
