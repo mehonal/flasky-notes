@@ -218,6 +218,16 @@ class User(db.Model):
             print("Could not update font size via User.update_theme_font_size.")
             return False
 
+    def update_theme_hide_title(self, theme, hide_title):
+        try:
+            theme_settings = self.get_theme_settings(theme)
+            theme_settings.hide_title = hide_title
+            db.session.commit()
+            return True
+        except:
+            print("Could not update hide title via User.update_theme_hide_title.")
+            return False
+
     def return_settings(self):
         try:
             return self.settings
@@ -469,6 +479,20 @@ def save_font():
     else:
         return jsonify(success=False,reason="Not logged in.")
 
+@app.route("/api/save_hide_title", methods=['POST'])
+def save_hide_title():
+    if g.user:
+        theme = g.user.return_settings().theme_preference
+        hide_title = request.get_json().get('hideTitle')
+        if hide_title == 1:
+            hide_title = True
+        else:
+            hide_title = False
+        g.user.update_theme_hide_title(theme, hide_title)
+        return jsonify(success=True,theme=theme,new_hide_title_setting=hide_title)
+    else:
+        return jsonify(success=False,reason="Not logged in.")
+
 @app.route("/api/save_note", methods=['POST'])
 def save_note():
     if g.user:
@@ -489,6 +513,21 @@ def save_note():
                 return jsonify(success=True,note=note.return_json())
             else:
                 return jsonify(success=False,reason="Note does not exist.")
+    else:
+        return jsonify(success=False,reason="Not logged in.")
+
+@app.route("/api/delete_note", methods=['POST'])
+def delete_note():
+    if g.user:
+        data = request.get_json()
+        note_id = data.get('noteId')
+        note = UserNote.query.filter_by(id=note_id).first()
+        if note and g.user == note.user:
+            db.session.delete(note)
+            db.session.commit()
+            return jsonify(success=True)
+        else:
+            return jsonify(success=False,reason="Note does not exist.")
     else:
         return jsonify(success=False,reason="Not logged in.")
 
