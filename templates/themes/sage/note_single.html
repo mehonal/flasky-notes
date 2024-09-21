@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sage Notes</title>
+    <style>
+        :root {
+            --sage-darkest: #1E2D2F;
+            --sage-dark: #2F4F4F;
+            --sage-medium: #5F9EA0;
+            --sage-light: #8FBC8F;
+            --sage-text: #E0F0E0;
+            --font-size: 16px;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--sage-darkest);
+            color: var(--sage-text);
+            line-height: 1.6;
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            width: 100%;
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        h1 {
+            color: var(--sage-light);
+            text-align: center;
+            font-weight: 300;
+            font-size: 2.5em;
+            margin-bottom: 1em;
+        }
+
+        .controls {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 20px;
+        }
+
+        button, .button {
+            background-color: var(--sage-dark);
+            border: none;
+            color: var(--sage-text);
+            padding: 10px 15px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border-radius: 5px;
+            font-size: 0.9em;
+            text-decoration: none;
+        }
+
+        button:hover {
+            background-color: var(--sage-medium);
+            transform: translateY(-2px);
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+
+        .note-area {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            margin-bottom: 20px;
+        }
+
+        input, textarea {
+            background-color: var(--sage-dark);
+            color: var(--sage-text);
+            border: none;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 8px;
+            font-size: var(--font-size);
+            transition: all 0.3s ease;
+        }
+
+        #note-content {
+            height: 200px;
+            border: none;
+            resize: vertical;
+        }
+
+        #note-content:focus {
+            outline: none;
+            box-shadow: 0 0 0 2px var(--sage-medium);
+        }
+
+        .note-list {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            overflow-y: auto;
+        }
+
+        .note {
+            background-color: var(--sage-dark);
+            padding: 15px;
+            border-radius: 8px;
+            transition: all 0.3s ease;
+        }
+
+        .note:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+
+        .note-actions {
+            display: flex;
+            justify-content: flex-end;
+            margin-top: 10px;
+        }
+
+        .note-actions button {
+            margin-left: 10px;
+            font-size: 0.8em;
+            padding: 5px 10px;
+        }
+
+        /* Scrollbar styling */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--sage-darkest);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--sage-medium);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--sage-light);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Notes</h1>
+        
+        <div class="controls">
+            <a href="/settings" class="button">Settings</a>
+            <div>
+                <button id="decrease-font">A-</button>
+                <button id="increase-font">A+</button>
+            </div>
+        </div>
+
+        <div class="note-area" data-note-id="{{ note_id}}">
+            <input type="text" id="note-title" placeholder="Note Title">
+            <textarea id="note-content" placeholder="Start typing your note here..."></textarea>
+            <button id="save-note">Save Note</button>
+        </div>
+
+        <div class="note-list">
+            {% for note in g.user.return_notes() %}
+            <div class="note" id="note-{{ note.id }}-container" data-note-id="{{ note.id }}">
+                <h2>{{ note.title }}</h2>
+                <p>{{ note.content }}</p>
+                <div class="note-actions">
+                    <button class="edit-note">Edit</button>
+                    <button class="delete-note">Delete</button>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <script>
+        // Font size adjustment
+        let fontSize = 16;
+        document.getElementById('increase-font').addEventListener('click', () => {
+            fontSize = Math.min(24, fontSize + 2);
+            document.documentElement.style.setProperty('--font-size', `${fontSize}px`);
+        });
+        document.getElementById('decrease-font').addEventListener('click', () => {
+            fontSize = Math.max(12, fontSize - 2);
+            document.documentElement.style.setProperty('--font-size', `${fontSize}px`);
+        });
+
+        // Save note
+        document.getElementById('save-note').addEventListener('click', () => {
+            const noteText = document.getElementById('note-content').value;
+            const noteTitle = document.getElementById('note-title').value;
+            const noteId = document.querySelector('.note-area').dataset.noteId;
+            if (noteText.trim()) {
+                const noteElement = document.createElement('div');
+                noteElement.className = 'note';
+                noteElement.innerHTML = `
+                    <h2 id="note-title">${noteTitle}</h2> 
+                    <p>${noteText}</p>
+                    <div class="note-actions">
+                        <button class="edit-note">Edit</button>
+                        <button class="delete-note">Delete</button>
+                    </div>
+                `;
+                document.querySelector('.note-list').prepend(noteElement);
+                document.getElementById('note-content').value = '';
+                document.getElementById('note-title').value = '';
+                fetch('/api/save_note', {
+                    method: 'POST',
+                    body: JSON.stringify({noteId: noteId, title: noteTitle, content: noteText}),
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+            }
+        });
+
+        // Edit and Delete note
+        document.addEventListener('click', (e) => {
+            if (e.target.classList.contains('delete-note')) {
+                e.target.closest('.note').remove();
+                fetch('/api/delete_note', {
+                    method: 'POST',
+                    body: JSON.stringify({noteId: e.target.closest('.note').dataset.noteId}),
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+            } else if (e.target.classList.contains('edit-note')) {
+                const noteId = e.target.closest('.note').dataset.noteId;
+                const noteContent = e.target.closest('.note').querySelector('p').textContent;
+                const noteTitle = e.target.closest('.note').querySelector('h2').textContent;
+                document.getElementById('note-content').value = noteContent;
+                document.getElementById('note-title').value = noteTitle;
+                document.querySelector('.note-area').dataset.noteId = noteId;
+                e.target.closest('.note').remove();
+            }
+            
+        });
+    </script>
+</body>
+</html>

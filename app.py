@@ -591,7 +591,7 @@ def save_hide_title():
 def save_note():
     if g.user:
         data = request.get_json()
-        note_id = data.get('noteId')
+        note_id = int(data.get('noteId'))
         title = data.get('title')
         content = data.get('content')
         category = data.get('category')
@@ -960,6 +960,9 @@ with app.app_context():
     if Theme.query.filter_by(slug="cozy").first() is None:
         cozy = Theme(name="Cozy",slug="cozy", has_categories_page = False, has_notes_page = False)
         db.session.add(cozy)
+    if Theme.query.filter_by(slug="sage").first() is None:
+        sage = Theme(name="Sage",slug="sage", has_categories_page = False, has_notes_page = False)
+        db.session.add(sage)
     db.session.commit()
     
 
