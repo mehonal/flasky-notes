@@ -131,15 +131,36 @@
             border-radius: 5px;
         }
 
+
+        .danger {
+            background-color: #ff4d4d;
+        }
+
+        .danger:hover {
+            background-color: #ff6666;
+        }
+
+        #delete-category {
+            width: 100%;
+        }
+
+        .selected {
+            background-color: var(--segment-text);
+            color: var(--segment-dark);
+        }
+
+
+
     </style>
 </head>
 <body>
     <div class="container">
         <div class="category-sidebar">
-            <a href="/note/0"><div class="category-icon">All</div></a>
+            <a href="/note/0"><div class="category-icon {% if note_id == 0 %}selected{% endif %}">All</div></a>
             {% for cat in g.user.categories %}
-                <a href="/categories/{{ cat.id }}"><div class="category-icon">{{ cat.name[0] }}</div></a>
+            <a href="/categories/{{ cat.id }}"><div class="category-icon {% if cat.id == category.id %}selected{% endif %}">{{ cat.name[0] }}</div></a>
             {% endfor %}
+            <button onclick="addCategory()" class="category-icon">+</button>
         </div>
         <div class="notes-sidebar">
             <h2>{{ category.name }}</h2>
@@ -148,19 +169,13 @@
                 <div class="note-item">{{ note.title }}</div>
             </a>
             {% endfor %}
+            <button onclick="deleteCategory({{ category.id }})" class="note-item danger" id="delete-category">Delete Category</button>
         </div>
         <div class="note-content">
-            {% if note  %}
-            <div class="note-header" onclick="this.contentEditable = true;">{{ note.title }}</div>
-            <div class="note-body" onclick="this.contentEditable = true;">
-                {{ note.content }} 
-            </div>
-            {% else %}
             <div class="note-header" onclick="this.contentEditable = true;">New Note</div>
             <div class="note-body" onclick="this.contentEditable = true;">
                 Start typing here...
             </div>
-            {% endif %}
             <select name="category" id="category">
                 {% for category in g.user.categories %}
                     <option value="{{ category.id }}">{{ category.name }}</option>
@@ -196,7 +211,7 @@
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({ noteId: {{ note_id }}, title: title, content: content, category: category })
+                body: JSON.stringify({ noteId: 0, title: title, content: content, category: category })
             })
             .then(response => response.json())
             .then(data => {
@@ -204,17 +219,20 @@
             });
         }
 
-        function deleteNote() {
-            fetch('/api/delete_note/', {
+        
+        function deleteCategory(categoryId) {
+            fetch('/api/delete_category', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({ noteId: {{ note_id }} })
+                body: JSON.stringify({ categoryId: categoryId })
             }).then(() => {
                 window.location.href = '/note/0';
             });
         }
+
+
 
     </script>
 </body>

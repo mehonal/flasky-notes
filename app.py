@@ -133,7 +133,7 @@ class User(db.Model):
                 category_obj = UserNoteCategory.query.filter_by(user_id=self.id,name=category).first()
         if category_obj is None and create and isinstance(category, str):
             category_obj = UserNoteCategory(user_id=self.id,name=category)
-            db.session.add(category)
+            db.session.add(category_obj)
             db.session.commit()
         if category is None:
             return self.get_main_category()
@@ -633,6 +633,34 @@ def delete_note():
             return jsonify(success=True)
         else:
             return jsonify(success=False,reason="Note does not exist.")
+    else:
+        return jsonify(success=False,reason="Not logged in.")
+
+@app.route("/api/add_category", methods=['POST'])
+def add_category():
+    if g.user:
+        data = request.get_json()
+        category_name = data.get('categoryName')
+        category = g.user.get_category(category_name,create=True)
+        return jsonify(success=True,category=category.id)
+    else:
+        return jsonify(success=False,reason="Not logged in.")
+
+@app.route("/api/delete_category", methods=['POST'])
+def delete_category():
+    if g.user:
+        data = request.get_json()
+        category_id = int(data.get('categoryId'))
+        category = UserNoteCategory.query.filter_by(id=category_id).first()
+        if category and g.user == category.user and category.name != "Main" and category.name != "main":
+            for note in UserNote.query.filter_by(category_id=category_id):
+                note.category_id = g.user.get_main_category().id
+            db.session.commit()
+            db.session.delete(category)
+            db.session.commit()
+            return jsonify(success=True)
+        else:
+            return jsonify(success=False,reason="Category does not exist.")
     else:
         return jsonify(success=False,reason="Not logged in.")
 
