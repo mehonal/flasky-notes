@@ -4,10 +4,11 @@ from datetime import datetime, timedelta
 import supersecret # file containing sensitive info
 import bcrypt # for encrypting/decrypting passwords
 import logging
-# from flask_migrate import Migrate # uncomment for migrations
+from flask_migrate import Migrate
 # import urllib.parse # for parsing encoded URIComponents
 import re
 import config as CONFIG
+from sqlalchemy import MetaData
 
 #=============================================================================================================#
 #================================================APP SETTINGS=================================================#
@@ -21,18 +22,17 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 app.permanent_session_lifetime = timedelta(days=CONFIG.SESSION_LIFETIME)
 
-db = SQLAlchemy(app)
+convention = {
+    "ix": 'ix_%(column_0_label)s',
+    "uq": "uq_%(table_name)s_%(column_0_name)s",
+    "ck": "ck_%(table_name)s_%(constraint_name)s",
+    "fk": "fk_%(table_name)s_%(column_0_name)s_%(referred_table_name)s",
+    "pk": "pk_%(table_name)s"
+}
 
-'''
-migrate = Migrate(app, db, render_as_batch=True) # uncomment for migrations
-
-TO RUN MIGRATIONS:
-$ flask db init
-$ flask db stamp head
-$ flask db migrate
-$ flask db upgrade
-
-'''
+metadata = MetaData(naming_convention=convention)
+db = SQLAlchemy(app, metadata=metadata)
+migrate = Migrate(app, db, render_as_batch=True)
 
 logging.basicConfig(filename = 'applog.log', level=logging.WARNING, format=f'%(asctime)s %(levelname)s %(name)s %(threadName)s : %(message)s')
 
