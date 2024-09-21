@@ -267,7 +267,7 @@
 
         // if on mobile, mobile font size
         if (window.innerWidth < 480) {
-            document.getElementById('note-content').style.fontSize = '{{ g.user.get_theme_settings().font_size_mobile }}px';
+            document.getElementById('note-content').style.fontSize = '{{ g.user.get_theme_settings().mobile_font_size }}px';
         }
         else {
             document.getElementById('note-content').style.fontSize = '{{ g.user.get_theme_settings().font_size }}px';
