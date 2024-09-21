@@ -236,7 +236,7 @@
         <button id="increase-font" title="Increase Font Size">A+<span class="button-text">Increase Font</span></button>
         <button id="decrease-font" title="Decrease Font Size">A-<span class="button-text">Decrease Font</span></button>
         <button id="hide-title" title="Hide Title">📜<span class="button-text">Hide Title</span></button>
-        <button id="save-note" title="Save Note">💾<span class="button-text">Save</span></button>
+        <button id="save-note" title="Save Note"><span id="save-icon">💾</span><span class="button-text">Save</span></button>
     </div>
     <div class="main-content">
         <input type="text" id="note-title" placeholder="Title" class="note-title" value="{% if note %}{{ note.title }}{% endif %}">
@@ -352,9 +352,11 @@
 
         // Save note
         document.getElementById('save-note').addEventListener('click', () => {
+            const icon = document.getElementById('save-icon');
             const noteTitle = document.getElementById('note-title').value;
             const noteContent = document.getElementById('note-content').value;
             const noteCategory = "";
+            icon.innerHTML = '⌛';
             fetch('/api/save_note', {
                 method: 'POST',
                 headers: {
@@ -365,13 +367,17 @@
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    alert('Note saved successfully!');
+                    // checkmark
+                    icon.innerHTML = '✅';
                     if (noteId === 0) {
                         window.location.href = '/note/' + data.note.id;
                     }
                 } else {
-                    alert('An error occurred. Please try again.');
+                    icon.innerHTML = '❌';
                 }
+                setTimeout(() => {
+                    icon.innerHTML = '💾';
+                }, 3000);
             });
         });
 
