@@ -84,6 +84,13 @@ Dash aims to combine the "best of two themes" by preserving keyboard-shortcuts a
 - Ctrl + ,: Toggle Markdown
 - Ctrl + Space: Toggle Dark Mode
 
+
+## Cozy
+
+![Cozy Theme - Note Single](https://raw.githubusercontent.com/mehonal/flasky-notes/master/static/images/themes/cozy/note_single.png)
+
+The Cozy theme is the latest, modern looking theme that is similar to Dash, but comes with a sidebar that minimizes into a smaller version rather than collapsing entirely. The theme currently lacks Markdown support and shortcuts other than for saving notes.
+
 # How to deploy
 
 Currently all the Python code is packed in `app.py`.
