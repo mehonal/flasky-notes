@@ -602,6 +602,10 @@ def save_note():
         title = data.get('title')
         content = data.get('content')
         category = data.get('category')
+        try:
+            category = int(category)
+        except:
+            pass
         if note_id == 0:
             note = g.user.add_note(title,content,category)
             return jsonify(success=True,note=note.return_json())

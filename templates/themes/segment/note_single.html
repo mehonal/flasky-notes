@@ -179,7 +179,9 @@
             <input type="text" id="new-category" placeholder="New Category Name..." style="display: none;">
             <br>
             <button onclick="saveNote()" class="button" id="save-btn">Save</button>
+            {% if note %}
             <button onclick="deleteNote()" class="button" id="delete-btn">Delete</button>
+            {% endif %}
         </div>
     </div>
     <script>
@@ -214,7 +216,7 @@
         }
 
         function deleteNote() {
-            fetch('/api/delete_note/', {
+            fetch('/api/delete_note', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
