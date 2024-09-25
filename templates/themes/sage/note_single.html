@@ -37,14 +37,6 @@
             flex-direction: column;
         }
 
-        #page-title {
-            color: var(--sage-light);
-            text-align: center;
-            font-weight: 300;
-            font-size: 2.5em;
-            margin-bottom: 1em;
-        }
-
         .controls {
             display: flex;
             justify-content: space-between;
@@ -88,7 +80,7 @@
         }
 
         #note-content {
-            height: 200px;
+            height: 50vh;
             border: none;
             resize: vertical;
         }
@@ -175,12 +167,21 @@
         .note-content > h6 {
             font-size: 13px;
         }
+
+        @media (max-width: 480px) {
+            #note-content {
+                height: 67vh;
+            }
+
+            body {
+                padding: 10px !important;
+            }
+        }
+
     </style>
 </head>
 <body>
     <div class="container">
-        <h1 id="page-title">Notes</h1>
-        
         <div class="controls">
             <a href="/settings" class="button">Settings</a>
             <div>
