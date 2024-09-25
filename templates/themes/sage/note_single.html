@@ -267,13 +267,48 @@
         }
 
         // Font size adjustment
-        let fontSize = 16;
+        if (window.innerWidth < 480) {
+            document.documentElement.style.setProperty('--font-size', `${ {{ g.user.get_theme_settings().mobile_font_size }} }px`);
+        }
+        else {
+            document.documentElement.style.setProperty('--font-size', `${ {{ g.user.get_theme_settings().font_size }} }px`);
+        }
         document.getElementById('increase-font').addEventListener('click', () => {
-            fontSize = Math.min(24, fontSize + 2);
+            let fontSize = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--font-size'));
+            fontSize += 2;
+            if (window.innerWidth < 480) {
+                fetch('/api/save_mobile_font_size/' + fontSize, {
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+            }
+            else {
+                fetch('/api/save_font_size/' + fontSize, {
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+            }
             document.documentElement.style.setProperty('--font-size', `${fontSize}px`);
         });
         document.getElementById('decrease-font').addEventListener('click', () => {
-            fontSize = Math.max(12, fontSize - 2);
+            let fontSize = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--font-size'));
+            fontSize -= 2;
+            if (window.innerWidth < 480) {
+                fetch('/api/save_mobile_font_size/' + fontSize, {
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+            }
+            else {
+                fetch('/api/save_font_size/' + fontSize, {
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+            }
             document.documentElement.style.setProperty('--font-size', `${fontSize}px`);
         });
 
