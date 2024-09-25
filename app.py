@@ -311,7 +311,9 @@ class User(db.Model):
         except:
             return False
 
-    def return_notes(self):
+    def return_notes(self, limit = None):
+        if limit:
+            return UserNote.query.filter_by(userid=self.id).order_by(UserNote.date_last_changed.desc()).limit(limit).all()
         return UserNote.query.filter_by(userid=self.id).order_by(UserNote.date_last_changed.desc()).all()
 
     def has_notes(self):
@@ -618,6 +620,17 @@ def save_note():
                 return jsonify(success=True,note=note.return_json())
             else:
                 return jsonify(success=False,reason="Note does not exist.")
+    else:
+        return jsonify(success=False,reason="Not logged in.")
+
+@app.route("/api/load_notes", methods=['POST'])
+def load_notes():
+    if g.user:
+        page = request.get_json().get('page')
+        notes = []
+        for note in UserNote.query.filter_by(userid=g.user.id).order_by(UserNote.date_last_changed.desc()).paginate(page=page, per_page=5).items:
+            notes.append(note.return_json())
+        return jsonify(notes)
     else:
         return jsonify(success=False,reason="Not logged in.")
 
