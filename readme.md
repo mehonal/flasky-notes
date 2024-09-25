@@ -91,6 +91,12 @@ Dash aims to combine the "best of two themes" by preserving keyboard-shortcuts a
 
 The Cozy theme is the latest, modern looking theme that is similar to Dash, but comes with a sidebar that minimizes into a smaller version rather than collapsing entirely. The theme currently lacks Markdown support and shortcuts other than for saving notes.
 
+## Sage
+
+![Sage Theme - Note Single](https://raw.githubusercontent.com/mehonal/flasky-notes/master/static/images/themes/sage/note_single.png)
+
+The Sage theme is a markdown-focused simple, single-page theme that renders existing notes to HTML right under the current note for your ease.
+
 # How to deploy
 
 Currently all the Python code is packed in `app.py`.
