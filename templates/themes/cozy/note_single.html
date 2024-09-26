@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Cozy Notes</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/2.0.3/marked.min.js"></script>
     <style>
         :root {
             --bg-color: #f3d5c0;
@@ -142,6 +143,17 @@
             resize: none;
         }
 
+        #markdown-note-content {
+            flex-grow: 1;
+            background-color: var(--note-bg);
+            border: none;
+            border-radius: 5px;
+            padding: 5px 20px;
+            font-size: 16px;
+            resize: none;
+            overflow-y: auto;
+        }
+
         /* Dark mode styles */
         body.dark-mode {
             --bg-color: #2c2c2c;
@@ -185,6 +197,52 @@
 
             #note-content {
                 padding: 15px 10px;
+            }
+
+            #markdown-note-content {
+                padding: 0px 10px;
+            }
+
+            #markdown-note-content > h1 {
+                font-size: 26px;
+                margin-top: 15px;
+                margin-bottom: 10px;
+            }
+
+            #markdown-note-content > h2 {
+                font-size: 22px;
+                margin-top: 12px;
+                margin-bottom: 8px;
+            }
+
+            #markdown-note-content > h3 {
+                font-size: 20px;
+                margin-top: 10px;
+                margin-bottom: 6px;
+            }
+
+            #markdown-note-content > h4 {
+                font-size: 18px;
+                margin-top: 8px;
+                margin-bottom: 6px;
+            }
+
+            #markdown-note-content > h5 {
+                font-size: 16px;
+                margin-top: 6px;
+                margin-bottom: 5px;
+            }
+
+            #markdown-note-content > h6 {
+                font-size: 14px;
+                margin-top: 5px;
+                margin-bottom: 5px;
+            }
+
+            #markdown-note-content > p {
+                font-size: 14px;
+                margin-top: 5px;
+                margin-bottom: 5px;
             }
 
             .main-content.expanded {
@@ -242,6 +300,7 @@
     <div class="main-content">
         <input type="text" id="note-title" placeholder="Title" class="note-title" value="{% if note %}{{ note.title }}{% endif %}">
         <textarea id="note-content" placeholder="Type your note here...">{% if note %}{{ note.content }}{% endif %}</textarea>
+        <div id="markdown-note-content" style="display: none"></div>
     </div>
 
     <script>
@@ -288,7 +347,13 @@
 
         // Toggle markdown
         document.getElementById('toggle-markdown').addEventListener('click', () => {
-            alert('This feature is not yet implemented.');
+            noteContent = document.getElementById('note-content');
+            markdownContent = document.getElementById('markdown-note-content');
+            markdownContent.style.display = markdownContent.style.display === 'none' ? 'block' : 'none';
+            noteContent.style.display = noteContent.style.display === 'none' ? 'block' : 'none';
+            if (markdownContent.style.display === 'block') {
+                markdownContent.innerHTML = marked(noteContent.value);
+            }
         });
 
         // Go to settings
