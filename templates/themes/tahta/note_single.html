@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tahta</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f4f5f7;
+            color: #172b4d;
+        }
+        .board {
+            display: flex;
+            overflow-x: auto;
+            padding-bottom: 20px;
+        }
+        .column {
+            flex: 0 0 280px;
+            margin-right: 20px;
+            background-color: #ffffff;
+            border-radius: 8px;
+            padding: 16px;
+            max-height: calc(100vh - 40px);
+            overflow-y: auto;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24);
+        }
+        .column h2 {
+            margin-top: 0;
+            padding-bottom: 16px;
+            font-size: 18px;
+            font-weight: 600;
+            color: #172b4d;
+        }
+        .note {
+            background-color: #ffffff;
+            border-radius: 6px;
+            padding: 12px;
+            margin-bottom: 12px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24);
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(.25,.8,.25,1);
+        }
+        .note:hover {
+            box-shadow: 0 14px 28px rgba(0,0,0,0.25), 0 10px 10px rgba(0,0,0,0.22);
+        }
+        .note-title {
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+        .add-note {
+            display: block;
+            width: 100%;
+            padding: 12px;
+            background-color: #ebecf0;
+            color: #172b4d;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            text-align: left;
+            transition: background-color 0.2s ease;
+            font-size: 14px;
+        }
+        .add-note:hover {
+            background-color: #dfe1e6;
+        }
+        .add-note-form, .edit-note-form {
+            display: none;
+            margin-top: 12px;
+        }
+        .add-note-input, .edit-note-input {
+            width: calc(100% - 24px);
+            padding: 12px;
+            border: 2px solid #dfe1e6;
+            border-radius: 6px;
+            margin-bottom: 8px;
+            resize: vertical;
+            font-size: 14px;
+            transition: border-color 0.3s ease;
+        }
+        .add-note-input:focus, .edit-note-input:focus {
+            border-color: #0079BF;
+            outline: none;
+        }
+        .add-note-buttons, .edit-note-buttons {
+            display: flex;
+            justify-content: flex-end;
+        }
+        .add-note-submit, .add-note-cancel, .edit-note-submit, .edit-note-cancel, .edit-note-delete, .add-note-markdown, .edit-note-markdown {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: background-color 0.3s ease;
+        }
+        .add-note-markdown,.edit-note-markdown {
+            background-color: #0079BF;
+            color: white;
+            margin-bottom: 10px;
+            width: 100%;
+        }
+        .add-note-submit, .edit-note-submit {
+            background-color: #0079BF;
+            color: white;
+            margin-left: 8px;
+        }
+        .add-note-submit:hover, .edit-note-submit:hover {
+            background-color: #026aa7;
+        }
+        .add-note-cancel, .edit-note-cancel {
+            background-color: #ebecf0;
+            color: #172b4d;
+        }
+        .add-note-cancel:hover, .edit-note-cancel:hover {
+            background-color: #dfe1e6;
+        }
+        .edit-note-delete {
+            background-color: #eb5a46;
+            color: white;
+            margin-right: auto;
+        }
+        .edit-note-delete:hover {
+            background-color: #cf513d;
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.4);
+            backdrop-filter: blur(5px);
+        }
+        .modal-content {
+            background-color: #fefefe;
+            margin: 10% auto;
+            padding: 24px;
+            border: 1px solid #888;
+            width: calc(100% - 70px);
+            max-width: 500px;
+            border-radius: 8px;
+            box-shadow: 0 14px 28px rgba(0,0,0,0.25), 0 10px 10px rgba(0,0,0,0.22);
+        }
+        .modal-content h3 {
+            margin-top: 0;
+            margin-bottom: 16px;
+            font-size: 20px;
+            font-weight: 600;
+        }
+        .modal-content label {
+            display: block;
+            margin-top: 16px;
+            margin-bottom: 8px;
+            font-weight: 600;
+            font-size: 14px;
+        }
+        
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background-color: #0079BF;
+            color: white;
+            padding: 12px 16px;
+            border-radius: 6px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24);
+            animation: slideIn 0.5s, slideOut 0.5s 2.5s;
+        }
+
+        .toast-success {
+            background-color: #0079BF;
+        }
+        .toast-danger {
+            background-color: #eb5a46;
+        }
+        .toast-warning {
+            background-color: #f2d600;
+        }
+        .toast-info {
+            background-color: #ff9f1a;
+        }
+        
+        @keyframes slideIn {
+            from {
+                right: -200px;
+            }
+            to {
+                right: 20px;
+            }
+        }
+
+        @keyframes slideOut {
+            from {
+                right: 20px;
+            }
+            to {
+                right: -200px;
+            }
+        }
+
+
+        @media (max-width: 768px) {
+            .board {
+                flex-direction: column;
+            }
+            .column {
+                flex: none;
+                width: calc(100% - 32px);
+                margin-right: 0;
+                margin-bottom: 20px;
+            }
+        }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/2.0.3/marked.min.js"></script>
+</head>
+<body>
+    <div class="board">
+        <div class="column" id="notes">
+            <h2>Notes</h2>
+            <div class="notes">
+            {% for note in g.user.return_notes() %}
+            <div class="note" id="note-{{ note.id }}" data-content="{% if note.content %}{{ note.content }}{% endif %}" onclick="showEditNoteModal(event, this)"><div class="note-title">{{ note.title }}</div></div>
+            {% endfor %}
+            </div>
+            <button class="add-note" onclick="showAddNoteForm(this, this.nextElementSibling, this.nextElementSibling.querySelector('.add-note-input'))">+ Add a note</button>
+            <div class="add-note-form">
+                <input type="text" class="add-note-input" placeholder="Enter note title..." />
+                <div class="add-note-buttons">
+                    <button class="add-note-cancel" onclick="cancelAddNote(this.parentElement.previousElementSibling, this.parentElement.parentElement, this.parentElement.parentElement.previousElementSibling)">Cancel</button>
+                    <button class="add-note-submit" onclick="handleAddNote(this.parentElement.previousElementSibling, this.parentElement.parentElement, this.parentElement.parentElement.previousElementSibling, this.closest('.column').querySelector('.notes'))">Add Note</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="editNoteModal" class="modal">
+        <div class="modal-content">
+            <h3>Edit Note</h3>
+            <label for="editNoteTitle">Title</label>
+            <input type="text" id="editNoteTitle" class="edit-note-input" />
+            <label for="editNoteContent">Content</label>
+            <textarea id="editNoteContent" class="edit-note-input" rows="4"></textarea>
+            <div id="editNoteMarkdown" style="display: none">
+            </div>
+            <button onclick="toggleMarkdown()" class="edit-note-markdown">Toggle Markdown</button>
+            <div class="edit-note-buttons">
+                <button id="editNoteDelete" onclick="handleEditNoteDelete()" class="edit-note-delete">Delete</button>
+                <button id="editNoteCancel" onclick="closeEditModal()" class="edit-note-cancel">Cancel</button>
+                <button id="editNoteSubmit" onclick="handleEditNoteSubmit()" class="edit-note-submit">Save</button>
+            </div>
+        </div>
+    </div>
+
+   <script>
+
+        // Global variables
+    let currentEditingNote = null;
+
+    document.addEventListener('DOMContentLoaded', initializeTahta);
+
+    function initializeTahta() {
+        const columns = document.querySelectorAll('.column');
+        columns.forEach(initializeColumn);
+        initializeEditModal();
+    }
+
+    function initializeColumn(column) {
+        const addNoteButton = column.querySelector('.add-note');
+        const addNoteForm = column.querySelector('.add-note-form');
+        const addNoteInput = column.querySelector('.add-note-input');
+        const notesContainer = column.querySelector('.notes');
+
+        addNoteButton.onclick = () => showAddNoteForm(addNoteButton, addNoteForm, addNoteInput);
+    }
+
+    function showAddNoteForm(addNoteButton, addNoteForm, addNoteInput) {
+        addNoteButton.style.display = 'none';
+        addNoteForm.style.display = 'block';
+        addNoteInput.focus();
+    }
+
+    function toastMessage(message, classname) {
+        let toast = document.createElement('div');
+        toast.classList.add('toast', classname);
+
+        toast.textContent = message;
+
+        document.body.appendChild(toast);
+        setTimeout(() => { document.body.removeChild(toast); }, 3000);
+    }
+
+    function handleAddNote(addNoteInput, addNoteForm, addNoteButton, notesContainer) {
+        const noteTitle = addNoteInput.value.trim();
+        if (!noteTitle) { return; }
+        
+        fetch('/api/save_note', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                title: noteTitle,
+                content: '',
+                noteId: 0
+            }),
+        })
+        .then(response => response.json())
+        .then(data => {
+            const newNote = createNote(noteTitle, '');
+            notesContainer.appendChild(newNote);
+            addNoteInput.value = '';
+            addNoteForm.style.display = 'none';
+            addNoteButton.style.display = 'block';
+            newNote.id = 'note-' + data.note.id;
+            newNote.onclick = (e) => showEditNoteModal(e, newNote);
+            toastMessage('Note added successfully!', 'toast-success');
+        });
+    }
+
+    function cancelAddNote(addNoteInput, addNoteForm, addNoteButton) {
+        addNoteInput.value = '';
+        addNoteForm.style.display = 'none';
+        addNoteButton.style.display = 'block';
+    }
+
+    function createNote(title, content) {
+        const note = document.createElement('div');
+        note.className = 'note';
+        note.innerHTML = `<div class="note-title">${title}</div>`;
+        note.id = 'note-' + Date.now();
+        note.dataset.content = content;
+        
+        note.onclick = (e) => showEditNoteModal(e, note);
+
+        return note;
+    }
+
+    function showEditNoteModal(e, note) {
+        e.stopPropagation();
+        currentEditingNote = note;
+        const modal = document.getElementById('editNoteModal');
+        const editNoteTitle = document.getElementById('editNoteTitle');
+        const editNoteContent = document.getElementById('editNoteContent');
+        
+        editNoteTitle.value = note.querySelector('.note-title').textContent;
+        editNoteContent.value = note.dataset.content;
+        modal.style.display = 'block';
+    }
+
+    function handleEditNoteSubmit() {
+        if (currentEditingNote) {
+            const editNoteTitle = document.getElementById('editNoteTitle');
+            const editNoteContent = document.getElementById('editNoteContent');
+            const modal = document.getElementById('editNoteModal');
+
+            currentEditingNote.querySelector('.note-title').textContent = editNoteTitle.value.trim();
+            currentEditingNote.dataset.content = editNoteContent.value.trim();
+            modal.style.display = 'none';
+            fetch('/api/save_note', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    title: editNoteTitle.value.trim(),
+                    content: editNoteContent.value.trim(),
+                    noteId: currentEditingNote.id.split('-')[1]
+                }),
+            })
+            .then(response => response.json())
+            .then(data => {
+                toastMessage('Note updated successfully!', 'toast-success');
+            });
+        }
+    }
+
+    function handleEditNoteDelete() {
+        if (currentEditingNote) {
+            currentEditingNote.remove();
+            document.getElementById('editNoteModal').style.display = 'none';
+            fetch('/api/delete_note', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    noteId: currentEditingNote.id.split('-')[1]
+                }),
+            })
+            .then(response => response.json())
+            .then(data => {
+                toastMessage('Note deleted successfully!', 'toast-danger');
+            });
+        }
+    }
+
+    function closeEditModal() {
+        document.getElementById('editNoteModal').style.display = 'none';
+    }
+
+    function initializeEditModal() {
+        const modal = document.getElementById('editNoteModal');
+        document.getElementById('editNoteSubmit').onclick = handleEditNoteSubmit;
+        document.getElementById('editNoteDelete').onclick = handleEditNoteDelete;
+        document.getElementById('editNoteCancel').onclick = closeEditModal;
+        window.onclick = (e) => {
+            if (e.target == modal) {
+                closeEditModal();
+            }
+        };
+    }
+
+    function toggleMarkdown() {
+        noteContent = document.getElementById('editNoteContent');
+        markdownContent = document.getElementById('editNoteMarkdown');
+        markdownContent.style.display = markdownContent.style.display === 'none' ? 'block' : 'none';
+        noteContent.style.display = noteContent.style.display === 'none' ? 'block' : 'none';
+        if (markdownContent.style.display === 'block') {
+            markdownContent.innerHTML = marked(noteContent.value);
+        }
+    }
+
+    function preventDefault(e) {
+        e.preventDefault();
+    }
+
+   </script>
+</body>
+</html>

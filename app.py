@@ -1015,6 +1015,9 @@ with app.app_context():
     if Theme.query.filter_by(slug="segment").first() is None:
         segment = Theme(name="Segment",slug="segment", has_categories_page = False, has_notes_page = False)
         db.session.add(segment)
+    if Theme.query.filter_by(slug="tahta").first() is None:
+        tahta = Theme(name="Tahta",slug="tahta", has_categories_page = False, has_notes_page = False)
+        db.session.add(tahta)
     db.session.commit()
     
 
