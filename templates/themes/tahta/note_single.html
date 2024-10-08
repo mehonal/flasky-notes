@@ -16,8 +16,10 @@
             display: flex;
             overflow-x: auto;
             padding-bottom: 20px;
+
         }
         .column {
+            align-self: flex-start;
             flex: 0 0 280px;
             margin-right: 20px;
             background-color: #ffffff;
@@ -222,14 +224,27 @@
 </head>
 <body>
     <div class="board">
-        <div class="column" id="notes">
-            <h2>Notes</h2>
+        {% for category in g.user.categories %}
+        <div class="column" id="{{ category.id }}">
+            <h2>{{ category.name }}</h2>
             <div class="notes">
             {% for note in g.user.return_notes() %}
             <div class="note" id="note-{{ note.id }}" data-content="{% if note.content %}{{ note.content }}{% endif %}" onclick="showEditNoteModal(event, this)"><div class="note-title">{{ note.title }}</div></div>
             {% endfor %}
             </div>
             <button class="add-note" onclick="showAddNoteForm(this, this.nextElementSibling, this.nextElementSibling.querySelector('.add-note-input'))">+ Add a note</button>
+            <div class="add-note-form">
+                <input type="text" class="add-note-input" placeholder="Enter note title..." />
+                <div class="add-note-buttons">
+                    <button class="add-note-cancel" onclick="cancelAddNote(this.parentElement.previousElementSibling, this.parentElement.parentElement, this.parentElement.parentElement.previousElementSibling)">Cancel</button>
+                    <button class="add-note-submit" onclick="handleAddNote(this.parentElement.previousElementSibling, this.parentElement.parentElement, this.parentElement.parentElement.previousElementSibling, this.closest('.column').querySelector('.notes'))">Add Note</button>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+        <div class="column" id="new-column">
+            <h2>Add Category</h2>
+            <button class="add-note" onclick="showAddNoteForm(this, this.nextElementSibling, this.nextElementSibling.querySelector('.add-note-input'))">+ Add category</button>
             <div class="add-note-form">
                 <input type="text" class="add-note-input" placeholder="Enter note title..." />
                 <div class="add-note-buttons">
