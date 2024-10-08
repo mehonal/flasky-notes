@@ -260,6 +260,12 @@
             <h3>Edit Note</h3>
             <label for="editNoteTitle">Title</label>
             <input type="text" id="editNoteTitle" class="edit-note-input" />
+            <label for="editNoteCategory">Category</label>
+            <select id="editNoteCategory" class="edit-note-input">
+                {% for category in g.user.categories %}
+                <option value="{{ category.id }}">{{ category.name }}</option>
+                {% endfor %}
+            </select>
             <label for="editNoteContent">Content</label>
             <textarea id="editNoteContent" class="edit-note-input" rows="4"></textarea>
             <div id="editNoteMarkdown" style="display: none">
@@ -430,18 +436,31 @@
         currentEditingNote = note;
         const modal = document.getElementById('editNoteModal');
         const editNoteTitle = document.getElementById('editNoteTitle');
+        const editNoteCategory = document.getElementById('editNoteCategory');
         const editNoteContent = document.getElementById('editNoteContent');
         
         editNoteTitle.value = note.querySelector('.note-title').textContent;
         editNoteContent.value = note.dataset.content;
+        editNoteCategory.value = note.parentElement.parentElement.id;
         modal.style.display = 'block';
+    }
+
+    function moveNoteToCategory(note, category) {
+        const notes = category.querySelector('.notes');
+        notes.appendChild(note);
     }
 
     function handleEditNoteSubmit() {
         if (currentEditingNote) {
             const editNoteTitle = document.getElementById('editNoteTitle');
+            const editNoteCategory = document.getElementById('editNoteCategory');
             const editNoteContent = document.getElementById('editNoteContent');
             const modal = document.getElementById('editNoteModal');
+
+            if (!editNoteCategory == currentEditingNote.parentElement.id) {
+                const newCategory = document.getElementById(editNoteCategory.value);
+                moveNoteToCategory(currentEditingNote, newCategory);
+            }
 
             currentEditingNote.querySelector('.note-title').textContent = editNoteTitle.value.trim();
             currentEditingNote.dataset.content = editNoteContent.value.trim();
@@ -454,7 +473,8 @@
                 body: JSON.stringify({
                     title: editNoteTitle.value.trim(),
                     content: editNoteContent.value.trim(),
-                    noteId: currentEditingNote.id.split('-')[1]
+                    noteId: currentEditingNote.id.split('-')[1],
+                    category: editNoteCategory.value
                 }),
             })
             .then(response => response.json())
