@@ -226,9 +226,9 @@
     <div class="board">
         {% for category in g.user.categories %}
         <div class="column" id="{{ category.id }}">
-            <h2>{{ category.name }}</h2>
+            <h2 onclick="showEditCategoryModal(event, this)">{{ category.name }}</h2>
             <div class="notes">
-            {% for note in g.user.return_notes() %}
+            {% for note in category.notes %}
             <div class="note" id="note-{{ note.id }}" data-content="{% if note.content %}{{ note.content }}{% endif %}" onclick="showEditNoteModal(event, this)"><div class="note-title">{{ note.title }}</div></div>
             {% endfor %}
             </div>
@@ -244,12 +244,12 @@
         {% endfor %}
         <div class="column" id="new-column">
             <h2>Add Category</h2>
-            <button class="add-note" onclick="showAddNoteForm(this, this.nextElementSibling, this.nextElementSibling.querySelector('.add-note-input'))">+ Add category</button>
+            <button class="add-note" onclick="showAddCategoryForm(this, this.nextElementSibling, this.nextElementSibling.querySelector('.add-note-input'))">+ Add category</button>
             <div class="add-note-form">
-                <input type="text" class="add-note-input" placeholder="Enter note title..." />
+                <input type="text" class="add-note-input" placeholder="Enter category title..." />
                 <div class="add-note-buttons">
-                    <button class="add-note-cancel" onclick="cancelAddNote(this.parentElement.previousElementSibling, this.parentElement.parentElement, this.parentElement.parentElement.previousElementSibling)">Cancel</button>
-                    <button class="add-note-submit" onclick="handleAddNote(this.parentElement.previousElementSibling, this.parentElement.parentElement, this.parentElement.parentElement.previousElementSibling, this.closest('.column').querySelector('.notes'))">Add Note</button>
+                    <button class="add-note-cancel" onclick="cancelAddCategory(this.parentElement.previousElementSibling, this.parentElement.parentElement, this.parentElement.parentElement.previousElementSibling)">Cancel</button>
+                    <button class="add-note-submit" onclick="handleAddCategory(this.parentElement.previousElementSibling, this.parentElement.parentElement, this.parentElement.parentElement.previousElementSibling)">Add Category</button>
                 </div>
             </div>
         </div>
@@ -273,10 +273,24 @@
         </div>
     </div>
 
+    <div id="editCategoryModal" class="modal">
+        <div class="modal-content">
+            <h3>Edit Category</h3>
+            <label for="editCategoryTitle">Title</label>
+            <input type="text" id="editCategoryTitle" class="edit-category-input" />
+            <div class="edit-category-buttons">
+                <button id="editCategoryDelete" onclick="handleEditCategoryDelete()" class="edit-category-delete">Delete</button>
+                <button id="editCategoryCancel" onclick="closeEditCategoryModal()" class="edit-category-cancel">Cancel</button>
+                <button id="editCategorySubmit" onclick="handleEditCategorySubmit()" class="edit-category-submit">Save</button>
+            </div>
+        </div>
+    </div>
+
    <script>
 
         // Global variables
     let currentEditingNote = null;
+    let currentEditingCategory = null;
 
     document.addEventListener('DOMContentLoaded', initializeTahta);
 
@@ -295,6 +309,12 @@
         addNoteButton.onclick = () => showAddNoteForm(addNoteButton, addNoteForm, addNoteInput);
     }
 
+    function showAddCategoryForm(addCategoryButton, addCategoryForm, addCategoryInput) {
+        addCategoryButton.style.display = 'none';
+        addCategoryForm.style.display = 'block';
+        addCategoryInput.focus();
+    }
+
     function showAddNoteForm(addNoteButton, addNoteForm, addNoteInput) {
         addNoteButton.style.display = 'none';
         addNoteForm.style.display = 'block';
@@ -311,6 +331,38 @@
         setTimeout(() => { document.body.removeChild(toast); }, 3000);
     }
 
+    function handleAddCategory(addCategoryInput, addCategoryForm, addCategoryButton) {
+        console.log('Adding category');
+        console.log(addCategoryInput, addCategoryForm, addCategoryButton);
+        const categoryName = addCategoryInput.value.trim();
+        if (!categoryName) { return; }
+        
+        fetch('/api/add_category', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                categoryName: categoryName
+            }),
+        })
+        .then(response => response.json())
+        .then(data => {
+            const newColumn = document.createElement('div');
+            newColumn.className = 'column';
+            newColumn.id = data.category;
+            newColumn.innerHTML = `<h2>${categoryName}</h2>`;
+            newColumn.innerHTML += `<div class="notes"></div>`;
+            newColumn.innerHTML += `<button class="add-note" onclick="showAddNoteForm(this, this.nextElementSibling, this.nextElementSibling.querySelector('.add-note-input'))">+ Add a note</button>`;
+            newColumn.innerHTML += `<div class="add-note-form"><input type="text" class="add-note-input" placeholder="Enter note title..." /><div class="add-note-buttons"><button class="add-note-cancel" onclick="cancelAddNote(this.parentElement.previousElementSibling, this.parentElement.parentElement, this.parentElement.parentElement.previousElementSibling)">Cancel</button><button class="add-note-submit" onclick="handleAddNote(this.parentElement.previousElementSibling, this.parentElement.parentElement, this.parentElement.parentElement.previousElementSibling, this.closest('.column').querySelector('.notes'))">Add Note</button></div></div>`;
+            addCategoryButton.parentElement.parentElement.insertBefore(newColumn, addCategoryButton.parentElement);
+            addCategoryInput.value = '';
+            addCategoryForm.style.display = 'none';
+            addCategoryButton.style.display = 'block';
+            toastMessage('Category added successfully!', 'toast-success');
+        });
+    }
+
     function handleAddNote(addNoteInput, addNoteForm, addNoteButton, notesContainer) {
         const noteTitle = addNoteInput.value.trim();
         if (!noteTitle) { return; }
@@ -322,6 +374,7 @@
             },
             body: JSON.stringify({
                 title: noteTitle,
+                category: notesContainer.parentElement.id,
                 content: '',
                 noteId: 0
             }),
@@ -337,6 +390,12 @@
             newNote.onclick = (e) => showEditNoteModal(e, newNote);
             toastMessage('Note added successfully!', 'toast-success');
         });
+    }
+
+    function cancelAddCategory(addCategoryInput, addCategoryForm, addCategoryButton) {
+        addCategoryInput.value = '';
+        addCategoryForm.style.display = 'none';
+        addCategoryButton.style.display = 'block';
     }
 
     function cancelAddNote(addNoteInput, addNoteForm, addNoteButton) {
@@ -355,6 +414,15 @@
         note.onclick = (e) => showEditNoteModal(e, note);
 
         return note;
+    }
+
+    function showEditCategoryModal(e) {
+        e.stopPropagation();
+        currentEditingCategory = e.target;
+        const modal = document.getElementById('editCategoryModal');
+        const editCategoryTitle = document.getElementById('editCategoryTitle');
+        editCategoryTitle.value = e.target.textContent;
+        modal.style.display = 'block';
     }
 
     function showEditNoteModal(e, note) {
@@ -392,6 +460,33 @@
             .then(response => response.json())
             .then(data => {
                 toastMessage('Note updated successfully!', 'toast-success');
+            });
+        }
+    }
+
+
+    function handleEditCategoryDelete() {
+        if (currentEditingCategory) {
+            document.getElementById('editCategoryModal').style.display = 'none';
+            fetch('/api/delete_category', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    categoryId: currentEditingCategory.parentElement.id
+                }),
+            })
+            .then(response => response.json())
+            .then(data => {
+                // move notes to first column
+                const notes = currentEditingCategory.parentElement.querySelectorAll('.note');
+                const firstColumn = document.querySelector('.column');
+                notes.forEach(note => {
+                    firstColumn.querySelector('.notes').appendChild(note);
+                });
+                toastMessage('Category deleted successfully!', 'toast-danger');
+                currentEditingCategory.parentElement.remove();
             });
         }
     }
