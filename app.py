@@ -659,6 +659,21 @@ def add_category():
     else:
         return jsonify(success=False,reason="Not logged in.")
 
+@app.route("/api/edit_note_category", methods=['POST'])
+def edit_note_category():
+    if g.user:
+        data = request.get_json()
+        note_id = data.get('noteId')
+        category = data.get('category')
+        note = UserNote.query.filter_by(id=note_id).first()
+        if note and g.user == note.user:
+            note.change_category(category)
+            return jsonify(success=True)
+        else:
+            return jsonify(success=False,reason="Note does not exist.")
+    else:
+        return jsonify(success=False,reason="Not logged in.")
+
 @app.route("/api/delete_category", methods=['POST'])
 def delete_category():
     if g.user:
