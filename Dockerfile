@@ -1,5 +1,4 @@
-# Build stage
-FROM python:3.11-slim as builder
+FROM python:3.11-slim
 
 WORKDIR /app
 
@@ -15,7 +14,6 @@ RUN mkdir -p instance && \
     useradd -m appuser && \
     chown -R appuser:appuser /app
 USER appuser
-
 
 EXPOSE 5000
 CMD ["gunicorn", "--bind", "0.0.0.0:5000", "app:app"]
