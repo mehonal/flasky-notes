@@ -1,0 +1,19 @@
+version: '3.8'
+
+services:
+  web:
+    build: .
+    ports:
+      - "${PORT:-5000}:5000"
+    volumes:
+      # Mount SQLite database file to persist data
+      - sqlite_data:/home/appuser/instance
+    environment:
+      - FLASK_APP=app.py
+      - FLASK_ENV=${FLASK_ENV:-production}
+      # Use environment variable for database path
+      - DATABASE_URI=${DATABASE_URI:-sqlite:///db.sqlite3}
+      - SECRET_KEY=${SECRET_KEY}
+      
+volumes:
+  sqlite_data:

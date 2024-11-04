@@ -107,7 +107,7 @@ First you must ensure you have the required modules installed through pip. You c
 
 Once you've installed the requirements, you can serve the app.
 
-The `serve_live.py` file uses waitress to serve the web app. Alternatively, you can serve it using `serve_local.py` to serve it on localhost.
+You may use gunicorn with a command such as `gunicorn --bind YOUR.SERVER.IP.ADDR app:app`. Alternatively, you can serve it using `serve_local.py` to serve it on localhost for debugging or personal use locally.
 
 # Future Goals
 

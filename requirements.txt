@@ -2,6 +2,6 @@ flask
 requests
 flask_sqlalchemy
 bcrypt
-waitress
 flask_migrate
 python-dotenv
+gunicorn
