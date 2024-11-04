@@ -99,11 +99,54 @@ The Sage theme is a markdown-focused simple, single-page theme that renders exis
 
 # How to deploy
 
+There are two ways you can deploy Flasky Notes:
+
+## Option 1: Deploy with Docker
+
+In order to deploy with Docker, you can follow the following steps:
+
+1. Install Docker if you do not have it installed already
+2. Attain a copy of the repo
+3. Copy the contents of the `.env.example` file and save it to a file named `.env` in the root directory of the web app, alongside the rest of the files.
+4. Open a terminal at the root directory with the files, and run: `docker compose up --build`.
+
+And just like that - you should have Flasky Notes running. You may use Ctrl+C to stop running the web app. In order to run it again, you may use `docker compose up` command again.
+
+### Running in detached mode
+
+If you prefer to run it in detached mode (in the background), you may add `-d` to the command as such: `docker compose up -d --build`. Ensure you are in the root directory when running this command.
+
+### Stopping Docker instance running in the background
+
+To stop a running instance of Flasky Notes, you can use the `docker compose stop` command while in the root directory.
+
+### Removing Docker instance
+
+To remove the Docker instance of Flasky Notes, you may use the `docker compose down` command while in the root directory.
+
+## Option 2: Deploy manually
+
+### Setting up virtual environment (recommended)
+
+It is best practice to set a virtual environment before running any dependencies. While not necessary, it is highly recommended that you first make a virtual environment, and use it when dealing with the web app.
+
+In order to establish this, you may use the command `python3 -m venv venv` if you are using Linux, or `python -m venv C:\path\to\project\venv` if you are using Windows. This will make a new virtual environment.
+
+In order to enter it, you can use `source venv/bin/activate` in Linux or `C:\path\to\project\venv\Scripts\activate.bat` on Windows.
+
+When installing pip modules or running the web app, or running related scripts, or performing migrations, you should ensure that you are in the virtual environment.
+
+If you want to exit the virtual environment, you can use the `deactivate` command on Linux, or `C:\path\to\project\venv\Scripts\deactivate.bat` on Windows.
+
+### Installing pip modules
+
 Currently all the Python code is packed in `app.py`.
 
 First you must ensure you have the required modules installed through pip. You can do this by running:
 
 `pip install -r requirements.txt`
+
+### Run Web App
 
 Once you've installed the requirements, you can serve the app.
 
