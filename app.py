@@ -1,14 +1,13 @@
 from flask import Flask, render_template, request, session, redirect, url_for, g, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime, timedelta
-import supersecret # file containing sensitive info
 import bcrypt # for encrypting/decrypting passwords
 import logging
 from flask_migrate import Migrate
-# import urllib.parse # for parsing encoded URIComponents
 import re
 import config as CONFIG
 from sqlalchemy import MetaData
+import os
 
 #=============================================================================================================#
 #================================================APP SETTINGS=================================================#
@@ -16,8 +15,8 @@ from sqlalchemy import MetaData
 
 
 app = Flask(__name__)
-app.config['SQLALCHEMY_DATABASE_URI'] = supersecret.db_uri
-app.config['SECRET_KEY'] = supersecret.secret_key
+app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URI')
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 app.permanent_session_lifetime = timedelta(days=CONFIG.SESSION_LIFETIME)
