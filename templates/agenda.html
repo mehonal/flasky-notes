@@ -76,26 +76,18 @@
                 <button class="btn btn-sm btn-primary" onclick="showAddToDoModal()">Add To-Do</button>
               </div>
               <ul class="list-group" id="todo-list">
+                {% for todo in todos %}
                 <li class="list-group-item d-sm-flex justify-content-between align-items-center todo-item">
                   <div>
-                    <input type="checkbox" class="form-check-input me-2 todo-checkbox" />
-                    <span class="todo-item-info" onclick="showTodoDetailsModal(1)">To-Do Item with a deadline <small class="badge text-bg-primary">⌛ 9 days</small></span>
+                      <input type="checkbox" class="form-check-input me-2 todo-checkbox" {% if todo.completed %}checked{% endif %}/>
+                    <span data-todo-id="{{ todo.id }}" class="todo-item-info{% if todo.completed %} completed{% endif %}" onclick="showTodoDetailsModal({{ todo.id }})">{{ todo.title }} {% if todo.time_until_due %}<small class="badge text-bg-primary">⌛{{ todo.time_until_due }}</small>{% endif %}</span>
                   </div>
                   <div class="mt-2 mt-sm-0 gap-1 d-none d-sm-flex">
-                  <button class="btn btn-sm btn-outline-warning archive-btn w-100" onclick="archiveTodo(event)">🗃️</button>
-                  <button class="btn btn-sm btn-outline-danger archive-btn w-100" onclick="deleteTodo(event)">🗑️</button>
+                      <button class="btn btn-sm btn-outline-warning archive-btn w-100" data-todo-id="{{ todo.id }}" onclick="archiveTodo(event)">🗃️</button>
+                      <button class="btn btn-sm btn-outline-danger archive-btn w-100" data-todo-id="{{ todo.id }}" onclick="deleteTodoFromEvent(event)">🗑️</button>
                   </div>
                 </li>
-                <li class="list-group-item d-sm-flex justify-content-between align-items-center todo-item">
-                  <div>
-                    <input type="checkbox" class="form-check-input me-2 todo-checkbox" />
-                    <span class="todo-item-info" onclick="showTodoDetailsModal(1)">To-Do Item without a deadline </span>
-                  </div>
-                  <div class="mt-2 mt-sm-0 gap-1 d-none d-sm-flex">
-                  <button class="btn btn-sm btn-outline-warning archive-btn w-100" onclick="archiveTodo(event)">🗃️</button>
-                  <button class="btn btn-sm btn-outline-danger archive-btn w-100" onclick="deleteTodo(event)">🗑️</button>
-                  </div>
-                </li>
+                {% endfor %}
                 
                 <li class="list-group-item">
                   <div class="row">
@@ -205,20 +197,7 @@
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
         <div class="modal-body">
-          <ul class="list-group">
-            <li class="list-group-item d-flex justify-content-between align-items-center">
-              <span>Archived To-Do with a deadline <small class="badge text-bg-primary">⌛ 9 days</small></span>
-              <div>
-              <button class="btn btn-sm btn-outline-success">↩️</button>
-              <button class="btn btn-sm btn-outline-danger">🗑️</button>
-              </div>
-            </li>
-            <li class="list-group-item d-flex justify-content-between align-items-center">
-              <span>Archived To-Do without a deadline </span>
-              <div>
-              <button class="btn btn-sm btn-outline-success">↩️</button>
-              <button class="btn btn-sm btn-outline-danger">🗑️</button>
-              </div>
+          <ul class="list-group" id="archivedTodosList">
             </ul>
             <button class="btn btn-primary w-100 mt-2" onclick="loadMoreArchivedTodos()">Load More</button>
         </div>
@@ -303,13 +282,15 @@
       checkbox.addEventListener('change', (event) => {
         const listItem = event.target.closest('.todo-item').querySelector('span');
         listItem.classList.toggle('completed', event.target.checked);
-      });
-    });
-
-    document.querySelectorAll('.archive-btn').forEach(button => {
-      button.addEventListener('click', (event) => {
-        const listItem = event.target.closest('.list-group-item');
-        listItem.remove();
+        fetch('/api/toggle_to_do', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            toDoId: listItem.dataset.todoId
+          })
+        });
       });
     });
 
@@ -325,6 +306,29 @@
 
     function showArchivedTodosModal() {
         archivedTodosModal.show();
+        fetch('/api/get_to_dos?archived=true')
+        .then(response => response.json())
+        .then(data => {
+            const archivedTodosList = document.getElementById('archivedTodosList');
+            archivedTodosList.innerHTML = '';
+            data.forEach(todo => {
+                const listItem = document.createElement('li');
+                listItem.classList.add('list-group-item', 'd-flex', 'justify-content-between', 'align-items-center');
+                let timeUntilDue = "";
+                if (todo.time_until_due != null && todo.time_until_due !== '') {
+                    timeUntilDue = `<small class="badge text-bg-primary">⌛ ${todo.time_until_due}</small>`;
+                }
+                listItem.innerHTML = `
+                    <span>${todo.title} ${timeUntilDue}</span>
+                    <div>
+                <button class="btn btn-sm btn-outline-success" onclick="unarchiveTodo(${todo.id})">↩️</button>
+                <button data-todo-id="${todo.id}" class="btn btn-sm btn-outline-danger" onclick="deleteTodoFromEvent(event)">🗑️</button>
+                    </div>
+                `;
+                archivedTodosList.appendChild(listItem);
+            });
+        });
+
     }
 
     function showAddToDoModal() {
@@ -337,6 +341,16 @@
 
     function showTodoDetailsModal(id) {
         todoDetailsModal.show();
+        fetch('/api/get_to_do/' + id)
+        .then(response => response.json())
+        .then(data => {
+            document.getElementById('todoDetailsModalLabel').innerText = data.to_do.title;
+            document.getElementById('todoDetailsModalLabel').dataset.todoId = data.to_do.id;
+            document.getElementById('todoDetailsModalLabel').dataset.todoArchived = data.to_do.archived;
+            document.querySelector('#todoDetailsModal input[type="text"]').value = data.to_do.title;
+            document.querySelector('#todoDetailsModal input[type="date"]').value = data.to_do.date_due;
+            document.querySelector('#todoDetailsModal textarea').value = data.to_do.content;
+        });
     }
 
     function showEventDetailsModal(id) {
@@ -344,13 +358,67 @@
     }
 
     function archiveTodo(event) {
-        const listItem = event.target.closest('.list-group-item');
-        listItem.remove();
+        fetch('/api/archive_to_do', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                toDoId: event.target.dataset.todoId
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            event.target.closest('.list-group-item').remove();
+        });
     }
 
-    function deleteTodo() {
-        const listItem = event.target.closest('.list-group-item');
-        listItem.remove();
+    function unarchiveTodo(id) {
+        fetch('/api/unarchive_to_do', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                toDoId: id
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            // add to-do back to list
+            const todoList = document.getElementById('todo-list');
+            const listItem = document.createElement('li');
+            listItem.classList.add('list-group-item', 'd-sm-flex', 'justify-content-between', 'align-items-center', 'todo-item');
+            listItem.innerHTML = `
+                <div>
+                    <input type="checkbox" class="form-check-input me-2 todo-checkbox" />
+                    <span>${data.to_do.title}</span>
+                </div>
+                <div class="mt-2 mt-sm-0 gap-1 d-none d-sm-flex">
+                    <button class="btn btn-sm btn-outline-warning archive-btn w-100" data-todo-id="${data.to_do.id}" onclick="archiveTodo(event)">🗃️</button>
+                    <button class="btn btn-sm btn-outline-danger archive-btn w-100" data-todo-id="${data.to_do.id}" onclick="deleteTodoFromEvent(event)">🗑️</button>
+                </div>
+            `;
+            todoList.insertBefore(listItem, todoList.childNodes[todoList.childNodes.length - 2]);
+            archivedTodosModal.hide();
+        });
+    }
+
+    function deleteTodo(id) {
+        fetch('/api/delete_to_do', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                toDoId: id 
+            })
+        })
+    }
+
+    function deleteTodoFromEvent(event) {
+        deleteTodo(event.target.dataset.todoId);
+        event.target.closest('.list-group-item').remove();
     }
 
     function deleteEvent() {
@@ -369,7 +437,20 @@
             alert('Please enter a valid to-do item.');
             return;
         }
-        const todoList = document.getElementById('todo-list');
+        fetch('/api/add_to_do', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                title: newTodo,
+                content: '',
+                dateDue: '',
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            const todoList = document.getElementById('todo-list');
         const listItem = document.createElement('li');
         listItem.classList.add('list-group-item', 'd-sm-flex', 'justify-content-between', 'align-items-center', 'todo-item');
         listItem.innerHTML = `
@@ -378,12 +459,13 @@
                 <span>${newTodo}</span>
             </div>
             <div class="mt-2 mt-sm-0 gap-1 d-none d-sm-flex">
-                <button class="btn btn-sm btn-outline-warning archive-btn w-100" onclick="archiveTodo(event)">🗃️</button>
-                <button class="btn btn-sm btn-outline-danger archive-btn w-100" onclick="deleteTodo(event)">🗑️</button>
+                <button class="btn btn-sm btn-outline-warning archive-btn w-100" data-todo-id="${data.id}" onclick="archiveTodo(event)">🗃️</button>
+                <button class="btn btn-sm btn-outline-danger archive-btn w-100" data-todo-id="${data.id}"onclick="deleteTodoFromEvent(event)">🗑️</button>
             </div>
         `;
         todoList.insertBefore(listItem, todoList.childNodes[todoList.childNodes.length - 2]);
         document.getElementById('new-todo').value = '';
+        });
     }
 
     function quickAddEvent() {
