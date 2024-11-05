@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -47,35 +48,35 @@
 
       <!-- Main Content -->
       <main class="col-md-9 col-lg-10 ms-sm-auto px-md-4">
-        <div class="container">
+        <div class="container-fluid">
           <div class="row my-4">
-            <div class="col-md-6">
+            <div class="col-lg-6">
               <h5>To-Do List</h5>
               <ul class="list-group" id="todo-list">
-                <li class="list-group-item d-flex justify-content-between align-items-center todo-item">
+                <li class="list-group-item d-sm-flex justify-content-between align-items-center todo-item">
                   <div>
                     <input type="checkbox" class="form-check-input me-2 todo-checkbox" />
-                    <span>To-Do Item 1 <small class="badge rounded-pill text-bg-primary">(Due: 2024-11-10)</small></span>
+                    <span>To-Do Item with a deadline <small class="badge text-bg-primary">⌛ 9 days</small></span>
                   </div>
-                  <button class="btn btn-sm btn-outline-danger archive-btn">Archive</button>
+                  <div class="mt-2 mt-sm-0 d-flex gap-1">
+                  <button class="btn btn-sm btn-outline-warning archive-btn w-100">🗃️</button>
+                  <button class="btn btn-sm btn-outline-danger archive-btn w-100">🗑️</button>
+                  </div>
                 </li>
-                <li class="list-group-item d-flex justify-content-between align-items-center todo-item">
+                <li class="list-group-item d-sm-flex justify-content-between align-items-center todo-item">
                   <div>
                     <input type="checkbox" class="form-check-input me-2 todo-checkbox" />
-                    <span>To-Do Item 2</span>
+                    <span>To-Do Item without a deadline </span>
                   </div>
-                  <button class="btn btn-sm btn-outline-danger archive-btn">Archive</button>
-                </li>
-                <li class="list-group-item d-flex justify-content-between align-items-center todo-item">
-                  <div>
-                    <input type="checkbox" class="form-check-input me-2 todo-checkbox" />
-                    <span>To-Do Item 3 <small>(Due: 2024-12-01)</small></span>
+                  <div class="mt-2 mt-sm-0 d-flex gap-1">
+                  <button class="btn btn-sm btn-outline-warning archive-btn w-100">🗃️</button>
+                  <button class="btn btn-sm btn-outline-danger archive-btn w-100">🗑️</button>
                   </div>
-                  <button class="btn btn-sm btn-outline-danger archive-btn">Archive</button>
                 </li>
+                
                 <li class="list-group-item todo-item">
                   <div class="row">
-                      <div class="col-12 col-sm-9">
+                      <div class="col-12 col-sm-9 mb-2 mb-sm-0">
                       <input type="text" class="form-control form-control-sm" name="new-todo" id="new-todo" value="">
                       </div>
                       <div class="col-12 col-sm-3">
@@ -86,7 +87,7 @@
               </ul>
             </div>
 
-            <div class="col-md-6">
+            <div class="col-lg-6 mt-4 mt-lg-0">
               <h5>Upcoming Events</h5>
               <ul class="list-group">
                 <li class="list-group-item">
