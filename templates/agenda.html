@@ -35,6 +35,14 @@
       text-decoration: line-through;
       color: gray;
     }
+
+    @media screen and (max-width: 768px) {
+      .sidebar {
+        height: auto;
+        padding-bottom: 10px;
+      }
+    }
+
   </style>
 </head>
 <body class="light-mode">
@@ -42,12 +50,25 @@
     <div class="row">
       <!-- Sidebar -->
       <nav class="col-md-3 col-lg-2 d-md-block sidebar">
-        <h4 class="text-center">Agenda</h4>
-        <a href="#" id="theme-toggle" class="text-center">Toggle Dark/Light Mode</a>
+        <div class="d-flex justify-content-between align-items-center">
+          <h3 class="m-0">Agenda</h3>
+          <button class="btn btn-sm d-md-none btn-outline-light" onclick="document.querySelector('#collapsable-menu').style.display == 'none' ? document.querySelector('#collapsable-menu').style.display = 'block' : document.querySelector('#collapsable-menu').style.display = 'none'">☰</button>
+        </div>
+        <div id="collapsable-menu">
+            <a href="/notes" class="text-center">Notes</a>
+            <a href="/search" class="text-center">Search</a>
+            <a href="/settings" class="text-center">Settings</a>
+            <hr>
+            <a href="javascript:void(0)" id="theme-toggle" class="text-center">Toggle Dark/Light Mode</a>
+            <a href="javascript:void(0)" class="text-center" onclick="showArchivedTodos()">Show Archived To-Dos</a>
+            <a href="javascript:void(0)" class="text-center" onclick="showArchivedEvents()">Show Archived Events</a>
+            <hr>
+            <a href="/logout" class="text-center">Logout</a>
+        </div>
       </nav>
 
       <!-- Main Content -->
-      <main class="col-md-9 col-lg-10 ms-sm-auto px-md-4">
+      <main class="col-md-9 col-lg-10 ms-sm-auto px-md-3 p-0">
         <div class="container-fluid">
           <div class="row my-4">
             <div class="col-lg-6">
