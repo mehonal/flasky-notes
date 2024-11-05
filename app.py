@@ -1001,6 +1001,13 @@ def search_page():
     else:
         return "You must log in."
 
+@app.route("/agenda")
+def agenda_page():
+    if g.user:
+        return render_template("agenda.html")
+    else:
+        return "You must log in."
+
 @app.route("/cli")
 def cli():
     if g.user:

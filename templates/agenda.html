@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Agenda Page</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    body.light-mode {
+      background-color: #f8f9fa;
+      color: #212529;
+    }
+    body.dark-mode {
+      background-color: #212529;
+      color: #f8f9fa;
+    }
+    .sidebar {
+      height: 100vh;
+      padding-top: 1rem;
+      background-color: #343a40;
+      color: white;
+    }
+    .sidebar a {
+      color: white;
+      text-decoration: none;
+      display: block;
+      padding: 0.75rem 1rem;
+      border-radius: 0.25rem;
+    }
+    .sidebar a:hover {
+      background-color: #495057;
+    }
+    span.completed {
+      text-decoration: line-through;
+      color: gray;
+    }
+  </style>
+</head>
+<body class="light-mode">
+  <div class="container-fluid">
+    <div class="row">
+      <!-- Sidebar -->
+      <nav class="col-md-3 col-lg-2 d-md-block sidebar">
+        <h4 class="text-center">Agenda</h4>
+        <a href="#" id="theme-toggle" class="text-center">Toggle Dark/Light Mode</a>
+      </nav>
+
+      <!-- Main Content -->
+      <main class="col-md-9 col-lg-10 ms-sm-auto px-md-4">
+        <div class="container">
+          <div class="row my-4">
+            <div class="col-md-6">
+              <h5>To-Do List</h5>
+              <ul class="list-group" id="todo-list">
+                <li class="list-group-item d-flex justify-content-between align-items-center todo-item">
+                  <div>
+                    <input type="checkbox" class="form-check-input me-2 todo-checkbox" />
+                    <span>To-Do Item 1 <small class="badge rounded-pill text-bg-primary">(Due: 2024-11-10)</small></span>
+                  </div>
+                  <button class="btn btn-sm btn-outline-danger archive-btn">Archive</button>
+                </li>
+                <li class="list-group-item d-flex justify-content-between align-items-center todo-item">
+                  <div>
+                    <input type="checkbox" class="form-check-input me-2 todo-checkbox" />
+                    <span>To-Do Item 2</span>
+                  </div>
+                  <button class="btn btn-sm btn-outline-danger archive-btn">Archive</button>
+                </li>
+                <li class="list-group-item d-flex justify-content-between align-items-center todo-item">
+                  <div>
+                    <input type="checkbox" class="form-check-input me-2 todo-checkbox" />
+                    <span>To-Do Item 3 <small>(Due: 2024-12-01)</small></span>
+                  </div>
+                  <button class="btn btn-sm btn-outline-danger archive-btn">Archive</button>
+                </li>
+                <li class="list-group-item todo-item">
+                  <div class="row">
+                      <div class="col-12 col-sm-9">
+                      <input type="text" class="form-control form-control-sm" name="new-todo" id="new-todo" value="">
+                      </div>
+                      <div class="col-12 col-sm-3">
+                      <button class="btn btn-sm btn-primary w-100">Add</button>
+                      </div>
+                  </div>
+                </li>
+              </ul>
+            </div>
+
+            <div class="col-md-6">
+              <h5>Upcoming Events</h5>
+              <ul class="list-group">
+                <li class="list-group-item">
+                  Event 1 - <small>2024-11-15 10:00 AM</small>
+                </li>
+                <li class="list-group-item">
+                  Event 2 - <small>2024-12-01 2:00 PM</small>
+                </li>
+                <li class="list-group-item">
+                  Event 3
+                </li>
+              </ul>
+            </div>
+          </div>
+
+          <div class="row my-4">
+            <div class="col">
+              <h5>Notes</h5>
+              <textarea class="form-control" rows="6" placeholder="Write your notes here..."></textarea>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    document.getElementById('theme-toggle').addEventListener('click', () => {
+      document.body.classList.toggle('dark-mode');
+      document.body.classList.toggle('light-mode');
+    });
+
+    document.querySelectorAll('.todo-checkbox').forEach(checkbox => {
+      checkbox.addEventListener('change', (event) => {
+        const listItem = event.target.closest('.todo-item').querySelector('span');
+        listItem.classList.toggle('completed', event.target.checked);
+      });
+    });
+
+    document.querySelectorAll('.archive-btn').forEach(button => {
+      button.addEventListener('click', (event) => {
+        const listItem = event.target.closest('.list-group-item');
+        listItem.remove();
+      });
+    });
+  </script>
+</body>
+</html>
+
