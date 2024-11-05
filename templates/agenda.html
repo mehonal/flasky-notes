@@ -79,7 +79,7 @@
                 <li class="list-group-item d-sm-flex justify-content-between align-items-center todo-item">
                   <div>
                     <input type="checkbox" class="form-check-input me-2 todo-checkbox" />
-                    <span>To-Do Item with a deadline <small class="badge text-bg-primary">⌛ 9 days</small></span>
+                    <span class="todo-item-info" onclick="showTodoDetailsModal(1)">To-Do Item with a deadline <small class="badge text-bg-primary">⌛ 9 days</small></span>
                   </div>
                   <div class="mt-2 mt-sm-0 gap-1 d-none d-sm-flex">
                   <button class="btn btn-sm btn-outline-warning archive-btn w-100" onclick="archiveTodo(event)">🗃️</button>
@@ -89,7 +89,7 @@
                 <li class="list-group-item d-sm-flex justify-content-between align-items-center todo-item">
                   <div>
                     <input type="checkbox" class="form-check-input me-2 todo-checkbox" />
-                    <span>To-Do Item without a deadline </span>
+                    <span class="todo-item-info" onclick="showTodoDetailsModal(1)">To-Do Item without a deadline </span>
                   </div>
                   <div class="mt-2 mt-sm-0 gap-1 d-none d-sm-flex">
                   <button class="btn btn-sm btn-outline-warning archive-btn w-100" onclick="archiveTodo(event)">🗃️</button>
@@ -118,7 +118,7 @@
               <ul class="list-group" id="event-list">
                 <li class="list-group-item d-sm-flex justify-content-between align-items-center">
                   <div>
-                    <span>Event with a deadline <small class="badge text-bg-primary">⌛ 4 days</small></span>
+                    <span onclick="showEventDetailsModal(1)">Event with a deadline <small class="badge text-bg-primary">⌛ 4 days</small></span>
                   </div>
                   <div class="mt-2 mt-sm-0 gap-1 d-none d-sm-flex">
                   <button class="btn btn-sm btn-outline-danger archive-btn w-100" onclick="deleteEvent(event)">🗑️</button>
@@ -126,7 +126,7 @@
                 </li>
                 <li class="list-group-item d-sm-flex justify-content-between align-items-center">
                   <div>
-                    <span>Event without a date </span>
+                    <span onclick="showEventDetailsModal(1)">Event without a date </span>
                   </div>
                   <div class="mt-2 mt-sm-0 gap-1 d-none d-sm-flex">
                   <button class="btn btn-sm btn-outline-danger archive-btn w-100" onclick="deleteEvent(event)">🗑️</button>
@@ -208,18 +208,64 @@
           <ul class="list-group">
             <li class="list-group-item d-flex justify-content-between align-items-center">
               <span>Archived To-Do with a deadline <small class="badge text-bg-primary">⌛ 9 days</small></span>
+              <div>
               <button class="btn btn-sm btn-outline-success">↩️</button>
               <button class="btn btn-sm btn-outline-danger">🗑️</button>
+              </div>
             </li>
             <li class="list-group-item d-flex justify-content-between align-items-center">
               <span>Archived To-Do without a deadline </span>
+              <div>
               <button class="btn btn-sm btn-outline-success">↩️</button>
               <button class="btn btn-sm btn-outline-danger">🗑️</button>
+              </div>
             </ul>
             <button class="btn btn-primary w-100 mt-2" onclick="loadMoreArchivedTodos()">Load More</button>
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+        </div>
+        </div>
+    </div>
+    </div>
+
+<div class="modal fade" id="todoDetailsModal" tabindex="-1" aria-labelledby="todoDetailsModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="todoDetailsModalLabel">To-Do Details</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+            <input type="text" class="form-control" value="To-Do Item with a deadline" />
+            <input type="date" class="form-control mt-2" value="2022-12-31" />
+            <textarea class="form-control mt-2" rows="5">This is a to-do item with a deadline.</textarea>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="button" class="btn btn-danger" onclick="deleteTodo()">Delete</button>
+          <button type="button" class="btn btn-primary" onclick="saveTodoFromModal()">Save</button>
+        </div>
+        </div>
+    </div>
+    </div>
+
+<div class="modal fade" id="eventDetailsModal" tabindex="-1" aria-labelledby="eventDetailsModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="eventDetailsModalLabel">Event Details</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+            <input type="text" class="form-control" value="Event with a deadline" />
+            <input type="date" class="form-control mt-2" value="2022-12-31" />
+            <textarea class="form-control mt-2" rows="5">This is an event with a deadline.</textarea>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="button" class="btn btn-danger" onclick="deleteEvent()">Delete</button>
+          <button type="button" class="btn btn-primary" onclick="saveEventFromModal()">Save</button>
         </div>
         </div>
     </div>
@@ -238,6 +284,14 @@
     });
 
     var archivedTodosModal = new bootstrap.Modal(document.getElementById('archivedTodosModal'), {
+      keyboard: false
+    });
+
+    var todoDetailsModal = new bootstrap.Modal(document.getElementById('todoDetailsModal'), {
+      keyboard: false
+    });
+
+    var eventDetailsModal = new bootstrap.Modal(document.getElementById('eventDetailsModal'), {
       keyboard: false
     });
 
@@ -271,6 +325,14 @@
         addEventModal.show();
     }
 
+    function showTodoDetailsModal(id) {
+        todoDetailsModal.show();
+    }
+
+    function showEventDetailsModal(id) {
+        eventDetailsModal.show();
+    }
+
     function archiveTodo(event) {
         const listItem = event.target.closest('.list-group-item');
         listItem.remove();
@@ -284,6 +346,11 @@
     function deleteEvent() {
         const listItem = event.target.closest('.list-group-item');
         listItem.remove();
+    }
+
+    function saveTodoFromModal() {
+        // to be integrated with backend
+        todoDetailsModal.hide();
     }
 
     function quickAddToDo() {
