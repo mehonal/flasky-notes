@@ -475,6 +475,123 @@ class UserNoteCategory(db.Model):
         db.session.add(self)
         db.session.commit()
 
+class UserTodo(db.Model):
+    __tablename__ = "user_todo"
+    id = db.Column(db.Integer, primary_key = True)
+    userid = db.Column(db.ForeignKey('user.id'))
+    title = db.Column(db.String(100))
+    content = db.Column(db.String(100_000))
+    date_due = db.Column(db.DateTime)
+    date_added = db.Column(db.DateTime)
+    date_completed = db.Column(db.DateTime)
+    date_last_changed = db.Column(db.DateTime)
+    completed = db.Column(db.Boolean, default = False)
+    archived = db.Column(db.Boolean, default = False)
+    user = db.relationship('User', backref="todos")
+
+    def get_time_until_due(self):
+        if not self.date_due or self.date_due is None:
+            return None
+        now = datetime.now()
+        time = (self.date_due - now).total_seconds()
+        if time < 0:
+            return "Overdue"
+        if time < 60:
+            return "1 minute"
+        if time > 60:
+            time = time / 60
+            if time > 60:
+                time = time / 60
+                if time > 24:
+                    time = time / 24
+                    time = round(time)
+                    return f"{time} days"
+                else:
+                    time = round(time)
+                    return f"{time} hours"
+            else:
+                time = round(time)
+                return f"{time} minutes"
+
+    def get_due_css_class(self):
+        if not self.date_due or self.date_due is None:
+            return ""
+        now = datetime.now()
+        time = (self.date_due - now).total_seconds()
+        hours = time / 60 / 60
+        if hours < 24:
+            return "danger"
+        if hours < 72:
+            return "warning"
+        return "primary"
+
+    def __init__(self,userid,title,content="",date_due=None):
+        self.userid = userid
+        self.title = title
+        self.content = content
+        self.date_due = date_due
+        self.date_added = datetime.now()
+        self.date_last_changed = datetime.now()
+        db.session.add(self)
+        db.session.commit()
+
+class UserEvent(db.Model):
+    __tablename__ = "user_event"
+    id = db.Column(db.Integer, primary_key = True)
+    userid = db.Column(db.ForeignKey('user.id'))
+    title = db.Column(db.String(100))
+    content = db.Column(db.String(100_000))
+    date_of_event = db.Column(db.DateTime)
+    date_added = db.Column(db.DateTime)
+    date_last_changed = db.Column(db.DateTime)
+    user = db.relationship('User', backref="events")
+
+    def get_time_until_event(self):
+        if not self.date_of_event or self.date_of_event is None:
+            return None
+        now = datetime.now()
+        time = (self.date_of_event - now).total_seconds()
+        if time < 0:
+            return "Overdue"
+        if time < 60:
+            return "1 minute"
+        if time > 60:
+            time = time / 60
+            if time > 60:
+                time = time / 60
+                if time > 24:
+                    time = time / 24
+                    time = round(time)
+                    return f"{time} days"
+                else:
+                    time = round(time)
+                    return f"{time} hours"
+            else:
+                time = round(time)
+                return f"{time} minutes"
+
+    def get_due_css_class(self):
+        if not self.date_of_event or self.date_of_event is None:
+            return ""
+        now = datetime.now()
+        time = (self.date_of_event - now).total_seconds()
+        hours = time / 60 / 60
+        if hours < 24:
+            return "danger"
+        if hours < 72:
+            return "warning"
+        return "primary"
+    
+    def __init__(self,userid,title,content="",date_of_event=None):
+        self.userid = userid
+        self.title = title
+        self.content = content
+        self.date_of_event = date_of_event
+        self.date_added = datetime.now()
+        self.date_last_changed = datetime.now()
+        db.session.add(self)
+        db.session.commit()
+
 
 #=============================================================================================================#
 #=================================================APP ROUTES==================================================#
