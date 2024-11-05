@@ -489,6 +489,19 @@ class UserTodo(db.Model):
     archived = db.Column(db.Boolean, default = False)
     user = db.relationship('User', backref="todos")
 
+    def return_json(self):
+        return {
+            "id": self.id,
+            "title": self.title,
+            "content": self.content,
+            "date_due": self.date_due,
+            "date_added": self.date_added,
+            "date_completed": self.date_completed,
+            "completed": self.completed,
+            "archived": self.archived,
+            "time_until_due": self.get_time_until_due()
+        }
+
     def get_time_until_due(self):
         if not self.date_due or self.date_due is None:
             return None
@@ -546,13 +559,23 @@ class UserEvent(db.Model):
     date_last_changed = db.Column(db.DateTime)
     user = db.relationship('User', backref="events")
 
+    def return_json(self):
+        return {
+            "id": self.id,
+            "title": self.title,
+            "content": self.content,
+            "date_of_event": self.date_of_event,
+            "date_added": self.date_added,
+            "date_last_changed": self.date_last_changed
+        }
+
     def get_time_until_event(self):
         if not self.date_of_event or self.date_of_event is None:
             return None
         now = datetime.now()
         time = (self.date_of_event - now).total_seconds()
         if time < 0:
-            return "Overdue"
+            return "Past"
         if time < 60:
             return "1 minute"
         if time > 60:
@@ -805,6 +828,151 @@ def delete_category():
             return jsonify(success=True)
         else:
             return jsonify(success=False,reason="Category does not exist.")
+    else:
+        return jsonify(success=False,reason="Not logged in.")
+
+@app.route("/api/get_to_dos")
+def get_to_dos():
+    if g.user:
+        to_dos = []
+        query = None
+        if request.args.get('archived') == "true":
+            query = UserTodo.query.filter_by(userid=g.user.id, archived=True).all()
+        else:
+            query = UserTodo.query.filter_by(userid=g.user.id, archived=False).all()
+        for to_do in query:
+            to_dos.append({
+                "id": to_do.id,
+                "title": to_do.title,
+                "completed": to_do.completed,
+                "time_until_due": to_do.get_time_until_due()
+            })
+        return jsonify(to_dos)
+    else:
+        return jsonify(success=False,reason="Not logged in.")
+
+@app.route("/api/get_to_do/<int:to_do_id>")
+def get_to_do(to_do_id):
+    if g.user:
+        to_do = UserTodo.query.filter_by(id=to_do_id).first()
+        if to_do and g.user == to_do.user:
+            return jsonify(success=True,to_do=to_do.return_json())
+        else:
+            return jsonify(success=False,reason="To do does not exist.")
+    else:
+        return jsonify(success=False,reason="Not logged in.")
+
+@app.route("/api/get_event/<int:event_id>")
+def get_event(event_id):
+    if g.user:
+        event = UserEvent.query.filter_by(id=event_id).first()
+        if event and g.user == event.user:
+            return jsonify(success=True,event=event.return_json())
+        else:
+            return jsonify(success=False,reason="Event does not exist.")
+    else:
+        return jsonify(success=False,reason="Not logged in.")
+
+@app.route("/api/get_events")
+def get_events():
+    if g.user:
+        events = []
+        for event in UserEvent.query.filter_by(userid=g.user.id).all():
+            events.append({
+                "id": event.id,
+                "title": event.title,
+                "time_until_event": event.get_time_until_event()
+            })
+        return jsonify(events)
+    else:
+        return jsonify(success=False,reason="Not logged in.")
+
+@app.route("/api/add_to_do", methods=['POST'])
+def add_to_do():
+    if g.user:
+        data = request.get_json()
+        title = data.get('title')
+        content = data.get('content')
+        date_due = data.get('dateDue')
+        if date_due:
+            date_due = datetime.strptime(date_due, "%Y-%m-%d")
+        to_do = UserTodo(userid=g.user.id,title=title,content=content,date_due=date_due)
+        return jsonify(success=True, id=to_do.id)
+    else:
+        return jsonify(success=False,reason="Not logged in.")
+
+@app.route("/api/add_event", methods=['POST'])
+def add_event():
+    if g.user:
+        data = request.get_json()
+        title = data.get('title')
+        content = data.get('content')
+        date_of_event = data.get('dateOfEvent')
+        if date_of_event:
+            date_of_event = datetime.strptime(date_of_event, "%Y-%m-%d")
+        event = UserEvent(userid=g.user.id,title=title,content=content,date_of_event=date_of_event)
+        return jsonify(success=True, id=event.id)
+    else:
+        return jsonify(success=False,reason="Not logged in.")
+
+@app.route("/api/delete_to_do", methods=['POST'])
+def delete_to_do():
+    if g.user:
+        data = request.get_json()
+        to_do_id = data.get('toDoId')
+        to_do = UserTodo.query.filter_by(id=to_do_id).first()
+        if to_do and g.user == to_do.user:
+            db.session.delete(to_do)
+            db.session.commit()
+            return jsonify(success=True)
+        else:
+            return jsonify(success=False,reason="To do does not exist.")
+    else:
+        return jsonify(success=False,reason="Not logged in.")
+
+@app.route("/api/delete_event", methods=['POST'])
+def delete_event():
+    if g.user:
+        data = request.get_json()
+        event_id = data.get('eventId')
+        event = UserEvent.query.filter_by(id=event_id).first()
+        if event and g.user == event.user:
+            db.session.delete(event)
+            db.session.commit()
+            return jsonify(success=True)
+        else:
+            return jsonify(success=False,reason="Event does not exist.")
+    else:
+        return jsonify(success=False,reason="Not logged in.")
+
+@app.route("/api/archive_to_do", methods=['POST'])
+def archive_to_do():
+    if g.user:
+        data = request.get_json()
+        to_do_id = data.get('toDoId')
+        to_do = UserTodo.query.filter_by(id=to_do_id).first()
+        if to_do and g.user == to_do.user:
+            to_do.archived = True
+            db.session.commit()
+            return jsonify(success=True)
+        else:
+            return jsonify(success=False,reason="To do does not exist.")
+    else:
+        return jsonify(success=False,reason="Not logged in.")
+
+@app.route("/api/complete_to_do", methods=['POST'])
+def complete_to_do():
+    if g.user:
+        data = request.get_json()
+        to_do_id = data.get('toDoId')
+        to_do = UserTodo.query.filter_by(id=to_do_id).first()
+        if to_do and g.user == to_do.user:
+            to_do.completed = True
+            to_do.date_completed = datetime.now()
+            db.session.commit()
+            return jsonify(success=True)
+        else:
+            return jsonify(success=False,reason="To do does not exist.")
     else:
         return jsonify(success=False,reason="Not logged in.")
 
@@ -1170,5 +1338,3 @@ with app.app_context():
         db.session.add(tahta)
     db.session.commit()
     
-
-
