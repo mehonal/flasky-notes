@@ -13,7 +13,6 @@ import os
 #================================================APP SETTINGS=================================================#
 #=============================================================================================================#
 
-
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URI')
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY')
@@ -475,6 +474,7 @@ class UserNoteCategory(db.Model):
         self.name = name 
         db.session.add(self)
         db.session.commit()
+
 
 #=============================================================================================================#
 #=================================================APP ROUTES==================================================#
@@ -988,6 +988,18 @@ def note_single_page(note_id):
         category = request.args.get('category')
         return render_template(f"themes/{theme_settings.theme.slug}/note_single.html", note = note, note_id = note_id, font_size = font_size, category = category)
     return "You must log in."
+
+@app.route("/search")
+def search_page():
+    if g.user:
+        query = request.args.get('q')
+        if query and query is not None:
+            notes = UserNote.query.filter_by(userid=g.user.id).filter(UserNote.content.contains(query)).all()
+            notes += UserNote.query.filter_by(userid=g.user.id).filter(UserNote.title.contains(query)).all()
+            return render_template("search.html", query = query, notes = notes)
+        return render_template("search.html", query = query)
+    else:
+        return "You must log in."
 
 @app.route("/cli")
 def cli():
