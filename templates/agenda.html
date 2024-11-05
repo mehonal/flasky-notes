@@ -51,14 +51,17 @@
         <div class="container-fluid">
           <div class="row my-4">
             <div class="col-lg-6">
-              <h5>To-Do List</h5>
+              <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 class="m-0">To-Do List</h5>
+                <button class="btn btn-sm btn-primary">Add To-Do</button>
+              </div>
               <ul class="list-group" id="todo-list">
                 <li class="list-group-item d-sm-flex justify-content-between align-items-center todo-item">
                   <div>
                     <input type="checkbox" class="form-check-input me-2 todo-checkbox" />
                     <span>To-Do Item with a deadline <small class="badge text-bg-primary">⌛ 9 days</small></span>
                   </div>
-                  <div class="mt-2 mt-sm-0 d-flex gap-1">
+                  <div class="mt-2 mt-sm-0 gap-1 d-none d-sm-flex">
                   <button class="btn btn-sm btn-outline-warning archive-btn w-100">🗃️</button>
                   <button class="btn btn-sm btn-outline-danger archive-btn w-100">🗑️</button>
                   </div>
@@ -68,16 +71,16 @@
                     <input type="checkbox" class="form-check-input me-2 todo-checkbox" />
                     <span>To-Do Item without a deadline </span>
                   </div>
-                  <div class="mt-2 mt-sm-0 d-flex gap-1">
+                  <div class="mt-2 mt-sm-0 gap-1 d-none d-sm-flex">
                   <button class="btn btn-sm btn-outline-warning archive-btn w-100">🗃️</button>
                   <button class="btn btn-sm btn-outline-danger archive-btn w-100">🗑️</button>
                   </div>
                 </li>
                 
-                <li class="list-group-item todo-item">
+                <li class="list-group-item">
                   <div class="row">
                       <div class="col-12 col-sm-9 mb-2 mb-sm-0">
-                      <input type="text" class="form-control form-control-sm" name="new-todo" id="new-todo" value="">
+                      <input type="text" class="form-control form-control-sm" name="new-todo" id="new-todo" value="" placeholder="New note...">
                       </div>
                       <div class="col-12 col-sm-3">
                       <button class="btn btn-sm btn-primary w-100">Add</button>
@@ -88,16 +91,38 @@
             </div>
 
             <div class="col-lg-6 mt-4 mt-lg-0">
-              <h5>Upcoming Events</h5>
+              <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 class="m-0">Upcoming Events</h5>
+                <button class="btn btn-sm btn-primary">Add Event</button>
+              </div>
               <ul class="list-group">
-                <li class="list-group-item">
-                  Event 1 - <small>2024-11-15 10:00 AM</small>
+                <li class="list-group-item d-sm-flex justify-content-between align-items-center">
+                  <div>
+                    <span>Event with a deadline <small class="badge text-bg-primary">⌛ 4 days</small></span>
+                  </div>
+                  <div class="mt-2 mt-sm-0 gap-1 d-none d-sm-flex">
+                  <button class="btn btn-sm btn-outline-warning archive-btn w-100">🗃️</button>
+                  <button class="btn btn-sm btn-outline-danger archive-btn w-100">🗑️</button>
+                  </div>
+                </li>
+                <li class="list-group-item d-sm-flex justify-content-between align-items-center">
+                  <div>
+                    <span>Event without a date </span>
+                  </div>
+                  <div class="mt-2 mt-sm-0 gap-1 d-none d-sm-flex">
+                  <button class="btn btn-sm btn-outline-warning archive-btn w-100">🗃️</button>
+                  <button class="btn btn-sm btn-outline-danger archive-btn w-100">🗑️</button>
+                  </div>
                 </li>
                 <li class="list-group-item">
-                  Event 2 - <small>2024-12-01 2:00 PM</small>
-                </li>
-                <li class="list-group-item">
-                  Event 3
+                  <div class="row">
+                      <div class="col-12 col-sm-9 mb-2 mb-sm-0">
+                          <input type="text" class="form-control form-control-sm" name="new-todo" id="new-todo" value="" placeholder="New event...">
+                      </div>
+                      <div class="col-12 col-sm-3">
+                      <button class="btn btn-sm btn-primary w-100">Add</button>
+                      </div>
+                  </div>
                 </li>
               </ul>
             </div>
