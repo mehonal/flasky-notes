@@ -59,9 +59,8 @@
             <a href="/search" class="text-center">Search</a>
             <a href="/settings" class="text-center">Settings</a>
             <hr>
-            <a href="javascript:void(0)" id="theme-toggle" class="text-center">Toggle Dark/Light Mode</a>
-            <a href="javascript:void(0)" class="text-center" onclick="showArchivedTodos()">Show Archived To-Dos</a>
-            <a href="javascript:void(0)" class="text-center" onclick="showArchivedEvents()">Show Archived Events</a>
+            <a href="javascript:void(0)" class="text-center" onclick="toggleDarkMode()">Toggle Dark/Light Mode</a>
+            <a href="javascript:void(0)" class="text-center" onclick="showArchivedTodosModal()">Show Archived To-Dos</a>
             <hr>
             <a href="/logout" class="text-center">Logout</a>
         </div>
@@ -74,7 +73,7 @@
             <div class="col-lg-6">
               <div class="d-flex justify-content-between align-items-center mb-3">
                 <h5 class="m-0">To-Do List</h5>
-                <button class="btn btn-sm btn-primary">Add To-Do</button>
+                <button class="btn btn-sm btn-primary" onclick="showAddToDoModal()">Add To-Do</button>
               </div>
               <ul class="list-group" id="todo-list">
                 <li class="list-group-item d-sm-flex justify-content-between align-items-center todo-item">
@@ -83,8 +82,8 @@
                     <span>To-Do Item with a deadline <small class="badge text-bg-primary">⌛ 9 days</small></span>
                   </div>
                   <div class="mt-2 mt-sm-0 gap-1 d-none d-sm-flex">
-                  <button class="btn btn-sm btn-outline-warning archive-btn w-100">🗃️</button>
-                  <button class="btn btn-sm btn-outline-danger archive-btn w-100">🗑️</button>
+                  <button class="btn btn-sm btn-outline-warning archive-btn w-100" onclick="archiveTodo(event)">🗃️</button>
+                  <button class="btn btn-sm btn-outline-danger archive-btn w-100" onclick="deleteTodo(event)">🗑️</button>
                   </div>
                 </li>
                 <li class="list-group-item d-sm-flex justify-content-between align-items-center todo-item">
@@ -93,18 +92,18 @@
                     <span>To-Do Item without a deadline </span>
                   </div>
                   <div class="mt-2 mt-sm-0 gap-1 d-none d-sm-flex">
-                  <button class="btn btn-sm btn-outline-warning archive-btn w-100">🗃️</button>
-                  <button class="btn btn-sm btn-outline-danger archive-btn w-100">🗑️</button>
+                  <button class="btn btn-sm btn-outline-warning archive-btn w-100" onclick="archiveTodo(event)">🗃️</button>
+                  <button class="btn btn-sm btn-outline-danger archive-btn w-100" onclick="deleteTodo(event)">🗑️</button>
                   </div>
                 </li>
                 
                 <li class="list-group-item">
                   <div class="row">
                       <div class="col-12 col-sm-9 mb-2 mb-sm-0">
-                      <input type="text" class="form-control form-control-sm" name="new-todo" id="new-todo" value="" placeholder="New note...">
+                      <input type="text" class="form-control form-control-sm" name="new-todo" id="new-todo" value="" placeholder="New todo...">
                       </div>
                       <div class="col-12 col-sm-3">
-                      <button class="btn btn-sm btn-primary w-100">Add</button>
+                      <button class="btn btn-sm btn-primary w-100" onclick="quickAddToDo()">Add</button>
                       </div>
                   </div>
                 </li>
@@ -114,16 +113,15 @@
             <div class="col-lg-6 mt-4 mt-lg-0">
               <div class="d-flex justify-content-between align-items-center mb-3">
                 <h5 class="m-0">Upcoming Events</h5>
-                <button class="btn btn-sm btn-primary">Add Event</button>
+                <button class="btn btn-sm btn-primary" onclick="showAddEventModal()">Add Event</button>
               </div>
-              <ul class="list-group">
+              <ul class="list-group" id="event-list">
                 <li class="list-group-item d-sm-flex justify-content-between align-items-center">
                   <div>
                     <span>Event with a deadline <small class="badge text-bg-primary">⌛ 4 days</small></span>
                   </div>
                   <div class="mt-2 mt-sm-0 gap-1 d-none d-sm-flex">
-                  <button class="btn btn-sm btn-outline-warning archive-btn w-100">🗃️</button>
-                  <button class="btn btn-sm btn-outline-danger archive-btn w-100">🗑️</button>
+                  <button class="btn btn-sm btn-outline-danger archive-btn w-100" onclick="deleteEvent(event)">🗑️</button>
                   </div>
                 </li>
                 <li class="list-group-item d-sm-flex justify-content-between align-items-center">
@@ -131,17 +129,16 @@
                     <span>Event without a date </span>
                   </div>
                   <div class="mt-2 mt-sm-0 gap-1 d-none d-sm-flex">
-                  <button class="btn btn-sm btn-outline-warning archive-btn w-100">🗃️</button>
-                  <button class="btn btn-sm btn-outline-danger archive-btn w-100">🗑️</button>
+                  <button class="btn btn-sm btn-outline-danger archive-btn w-100" onclick="deleteEvent(event)">🗑️</button>
                   </div>
                 </li>
                 <li class="list-group-item">
                   <div class="row">
                       <div class="col-12 col-sm-9 mb-2 mb-sm-0">
-                          <input type="text" class="form-control form-control-sm" name="new-todo" id="new-todo" value="" placeholder="New event...">
+                          <input type="text" class="form-control form-control-sm" name="new-event" id="new-event" value="" placeholder="New event...">
                       </div>
                       <div class="col-12 col-sm-3">
-                      <button class="btn btn-sm btn-primary w-100">Add</button>
+                      <button class="btn btn-sm btn-primary w-100" onclick="quickAddEvent()">Add</button>
                       </div>
                   </div>
                 </li>
@@ -153,6 +150,7 @@
             <div class="col">
               <h5>Notes</h5>
               <textarea class="form-control" rows="6" placeholder="Write your notes here..."></textarea>
+              <button id="save-notes-btn" class="btn btn-primary w-100 mt-2" onclick="saveNotes()">Save Notes</button>
             </div>
           </div>
         </div>
@@ -160,11 +158,87 @@
     </div>
   </div>
 
+  <!-- Modals -->
+  <div class="modal fade" id="addTodoModal" tabindex="-1" aria-labelledby="addTodoModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="addTodoModalLabel">Add To-Do</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <input type="text" class="form-control" placeholder="To-Do Item..." />
+          <input type="date" class="form-control mt-2" />
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+          <button type="button" class="btn btn-primary">Add To-Do</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+<div class="modal fade" id="addEventModal" tabindex="-1" aria-labelledby="addEventModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="addEventModalLabel">Add Event</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <input type="text" class="form-control" placeholder="Event Title..." />
+          <input type="date" class="form-control mt-2" />
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+          <button type="button" class="btn btn-primary">Add Event</button>
+        </div>
+        </div>
+    </div>
+    </div>
+
+<div class="modal fade" id="archivedTodosModal" tabindex="-1" aria-labelledby="archivedTodosModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="archivedTodosModalLabel">Archived To-Dos</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <ul class="list-group">
+            <li class="list-group-item d-flex justify-content-between align-items-center">
+              <span>Archived To-Do with a deadline <small class="badge text-bg-primary">⌛ 9 days</small></span>
+              <button class="btn btn-sm btn-outline-success">↩️</button>
+              <button class="btn btn-sm btn-outline-danger">🗑️</button>
+            </li>
+            <li class="list-group-item d-flex justify-content-between align-items-center">
+              <span>Archived To-Do without a deadline </span>
+              <button class="btn btn-sm btn-outline-success">↩️</button>
+              <button class="btn btn-sm btn-outline-danger">🗑️</button>
+            </ul>
+            <button class="btn btn-primary w-100 mt-2" onclick="loadMoreArchivedTodos()">Load More</button>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+        </div>
+        </div>
+    </div>
+    </div>
+
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
   <script>
-    document.getElementById('theme-toggle').addEventListener('click', () => {
-      document.body.classList.toggle('dark-mode');
-      document.body.classList.toggle('light-mode');
+
+    // modal
+    var addTodoModal = new bootstrap.Modal(document.getElementById('addTodoModal'), {
+      keyboard: false
+    });
+
+    var addEventModal = new bootstrap.Modal(document.getElementById('addEventModal'), {
+      keyboard: false
+    });
+
+    var archivedTodosModal = new bootstrap.Modal(document.getElementById('archivedTodosModal'), {
+      keyboard: false
     });
 
     document.querySelectorAll('.todo-checkbox').forEach(checkbox => {
@@ -180,6 +254,94 @@
         listItem.remove();
       });
     });
+
+    function toggleDarkMode() {
+      document.body.classList.toggle('dark-mode');
+    }
+
+    function showArchivedTodosModal() {
+        archivedTodosModal.show();
+    }
+
+    function showAddToDoModal() {
+        addTodoModal.show();
+    }
+
+    function showAddEventModal() {
+        addEventModal.show();
+    }
+
+    function archiveTodo(event) {
+        const listItem = event.target.closest('.list-group-item');
+        listItem.remove();
+    }
+
+    function deleteTodo() {
+        const listItem = event.target.closest('.list-group-item');
+        listItem.remove();
+    }
+
+    function deleteEvent() {
+        const listItem = event.target.closest('.list-group-item');
+        listItem.remove();
+    }
+
+    function quickAddToDo() {
+        const newTodo = document.getElementById('new-todo').value;
+        if (!newTodo || newTodo.trim() === '' || newTodo.length < 2) {
+            alert('Please enter a valid to-do item.');
+            return;
+        }
+        const todoList = document.getElementById('todo-list');
+        const listItem = document.createElement('li');
+        listItem.classList.add('list-group-item', 'd-sm-flex', 'justify-content-between', 'align-items-center', 'todo-item');
+        listItem.innerHTML = `
+            <div>
+                <input type="checkbox" class="form-check-input me-2 todo-checkbox" />
+                <span>${newTodo}</span>
+            </div>
+            <div class="mt-2 mt-sm-0 gap-1 d-none d-sm-flex">
+                <button class="btn btn-sm btn-outline-warning archive-btn w-100" onclick="archiveTodo(event)">🗃️</button>
+                <button class="btn btn-sm btn-outline-danger archive-btn w-100" onclick="deleteTodo(event)">🗑️</button>
+            </div>
+        `;
+        todoList.insertBefore(listItem, todoList.childNodes[todoList.childNodes.length - 2]);
+        document.getElementById('new-todo').value = '';
+    }
+
+    function quickAddEvent() {
+        const newEvent = document.getElementById('new-event').value;
+        const eventList = document.getElementById('event-list');
+        const listItem = document.createElement('li');
+        listItem.classList.add('list-group-item', 'd-sm-flex', 'justify-content-between', 'align-items-center');
+        listItem.innerHTML = `
+            <div>
+                <span>${newEvent}</span>
+            </div>
+            <div class="mt-2 mt-sm-0 gap-1 d-none d-sm-flex">
+                <button class="btn btn-sm btn-outline-danger archive-btn w-100" onclick="deleteEvent(event)">🗑️</button>
+            </div>
+        `;
+        eventList.insertBefore(listItem, eventList.childNodes[eventList.childNodes.length - 2]);
+        document.getElementById('new-event').value = '';
+    }
+
+    function saveNotes() {
+        // to be integrated with backend
+        document.getElementById('save-notes-btn').disabled = true;
+        document.getElementById('save-notes-btn').innerText = 'Saving...';
+        setTimeout(() => {
+            document.getElementById('save-notes-btn').disabled = true;
+            document.getElementById('save-notes-btn').innerText = 'Saved!';
+        }, 1000);
+        setTimeout(() => {
+            document.getElementById('save-notes-btn').disabled = false;
+            document.getElementById('save-notes-btn').innerText = 'Save Notes';
+        }, 2500);
+    }
+
+
+
   </script>
 </body>
 </html>
