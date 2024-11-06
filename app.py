@@ -8,6 +8,8 @@ import re
 import config as CONFIG
 from sqlalchemy import MetaData
 import os
+from dotenv import load_dotenv
+load_dotenv()
 
 #=============================================================================================================#
 #================================================APP SETTINGS=================================================#
