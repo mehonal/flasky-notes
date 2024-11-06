@@ -307,6 +307,7 @@
         <button id="hide-title" title="Hide Title">📜<span class="button-text">Hide Title</span></button>
         <button id="save-note" title="Save Note"><span id="save-icon">💾</span><span class="button-text">Save</span></button>
         <button id="auto-save" title="Auto-Save"><span id="autosave-icon">⏸️</span><span class="button-text">Auto Save</span></button>
+        <button id="agenda" title="Agenda">🗓️<span class="button-text">Agenda</span></button>
         <button id="settings" title="Settings">⚙️<span class="button-text">Settings</span></button>
     </div>
     <div class="main-content">
@@ -372,6 +373,13 @@
         document.getElementById('settings').addEventListener('click', () => {
             if (confirm('Are you sure you want to go to settings? Your changes will not be saved.')) {
                 window.location.href = '/settings';
+            }
+        });
+
+        // Go to agenda
+        document.getElementById('agenda').addEventListener('click', () => {
+            if (confirm('Are you sure you want to go to agenda? Your changes will not be saved.')) {
+                window.location.href = '/agenda';
             }
         });
 
