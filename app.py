@@ -891,8 +891,6 @@ def get_events():
 @app.route("/api/add_todo", methods=['POST'])
 def add_todo():
     if g.user:
-        data = request.get_json()
-        print(data)
         title = data.get('title')
         content = data.get('content')
         date_due = data.get('dateDue')
@@ -937,7 +935,7 @@ def edit_todo():
             todo.content = content
             todo.date_due = date_due
             db.session.commit()
-            return jsonify(success=True)
+            return jsonify(success=True, todo=todo.return_json())
         else:
             return jsonify(success=False,reason="To do does not exist.")
     else:

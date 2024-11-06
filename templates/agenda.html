@@ -335,7 +335,11 @@
             document.getElementById('todoDetailsModalLabel').dataset.todoId = data.todo.id;
             document.getElementById('todoDetailsModalLabel').dataset.todoArchived = data.todo.archived;
             document.querySelector('#todoDetailsModal input[type="text"]').value = data.todo.title;
-            document.querySelector('#todoDetailsModal input[type="date"]').value = new Date(data.todo.date_due).toISOString().split('T')[0];
+            if (data.todo.date_due === null) {
+                document.querySelector('#todoDetailsModal input[type="date"]').value = '';
+            } else {
+                document.querySelector('#todoDetailsModal input[type="date"]').value = new Date(data.todo.date_due).toISOString().split('T')[0];
+            }
             document.querySelector('#todoDetailsModal textarea').value = data.todo.content;
         });
     }
@@ -403,8 +407,31 @@
     }
 
     function saveTodoFromModal() {
-        // to be integrated with backend
-        todoDetailsModal.hide();
+        const todoId = document.getElementById('todoDetailsModalLabel').dataset.todoId;
+        const todoTitle = document.querySelector('#todoDetailsModal input[type="text"]').value;
+        const todoDate = document.querySelector('#todoDetailsModal input[type="date"]').value;
+        const todoContent = document.querySelector('#todoDetailsModal textarea').value;
+        fetch('/api/edit_todo', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                toDoId: todoId,
+                title: todoTitle,
+                content: todoContent,
+                dateDue: todoDate
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            const todoItem = document.querySelector(`span[data-todo-id="${todoId}"]`);
+            todoItem.innerText = todoTitle;
+            if (todoDate) {
+                todoItem.innerHTML += `<small class="badge text-bg-primary">⌛${data.todo.time_until_due}</small>`;
+            }
+            todoDetailsModal.hide();
+        });
     }
 
     function bakeTodoDOM(todo) {
@@ -435,7 +462,6 @@
     }
 
     function addTodoFromModal() {
-        // to be integrated with backend
         const newTodoTitle = document.querySelector('#addTodoModal input[type="text"]').value;
         const newTodoDate = document.querySelector('#addTodoModal input[type="date"]').value;
         const newTodoContent = document.querySelector('#addTodoModal textarea').value;
