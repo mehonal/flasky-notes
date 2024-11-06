@@ -141,7 +141,7 @@
           <div class="row my-4">
             <div class="col">
               <h5>Notes</h5>
-              <textarea class="form-control" rows="7" placeholder="Write your notes here..."></textarea>
+              <textarea id="agenda-notes" class="form-control" rows="7" placeholder="Write your notes here...">{{ g.user.agenda_notes.content if g.user.agenda_notes and g.user.agenda_notes.content }}</textarea>
               <button id="save-notes-btn" class="btn btn-primary w-100 mt-2" onclick="saveNotes()">Save Notes</button>
             </div>
           </div>
@@ -634,17 +634,25 @@
     }
 
     function saveNotes() {
-        // to be integrated with backend
         document.getElementById('save-notes-btn').disabled = true;
         document.getElementById('save-notes-btn').innerText = 'Saving...';
-        setTimeout(() => {
-            document.getElementById('save-notes-btn').disabled = true;
+        fetch('/api/save_agenda_notes', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                content: document.querySelector('#agenda-notes').value
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
             document.getElementById('save-notes-btn').innerText = 'Saved!';
-        }, 1000);
-        setTimeout(() => {
-            document.getElementById('save-notes-btn').disabled = false;
-            document.getElementById('save-notes-btn').innerText = 'Save Notes';
-        }, 2500);
+            setTimeout(() => {
+                document.getElementById('save-notes-btn').disabled = false;
+                document.getElementById('save-notes-btn').innerText = 'Save Notes';
+            }, 2500);
+        });
     }
 
   </script>

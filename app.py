@@ -89,12 +89,10 @@ class UserTheme(db.Model):
     user = db.relationship('User', backref="themes")
     theme = db.relationship('Theme', backref="users")
 
-
 class UserSettings(db.Model):
     __tablename__ = "user_settings"
     id = db.Column(db.Integer, primary_key = True)
     theme_preference = db.Column(db.String(100), default = "paper")
-
 
 class User(db.Model):
     __tablename__ = "user"
@@ -106,6 +104,25 @@ class User(db.Model):
     plan = db.Column(db.Integer, default = 0)
     user_type = db.Column(db.Integer, default = 0)
     settings = db.relationship('UserSettings', uselist = False, backref= "user")
+
+    def edit_agenda_notes(self, content):
+        print("Editing agenda")
+        if not self.agenda_notes:
+            print("No agenda notes found. Creating new.")
+            UserAgendaNotes(userid=self.id,content=content)
+            db.session.commit()
+            print("New agenda notes created.")
+            return True
+        try:
+            print("Editing existing agenda notes.")
+            self.agenda_notes.content = content
+            self.agenda_notes.date_last_changed = datetime.now()
+            db.session.commit()
+            print("Agenda notes edited.")
+            return True
+        except:
+            print("Could not edit agenda notes.")
+            return False
 
     def get_main_category(self):
         try:
@@ -616,6 +633,20 @@ class UserEvent(db.Model):
         db.session.add(self)
         db.session.commit()
 
+class UserAgendaNotes(db.Model):
+    __tablename__ = "user_agenda_notes"
+    id = db.Column(db.Integer, primary_key = True)
+    content = db.Column(db.String(1_000_000))
+    userid = db.Column(db.ForeignKey('user.id'))
+    date_last_changed = db.Column(db.DateTime)
+    user = db.relationship('User', backref=db.backref('agenda_notes', uselist=False))
+
+    def __init__(self,userid, content=""):
+        self.userid = userid
+        self.content = content
+        self.date_last_changed = datetime.now()
+        db.session.add(self)
+        db.session.commit()
 
 #=============================================================================================================#
 #=================================================APP ROUTES==================================================#
@@ -1056,6 +1087,16 @@ def toggle_todo():
     else:
         return jsonify(success=False,reason="Not logged in.")
 
+@app.route("/api/save_agenda_notes", methods=['POST'])
+def save_agenda_notes():
+    if g.user:
+        data = request.get_json()
+        content = data.get('content')
+        g.user.edit_agenda_notes(content)
+        return jsonify(success=True)
+    else:
+        return jsonify(success=False,reason="Not logged in.")
+
 #================================================EXTERNAL API=================================================#
 
 @app.route("/api/external/get-notes", methods=['POST'])
@@ -1421,4 +1462,5 @@ with app.app_context():
         tahta = Theme(name="Tahta",slug="tahta", has_categories_page = False, has_notes_page = False)
         db.session.add(tahta)
     db.session.commit()
+
     
