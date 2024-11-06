@@ -65,7 +65,7 @@
             <hr>
             <h5 class="text-center">Latest Notes</h5>
             {% for note in g.user.return_notes(3) %}
-            <a href="/notes/{{ note.id }}" class="text-center">{{ note.title }}</a>
+            <a href="/note/{{ note.id }}" class="text-center">{{ note.title }}</a>
             {% endfor %}
             <hr>
             <a href="/logout" class="text-center">Logout</a>
