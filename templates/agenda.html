@@ -16,7 +16,6 @@
       color: #f8f9fa;
     }
     .sidebar {
-      height: 100vh;
       padding-top: 1rem;
       background-color: #343a40;
       color: white;
@@ -50,17 +49,24 @@
     <div class="row">
       <!-- Sidebar -->
       <nav class="col-md-3 col-lg-2 d-md-block sidebar">
-        <div class="d-flex justify-content-between align-items-center">
-          <h3 class="m-0">Agenda</h3>
-          <button class="btn btn-sm d-md-none btn-outline-light" onclick="document.querySelector('#collapsable-menu').style.display == 'none' ? document.querySelector('#collapsable-menu').style.display = 'block' : document.querySelector('#collapsable-menu').style.display = 'none'">☰</button>
+        <div class="d-flex d-md-block justify-content-between align-items-center">
+          <h3 class="mx-0 mb-2 w-md-100 text-center">Agenda</h3>
+          <button class="btn btn-sm d-md-none btn-outline-light" onclick="toggleMobileMenu()">☰</button>
         </div>
         <div id="collapsable-menu">
             <a href="/notes" class="text-center">Notes</a>
-            <a href="/search" class="text-center">Search</a>
+            <a href="/note/0" class="text-center">New Note</a>
+            <a href="/search" class="text-center">Search Notes</a>
             <a href="/settings" class="text-center">Settings</a>
             <hr>
+            <h5 class="text-center">Actions</h5>
             <a href="javascript:void(0)" class="text-center" onclick="toggleDarkMode()">Toggle Dark/Light Mode</a>
             <a href="javascript:void(0)" class="text-center" onclick="showArchivedTodosModal()">Show Archived To-Dos</a>
+            <hr>
+            <h5 class="text-center">Latest Notes</h5>
+            {% for note in g.user.return_notes(3) %}
+            <a href="/notes/{{ note.id }}" class="text-center">{{ note.title }}</a>
+            {% endfor %}
             <hr>
             <a href="/logout" class="text-center">Logout</a>
         </div>
@@ -278,6 +284,10 @@
     var eventDetailsModal = new bootstrap.Modal(document.getElementById('eventDetailsModal'), {
       keyboard: false
     });
+
+    function toggleMobileMenu() {
+        document.querySelector('#collapsable-menu').style.display == 'none' ? document.querySelector('#collapsable-menu').style.display = 'block' : document.querySelector('#collapsable-menu').style.display = 'none'
+    }
 
     function toggleTodoItem(event) {
       const listItem = event.target.closest('.todo-item').querySelector('span');
