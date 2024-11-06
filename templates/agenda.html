@@ -307,9 +307,11 @@
       if (document.body.classList.contains('dark-mode')) {
         fetch('/api/save_dark_mode/0')
         document.body.classList.remove('dark-mode');
+        document.querySelectorAll('.modal-title').forEach(title => title.classList.remove('text-dark'));
       } else {
         fetch('/api/save_dark_mode/1')
         document.body.classList.add('dark-mode');
+        document.querySelectorAll('.modal-title').forEach(title => title.classList.add('text-dark'));
       }
     }
 
