@@ -566,7 +566,8 @@ class UserEvent(db.Model):
             "content": self.content,
             "date_of_event": self.date_of_event,
             "date_added": self.date_added,
-            "date_last_changed": self.date_last_changed
+            "date_last_changed": self.date_last_changed,
+            "time_until_event": self.get_time_until_event()
         }
 
     def get_time_until_event(self):
@@ -910,10 +911,12 @@ def add_event():
         title = data.get('title')
         content = data.get('content')
         date_of_event = data.get('dateOfEvent')
-        if date_of_event:
+        if date_of_event and date_of_event != "":
             date_of_event = datetime.strptime(date_of_event, "%Y-%m-%d")
+        else:
+            date_of_event = None
         event = UserEvent(userid=g.user.id,title=title,content=content,date_of_event=date_of_event)
-        return jsonify(success=True, id=event.id)
+        return jsonify(success=True, event=event.return_json(), id=event.id)
     else:
         return jsonify(success=False,reason="Not logged in.")
 
@@ -938,6 +941,30 @@ def edit_todo():
             return jsonify(success=True, todo=todo.return_json())
         else:
             return jsonify(success=False,reason="To do does not exist.")
+    else:
+        return jsonify(success=False,reason="Not logged in.")
+
+@app.route("/api/edit_event", methods=['POST'])
+def edit_event():
+    if g.user:
+        data = request.get_json()
+        event_id = data.get('eventId')
+        title = data.get('title')
+        content = data.get('content')
+        date_of_event = data.get('dateOfEvent')
+        if date_of_event and date_of_event != "":
+            date_of_event = datetime.strptime(date_of_event, "%Y-%m-%d")
+        else:
+            date_of_event = None
+        event = UserEvent.query.filter_by(id=event_id).first()
+        if event and g.user == event.user:
+            event.title = title
+            event.content = content
+            event.date_of_event = date_of_event
+            db.session.commit()
+            return jsonify(success=True, event=event.return_json())
+        else:
+            return jsonify(success=False,reason="Event does not exist.")
     else:
         return jsonify(success=False,reason="Not logged in.")
 
@@ -1341,9 +1368,11 @@ def search_page():
 @app.route("/agenda")
 def agenda_page():
     if g.user:
+        events = UserEvent.query.filter_by(userid=g.user.id).filter(UserEvent.date_of_event != None).order_by(UserEvent.date_of_event.asc()).all()
+        events += UserEvent.query.filter_by(userid=g.user.id, date_of_event = None).all()
         todos = UserTodo.query.filter_by(userid=g.user.id,archived=False).filter(UserTodo.date_due != None).order_by(UserTodo.date_due.asc()).all()
         todos += UserTodo.query.filter_by(userid=g.user.id,archived=False).filter(UserTodo.date_due == None).all()
-        return render_template("agenda.html", todos = todos, events = UserEvent.query.filter_by(userid=g.user.id).all())
+        return render_template("agenda.html", todos = todos, events = events)
     else:
         return "You must log in."
 

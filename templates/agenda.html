@@ -50,7 +50,7 @@
       <!-- Sidebar -->
       <nav class="col-md-3 col-lg-2 d-md-block sidebar">
         <div class="d-flex d-md-block justify-content-between align-items-center">
-          <h3 class="mx-0 mb-2 w-md-100 text-center">Agenda</h3>
+          <h2 class="mx-0 mb-2 w-md-100 text-center">Agenda</h2>
           <button class="btn btn-sm d-md-none btn-outline-light" onclick="toggleMobileMenu()">☰</button>
         </div>
         <div id="collapsable-menu">
@@ -114,22 +114,16 @@
                 <button class="btn btn-sm btn-primary" onclick="showAddEventModal()">Add Event</button>
               </div>
               <ul class="list-group" id="event-list">
+                {% for event in events %}
                 <li class="list-group-item d-sm-flex justify-content-between align-items-center">
                   <div>
-                    <span onclick="showEventDetailsModal(1)">Event with a deadline <small class="badge text-bg-primary">⌛ 4 days</small></span>
+                      <span data-event-id="{{ event.id }}" onclick="showEventDetailsModal({{ event.id }})">{{ event.title }} {% if event.date_of_event %}<small class="badge text-bg-primary">⌛ {{ event.get_time_until_event() }}</small>{% endif %}</span>
                   </div>
                   <div class="mt-2 mt-sm-0 gap-1 d-none d-sm-flex">
-                  <button class="btn btn-sm btn-outline-danger archive-btn w-100" onclick="deleteEvent(event)">🗑️</button>
+                      <button data-event-id="{{ event.id }}" class="btn btn-sm btn-outline-danger archive-btn w-100" onclick="deleteEventFromEvent(event)">🗑️</button>
                   </div>
                 </li>
-                <li class="list-group-item d-sm-flex justify-content-between align-items-center">
-                  <div>
-                    <span onclick="showEventDetailsModal(1)">Event without a date </span>
-                  </div>
-                  <div class="mt-2 mt-sm-0 gap-1 d-none d-sm-flex">
-                  <button class="btn btn-sm btn-outline-danger archive-btn w-100" onclick="deleteEvent(event)">🗑️</button>
-                  </div>
-                </li>
+                {% endfor %}
                 <li class="list-group-item">
                   <div class="row">
                       <div class="col-12 col-sm-9 mb-2 mb-sm-0">
@@ -147,7 +141,7 @@
           <div class="row my-4">
             <div class="col">
               <h5>Notes</h5>
-              <textarea class="form-control" rows="6" placeholder="Write your notes here..."></textarea>
+              <textarea class="form-control" rows="7" placeholder="Write your notes here..."></textarea>
               <button id="save-notes-btn" class="btn btn-primary w-100 mt-2" onclick="saveNotes()">Save Notes</button>
             </div>
           </div>
@@ -187,10 +181,11 @@
         <div class="modal-body">
           <input type="text" class="form-control" placeholder="Event Title..." />
           <input type="date" class="form-control mt-2" />
+          <textarea class="form-control mt-2" rows="5" placeholder="Event details..."></textarea>
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-          <button type="button" class="btn btn-primary">Add Event</button>
+          <button type="button" class="btn btn-primary" onclick="addEventFromModal()">Add Event</button>
         </div>
         </div>
     </div>
@@ -224,12 +219,11 @@
         </div>
         <div class="modal-body">
             <input type="text" class="form-control" value="To-Do Item with a deadline" />
-            <input type="date" class="form-control mt-2" value="2022-12-31" />
+            <input type="date" class="form-control mt-2" />
             <textarea class="form-control mt-2" rows="5">This is a to-do item with a deadline.</textarea>
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-          <button type="button" class="btn btn-danger" onclick="deleteTodo()">Delete</button>
           <button type="button" class="btn btn-primary" onclick="saveTodoFromModal()">Save</button>
         </div>
         </div>
@@ -245,12 +239,11 @@
         </div>
         <div class="modal-body">
             <input type="text" class="form-control" value="Event with a deadline" />
-            <input type="date" class="form-control mt-2" value="2022-12-31" />
+            <input type="date" class="form-control mt-2" />
             <textarea class="form-control mt-2" rows="5">This is an event with a deadline.</textarea>
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-          <button type="button" class="btn btn-danger" onclick="deleteEvent()">Delete</button>
           <button type="button" class="btn btn-primary" onclick="saveEventFromModal()">Save</button>
         </div>
         </div>
@@ -358,6 +351,19 @@
 
     function showEventDetailsModal(id) {
         eventDetailsModal.show();
+        fetch('/api/get_event/' + id)
+        .then(response => response.json())
+        .then(data => {
+            document.getElementById('eventDetailsModalLabel').innerText = data.event.title;
+            document.getElementById('eventDetailsModalLabel').dataset.eventId = data.event.id;
+            document.querySelector('#eventDetailsModal input[type="text"]').value = data.event.title;
+            if (data.event.date_of_event === null) {
+                document.querySelector('#eventDetailsModal input[type="date"]').value = '';
+            } else {
+                document.querySelector('#eventDetailsModal input[type="date"]').value = new Date(data.event.date_of_event).toISOString().split('T')[0];
+            }
+            document.querySelector('#eventDetailsModal textarea').value = data.event.content;
+        });
     }
 
     function archiveTodo(event) {
@@ -413,9 +419,21 @@
         event.target.closest('.list-group-item').remove();
     }
 
-    function deleteEvent() {
-        const listItem = event.target.closest('.list-group-item');
-        listItem.remove();
+    function deleteEventFromEvent(event) {
+        deleteEvent(event.target.dataset.eventId);
+        event.target.closest('.list-group-item').remove();
+    }
+
+    function deleteEvent(id) {
+        fetch('/api/delete_event', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                eventId: id
+            })
+        })
     }
 
     function saveTodoFromModal() {
@@ -443,6 +461,34 @@
                 todoItem.innerHTML += `<small class="badge text-bg-primary">⌛${data.todo.time_until_due}</small>`;
             }
             todoDetailsModal.hide();
+        });
+    }
+
+    function saveEventFromModal() {
+        const eventId = document.getElementById('eventDetailsModalLabel').dataset.eventId;
+        const eventTitle = document.querySelector('#eventDetailsModal input[type="text"]').value;
+        const eventDate = document.querySelector('#eventDetailsModal input[type="date"]').value;
+        const eventContent = document.querySelector('#eventDetailsModal textarea').value;
+        fetch('/api/edit_event', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                eventId: eventId,
+                title: eventTitle,
+                content: eventContent,
+                dateOfEvent: eventDate
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            const eventItem = document.querySelector(`span[data-event-id="${eventId}"]`);
+            eventItem.innerText = eventTitle;
+            if (eventDate) {
+                eventItem.innerHTML += `<small class="badge text-bg-primary">⌛${data.event.time_until_event}</small>`;
+            }
+            eventDetailsModal.hide();
         });
     }
 
@@ -497,6 +543,30 @@
         addTodoModal.hide();
     }
 
+    function addEventFromModal() {
+        const newEventTitle = document.querySelector('#addEventModal input[type="text"]').value;
+        const newEventDate = document.querySelector('#addEventModal input[type="date"]').value;
+        const newEventContent = document.querySelector('#addEventModal textarea').value;
+        fetch('/api/add_event', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                title: newEventTitle,
+                content: newEventContent,
+                dateOfEvent: newEventDate
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            const eventList = document.getElementById('event-list');
+            const eventDOM = bakeEventDOM(data.event);
+            eventList.insertBefore(eventDOM, eventList.childNodes[eventList.childNodes.length - 2]);
+        });
+        addEventModal.hide();
+    }
+
     function quickAddTodo() {
         const newTodo = document.getElementById('new-todo').value;
         if (!newTodo || newTodo.trim() === '' || newTodo.length < 2) {
@@ -510,7 +580,7 @@
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-                title: newTodo,
+                title: document.getElementById('new-todo').value,
                 content: '',
                 dateDue: '',
             })
@@ -523,21 +593,44 @@
         });
     }
 
-    function quickAddEvent() {
-        const newEvent = document.getElementById('new-event').value;
-        const eventList = document.getElementById('event-list');
+    function bakeEventDOM(event) {
         const listItem = document.createElement('li');
         listItem.classList.add('list-group-item', 'd-sm-flex', 'justify-content-between', 'align-items-center');
         listItem.innerHTML = `
             <div>
-                <span>${newEvent}</span>
+                <span onclick="showEventDetailsModal(${event.id})">${event.title} ${event.time_until_event ? `<small class="badge text-bg-primary">⌛${event.time_until_event}</small>` : ''}</span>
             </div>
             <div class="mt-2 mt-sm-0 gap-1 d-none d-sm-flex">
-                <button class="btn btn-sm btn-outline-danger archive-btn w-100" onclick="deleteEvent(event)">🗑️</button>
+                <button data-event-id="${event.id}" class="btn btn-sm btn-outline-danger archive-btn w-100" onclick="deleteEventFromEvent(event)">🗑️</button>
             </div>
         `;
-        eventList.insertBefore(listItem, eventList.childNodes[eventList.childNodes.length - 2]);
-        document.getElementById('new-event').value = '';
+        return listItem;
+    }
+
+    function quickAddEvent() {
+        const newEvent = document.getElementById('new-event').value;
+        if (!newEvent || newEvent.trim() === '' || newEvent.length < 2) {
+            alert('Please enter a valid event.');
+            return;
+        }
+        fetch('/api/add_event', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                title: newEvent,
+                content: '',
+                dateOfEvent: '',
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            const eventList = document.getElementById('event-list');
+            const eventDOM = bakeEventDOM(data.event);
+            eventList.insertBefore(eventDOM, eventList.childNodes[eventList.childNodes.length - 2]);
+            document.getElementById('new-event').value = '';
+        });
     }
 
     function saveNotes() {
