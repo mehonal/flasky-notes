@@ -523,7 +523,8 @@ class UserTodo(db.Model):
             "completed": self.completed,
             "archived": self.archived,
             "time_until_due": self.get_time_until_due(),
-            "due_css_class": self.get_due_css_class()
+            "due_css_class": self.get_due_css_class(),
+            "has_content": self.has_content()
         }
 
     def get_time_until_due(self):
@@ -598,7 +599,8 @@ class UserEvent(db.Model):
             "date_added": self.date_added,
             "date_last_changed": self.date_last_changed,
             "time_until_event": self.get_time_until_event(),
-            "event_css_class": self.get_event_css_class()
+            "event_css_class": self.get_event_css_class(),
+            "has_content": self.has_content()
         }
 
     def get_time_until_event(self):
@@ -893,7 +895,8 @@ def get_todos():
                 "completed": todo.completed,
                 "archived": todo.archived,
                 "time_until_due": todo.get_time_until_due(),
-                "due_css_class": todo.get_due_css_class()
+                "due_css_class": todo.get_due_css_class(),
+                "has_content": todo.has_content()
             })
         return jsonify(todos)
     else:
@@ -930,7 +933,8 @@ def get_events():
                 "id": event.id,
                 "title": event.title,
                 "time_until_event": event.get_time_until_event(),
-                "event_css_class": event.get_event_css_class()
+                "event_css_class": event.get_event_css_class(),
+                "has_content": event.has_content()
             })
         return jsonify(events)
     else:
