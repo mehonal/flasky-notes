@@ -892,6 +892,7 @@ def get_events():
 def add_todo():
     if g.user:
         data = request.get_json()
+        print(data)
         title = data.get('title')
         content = data.get('content')
         date_due = data.get('dateDue')
@@ -1342,7 +1343,9 @@ def search_page():
 @app.route("/agenda")
 def agenda_page():
     if g.user:
-        return render_template("agenda.html", todos = UserTodo.query.filter_by(userid=g.user.id,archived=False).all(), events = UserEvent.query.filter_by(userid=g.user.id).all())
+        todos = UserTodo.query.filter_by(userid=g.user.id,archived=False).filter(UserTodo.date_due != None).order_by(UserTodo.date_due.asc()).all()
+        todos += UserTodo.query.filter_by(userid=g.user.id,archived=False).filter(UserTodo.date_due == None).all()
+        return render_template("agenda.html", todos = todos, events = UserEvent.query.filter_by(userid=g.user.id).all())
     else:
         return "You must log in."
 

@@ -73,14 +73,14 @@
             <div class="col-lg-6">
               <div class="d-flex justify-content-between align-items-center mb-3">
                 <h5 class="m-0">To-Do List</h5>
-                <button class="btn btn-sm btn-primary" onclick="showAddToDoModal()">Add To-Do</button>
+                <button class="btn btn-sm btn-primary" onclick="showAddTodoModal()">Add To-Do</button>
               </div>
               <ul class="list-group" id="todo-list">
                 {% for todo in todos %}
                 <li class="list-group-item d-sm-flex justify-content-between align-items-center todo-item">
                   <div>
                       <input type="checkbox" class="form-check-input me-2 todo-checkbox" {% if todo.completed %}checked{% endif %} onclick="toggleTodoItem(event)" />
-                    <span data-todo-id="{{ todo.id }}" class="todo-item-info{% if todo.completed %} completed{% endif %}" onclick="showTodoDetailsModal({{ todo.id }})">{{ todo.title }} {% if todo.time_until_due %}<small class="badge text-bg-primary">⌛{{ todo.time_until_due }}</small>{% endif %}</span>
+                    <span data-todo-id="{{ todo.id }}" class="todo-item-info{% if todo.completed %} completed{% endif %}" onclick="showTodoDetailsModal({{ todo.id }})">{{ todo.title }} {% if todo.date_due %}<small class="badge text-bg-primary">⌛{{ todo.get_time_until_due() }}</small>{% endif %}</span>
                   </div>
                   <div class="mt-2 mt-sm-0 gap-1 d-none d-sm-flex">
                       <button class="btn btn-sm btn-outline-warning archive-btn w-100" data-todo-id="{{ todo.id }}" onclick="archiveTodo(event)">🗃️</button>
@@ -95,7 +95,7 @@
                       <input type="text" class="form-control form-control-sm" name="new-todo" id="new-todo" value="" placeholder="New todo...">
                       </div>
                       <div class="col-12 col-sm-3">
-                      <button class="btn btn-sm btn-primary w-100" onclick="quickAddToDo()">Add</button>
+                      <button class="btn btn-sm btn-primary w-100" onclick="quickAddTodo()">Add</button>
                       </div>
                   </div>
                 </li>
@@ -161,10 +161,11 @@
         <div class="modal-body">
           <input type="text" class="form-control" placeholder="To-Do Item..." />
           <input type="date" class="form-control mt-2" />
+          <textarea class="form-control mt-2" rows="5" placeholder="Todo details..."></textarea>
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-          <button type="button" class="btn btn-primary">Add To-Do</button>
+          <button type="button" class="btn btn-primary" onclick="addTodoFromModal()">Add To-Do</button>
         </div>
       </div>
     </div>
@@ -317,7 +318,7 @@
 
     }
 
-    function showAddToDoModal() {
+    function showAddTodoModal() {
         addTodoModal.show();
     }
 
@@ -334,7 +335,7 @@
             document.getElementById('todoDetailsModalLabel').dataset.todoId = data.todo.id;
             document.getElementById('todoDetailsModalLabel').dataset.todoArchived = data.todo.archived;
             document.querySelector('#todoDetailsModal input[type="text"]').value = data.todo.title;
-            document.querySelector('#todoDetailsModal input[type="date"]').value = data.todo.date_due;
+            document.querySelector('#todoDetailsModal input[type="date"]').value = new Date(data.todo.date_due).toISOString().split('T')[0];
             document.querySelector('#todoDetailsModal textarea').value = data.todo.content;
         });
     }
@@ -433,7 +434,32 @@
         return listItem;
     }
 
-    function quickAddToDo() {
+    function addTodoFromModal() {
+        // to be integrated with backend
+        const newTodoTitle = document.querySelector('#addTodoModal input[type="text"]').value;
+        const newTodoDate = document.querySelector('#addTodoModal input[type="date"]').value;
+        const newTodoContent = document.querySelector('#addTodoModal textarea').value;
+        fetch('/api/add_todo', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                title: newTodoTitle,
+                content: newTodoContent,
+                dateDue: newTodoDate
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            const todoList = document.getElementById('todo-list');
+            const todoDOM = bakeTodoDOM(data.todo);
+            todoList.insertBefore(todoDOM, todoList.childNodes[todoList.childNodes.length - 2]);
+        });
+        addTodoModal.hide();
+    }
+
+    function quickAddTodo() {
         const newTodo = document.getElementById('new-todo').value;
         if (!newTodo || newTodo.trim() === '' || newTodo.length < 2) {
             alert('Please enter a valid to-do item.');
