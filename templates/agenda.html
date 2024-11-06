@@ -86,7 +86,7 @@
                 <li class="list-group-item d-sm-flex justify-content-between align-items-center todo-item">
                   <div>
                       <input type="checkbox" class="form-check-input me-2 todo-checkbox" {% if todo.completed %}checked{% endif %} onclick="toggleTodoItem(event)" />
-                    <span data-todo-id="{{ todo.id }}" class="todo-item-info{% if todo.completed %} completed{% endif %}" onclick="showTodoDetailsModal({{ todo.id }})">{{ todo.title }} {% if todo.date_due %}<small class="badge text-bg-primary">⌛{{ todo.get_time_until_due() }}</small>{% endif %}</span>
+                      <span data-todo-id="{{ todo.id }}" class="todo-item-info{% if todo.completed %} completed{% endif %}" onclick="showTodoDetailsModal({{ todo.id }})">{{ todo.title }} {% if todo.date_due %}<small class="badge text-bg-{{ todo.get_due_css_class() }}">⌛{{ todo.get_time_until_due() }}</small>{% endif %}</span>
                   </div>
                   <div class="mt-2 mt-sm-0 gap-1 d-none d-sm-flex">
                       <button class="btn btn-sm btn-outline-warning archive-btn w-100" data-todo-id="{{ todo.id }}" onclick="archiveTodo(event)">🗃️</button>
@@ -117,7 +117,7 @@
                 {% for event in events %}
                 <li class="list-group-item d-sm-flex justify-content-between align-items-center">
                   <div>
-                      <span data-event-id="{{ event.id }}" onclick="showEventDetailsModal({{ event.id }})">{{ event.title }} {% if event.date_of_event %}<small class="badge text-bg-primary">⌛ {{ event.get_time_until_event() }}</small>{% endif %}</span>
+                      <span data-event-id="{{ event.id }}" onclick="showEventDetailsModal({{ event.id }})">{{ event.title }} {% if event.date_of_event %}<small class="badge text-bg-{{ event.get_event_css_class() }}">⌛ {{ event.get_time_until_event() }}</small>{% endif %}</span>
                   </div>
                   <div class="mt-2 mt-sm-0 gap-1 d-none d-sm-flex">
                       <button data-event-id="{{ event.id }}" class="btn btn-sm btn-outline-danger archive-btn w-100" onclick="deleteEventFromEvent(event)">🗑️</button>
@@ -458,7 +458,7 @@
             const todoItem = document.querySelector(`span[data-todo-id="${todoId}"]`);
             todoItem.innerText = todoTitle;
             if (todoDate) {
-                todoItem.innerHTML += `<small class="badge text-bg-primary">⌛${data.todo.time_until_due}</small>`;
+                todoItem.innerHTML += `<small class="badge text-bg-${data.todo.due_css_class}">⌛${data.todo.time_until_due}</small>`;
             }
             todoDetailsModal.hide();
         });
@@ -486,7 +486,7 @@
             const eventItem = document.querySelector(`span[data-event-id="${eventId}"]`);
             eventItem.innerText = eventTitle;
             if (eventDate) {
-                eventItem.innerHTML += `<small class="badge text-bg-primary">⌛${data.event.time_until_event}</small>`;
+                eventItem.innerHTML += `<small class="badge text-bg-${data.event.event_css_class}">⌛${data.event.time_until_event}</small>`;
             }
             eventDetailsModal.hide();
         });

@@ -516,7 +516,8 @@ class UserTodo(db.Model):
             "date_completed": self.date_completed,
             "completed": self.completed,
             "archived": self.archived,
-            "time_until_due": self.get_time_until_due()
+            "time_until_due": self.get_time_until_due(),
+            "due_css_class": self.get_due_css_class()
         }
 
     def get_time_until_due(self):
@@ -584,7 +585,8 @@ class UserEvent(db.Model):
             "date_of_event": self.date_of_event,
             "date_added": self.date_added,
             "date_last_changed": self.date_last_changed,
-            "time_until_event": self.get_time_until_event()
+            "time_until_event": self.get_time_until_event(),
+            "event_css_class": self.get_event_css_class()
         }
 
     def get_time_until_event(self):
@@ -611,7 +613,7 @@ class UserEvent(db.Model):
                 time = round(time)
                 return f"{time} minutes"
 
-    def get_due_css_class(self):
+    def get_event_css_class(self):
         if not self.date_of_event or self.date_of_event is None:
             return ""
         now = datetime.now()
