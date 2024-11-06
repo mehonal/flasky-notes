@@ -506,6 +506,12 @@ class UserTodo(db.Model):
     archived = db.Column(db.Boolean, default = False)
     user = db.relationship('User', backref="todos")
 
+    def has_content(self):
+        if self.content and self.content != "" and self.content != None:
+            return True
+        else:
+            return False
+
     def return_json(self):
         return {
             "id": self.id,
@@ -576,6 +582,12 @@ class UserEvent(db.Model):
     date_added = db.Column(db.DateTime)
     date_last_changed = db.Column(db.DateTime)
     user = db.relationship('User', backref="events")
+
+    def has_content(self):
+        if self.content and self.content != "" and self.content != None:
+            return True
+        else:
+            return False
 
     def return_json(self):
         return {
