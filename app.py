@@ -892,6 +892,7 @@ def get_events():
 @app.route("/api/add_todo", methods=['POST'])
 def add_todo():
     if g.user:
+        data = request.get_json()
         title = data.get('title')
         content = data.get('content')
         date_due = data.get('dateDue')
