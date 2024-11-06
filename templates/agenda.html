@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -24,7 +23,6 @@
       color: #f8f9fa;
     }
     .sidebar {
-      min-height: 100vh;
       padding-top: 1rem;
       background-color: #343a40;
       color: white;
@@ -51,6 +49,12 @@
       }
     }
 
+    @media screen and (min-width: 768px) {
+        .sidebar {
+          min-height: 100vh;
+        }
+    }
+
   </style>
 </head>
 <body class="light-mode">
@@ -62,7 +66,7 @@
           <h2 class="mx-0 mb-2 w-md-100 text-center">Agenda</h2>
           <button class="btn btn-sm d-md-none btn-outline-light" onclick="toggleMobileMenu()">☰</button>
         </div>
-        <div id="collapsable-menu">
+        <div id="collapsable-menu" class="d-md-block d-none">
             <a href="/notes" class="text-center">Notes</a>
             <a href="/note/0" class="text-center">New Note</a>
             <a href="/search" class="text-center">Search Notes</a>
@@ -150,7 +154,7 @@
           <div class="row my-4">
             <div class="col">
               <h5>Notes</h5>
-              <textarea id="agenda-notes" class="form-control" rows="7" placeholder="Write your notes here...">{{ g.user.agenda_notes.content if g.user.agenda_notes and g.user.agenda_notes.content }}</textarea>
+              <textarea id="agenda-notes" class="form-control" rows="20" placeholder="Write your notes here...">{{ g.user.agenda_notes.content if g.user.agenda_notes and g.user.agenda_notes.content }}</textarea>
               <button id="save-notes-btn" class="btn btn-primary w-100 mt-2" onclick="saveNotes()">Save Notes</button>
             </div>
           </div>
@@ -288,7 +292,14 @@
     });
 
     function toggleMobileMenu() {
-        document.querySelector('#collapsable-menu').style.display == 'none' ? document.querySelector('#collapsable-menu').style.display = 'block' : document.querySelector('#collapsable-menu').style.display = 'none'
+        const menu = document.querySelector('#collapsable-menu');
+        if (menu.classList.contains('d-none')) {
+            menu.classList.remove('d-none');
+            menu.classList.add('d-block');
+        } else {
+            menu.classList.remove('d-block');
+            menu.classList.add('d-none');
+        }
     }
 
     function toggleTodoItem(event) {
