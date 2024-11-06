@@ -880,7 +880,8 @@ def get_todos():
                 "title": todo.title,
                 "completed": todo.completed,
                 "archived": todo.archived,
-                "time_until_due": todo.get_time_until_due()
+                "time_until_due": todo.get_time_until_due(),
+                "due_css_class": todo.get_due_css_class()
             })
         return jsonify(todos)
     else:
@@ -916,7 +917,8 @@ def get_events():
             events.append({
                 "id": event.id,
                 "title": event.title,
-                "time_until_event": event.get_time_until_event()
+                "time_until_event": event.get_time_until_event(),
+                "event_css_class": event.get_event_css_class()
             })
         return jsonify(events)
     else:
