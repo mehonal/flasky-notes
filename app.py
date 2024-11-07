@@ -535,6 +535,8 @@ class UserTodo(db.Model):
         now = datetime.now()
         time = (self.date_due - now).total_seconds()
         if time < 0:
+            if time > -86400:
+                return "Today"
             return "Overdue"
         if time < 60:
             return "1 minute"
@@ -611,6 +613,8 @@ class UserEvent(db.Model):
         now = datetime.now()
         time = (self.date_of_event - now).total_seconds()
         if time < 0:
+            if time > -86400:
+                return "Today"
             return "Past"
         if time < 60:
             return "1 minute"
@@ -1432,7 +1436,7 @@ def search_page():
 @app.route("/agenda")
 def agenda_page():
     if g.user:
-        events = UserEvent.query.filter_by(userid=g.user.id).filter(UserEvent.date_of_event != None).order_by(UserEvent.date_of_event.asc()).all()
+        events = UserEvent.query.filter_by(userid=g.user.id).filter(UserEvent.date_of_event > (datetime.now() - timedelta(days=1))).order_by(UserEvent.date_of_event.asc()).all()
         events += UserEvent.query.filter_by(userid=g.user.id, date_of_event = None).all()
         todos = UserTodo.query.filter_by(userid=g.user.id,archived=False).filter(UserTodo.date_due != None).order_by(UserTodo.date_due.asc()).all()
         todos += UserTodo.query.filter_by(userid=g.user.id,archived=False).filter(UserTodo.date_due == None).all()
