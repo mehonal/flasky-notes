@@ -10,6 +10,7 @@ from sqlalchemy import MetaData
 import os
 from dotenv import load_dotenv
 load_dotenv()
+import math
 
 #=============================================================================================================#
 #================================================APP SETTINGS=================================================#
@@ -534,36 +535,29 @@ class UserTodo(db.Model):
             return None
         now = datetime.now()
         time = (self.date_due - now).total_seconds()
-        if time < 0:
-            if time > -86400:
+        days = math.ceil(time / 60 / 60 / 24)
+        if days < 0:
+            if days > -1:
                 return "Today"
             return "Overdue"
-        if time < 60:
-            return "1 minute"
-        if time > 60:
-            time = time / 60
-            if time > 60:
-                time = time / 60
-                if time > 24:
-                    time = time / 24
-                    time = round(time)
-                    return f"{time} days"
-                else:
-                    time = round(time)
-                    return f"{time} hours"
-            else:
-                time = round(time)
-                return f"{time} minutes"
+        else:
+            if days == 1:
+                return "1 day"
+            return f"{days} days"
 
     def get_due_css_class(self):
         if not self.date_due or self.date_due is None:
             return ""
         now = datetime.now()
         time = (self.date_due - now).total_seconds()
-        hours = time / 60 / 60
-        if hours < 24:
+        days = math.ceil(time / 60 / 60 / 24)
+        if days < -1:
+            return "secondary"
+        if days < 0:
+            return "info"
+        if days < 1:
             return "danger"
-        if hours < 72:
+        if days < 3:
             return "warning"
         return "primary"
 
@@ -612,36 +606,29 @@ class UserEvent(db.Model):
             return None
         now = datetime.now()
         time = (self.date_of_event - now).total_seconds()
-        if time < 0:
-            if time > -86400:
+        days = math.ceil(time / 60 / 60 / 24)
+        if days < 0:
+            if days > -1:
                 return "Today"
-            return "Past"
-        if time < 60:
-            return "1 minute"
-        if time > 60:
-            time = time / 60
-            if time > 60:
-                time = time / 60
-                if time > 24:
-                    time = time / 24
-                    time = round(time)
-                    return f"{time} days"
-                else:
-                    time = round(time)
-                    return f"{time} hours"
-            else:
-                time = round(time)
-                return f"{time} minutes"
+            return "Overdue"
+        else:
+            if days == 1:
+                return "1 day"
+            return f"{days} days"
 
     def get_event_css_class(self):
         if not self.date_of_event or self.date_of_event is None:
             return ""
         now = datetime.now()
         time = (self.date_of_event - now).total_seconds()
-        hours = time / 60 / 60
-        if hours < 24:
+        days = math.ceil(time / 60 / 60 / 24)
+        if days < -1:
+            return "secondary"
+        if days < 0:
+            return "info"
+        if days < 1:
             return "danger"
-        if hours < 72:
+        if days < 3:
             return "warning"
         return "primary"
     
