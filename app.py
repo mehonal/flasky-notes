@@ -536,8 +536,8 @@ class UserTodo(db.Model):
         now = datetime.now()
         time = (self.date_due - now).total_seconds()
         days = math.ceil(time / 60 / 60 / 24)
-        if days < 0:
-            if days > -1:
+        if days <= 0:
+            if days >= -1:
                 return "Today"
             return "Overdue"
         else:
@@ -551,13 +551,13 @@ class UserTodo(db.Model):
         now = datetime.now()
         time = (self.date_due - now).total_seconds()
         days = math.ceil(time / 60 / 60 / 24)
-        if days < -1:
+        if days <= -1:
             return "secondary"
-        if days < 0:
+        if days <= 0:
             return "info"
-        if days < 1:
+        if days <= 1:
             return "danger"
-        if days < 3:
+        if days <= 3:
             return "warning"
         return "primary"
 
@@ -607,8 +607,8 @@ class UserEvent(db.Model):
         now = datetime.now()
         time = (self.date_of_event - now).total_seconds()
         days = math.ceil(time / 60 / 60 / 24)
-        if days < 0:
-            if days > -1:
+        if days <= 0:
+            if days >= -1:
                 return "Today"
             return "Overdue"
         else:
@@ -622,13 +622,13 @@ class UserEvent(db.Model):
         now = datetime.now()
         time = (self.date_of_event - now).total_seconds()
         days = math.ceil(time / 60 / 60 / 24)
-        if days < -1:
+        if days <= -1:
             return "secondary"
-        if days < 0:
+        if days <= 0:
             return "info"
-        if days < 1:
+        if days <= 1:
             return "danger"
-        if days < 3:
+        if days <= 3:
             return "warning"
         return "primary"
     
