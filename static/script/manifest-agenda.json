@@ -1,6 +1,6 @@
 {
-    "short_name": "Flasky",
-    "name": "Flasky Notes",
+    "short_name": "Agenda",
+    "name": "Flasky Agenda",
     "icons": [
       {
         "src": "/static/images/amazing_logo_512.png",
@@ -23,7 +23,7 @@
         "sizes": "128x128"
       }
     ],
-    "start_url": "/",
+    "start_url": "/agenda",
     "background_color": "#1515FB",
     "display": "fullscreen",
     "scope": "/",

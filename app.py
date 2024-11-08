@@ -1462,7 +1462,13 @@ if CONFIG.ENFORCE_SSL:
 
 @app.route("/manifest.json")
 def manifest_json():
-    return redirect("/static/script/manifest.json")
+    page = request.args.get('page')
+    if page not in ['agenda', 'notes']:
+        page = "notes"
+    if page == "notes":
+        return redirect("/static/script/manifest.json")
+    elif page == "agenda":
+        return redirect("/static/script/manifest-agenda.json")
 
 with app.app_context():
     db.create_all()
