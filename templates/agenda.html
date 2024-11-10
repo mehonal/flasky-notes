@@ -477,13 +477,13 @@
         .then(data => {
             const todoItem = document.querySelector(`span[data-todo-id="${todoId}"]`);
             if (todoContent) {
-                todoItem.innerText = '💭 ';
+                todoItem.innerText = '💭\u00A0';
             } else {
                 todoItem.innerText = '';
             }
             todoItem.innerText += todoTitle;
             if (todoDate) {
-                todoItem.innerHTML += ` <small class="badge text-bg-${data.todo.due_css_class}">⌛${data.todo.time_until_due}</small>`;
+                todoItem.innerHTML += ` \u00A0<small class="badge text-bg-${data.todo.due_css_class}">⌛${data.todo.time_until_due}</small>`;
             }
             todoDetailsModal.hide();
         });
@@ -510,13 +510,13 @@
         .then(data => {
             const eventItem = document.querySelector(`span[data-event-id="${eventId}"]`);
             if (eventContent) {
-                eventItem.innerText = '💭 ';
+                eventItem.innerText = '💭 \u00A0';
             } else {
                 eventItem.innerText = '';
             }
             eventItem.innerText += eventTitle;
             if (eventDate) {
-                eventItem.innerHTML += `<small class="badge text-bg-${data.event.event_css_class}">⌛${data.event.time_until_event}</small>`;
+                eventItem.innerHTML += ` \u00A0<small class="badge text-bg-${data.event.event_css_class}">⌛${data.event.time_until_event}</small>`;
             }
             eventDetailsModal.hide();
         });
@@ -528,7 +528,7 @@
         listItem.innerHTML = `
             <div>
             <input type="checkbox" class="form-check-input me-2 todo-checkbox" ${todo.completed ? 'checked' : ''} onclick="toggleTodoItem(event)"/>
-                    <span data-todo-id="${todo.id}" class="todo-item-info${todo.completed ? ' completed' : ''}" onclick="showTodoDetailsModal(${todo.id})">${todo.has_content ? '💭 ' : ''}${todo.title} ${todo.time_until_due ? `<small class="badge text-bg-${todo.due_css_class}">⌛${todo.time_until_due}</small>` : ''}</span>
+                    <span data-todo-id="${todo.id}" class="todo-item-info${todo.completed ? ' completed' : ''}" onclick="showTodoDetailsModal(${todo.id})">${todo.has_content ? '💭 \u00A0' : ''}${todo.title} ${todo.time_until_due ? ` \u00A0<small class="badge text-bg-${todo.due_css_class}">⌛${todo.time_until_due}</small>` : ''}</span>
             </div>
             `;
         if (todo.archived) {
@@ -628,7 +628,7 @@
         listItem.classList.add('list-group-item', 'd-sm-flex', 'justify-content-between', 'align-items-center');
         listItem.innerHTML = `
             <div>
-            <span onclick="showEventDetailsModal(${event.id})">${event.has_content ? '💭 ' : ''} ${event.title} ${event.time_until_event ? `<small class="badge text-bg-${event.event_css_class}">⌛${event.time_until_event}</small>` : ''}</span>
+            <span onclick="showEventDetailsModal(${event.id})">${event.has_content ? '💭 ' : ''} ${event.title} ${event.time_until_event ? ` \u00A0<small class="badge text-bg-${event.event_css_class}">⌛${event.time_until_event}</small>` : ''}</span>
             </div>
             <div class="mt-2 mt-sm-0 gap-1 d-none d-sm-flex">
                 <button data-event-id="${event.id}" class="btn btn-sm btn-outline-danger archive-btn w-100" onclick="deleteEventFromEvent(event)">🗑️</button>
