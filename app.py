@@ -560,12 +560,18 @@ class UserTodo(db.Model):
             "has_content": self.has_content()
         }
 
-    def get_time_until_due(self):
+    def get_seconds_until_due(self):
         if not self.date_due or self.date_due is None:
             return None
         now = datetime.utcnow().astimezone(self.user.get_timezone())
-        date_due = self.date_due.astimezone(timezone.utc)
+        date_due = self.date_due.replace(tzinfo=timezone.utc)
         time = (date_due - now).total_seconds()
+        return time
+
+    def get_time_until_due(self):
+        if not self.date_due or self.date_due is None:
+            return None
+        time = self.get_seconds_until_due()
         days = math.ceil(time / 60 / 60 / 24)
         if days <= 0:
             if days > -1:
@@ -579,8 +585,7 @@ class UserTodo(db.Model):
     def get_due_css_class(self):
         if not self.date_due or self.date_due is None:
             return ""
-        now = datetime.utcnow()
-        time = (self.date_due - now).total_seconds()
+        time = self.get_seconds_until_due()
         days = math.ceil(time / 60 / 60 / 24)
         if days <= -1:
             return "secondary"
@@ -632,12 +637,18 @@ class UserEvent(db.Model):
             "has_content": self.has_content()
         }
 
-    def get_time_until_event(self):
+    def get_seconds_until_event(self):
         if not self.date_of_event or self.date_of_event is None:
             return None
         now = datetime.utcnow().astimezone(self.user.get_timezone())
-        date_of_event = self.date_of_event.astimezone(timezone.utc)
+        date_of_event = self.date_of_event.replace(tzinfo=timezone.utc)
         time = (date_of_event - now).total_seconds()
+        return time
+
+    def get_time_until_event(self):
+        if not self.date_of_event or self.date_of_event is None:
+            return None
+        time = self.get_seconds_until_event()
         days = math.ceil(time / 60 / 60 / 24)
         if days <= 0:
             if days >= -1:
@@ -651,8 +662,7 @@ class UserEvent(db.Model):
     def get_event_css_class(self):
         if not self.date_of_event or self.date_of_event is None:
             return ""
-        now = datetime.utcnow()
-        time = (self.date_of_event - now).total_seconds()
+        time = self.get_seconds_until_event()
         days = math.ceil(time / 60 / 60 / 24)
         if days <= -1:
             return "secondary"
