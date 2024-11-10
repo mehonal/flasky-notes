@@ -387,7 +387,7 @@ class User(db.Model):
             self.settings
             return True
         except:
-            settings = UserSettings.query.filter_by(self.settingsid).first()
+            settings = UserSettings.query.filter_by(id=self.settingsid).first()
             if settings and settings is not None:
                 return True
             else:
