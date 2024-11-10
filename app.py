@@ -119,7 +119,7 @@ class User(db.Model):
         try:
             print("Editing existing agenda notes.")
             self.agenda_notes.content = content
-            self.agenda_notes.date_last_changed = datetime.now()
+            self.agenda_notes.date_last_changed = datetime.utcnow()
             db.session.commit()
             print("Agenda notes edited.")
             return True
@@ -398,7 +398,7 @@ class UserNote(db.Model):
             return "Main"
 
     def return_time_ago(self):
-        now = datetime.now()
+        now = datetime.utcnow()
         time = (now - self.date_last_changed).total_seconds() # seconds
         time = round(time)
         if time < 5:
@@ -430,7 +430,7 @@ class UserNote(db.Model):
     def change_content(self,new_content):
         self.previous_content = self.content
         self.content = new_content
-        self.date_last_changed = datetime.now()
+        self.date_last_changed = datetime.utcnow()
         db.session.commit()
 
     def change_category(self,new_category):
@@ -446,7 +446,7 @@ class UserNote(db.Model):
 
     def change_title(self,new_title):
         self.title = new_title
-        self.date_last_changed = datetime.now()
+        self.date_last_changed = datetime.utcnow()
         db.session.commit()
 
     def revert_to_last_version(self):
@@ -455,7 +455,7 @@ class UserNote(db.Model):
                 c = self.content
                 self.content = self.previous_content
                 self.previous_content = c
-                self.date_last_changed = datetime.now()
+                self.date_last_changed = datetime.utcnow()
                 db.session.commit()
                 return True
             return False
@@ -477,8 +477,8 @@ class UserNote(db.Model):
         self.title = title
         self.content = content
         self.category_id = category_id
-        self.date_added = datetime.now()
-        self.date_last_changed = datetime.now()
+        self.date_added = datetime.utcnow()
+        self.date_last_changed = datetime.utcnow()
         db.session.add(self)
         db.session.commit()
 
@@ -533,7 +533,7 @@ class UserTodo(db.Model):
     def get_time_until_due(self):
         if not self.date_due or self.date_due is None:
             return None
-        now = datetime.now()
+        now = datetime.utcnow()
         time = (self.date_due - now).total_seconds()
         days = math.ceil(time / 60 / 60 / 24)
         if days <= 0:
@@ -548,7 +548,7 @@ class UserTodo(db.Model):
     def get_due_css_class(self):
         if not self.date_due or self.date_due is None:
             return ""
-        now = datetime.now()
+        now = datetime.utcnow()
         time = (self.date_due - now).total_seconds()
         days = math.ceil(time / 60 / 60 / 24)
         if days <= -1:
@@ -566,8 +566,8 @@ class UserTodo(db.Model):
         self.title = title
         self.content = content
         self.date_due = date_due
-        self.date_added = datetime.now()
-        self.date_last_changed = datetime.now()
+        self.date_added = datetime.utcnow()
+        self.date_last_changed = datetime.utcnow()
         db.session.add(self)
         db.session.commit()
 
@@ -604,7 +604,7 @@ class UserEvent(db.Model):
     def get_time_until_event(self):
         if not self.date_of_event or self.date_of_event is None:
             return None
-        now = datetime.now()
+        now = datetime.utcnow()
         time = (self.date_of_event - now).total_seconds()
         days = math.ceil(time / 60 / 60 / 24)
         if days <= 0:
@@ -619,7 +619,7 @@ class UserEvent(db.Model):
     def get_event_css_class(self):
         if not self.date_of_event or self.date_of_event is None:
             return ""
-        now = datetime.now()
+        now = datetime.utcnow()
         time = (self.date_of_event - now).total_seconds()
         days = math.ceil(time / 60 / 60 / 24)
         if days <= -1:
@@ -637,8 +637,8 @@ class UserEvent(db.Model):
         self.title = title
         self.content = content
         self.date_of_event = date_of_event
-        self.date_added = datetime.now()
-        self.date_last_changed = datetime.now()
+        self.date_added = datetime.utcnow()
+        self.date_last_changed = datetime.utcnow()
         db.session.add(self)
         db.session.commit()
 
@@ -653,7 +653,7 @@ class UserAgendaNotes(db.Model):
     def __init__(self,userid, content=""):
         self.userid = userid
         self.content = content
-        self.date_last_changed = datetime.now()
+        self.date_last_changed = datetime.utcnow()
         db.session.add(self)
         db.session.commit()
 
@@ -1083,14 +1083,14 @@ def toggle_todo():
         if todo and g.user == todo.user:
             if status == "1":
                 todo.completed = True 
-                todo.date_completed = datetime.now()
+                todo.date_completed = datetime.utcnow()
             elif status == "0":
                 todo.completed = False
                 todo.date_completed = None
             else:
                 todo.completed = not todo.completed
                 if todo.completed:
-                    todo.date_completed = datetime.now()
+                    todo.date_completed = datetime.utcnow()
                 else:
                     todo.date_completed = None
             db.session.commit()
@@ -1423,7 +1423,7 @@ def search_page():
 @app.route("/agenda")
 def agenda_page():
     if g.user:
-        events = UserEvent.query.filter_by(userid=g.user.id).filter(UserEvent.date_of_event > (datetime.now() - timedelta(days=1))).order_by(UserEvent.date_of_event.asc()).all()
+        events = UserEvent.query.filter_by(userid=g.user.id).filter(UserEvent.date_of_event > (datetime.utcnow() - timedelta(days=1))).order_by(UserEvent.date_of_event.asc()).all()
         events += UserEvent.query.filter_by(userid=g.user.id, date_of_event = None).all()
         todos = UserTodo.query.filter_by(userid=g.user.id,archived=False).filter(UserTodo.date_due != None).order_by(UserTodo.date_due.asc()).all()
         todos += UserTodo.query.filter_by(userid=g.user.id,archived=False).filter(UserTodo.date_due == None).all()
