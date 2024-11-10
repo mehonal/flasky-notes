@@ -1,6 +1,6 @@
 from flask import Flask, render_template, request, session, redirect, url_for, g, jsonify
 from flask_sqlalchemy import SQLAlchemy
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import bcrypt # for encrypting/decrypting passwords
 import logging
 from flask_migrate import Migrate
@@ -11,6 +11,7 @@ import os
 from dotenv import load_dotenv
 load_dotenv()
 import math
+from zoneinfo import ZoneInfo, available_timezones
 
 #=============================================================================================================#
 #================================================APP SETTINGS=================================================#
@@ -96,6 +97,7 @@ class UserSettings(db.Model):
     __tablename__ = "user_settings"
     id = db.Column(db.Integer, primary_key = True)
     theme_preference = db.Column(db.String(100), default = "paper")
+    timezone = db.Column(db.String(100), default = "UTC")
 
 class User(db.Model):
     __tablename__ = "user"
@@ -107,6 +109,34 @@ class User(db.Model):
     plan = db.Column(db.Integer, default = 0)
     user_type = db.Column(db.Integer, default = 0)
     settings = db.relationship('UserSettings', uselist = False, backref= "user")
+
+    def get_timezone(self, as_str = False):
+        try:
+            settings = self.return_settings()
+            if settings.timezone is None or settings.timezone == "":
+                if as_str:
+                    return "UTC"
+                return ZoneInfo("UTC")
+            if as_str:
+                return settings.timezone
+            return ZoneInfo(settings.timezone)
+        except:
+            if as_str:
+                return "UTC"
+            return ZoneInfo("UTC")
+
+    def set_timezone(self, timezone):
+        try:
+            if timezone is None or timezone == "" or timezone not in available_timezones():
+                print("Invalid timezone. Using UTC.")
+                timezone = "UTC"
+            settings = self.return_settings()
+            settings.timezone = timezone
+            db.session.commit()
+            return True
+        except:
+            print("Could not set timezone.")
+            return False
 
     def edit_agenda_notes(self, content):
         print("Editing agenda")
@@ -533,11 +563,12 @@ class UserTodo(db.Model):
     def get_time_until_due(self):
         if not self.date_due or self.date_due is None:
             return None
-        now = datetime.utcnow()
-        time = (self.date_due - now).total_seconds()
+        now = datetime.utcnow().astimezone(self.user.get_timezone())
+        date_due = self.date_due.astimezone(timezone.utc)
+        time = (date_due - now).total_seconds()
         days = math.ceil(time / 60 / 60 / 24)
         if days <= 0:
-            if days >= -1:
+            if days > -1:
                 return "Today"
             return "Overdue"
         else:
@@ -604,8 +635,9 @@ class UserEvent(db.Model):
     def get_time_until_event(self):
         if not self.date_of_event or self.date_of_event is None:
             return None
-        now = datetime.utcnow()
-        time = (self.date_of_event - now).total_seconds()
+        now = datetime.utcnow().astimezone(self.user.get_timezone())
+        date_of_event = self.date_of_event.astimezone(timezone.utc)
+        time = (date_of_event - now).total_seconds()
         days = math.ceil(time / 60 / 60 / 24)
         if days <= 0:
             if days >= -1:
@@ -1267,8 +1299,11 @@ def settings_page():
                 theme = request.form['theme']
                 g.user.settings.theme_preference = theme
                 db.session.commit()
+            elif "update-timezone" in request.form:
+                timezone = request.form['timezone']
+                g.user.set_timezone(timezone)
             return redirect(url_for('settings_page'))
-        return render_template("settings.html", themes = Theme.query.all())
+        return render_template("settings.html", themes = Theme.query.all(), timezones = available_timezones())
     return "You must be logged in to access this page."
 
 @app.route("/register", methods = ['GET','POST'])

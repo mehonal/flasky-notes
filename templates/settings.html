@@ -14,6 +14,16 @@
         <input name="update-theme" class="btn btn-primary" type="submit" value="Update Theme">
     </form>
     </div>
+    <div class="container d-flex justify-content-center">
+        <form method="POST" class="col-12 col-md-6 col-lg-4">
+        <select class="form-select mb-2" name="timezone">
+            {% for timezone in timezones %}
+                <option value="{{ timezone }}" {% if timezone == g.user.get_timezone(True) %}selected{% endif %}>{{ timezone }}</option>
+            {% endfor %}
+        </select>
+        <input name="update-timezone" class="btn btn-primary" type="submit" value="Update Timezone">
+    </form>
+    </div>
     
 
     <h2>Quick Access</h2>
