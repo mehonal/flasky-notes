@@ -180,6 +180,10 @@ You may use gunicorn with a command such as `gunicorn --bind YOUR.SERVER.IP.ADDR
 - Improving Markdown Support
 - Add Support for Categories
 
+# Noted Issues
+
+- There may be issues in relation to categories - or category reassignment in general.
+
 # Compatibility
 
 Flasky Notes has been tested primarily on Ubuntu using a Firefox browser, but should be compatible with all devices and operating systems that can run a browser that is up-to-date. 
