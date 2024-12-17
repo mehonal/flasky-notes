@@ -1330,6 +1330,12 @@ def register_page():
                 return "Illegal email."
             if len(user_username) < 4:
                 return "Your username must be at least 4 characters."
+            if len(user_username) > 30:
+                return "Your username must be at most 30 characters."
+            if len(user_pw) < 8:
+                return "Your password must be at least 8 characters."
+            if len(user_pw) > 100:
+                return "Your password must be at most 100 characters."
             if User.query.filter_by(username=user_username).first() is None:
                 if User.query.filter_by(email=user_email).first() is None:
                     new_user = User(user_username,user_pw,user_email)
