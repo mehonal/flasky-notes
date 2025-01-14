@@ -48,7 +48,7 @@
         }
 
         .sidebar.expanded {
-            width: 200px;
+            width: 275px;
         }
 
         .note-list {
@@ -288,6 +288,22 @@
                 display: none;
             }
         }
+
+        .sidebar-actions.expanded {
+            width: 100%;
+            display: flex;
+            flex-wrap: wrap;
+        }
+        
+        .sidebar-actions.expanded button {
+            width: calc(50% - 6px);
+            margin: 3px;
+        }
+
+        .sidebar-actions.expanded button:last-child {
+            width: 100%;
+        }
+
     </style>
 </head>
 <body>
@@ -298,17 +314,19 @@
             <a href="/note/{{ note.id }}"><div class="note-item {% if note_id == note.id %}active{% endif %}">{{ note.title }}</div></a>
             {% endfor %}
         </div>
-        <button id="new-note" title="Add New Note">+<span class="button-text">New Note</span></button>
-        <button id="delete-note" title="Delete Note">🗑️<span class="button-text">Delete</span></button>
-        <button id="toggle-markdown" title="Toggle Markdown Mode">M<span class="button-text">Markdown</span></button>
-        <button id="toggle-dark-mode" title="Toggle Dark Mode">🌓<span class="button-text">Dark Mode</span></button>
-        <button id="increase-font" title="Increase Font Size">A+<span class="button-text">Increase Font</span></button>
-        <button id="decrease-font" title="Decrease Font Size">A-<span class="button-text">Decrease Font</span></button>
-        <button id="hide-title" title="Hide Title">📜<span class="button-text">Hide Title</span></button>
-        <button id="save-note" title="Save Note"><span id="save-icon">💾</span><span class="button-text">Save</span></button>
-        <button id="auto-save" title="Auto-Save"><span id="autosave-icon">⏸️</span><span class="button-text">Auto Save</span></button>
-        <button id="agenda" title="Agenda">🗓️<span class="button-text">Agenda</span></button>
-        <button id="settings" title="Settings">⚙️<span class="button-text">Settings</span></button>
+        <div class="sidebar-actions">
+            <button id="new-note" title="Add New Note">+<span class="button-text">New Note</span></button>
+            <button id="delete-note" title="Delete Note">🗑️<span class="button-text">Delete</span></button>
+            <button id="toggle-markdown" title="Toggle Markdown Mode">M<span class="button-text">Markdown</span></button>
+            <button id="toggle-dark-mode" title="Toggle Dark Mode">🌓<span class="button-text">Dark Mode</span></button>
+            <button id="increase-font" title="Increase Font Size">A+<span class="button-text">Font +</span></button>
+            <button id="decrease-font" title="Decrease Font Size">A-<span class="button-text">Font -</span></button>
+            <button id="hide-title" title="Hide Title">📜<span class="button-text">Hide Title</span></button>
+            <button id="save-note" title="Save Note"><span id="save-icon">💾</span><span class="button-text">Save</span></button>
+            <button id="auto-save" title="Auto-Save"><span id="autosave-icon">⏸️</span><span class="button-text">Auto Save</span></button>
+            <button id="agenda" title="Agenda">🗓️<span class="button-text">Agenda</span></button>
+            <button id="settings" title="Settings">⚙️<span class="button-text">Settings</span></button>
+        </div>
     </div>
     <div class="main-content">
         <input type="text" id="note-title" placeholder="Title" class="note-title" value="{% if note %}{{ note.title }}{% endif %}">
@@ -349,6 +367,7 @@
         document.getElementById('toggle-sidebar').addEventListener('click', () => {
             document.querySelector('.sidebar').classList.toggle('expanded');
             document.querySelector('.main-content').classList.toggle('expanded');
+            document.querySelector('.sidebar-actions').classList.toggle('expanded');
         });
 
         // Add new note
