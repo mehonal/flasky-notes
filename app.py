@@ -96,7 +96,7 @@ class UserTheme(db.Model):
 class UserSettings(db.Model):
     __tablename__ = "user_settings"
     id = db.Column(db.Integer, primary_key = True)
-    theme_preference = db.Column(db.String(100), default = "paper")
+    theme_preference = db.Column(db.String(100), default = "cozy")
     timezone = db.Column(db.String(100), default = "UTC")
 
 class User(db.Model):
