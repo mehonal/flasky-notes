@@ -389,6 +389,7 @@
             <button id="save-note" title="Save Note"><span id="save-icon">💾</span><span class="button-text">Save</span></button>
             <button id="auto-save" title="Auto-Save"><span id="autosave-icon">⏸️</span><span class="button-text">Auto Save</span></button>
             <button id="agenda" title="Agenda">🗓️<span class="button-text">Agenda</span></button>
+            <button id="searrch-notes" title="Search">🔍<span class="button-text">Search</span></button>
             <button id="settings" title="Settings">⚙️<span class="button-text">Settings</span></button>
         </div>
     </div>
@@ -450,6 +451,13 @@
             if (markdownContent.style.display === 'block') {
                 markdownContent.innerHTML = marked(noteContent.value);
                 hljs.highlightAll();
+            }
+        });
+
+        // Go to search
+        document.getElementById('searrch-notes').addEventListener('click', () => {
+            if (confirm('Are you sure you want to go to search? Your changes will not be saved.')) {
+                window.location.href = '/search';
             }
         });
 
