@@ -47,6 +47,7 @@
             align-items: center;
             transition: width 0.3s ease;
             overflow-y: auto;
+            overflow-x: hidden;
         }
 
         .sidebar.expanded {
@@ -304,6 +305,36 @@
 
         .sidebar-actions.expanded button:last-child {
             width: 100%;
+        }
+        
+        @media (max-height: 650px) {
+            .sidebar {
+                padding: 10px;
+                min-width: 30px;
+                width: 30px;
+            }
+
+            button {
+                padding: 10px;
+                width: 30px;
+                height: 30px;
+                margin: 0px 0px 10px 0px;
+            }
+
+            .main-content {
+                padding: 15px;
+            }
+
+            #note-title {
+                font-size: 20px;
+                padding: 10px;
+                margin-bottom: 10px;
+            }
+
+            #note-content {
+                font-size: 14px;
+                padding: 20px;
+            }
         }
 
 
