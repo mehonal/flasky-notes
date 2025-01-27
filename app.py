@@ -1312,6 +1312,9 @@ def settings_page():
             elif "update-timezone" in request.form:
                 timezone = request.form['timezone']
                 g.user.set_timezone(timezone)
+            elif "update-font-family" in request.form:
+                font = request.form['font-family']
+                g.user.update_theme_font(g.user.settings.theme_preference, font)
             return redirect(url_for('settings_page'))
         return render_template("settings.html", themes = Theme.query.all(), timezones = available_timezones())
     return "You must be logged in to access this page."

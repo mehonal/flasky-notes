@@ -25,6 +25,13 @@
     </form>
     </div>
     
+    <div class="container d-flex justify-content-center">
+        <form method="POST" class="col-12 col-md-6 col-lg-4">
+            <input name="font-family" class="form-control mb-2" type="text" value="{{ g.user.get_current_theme_font() }}" placeholder="Font Family">
+            <input name="update-font-family" class="btn btn-primary" type="submit" value="Update Font">
+        </form>
+    </div>
+        
 
     <h2>Quick Access</h2>
     <a href="/notes" class="btn btn-primary">Notes</a>
