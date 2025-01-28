@@ -14,7 +14,7 @@ The noting app aims to provide simple, fast and bloat-free noting with clean int
 
 ![Paper Theme - Note Single](https://raw.githubusercontent.com/mehonal/flasky-notes/master/static/images/themes/paper/note_single.png)
 
-The Paper theme has options provided via GUI and does not rely on keyboard shortcuts. It's the default theme and aims to be easy to use for the average user.
+The Paper theme has options provided via GUI and does not rely on keyboard shortcuts. It's used to be the default theme and aims to be easy to use for the average user.
 
 ### Theme-Specific Features
 
@@ -90,6 +90,19 @@ Dash aims to combine the "best of two themes" by preserving keyboard-shortcuts a
 ![Cozy Theme - Note Single](https://raw.githubusercontent.com/mehonal/flasky-notes/master/static/images/themes/cozy/note_single.png)
 
 The Cozy theme is the latest, modern looking theme that is similar to Dash, but comes with a sidebar that minimizes into a smaller version rather than collapsing entirely. The theme currently lacks Markdown support and shortcuts other than for saving notes.
+
+### Theme-Specific Features
+
+- Flagship Theme
+- Modern Look
+- Sidebar Navigation
+- Full Markdown Support (with toggle markdown option)
+- Search Notes Modal
+- Just about everything on one page
+
+### Shortcuts
+- Ctrl + s: Save Note
+- Ctrl + k: Toggle Search Notes Modal
 
 ## Sage
 
