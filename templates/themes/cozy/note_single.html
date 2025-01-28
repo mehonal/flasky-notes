@@ -366,9 +366,74 @@
             }
         }
 
+        #search-popup {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: var(--note-bg);
+            padding: 20px;
+            border-radius: 5px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            z-index: 1000;
+            width: 90%;
+            max-width: 500px;
+        }
+
+        #search-input {
+            width: calc(100% - 20px);
+            padding: 10px;
+            margin-bottom: 10px;
+            border: 1px solid var(--button-bg);
+            border-radius: 5px;
+            background-color: var(--note-bg);
+            color: var(--textbox-color);
+        }
+
+        #search-input:focus {
+            outline: none;
+            border-color: var(--button-bg);
+        }
+
+        #search-results {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .search-result {
+            padding: 10px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .search-result:hover {
+            background-color: var(--button-bg);
+            color: var(--button-text);
+        }
+
+        #search-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0,0,0,0.5);
+            z-index: 999;
+        }
+
+
     </style>
 </head>
 <body>
+    <div id="search-popup">
+        <input type="text" id="search-input" placeholder="Search notes...">
+        <div id="search-results">
+            <!-- Results will be populated here -->
+        </div>
+    </div>
+    <div id="search-overlay"></div>
     <div class="sidebar">
         <button id="toggle-sidebar" title="Toggle Sidebar">☰</button>
         <div class="note-list">
@@ -454,9 +519,7 @@
 
         // Go to search
         document.getElementById('searrch-notes').addEventListener('click', () => {
-            if (confirm('Are you sure you want to go to search? Your changes will not be saved.')) {
-                window.location.href = '/search';
-            }
+            openSearchPopup();
         });
 
         // Go to settings
@@ -630,6 +693,143 @@
                 document.getElementById('save-note').click();
             }
         })
+
+
+        // Search functionality
+        let selectedIndex = -1;
+        const searchPopup = document.getElementById('search-popup');
+        const searchInput = document.getElementById('search-input');
+        const searchResults = document.getElementById('search-results');
+        const searchOverlay = document.getElementById('search-overlay');
+
+        // Search popup keyboard shortcut
+        document.addEventListener('keydown', (e) => {
+            if (e.ctrlKey && e.key.toLowerCase() === 'k') {
+                e.preventDefault();
+                openSearchPopup();
+            } else if (e.key === 'Escape' && searchPopup.style.display === 'block') {
+                closeSearchPopup();
+            } else if (searchPopup.style.display === 'block') {
+                handleSearchNavigation(e);
+            }
+        });
+
+        // Handle search navigation with keyboard
+        function handleSearchNavigation(e) {
+            const results = searchResults.children;
+            if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                selectedIndex = Math.min(selectedIndex + 1, results.length - 1);
+                updateSelectedResult();
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                selectedIndex = Math.max(selectedIndex - 1, -1);
+                updateSelectedResult();
+            } else if (e.key === 'Enter' && selectedIndex >= 0) {
+                e.preventDefault();
+                results[selectedIndex].click();
+            }
+        }
+
+        // Update selected result highlighting
+        function updateSelectedResult() {
+            const results = searchResults.children;
+            for (let i = 0; i < results.length; i++) {
+                if (i === selectedIndex) {
+                    results[i].style.backgroundColor = 'var(--button-bg)';
+                    results[i].style.color = 'var(--button-text)';
+                } else {
+                    results[i].style.backgroundColor = '';
+                    results[i].style.color = 'var(--text-color)';
+                }
+            }
+        }
+
+        // Open search popup
+        function openSearchPopup() {
+            searchPopup.style.display = 'block';
+            searchOverlay.style.display = 'block';
+            searchInput.value = '';
+            searchInput.focus();
+            selectedIndex = -1;
+            searchResults.innerHTML = '';
+        }
+
+        // Close search popup
+        function closeSearchPopup() {
+            searchPopup.style.display = 'none';
+            searchOverlay.style.display = 'none';
+            searchInput.value = '';
+            searchResults.innerHTML = '';
+            selectedIndex = -1;
+        }
+
+        // Click outside to close
+        searchOverlay.addEventListener('click', closeSearchPopup);
+
+        // Debounce function
+        function debounce(func, wait) {
+            let timeout;
+            return function executedFunction(...args) {
+                const later = () => {
+                    clearTimeout(timeout);
+                    func(...args);
+                };
+                clearTimeout(timeout);
+                timeout = setTimeout(later, wait);
+            };
+        }
+
+        // Search input handler
+        searchInput.addEventListener('input', debounce(async (e) => {
+            const query = e.target.value.trim();
+            if (!query) {
+                searchResults.innerHTML = '';
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/search_notes', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ query })
+                });
+
+                const notes = await response.json();
+                searchResults.innerHTML = '';
+                selectedIndex = -1;
+
+                notes.forEach((note, index) => {
+                    const resultDiv = document.createElement('div');
+                    resultDiv.className = 'search-result';
+                    resultDiv.style.padding = '10px';
+                    resultDiv.style.cursor = 'pointer';
+                    resultDiv.style.borderBottom = '1px solid var(--button-bg)';
+                    resultDiv.style.transition = 'background-color 0.2s';
+                    resultDiv.innerHTML = note.title;
+
+                    resultDiv.addEventListener('mouseover', () => {
+                        selectedIndex = index;
+                        updateSelectedResult();
+                    });
+
+                    resultDiv.addEventListener('click', () => {
+                        window.open(`/note/${note.id}`, '_blank');
+                    });
+
+                    searchResults.appendChild(resultDiv);
+                });
+
+                if (notes.length === 0) {
+                    searchResults.innerHTML = '<div style="padding: 10px; color: var(--text-color);">No results found</div>';
+                }
+            } catch (error) {
+                console.error('Error searching notes:', error);
+                searchResults.innerHTML = '<div style="padding: 10px; color: var(--text-color);">Error searching notes</div>';
+            }
+        }, 300));
 
     </script>
 </body>
