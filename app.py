@@ -721,7 +721,7 @@ def search_notes_api():
         data = request.get_json()
         query = data.get('query')
         notes = []
-        for note in UserNote.query.filter(UserNote.userid == g.user.id, UserNote.title.contains(query)).all():
+        for note in UserNote.query.filter(UserNote.userid == g.user.id, UserNote.title.contains(query)).order_by(UserNote.date_added.desc()).all():
             notes.append(note.return_json())
         return jsonify(notes)
     else:
