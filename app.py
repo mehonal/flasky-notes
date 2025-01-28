@@ -715,6 +715,17 @@ def get_all_notes_api():
     else:
         return jsonify(success=False,reason="Note logged in.")
 
+@app.route("/api/search_notes", methods=['POST'])
+def search_notes_api():
+    if g.user:
+        data = request.get_json()
+        query = data.get('query')
+        notes = []
+        for note in UserNote.query.filter(UserNote.userid == g.user.id, UserNote.title.contains(query)).all():
+            notes.append(note.return_json())
+        return jsonify(notes)
+    else:
+        return jsonify(success=False,reason="Not logged in.")
 
 @app.route("/api/note/check_last_edited/<int:note_id>")
 def check_last_edited_note_api(note_id):
