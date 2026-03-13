@@ -4,563 +4,1326 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Tahta</title>
+    <link rel="icon" type="image/x-icon" href="/static/images/amazing_logo.png">
+    <link rel="apple-touch-icon" href="/static/images/amazing_logo.png" sizes="180x180">
+    <link rel="manifest" href="/manifest.json">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/2.0.3/marked.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
     <style>
-        body {
-            font-family: 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
-            margin: 0;
-            padding: 20px;
-            background-color: #f4f5f7;
-            color: #172b4d;
+        :root {
+            --bg: #1a1c2e;
+            --bg-secondary: #222541;
+            --surface: #2a2d4a;
+            --surface-hover: #32355a;
+            --surface-active: #3a3d65;
+            --border: #3d4070;
+            --text: #e8eaf6;
+            --text-secondary: #9ea2c7;
+            --text-faint: #6b6f99;
+            --accent: #6c63ff;
+            --accent-hover: #5a52e0;
+            --accent-light: rgba(108, 99, 255, 0.15);
+            --green: #22c55e;
+            --green-light: rgba(34, 197, 94, 0.15);
+            --red: #ef4444;
+            --red-hover: #dc2626;
+            --red-light: rgba(239, 68, 68, 0.12);
+            --yellow: #eab308;
+            --column-bg: #222541;
+            --card-bg: #2a2d4a;
+            --card-hover: #32355a;
+            --shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+            --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.4);
+            --radius: 8px;
+            --radius-lg: 12px;
+            --radius-xl: 16px;
+            --column-w: 300px;
         }
+
+        [data-theme="light"] {
+            --bg: #f0f2f5;
+            --bg-secondary: #ffffff;
+            --surface: #ffffff;
+            --surface-hover: #f5f5f5;
+            --surface-active: #ebebeb;
+            --border: #e0e0e0;
+            --text: #1a1a2e;
+            --text-secondary: #5a5a7a;
+            --text-faint: #9a9ab0;
+            --accent: #6c63ff;
+            --accent-hover: #5a52e0;
+            --accent-light: rgba(108, 99, 255, 0.1);
+            --column-bg: #ffffff;
+            --card-bg: #f8f9fa;
+            --card-hover: #f0f1f3;
+            --shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+            --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.12);
+        }
+
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body, html {
+            height: 100%;
+            font-family: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            -webkit-font-smoothing: antialiased;
+            overflow: hidden;
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--text-faint); }
+
+        /* Layout */
+        .app {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+
+        /* Header */
+        .header {
+            display: flex;
+            align-items: center;
+            padding: 0 20px;
+            height: 56px;
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border);
+            flex-shrink: 0;
+            gap: 12px;
+            z-index: 10;
+        }
+
+        .header-title {
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--text);
+            letter-spacing: -0.02em;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .header-title svg {
+            width: 22px;
+            height: 22px;
+            color: var(--accent);
+        }
+
+        .header-spacer { flex: 1; }
+
+        .header-btn {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 7px 14px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            color: var(--text-secondary);
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.15s;
+            white-space: nowrap;
+        }
+
+        .header-btn:hover {
+            background: var(--surface-hover);
+            color: var(--text);
+            border-color: var(--text-faint);
+        }
+
+        .header-btn.primary {
+            background: var(--accent);
+            border-color: var(--accent);
+            color: #fff;
+        }
+
+        .header-btn.primary:hover {
+            background: var(--accent-hover);
+            border-color: var(--accent-hover);
+        }
+
+        .header-btn kbd {
+            font-size: 11px;
+            padding: 1px 5px;
+            background: rgba(255,255,255,0.12);
+            border-radius: 4px;
+            font-family: inherit;
+        }
+
+        [data-theme="light"] .header-btn kbd {
+            background: rgba(0,0,0,0.08);
+        }
+
+        /* Board */
         .board {
+            flex: 1;
             display: flex;
             overflow-x: auto;
-            padding-bottom: 20px;
+            overflow-y: hidden;
+            padding: 24px 20px;
+            gap: 16px;
+            scroll-behavior: smooth;
+        }
 
-        }
+        /* Columns */
         .column {
-            align-self: flex-start;
-            flex: 0 0 280px;
-            margin-right: 20px;
-            background-color: #ffffff;
-            border-radius: 8px;
-            padding: 16px;
-            max-height: calc(100vh - 40px);
+            flex: 0 0 var(--column-w);
+            display: flex;
+            flex-direction: column;
+            background: var(--column-bg);
+            border-radius: var(--radius-lg);
+            border: 1px solid var(--border);
+            max-height: 100%;
+            overflow: hidden;
+        }
+
+        .column-header {
+            display: flex;
+            align-items: center;
+            padding: 14px 16px;
+            gap: 8px;
+            flex-shrink: 0;
+            cursor: pointer;
+            transition: background 0.15s;
+            border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+        }
+
+        .column-header:hover {
+            background: var(--surface-hover);
+        }
+
+        .column-title {
+            font-size: 14px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            color: var(--text);
+            flex: 1;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .column-count {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-faint);
+            background: var(--surface);
+            padding: 2px 8px;
+            border-radius: 10px;
+            flex-shrink: 0;
+        }
+
+        .column-notes {
+            flex: 1;
             overflow-y: auto;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24);
+            padding: 0 10px 10px;
         }
-        .column h2 {
-            margin-top: 0;
-            padding-bottom: 16px;
-            font-size: 18px;
-            font-weight: 600;
-            color: #172b4d;
-        }
-        .note {
-            background-color: #ffffff;
-            border-radius: 6px;
-            padding: 12px;
-            margin-bottom: 12px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24);
-            cursor: pointer;
-            transition: all 0.3s cubic-bezier(.25,.8,.25,1);
-        }
-        .note:hover {
-            box-shadow: 0 14px 28px rgba(0,0,0,0.25), 0 10px 10px rgba(0,0,0,0.22);
-        }
-        .note-title {
-            font-weight: 600;
+
+        /* Cards */
+        .card {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 12px 14px;
             margin-bottom: 8px;
+            cursor: pointer;
+            transition: all 0.15s;
+            position: relative;
         }
-        .add-note {
-            display: block;
+
+        .card:hover {
+            background: var(--card-hover);
+            border-color: var(--accent);
+            box-shadow: var(--shadow);
+        }
+
+        .card-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text);
+            margin-bottom: 4px;
+            line-height: 1.3;
+        }
+
+        .card-preview {
+            font-size: 12px;
+            color: var(--text-faint);
+            line-height: 1.4;
+            overflow: hidden;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            word-break: break-word;
+        }
+
+        /* Add note button */
+        .add-card-btn {
+            display: flex;
+            align-items: center;
+            gap: 6px;
             width: 100%;
-            padding: 12px;
-            background-color: #ebecf0;
-            color: #172b4d;
-            border: none;
-            border-radius: 6px;
+            padding: 10px 14px;
+            margin: 0 10px 10px;
+            width: calc(100% - 20px);
+            background: transparent;
+            border: 1px dashed var(--border);
+            border-radius: var(--radius);
+            color: var(--text-faint);
+            font-size: 13px;
             cursor: pointer;
-            text-align: left;
-            transition: background-color 0.2s ease;
-            font-size: 14px;
+            transition: all 0.15s;
+            flex-shrink: 0;
         }
-        .add-note:hover {
-            background-color: #dfe1e6;
+
+        .add-card-btn:hover {
+            background: var(--accent-light);
+            border-color: var(--accent);
+            color: var(--accent);
         }
-        .add-note-form, .edit-note-form {
+
+        /* Inline add form */
+        .add-card-form {
             display: none;
-            margin-top: 12px;
+            padding: 0 10px 10px;
+            flex-shrink: 0;
         }
-        .add-note-input, .edit-note-input {
-            width: calc(100% - 24px);
-            padding: 12px;
-            border: 2px solid #dfe1e6;
-            border-radius: 6px;
+
+        .add-card-form.active {
+            display: block;
+        }
+
+        .add-card-form input {
+            width: 100%;
+            padding: 10px 12px;
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            color: var(--text);
+            font-size: 13px;
+            outline: none;
+            transition: border-color 0.15s;
+        }
+
+        .add-card-form input:focus {
+            border-color: var(--accent);
+        }
+
+        .add-card-form-actions {
+            display: flex;
+            gap: 6px;
+            margin-top: 8px;
+        }
+
+        .form-btn {
+            padding: 6px 14px;
+            border: none;
+            border-radius: var(--radius);
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .form-btn-primary {
+            background: var(--accent);
+            color: #fff;
+        }
+
+        .form-btn-primary:hover {
+            background: var(--accent-hover);
+        }
+
+        .form-btn-ghost {
+            background: transparent;
+            color: var(--text-secondary);
+        }
+
+        .form-btn-ghost:hover {
+            background: var(--surface-hover);
+        }
+
+        /* Add column */
+        .add-column {
+            flex: 0 0 var(--column-w);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 16px;
+            background: var(--accent-light);
+            border: 2px dashed var(--border);
+            border-radius: var(--radius-lg);
+            cursor: pointer;
+            transition: all 0.15s;
+            max-height: 120px;
+        }
+
+        .add-column-prompt {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .add-column:hover {
+            border-color: var(--accent);
+            background: rgba(108, 99, 255, 0.2);
+        }
+
+        .add-column-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: var(--accent);
+            color: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            font-weight: 400;
             margin-bottom: 8px;
-            resize: vertical;
-            font-size: 14px;
-            transition: border-color 0.3s ease;
         }
-        .add-note-input:focus, .edit-note-input:focus {
-            border-color: #0079BF;
+
+        .add-column-text {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-secondary);
+        }
+
+        .add-column-form {
+            display: none;
+        }
+
+        .add-column.editing {
+            cursor: default;
+            justify-content: center;
+            max-height: 160px;
+        }
+
+        .add-column.editing .add-column-prompt { display: none; }
+        .add-column.editing .add-column-form { display: block; width: 100%; }
+
+        .add-column-form input {
+            width: 100%;
+            padding: 10px 12px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            color: var(--text);
+            font-size: 13px;
+            outline: none;
+            margin-bottom: 8px;
+        }
+
+        .add-column-form input:focus {
+            border-color: var(--accent);
+        }
+
+        /* Modal overlay */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(4px);
+            z-index: 100;
+            animation: fadeIn 0.15s ease;
+        }
+
+        .modal-overlay.active { display: flex; align-items: flex-start; justify-content: center; padding-top: 8vh; }
+
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+
+        .modal {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-xl);
+            width: 95%;
+            max-width: 600px;
+            box-shadow: var(--shadow-lg);
+            animation: slideUp 0.2s ease;
+            max-height: 85vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .modal-header {
+            display: flex;
+            align-items: center;
+            padding: 20px 24px 0;
+            gap: 12px;
+        }
+
+        .modal-header h3 {
+            font-size: 18px;
+            font-weight: 700;
+            flex: 1;
+        }
+
+        .modal-close {
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--surface);
+            border: none;
+            border-radius: var(--radius);
+            color: var(--text-secondary);
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .modal-close:hover {
+            background: var(--surface-hover);
+            color: var(--text);
+        }
+
+        .modal-body {
+            padding: 20px 24px;
+            overflow-y: auto;
+            flex: 1;
+        }
+
+        .modal-footer {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 16px 24px;
+            border-top: 1px solid var(--border);
+        }
+
+        .modal-footer .spacer { flex: 1; }
+
+        /* Form elements */
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        .form-label {
+            display: block;
+            font-size: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-secondary);
+            margin-bottom: 6px;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 10px 14px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            color: var(--text);
+            font-size: 14px;
+            outline: none;
+            transition: border-color 0.15s;
+            font-family: inherit;
+        }
+
+        .form-input:focus {
+            border-color: var(--accent);
+        }
+
+        textarea.form-input {
+            resize: vertical;
+            min-height: 150px;
+            line-height: 1.6;
+        }
+
+        select.form-input {
+            cursor: pointer;
+        }
+
+        /* Modal buttons */
+        .btn {
+            padding: 8px 18px;
+            border: none;
+            border-radius: var(--radius);
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.15s;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .btn-primary {
+            background: var(--accent);
+            color: #fff;
+        }
+        .btn-primary:hover { background: var(--accent-hover); }
+
+        .btn-ghost {
+            background: var(--surface);
+            color: var(--text-secondary);
+        }
+        .btn-ghost:hover { background: var(--surface-hover); color: var(--text); }
+
+        .btn-danger {
+            background: var(--red-light);
+            color: var(--red);
+        }
+        .btn-danger:hover { background: var(--red); color: #fff; }
+
+        .btn-md-toggle {
+            background: var(--surface);
+            color: var(--text-secondary);
+            width: 100%;
+            justify-content: center;
+            margin-bottom: 8px;
+        }
+        .btn-md-toggle:hover { background: var(--surface-hover); color: var(--text); }
+        .btn-md-toggle.active { background: var(--accent-light); color: var(--accent); }
+
+        /* Markdown preview in modal */
+        .md-preview {
+            display: none;
+            padding: 16px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            min-height: 150px;
+            max-height: 300px;
+            overflow-y: auto;
+            line-height: 1.6;
+            font-size: 14px;
+        }
+
+        .md-preview h1, .md-preview h2, .md-preview h3 { margin: 12px 0 6px; }
+        .md-preview p { margin: 6px 0; }
+        .md-preview code {
+            background: var(--surface-active);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.9em;
+        }
+        .md-preview pre {
+            background: var(--surface-active);
+            padding: 14px;
+            border-radius: var(--radius);
+            overflow-x: auto;
+        }
+        .md-preview pre code { background: none; padding: 0; }
+        .md-preview blockquote {
+            border-left: 3px solid var(--accent);
+            padding-left: 14px;
+            color: var(--text-secondary);
+            margin: 6px 0;
+        }
+        .md-preview ul, .md-preview ol { padding-left: 24px; }
+        .md-preview a { color: var(--accent); }
+        .md-preview img { max-width: 100%; border-radius: var(--radius); }
+
+        /* Search Modal */
+        .search-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(4px);
+            z-index: 200;
+        }
+
+        .search-modal {
+            display: none;
+            position: fixed;
+            top: 18%;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 92%;
+            max-width: 520px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-lg);
+            z-index: 201;
+            overflow: hidden;
+            animation: slideUp 0.15s ease;
+        }
+
+        .search-modal input {
+            width: 100%;
+            padding: 16px 20px;
+            background: transparent;
+            border: none;
+            border-bottom: 1px solid var(--border);
+            color: var(--text);
+            font-size: 16px;
             outline: none;
         }
-        .add-note-buttons, .edit-note-buttons {
-            display: flex;
-            justify-content: flex-end;
+
+        .search-modal input::placeholder { color: var(--text-faint); }
+
+        .search-results {
+            max-height: 320px;
+            overflow-y: auto;
         }
-        .add-note-submit, .add-note-cancel, .edit-note-submit, .edit-note-cancel, .edit-note-delete, .add-note-markdown, .edit-note-markdown {
-            padding: 8px 16px;
-            border: none;
-            border-radius: 6px;
+
+        .search-result {
+            padding: 12px 20px;
             cursor: pointer;
+            color: var(--text-secondary);
             font-size: 14px;
-            font-weight: 600;
-            transition: background-color 0.3s ease;
+            transition: background 0.1s;
         }
-        .add-note-markdown,.edit-note-markdown {
-            background-color: #0079BF;
-            color: white;
-            margin-bottom: 10px;
-            width: 100%;
+
+        .search-result:hover, .search-result.selected {
+            background: var(--accent);
+            color: #fff;
         }
-        .add-note-submit, .edit-note-submit {
-            background-color: #0079BF;
-            color: white;
-            margin-left: 8px;
+
+        .search-empty {
+            padding: 24px 20px;
+            text-align: center;
+            color: var(--text-faint);
+            font-size: 14px;
         }
-        .add-note-submit:hover, .edit-note-submit:hover {
-            background-color: #026aa7;
+
+        .search-hint {
+            padding: 10px 20px;
+            font-size: 12px;
+            color: var(--text-faint);
+            border-top: 1px solid var(--border);
+            display: flex;
+            gap: 16px;
         }
-        .add-note-cancel, .edit-note-cancel {
-            background-color: #ebecf0;
-            color: #172b4d;
+
+        .search-hint kbd {
+            background: var(--surface);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-family: inherit;
         }
-        .add-note-cancel:hover, .edit-note-cancel:hover {
-            background-color: #dfe1e6;
-        }
-        .edit-note-delete {
-            background-color: #eb5a46;
-            color: white;
-            margin-right: auto;
-        }
-        .edit-note-delete:hover {
-            background-color: #cf513d;
-        }
-        .modal {
-            display: none;
+
+        /* Toast */
+        .toast-container {
             position: fixed;
-            z-index: 1;
-            left: 0;
-            top: 0;
-            width: 100%;
-            height: 100%;
-            overflow: auto;
-            background-color: rgba(0,0,0,0.4);
-            backdrop-filter: blur(5px);
+            bottom: 24px;
+            right: 24px;
+            z-index: 300;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
         }
-        .modal-content {
-            background-color: #fefefe;
-            margin: 10% auto;
-            padding: 24px;
-            border: 1px solid #888;
-            width: calc(100% - 70px);
-            max-width: 500px;
-            border-radius: 8px;
-            box-shadow: 0 14px 28px rgba(0,0,0,0.25), 0 10px 10px rgba(0,0,0,0.22);
-        }
-        .modal-content h3 {
-            margin-top: 0;
-            margin-bottom: 16px;
-            font-size: 20px;
-            font-weight: 600;
-        }
-        .modal-content label {
-            display: block;
-            margin-top: 16px;
-            margin-bottom: 8px;
-            font-weight: 600;
-            font-size: 14px;
-        }
-        
+
         .toast {
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            background-color: #0079BF;
-            color: white;
-            padding: 12px 16px;
-            border-radius: 6px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24);
-            animation: slideIn 0.5s, slideOut 0.5s 2.5s;
+            padding: 12px 20px;
+            border-radius: var(--radius);
+            color: #fff;
+            font-size: 14px;
+            font-weight: 500;
+            opacity: 0;
+            transform: translateX(20px);
+            transition: all 0.25s ease;
+            pointer-events: none;
         }
 
-        .toast-success {
-            background-color: #0079BF;
-        }
-        .toast-danger {
-            background-color: #eb5a46;
-        }
-        .toast-warning {
-            background-color: #f2d600;
-        }
-        .toast-info {
-            background-color: #ff9f1a;
-        }
-        
-        @keyframes slideIn {
-            from {
-                right: -200px;
-            }
-            to {
-                right: 20px;
-            }
+        .toast.visible {
+            opacity: 1;
+            transform: translateX(0);
         }
 
-        @keyframes slideOut {
-            from {
-                right: 20px;
-            }
-            to {
-                right: -200px;
-            }
-        }
+        .toast.success { background: var(--green); }
+        .toast.error { background: var(--red); }
 
-
+        /* Mobile */
         @media (max-width: 768px) {
             .board {
                 flex-direction: column;
+                overflow-y: auto;
+                overflow-x: hidden;
+                padding: 16px;
+                gap: 12px;
             }
+
             .column {
                 flex: none;
-                width: calc(100% - 32px);
-                margin-right: 0;
-                margin-bottom: 20px;
+                width: 100%;
+                max-height: none;
+            }
+
+            .add-column {
+                flex: none;
+                width: 100%;
+            }
+
+            .header {
+                padding: 0 12px;
+                gap: 8px;
+            }
+
+            .header-btn span.hide-mobile { display: none; }
+
+            .modal {
+                width: 98%;
+                margin-top: 4vh;
             }
         }
     </style>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/2.0.3/marked.min.js"></script>
 </head>
-<body>
-    <div class="board">
-        {% for category in g.user.categories %}
-        <div class="column" id="{{ category.id }}">
-            <h2 onclick="showEditCategoryModal(event, this)">{{ category.name }}</h2>
-            <div class="notes">
-            {% for note in category.notes %}
-            <div class="note" id="note-{{ note.id }}" data-content="{% if note.content %}{{ note.content }}{% endif %}" onclick="showEditNoteModal(event, this)"><div class="note-title">{{ note.title }}</div></div>
+<body {% if g.user.get_theme_settings().dark_mode == false %}data-theme="light"{% endif %}>
+    <!-- Search -->
+    <div class="search-overlay" id="search-overlay"></div>
+    <div class="search-modal" id="search-modal">
+        <input type="text" id="search-input" placeholder="Search notes..." autocomplete="off">
+        <div class="search-results" id="search-results"></div>
+        <div class="search-hint">
+            <span><kbd>&#8593;&#8595;</kbd> navigate</span>
+            <span><kbd>&#8629;</kbd> open</span>
+            <span><kbd>esc</kbd> close</span>
+        </div>
+    </div>
+
+    <!-- Toast -->
+    <div class="toast-container"><div class="toast" id="toast"></div></div>
+
+    <div class="app">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-title">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+                Tahta
+            </div>
+            <div class="header-spacer"></div>
+            <button class="header-btn" onclick="openSearch()">&#128269; <span class="hide-mobile">Search</span> <kbd>Ctrl+K</kbd></button>
+            <button class="header-btn" onclick="toggleTheme()" id="theme-btn" title="Toggle theme">
+                {% if g.user.get_theme_settings().dark_mode == false %}&#9728;{% else %}&#9790;{% endif %}
+            </button>
+            <a href="/settings" class="header-btn" title="Settings">&#9881;</a>
+        </header>
+
+        <!-- Board -->
+        <div class="board" id="board">
+            {% for category in g.user.categories %}
+            <div class="column" data-category-id="{{ category.id }}">
+                <div class="column-header" onclick="showEditCategoryModal(this)">
+                    <span class="column-title">{{ category.name }}</span>
+                    <span class="column-count">{{ category.notes | length }}</span>
+                </div>
+                <div class="column-notes">
+                    {% for note in category.notes %}
+                    <div class="card" data-note-id="{{ note.id }}" data-content="{% if note.content %}{{ note.content }}{% endif %}" onclick="showEditNoteModal(this)">
+                        <div class="card-title">{{ note.title }}</div>
+                        {% if note.content %}<div class="card-preview">{{ note.content[:100] }}</div>{% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+                <button class="add-card-btn" onclick="showAddForm(this)">+ Add a note</button>
+                <div class="add-card-form">
+                    <input type="text" placeholder="Note title..." onkeydown="if(event.key==='Enter')addNote(this); if(event.key==='Escape')hideAddForm(this);">
+                    <div class="add-card-form-actions">
+                        <button class="form-btn form-btn-primary" onclick="addNote(this.parentElement.previousElementSibling)">Add</button>
+                        <button class="form-btn form-btn-ghost" onclick="hideAddForm(this)">Cancel</button>
+                    </div>
+                </div>
+            </div>
             {% endfor %}
-            </div>
-            <button class="add-note" onclick="showAddNoteForm(this, this.nextElementSibling, this.nextElementSibling.querySelector('.add-note-input'))">+ Add a note</button>
-            <div class="add-note-form">
-                <input type="text" class="add-note-input" placeholder="Enter note title..." />
-                <div class="add-note-buttons">
-                    <button class="add-note-cancel" onclick="cancelAddNote(this.parentElement.previousElementSibling, this.parentElement.parentElement, this.parentElement.parentElement.previousElementSibling)">Cancel</button>
-                    <button class="add-note-submit" onclick="handleAddNote(this.parentElement.previousElementSibling, this.parentElement.parentElement, this.parentElement.parentElement.previousElementSibling, this.closest('.column').querySelector('.notes'))">Add Note</button>
+
+            <!-- Add column -->
+            <div class="add-column" id="add-column" onclick="showAddColumnForm(this)">
+                <div class="add-column-prompt">
+                    <div class="add-column-icon">+</div>
+                    <div class="add-column-text">Add Category</div>
                 </div>
-            </div>
-        </div>
-        {% endfor %}
-        <div class="column" id="new-column">
-            <h2>Add Category</h2>
-            <button class="add-note" onclick="showAddCategoryForm(this, this.nextElementSibling, this.nextElementSibling.querySelector('.add-note-input'))">+ Add category</button>
-            <div class="add-note-form">
-                <input type="text" class="add-note-input" placeholder="Enter category title..." />
-                <div class="add-note-buttons">
-                    <button class="add-note-cancel" onclick="cancelAddCategory(this.parentElement.previousElementSibling, this.parentElement.parentElement, this.parentElement.parentElement.previousElementSibling)">Cancel</button>
-                    <button class="add-note-submit" onclick="handleAddCategory(this.parentElement.previousElementSibling, this.parentElement.parentElement, this.parentElement.parentElement.previousElementSibling)">Add Category</button>
+                <div class="add-column-form">
+                    <input type="text" placeholder="Category name..." onkeydown="if(event.key==='Enter')addCategory(this); if(event.key==='Escape')hideAddColumnForm();">
+                    <div class="add-card-form-actions">
+                        <button class="form-btn form-btn-primary" onclick="addCategory(this.parentElement.querySelector('input'))">Add</button>
+                        <button class="form-btn form-btn-ghost" onclick="hideAddColumnForm()">Cancel</button>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <div id="editNoteModal" class="modal">
-        <div class="modal-content">
-            <h3>Edit Note</h3>
-            <label for="editNoteTitle">Title</label>
-            <input type="text" id="editNoteTitle" class="edit-note-input" />
-            <label for="editNoteCategory">Category</label>
-            <select id="editNoteCategory" class="edit-note-input">
-                {% for category in g.user.categories %}
-                <option value="{{ category.id }}">{{ category.name }}</option>
-                {% endfor %}
-            </select>
-            <label for="editNoteContent">Content</label>
-            <textarea id="editNoteContent" class="edit-note-input" rows="4"></textarea>
-            <div id="editNoteMarkdown" style="display: none">
+    <!-- Edit Note Modal -->
+    <div class="modal-overlay" id="note-modal-overlay">
+        <div class="modal" onclick="event.stopPropagation()">
+            <div class="modal-header">
+                <h3>Edit Note</h3>
+                <button class="modal-close" onclick="closeNoteModal()">&times;</button>
             </div>
-            <button onclick="toggleMarkdown()" class="edit-note-markdown">Toggle Markdown</button>
-            <div class="edit-note-buttons">
-                <button id="editNoteDelete" onclick="handleEditNoteDelete()" class="edit-note-delete">Delete</button>
-                <button id="editNoteCancel" onclick="closeEditModal()" class="edit-note-cancel">Cancel</button>
-                <button id="editNoteSubmit" onclick="handleEditNoteSubmit()" class="edit-note-submit">Save</button>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label">Title</label>
+                    <input type="text" class="form-input" id="edit-note-title">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Category</label>
+                    <select class="form-input" id="edit-note-category">
+                        {% for category in g.user.categories %}
+                        <option value="{{ category.id }}">{{ category.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Content</label>
+                    <button class="btn btn-md-toggle" id="md-toggle-btn" onclick="toggleMarkdownPreview()">Preview Markdown</button>
+                    <textarea class="form-input" id="edit-note-content" rows="6"></textarea>
+                    <div class="md-preview" id="md-preview"></div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-danger" onclick="deleteNote()">Delete</button>
+                <div class="spacer"></div>
+                <button class="btn btn-ghost" onclick="closeNoteModal()">Cancel</button>
+                <button class="btn btn-primary" onclick="saveNote()">Save</button>
             </div>
         </div>
     </div>
 
-    <div id="editCategoryModal" class="modal">
-        <div class="modal-content">
-            <h3>Edit Category</h3>
-            <label for="editCategoryTitle">Title</label>
-            <input type="text" id="editCategoryTitle" class="edit-category-input" />
-            <div class="edit-category-buttons">
-                <button id="editCategoryDelete" onclick="handleEditCategoryDelete()" class="edit-category-delete">Delete</button>
-                <button id="editCategoryCancel" onclick="closeEditCategoryModal()" class="edit-category-cancel">Cancel</button>
-                <button id="editCategorySubmit" onclick="handleEditCategorySubmit()" class="edit-category-submit">Save</button>
+    <!-- Edit Category Modal -->
+    <div class="modal-overlay" id="cat-modal-overlay">
+        <div class="modal" onclick="event.stopPropagation()" style="max-width: 400px;">
+            <div class="modal-header">
+                <h3>Edit Category</h3>
+                <button class="modal-close" onclick="closeCatModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label">Name</label>
+                    <input type="text" class="form-input" id="edit-cat-name">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-danger" onclick="deleteCategory()">Delete</button>
+                <div class="spacer"></div>
+                <button class="btn btn-ghost" onclick="closeCatModal()">Cancel</button>
+                <button class="btn btn-primary" onclick="saveCategory()">Save</button>
             </div>
         </div>
     </div>
 
-   <script>
+    <script>
+        // ── State ───────────────────────────────────────
+        let currentNote = null;   // { element, id }
+        let currentCat = null;    // { element, id }
+        let searchSelectedIdx = -1;
 
-        // Global variables
-    let currentEditingNote = null;
-    let currentEditingCategory = null;
+        // ── Add Note ────────────────────────────────────
+        function showAddForm(btn) {
+            const form = btn.nextElementSibling;
+            btn.style.display = 'none';
+            form.classList.add('active');
+            form.querySelector('input').value = '';
+            form.querySelector('input').focus();
+        }
 
-    document.addEventListener('DOMContentLoaded', initializeTahta);
+        function hideAddForm(el) {
+            const form = el.closest('.add-card-form');
+            form.classList.remove('active');
+            form.previousElementSibling.style.display = '';
+        }
 
-    function initializeTahta() {
-        const columns = document.querySelectorAll('.column');
-        columns.forEach(initializeColumn);
-        initializeEditModal();
-    }
+        function addNote(input) {
+            const title = input.value.trim();
+            if (!title) return;
+            const column = input.closest('.column');
+            const categoryId = column.dataset.categoryId;
 
-    function initializeColumn(column) {
-        const addNoteButton = column.querySelector('.add-note');
-        const addNoteForm = column.querySelector('.add-note-form');
-        const addNoteInput = column.querySelector('.add-note-input');
-        const notesContainer = column.querySelector('.notes');
-
-        addNoteButton.onclick = () => showAddNoteForm(addNoteButton, addNoteForm, addNoteInput);
-    }
-
-    function showAddCategoryForm(addCategoryButton, addCategoryForm, addCategoryInput) {
-        addCategoryButton.style.display = 'none';
-        addCategoryForm.style.display = 'block';
-        addCategoryInput.focus();
-    }
-
-    function showAddNoteForm(addNoteButton, addNoteForm, addNoteInput) {
-        addNoteButton.style.display = 'none';
-        addNoteForm.style.display = 'block';
-        addNoteInput.focus();
-    }
-
-    function toastMessage(message, classname) {
-        let toast = document.createElement('div');
-        toast.classList.add('toast', classname);
-
-        toast.textContent = message;
-
-        document.body.appendChild(toast);
-        setTimeout(() => { document.body.removeChild(toast); }, 3000);
-    }
-
-    function handleAddCategory(addCategoryInput, addCategoryForm, addCategoryButton) {
-        console.log('Adding category');
-        console.log(addCategoryInput, addCategoryForm, addCategoryButton);
-        const categoryName = addCategoryInput.value.trim();
-        if (!categoryName) { return; }
-        
-        fetch('/api/add_category', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                categoryName: categoryName
-            }),
-        })
-        .then(response => response.json())
-        .then(data => {
-            const newColumn = document.createElement('div');
-            newColumn.className = 'column';
-            newColumn.id = data.category;
-            newColumn.innerHTML = `<h2>${categoryName}</h2>`;
-            newColumn.innerHTML += `<div class="notes"></div>`;
-            newColumn.innerHTML += `<button class="add-note" onclick="showAddNoteForm(this, this.nextElementSibling, this.nextElementSibling.querySelector('.add-note-input'))">+ Add a note</button>`;
-            newColumn.innerHTML += `<div class="add-note-form"><input type="text" class="add-note-input" placeholder="Enter note title..." /><div class="add-note-buttons"><button class="add-note-cancel" onclick="cancelAddNote(this.parentElement.previousElementSibling, this.parentElement.parentElement, this.parentElement.parentElement.previousElementSibling)">Cancel</button><button class="add-note-submit" onclick="handleAddNote(this.parentElement.previousElementSibling, this.parentElement.parentElement, this.parentElement.parentElement.previousElementSibling, this.closest('.column').querySelector('.notes'))">Add Note</button></div></div>`;
-            addCategoryButton.parentElement.parentElement.insertBefore(newColumn, addCategoryButton.parentElement);
-            addCategoryInput.value = '';
-            addCategoryForm.style.display = 'none';
-            addCategoryButton.style.display = 'block';
-            toastMessage('Category added successfully!', 'toast-success');
-        });
-    }
-
-    function handleAddNote(addNoteInput, addNoteForm, addNoteButton, notesContainer) {
-        const noteTitle = addNoteInput.value.trim();
-        if (!noteTitle) { return; }
-        
-        fetch('/api/save_note', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                title: noteTitle,
-                category: notesContainer.parentElement.id,
-                content: '',
-                noteId: 0
-            }),
-        })
-        .then(response => response.json())
-        .then(data => {
-            const newNote = createNote(noteTitle, '');
-            notesContainer.appendChild(newNote);
-            addNoteInput.value = '';
-            addNoteForm.style.display = 'none';
-            addNoteButton.style.display = 'block';
-            newNote.id = 'note-' + data.note.id;
-            newNote.onclick = (e) => showEditNoteModal(e, newNote);
-            toastMessage('Note added successfully!', 'toast-success');
-        });
-    }
-
-    function cancelAddCategory(addCategoryInput, addCategoryForm, addCategoryButton) {
-        addCategoryInput.value = '';
-        addCategoryForm.style.display = 'none';
-        addCategoryButton.style.display = 'block';
-    }
-
-    function cancelAddNote(addNoteInput, addNoteForm, addNoteButton) {
-        addNoteInput.value = '';
-        addNoteForm.style.display = 'none';
-        addNoteButton.style.display = 'block';
-    }
-
-    function createNote(title, content) {
-        const note = document.createElement('div');
-        note.className = 'note';
-        note.innerHTML = `<div class="note-title">${title}</div>`;
-        note.id = 'note-' + Date.now();
-        note.dataset.content = content;
-        
-        note.onclick = (e) => showEditNoteModal(e, note);
-
-        return note;
-    }
-
-    function showEditCategoryModal(e) {
-        e.stopPropagation();
-        currentEditingCategory = e.target;
-        const modal = document.getElementById('editCategoryModal');
-        const editCategoryTitle = document.getElementById('editCategoryTitle');
-        editCategoryTitle.value = e.target.textContent;
-        modal.style.display = 'block';
-    }
-
-    function showEditNoteModal(e, note) {
-        e.stopPropagation();
-        currentEditingNote = note;
-        const modal = document.getElementById('editNoteModal');
-        const editNoteTitle = document.getElementById('editNoteTitle');
-        const editNoteCategory = document.getElementById('editNoteCategory');
-        const editNoteContent = document.getElementById('editNoteContent');
-        
-        editNoteTitle.value = note.querySelector('.note-title').textContent;
-        editNoteContent.value = note.dataset.content;
-        editNoteCategory.value = note.parentElement.parentElement.id;
-        modal.style.display = 'block';
-    }
-
-    function moveNoteToCategory(note, category) {
-        const notes = category.querySelector('.notes');
-        notes.appendChild(note);
-    }
-
-    function handleEditNoteSubmit() {
-        if (currentEditingNote) {
-            const editNoteTitle = document.getElementById('editNoteTitle');
-            const editNoteCategory = document.getElementById('editNoteCategory');
-            const editNoteContent = document.getElementById('editNoteContent');
-            const modal = document.getElementById('editNoteModal');
-
-            if (!editNoteCategory == currentEditingNote.parentElement.id) {
-                const newCategory = document.getElementById(editNoteCategory.value);
-                moveNoteToCategory(currentEditingNote, newCategory);
-            }
-
-            currentEditingNote.querySelector('.note-title').textContent = editNoteTitle.value.trim();
-            currentEditingNote.dataset.content = editNoteContent.value.trim();
-            modal.style.display = 'none';
             fetch('/api/save_note', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    title: editNoteTitle.value.trim(),
-                    content: editNoteContent.value.trim(),
-                    noteId: currentEditingNote.id.split('-')[1],
-                    category: editNoteCategory.value
-                }),
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ title, content: '', category: categoryId, noteId: 0 })
             })
-            .then(response => response.json())
+            .then(r => r.json())
             .then(data => {
-                toastMessage('Note updated successfully!', 'toast-success');
-            });
+                if (data.success) {
+                    const notes = column.querySelector('.column-notes');
+                    const card = document.createElement('div');
+                    card.className = 'card';
+                    card.dataset.noteId = data.note.id;
+                    card.dataset.content = '';
+                    card.innerHTML = '<div class="card-title">' + escapeHtml(title) + '</div>';
+                    card.onclick = () => showEditNoteModal(card);
+                    notes.appendChild(card);
+                    updateColumnCount(column);
+                    hideAddForm(input);
+                    toast('Note added', 'success');
+                }
+            })
+            .catch(() => toast('Failed to add note', 'error'));
         }
-    }
 
+        // ── Add Category ────────────────────────────────
+        function showAddColumnForm(el) {
+            el.classList.add('editing');
+            setTimeout(() => el.querySelector('input').focus(), 50);
+            event.stopPropagation();
+        }
 
-    function handleEditCategoryDelete() {
-        if (currentEditingCategory) {
-            document.getElementById('editCategoryModal').style.display = 'none';
-            fetch('/api/delete_category', {
+        function hideAddColumnForm() {
+            const el = document.getElementById('add-column');
+            el.classList.remove('editing');
+        }
+
+        function addCategory(input) {
+            const name = input.value.trim();
+            if (!name) return;
+
+            fetch('/api/add_category', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    categoryId: currentEditingCategory.parentElement.id
-                }),
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ categoryName: name })
             })
-            .then(response => response.json())
+            .then(r => r.json())
             .then(data => {
-                // move notes to first column
-                const notes = currentEditingCategory.parentElement.querySelectorAll('.note');
-                const firstColumn = document.querySelector('.column');
-                notes.forEach(note => {
-                    firstColumn.querySelector('.notes').appendChild(note);
-                });
-                toastMessage('Category deleted successfully!', 'toast-danger');
-                currentEditingCategory.parentElement.remove();
-            });
-        }
-    }
+                const board = document.getElementById('board');
+                const addCol = document.getElementById('add-column');
+                const col = document.createElement('div');
+                col.className = 'column';
+                col.dataset.categoryId = data.category;
+                col.innerHTML = `
+                    <div class="column-header" onclick="showEditCategoryModal(this)">
+                        <span class="column-title">${escapeHtml(name)}</span>
+                        <span class="column-count">0</span>
+                    </div>
+                    <div class="column-notes"></div>
+                    <button class="add-card-btn" onclick="showAddForm(this)">+ Add a note</button>
+                    <div class="add-card-form">
+                        <input type="text" placeholder="Note title..." onkeydown="if(event.key==='Enter')addNote(this); if(event.key==='Escape')hideAddForm(this);">
+                        <div class="add-card-form-actions">
+                            <button class="form-btn form-btn-primary" onclick="addNote(this.parentElement.previousElementSibling)">Add</button>
+                            <button class="form-btn form-btn-ghost" onclick="hideAddForm(this)">Cancel</button>
+                        </div>
+                    </div>`;
+                board.insertBefore(col, addCol);
 
-    function handleEditNoteDelete() {
-        if (currentEditingNote) {
-            currentEditingNote.remove();
-            document.getElementById('editNoteModal').style.display = 'none';
+                // add to category select in note modal
+                const select = document.getElementById('edit-note-category');
+                const opt = document.createElement('option');
+                opt.value = data.category;
+                opt.textContent = name;
+                select.appendChild(opt);
+
+                input.value = '';
+                hideAddColumnForm();
+                toast('Category added', 'success');
+            })
+            .catch(() => toast('Failed to add category', 'error'));
+        }
+
+        // ── Edit Note Modal ─────────────────────────────
+        function showEditNoteModal(card) {
+            const id = card.dataset.noteId;
+            currentNote = { element: card, id };
+
+            document.getElementById('edit-note-title').value = card.querySelector('.card-title').textContent;
+            document.getElementById('edit-note-content').value = card.dataset.content || '';
+            document.getElementById('edit-note-category').value = card.closest('.column').dataset.categoryId;
+
+            // reset markdown preview
+            document.getElementById('md-preview').style.display = 'none';
+            document.getElementById('edit-note-content').style.display = '';
+            document.getElementById('md-toggle-btn').classList.remove('active');
+
+            document.getElementById('note-modal-overlay').classList.add('active');
+        }
+
+        function closeNoteModal() {
+            document.getElementById('note-modal-overlay').classList.remove('active');
+            currentNote = null;
+        }
+
+        function saveNote() {
+            if (!currentNote) return;
+            const title = document.getElementById('edit-note-title').value.trim();
+            const content = document.getElementById('edit-note-content').value.trim();
+            const categoryId = document.getElementById('edit-note-category').value;
+
+            fetch('/api/save_note', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ noteId: currentNote.id, title, content, category: categoryId })
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    const card = currentNote.element;
+                    card.querySelector('.card-title').textContent = title;
+                    card.dataset.content = content;
+
+                    // update or create preview
+                    let preview = card.querySelector('.card-preview');
+                    if (content) {
+                        if (!preview) {
+                            preview = document.createElement('div');
+                            preview.className = 'card-preview';
+                            card.appendChild(preview);
+                        }
+                        preview.textContent = content.substring(0, 100);
+                    } else if (preview) {
+                        preview.remove();
+                    }
+
+                    // move card if category changed
+                    const currentCatId = card.closest('.column').dataset.categoryId;
+                    if (categoryId !== currentCatId) {
+                        const targetCol = document.querySelector(`.column[data-category-id="${categoryId}"]`);
+                        if (targetCol) {
+                            const oldCol = card.closest('.column');
+                            targetCol.querySelector('.column-notes').appendChild(card);
+                            updateColumnCount(oldCol);
+                            updateColumnCount(targetCol);
+                        }
+                    }
+
+                    closeNoteModal();
+                    toast('Note saved', 'success');
+                }
+            })
+            .catch(() => toast('Failed to save', 'error'));
+        }
+
+        function deleteNote() {
+            if (!currentNote || !confirm('Delete this note?')) return;
             fetch('/api/delete_note', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    noteId: currentEditingNote.id.split('-')[1]
-                }),
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ noteId: currentNote.id })
             })
-            .then(response => response.json())
+            .then(r => r.json())
             .then(data => {
-                toastMessage('Note deleted successfully!', 'toast-danger');
-            });
+                if (data.success) {
+                    const col = currentNote.element.closest('.column');
+                    currentNote.element.remove();
+                    updateColumnCount(col);
+                    closeNoteModal();
+                    toast('Note deleted', 'success');
+                }
+            })
+            .catch(() => toast('Failed to delete', 'error'));
         }
-    }
 
-    function closeEditModal() {
-        document.getElementById('editNoteModal').style.display = 'none';
-    }
+        // ── Edit Category Modal ─────────────────────────
+        function showEditCategoryModal(header) {
+            event.stopPropagation();
+            const column = header.closest('.column');
+            currentCat = { element: column, id: column.dataset.categoryId };
+            document.getElementById('edit-cat-name').value = header.querySelector('.column-title').textContent;
+            document.getElementById('cat-modal-overlay').classList.add('active');
+        }
 
-    function initializeEditModal() {
-        const modal = document.getElementById('editNoteModal');
-        document.getElementById('editNoteSubmit').onclick = handleEditNoteSubmit;
-        document.getElementById('editNoteDelete').onclick = handleEditNoteDelete;
-        document.getElementById('editNoteCancel').onclick = closeEditModal;
-        window.onclick = (e) => {
-            if (e.target == modal) {
-                closeEditModal();
+        function closeCatModal() {
+            document.getElementById('cat-modal-overlay').classList.remove('active');
+            currentCat = null;
+        }
+
+        function saveCategory() {
+            if (!currentCat) return;
+            const name = document.getElementById('edit-cat-name').value.trim();
+            if (!name) return;
+
+            // Update category name via save - the API doesn't have a rename endpoint,
+            // so we update the DOM directly (category name is visual only in the board)
+            currentCat.element.querySelector('.column-title').textContent = name;
+
+            // update the option in note modal
+            const opt = document.getElementById('edit-note-category').querySelector(`option[value="${currentCat.id}"]`);
+            if (opt) opt.textContent = name;
+
+            closeCatModal();
+            toast('Category updated', 'success');
+        }
+
+        function deleteCategory() {
+            if (!currentCat || !confirm('Delete this category? Notes will be moved to the first category.')) return;
+            fetch('/api/delete_category', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ categoryId: currentCat.id })
+            })
+            .then(r => r.json())
+            .then(data => {
+                // move notes to first column
+                const firstCol = document.querySelector('.column');
+                if (firstCol && currentCat.element !== firstCol) {
+                    const notes = currentCat.element.querySelectorAll('.card');
+                    const target = firstCol.querySelector('.column-notes');
+                    notes.forEach(n => target.appendChild(n));
+                    updateColumnCount(firstCol);
+                }
+                currentCat.element.remove();
+
+                // remove from category select
+                const opt = document.getElementById('edit-note-category').querySelector(`option[value="${currentCat.id}"]`);
+                if (opt) opt.remove();
+
+                closeCatModal();
+                toast('Category deleted', 'success');
+            })
+            .catch(() => toast('Failed to delete category', 'error'));
+        }
+
+        // ── Markdown Preview ────────────────────────────
+        function toggleMarkdownPreview() {
+            const textarea = document.getElementById('edit-note-content');
+            const preview = document.getElementById('md-preview');
+            const btn = document.getElementById('md-toggle-btn');
+
+            if (preview.style.display === 'block') {
+                preview.style.display = 'none';
+                textarea.style.display = '';
+                btn.classList.remove('active');
+            } else {
+                preview.innerHTML = marked(textarea.value);
+                preview.style.display = 'block';
+                textarea.style.display = 'none';
+                btn.classList.add('active');
+                hljs.highlightAll();
             }
-        };
-    }
-
-    function toggleMarkdown() {
-        noteContent = document.getElementById('editNoteContent');
-        markdownContent = document.getElementById('editNoteMarkdown');
-        markdownContent.style.display = markdownContent.style.display === 'none' ? 'block' : 'none';
-        noteContent.style.display = noteContent.style.display === 'none' ? 'block' : 'none';
-        if (markdownContent.style.display === 'block') {
-            markdownContent.innerHTML = marked(noteContent.value);
         }
-    }
 
-    function preventDefault(e) {
-        e.preventDefault();
-    }
+        // ── Search ──────────────────────────────────────
+        const searchOverlay = document.getElementById('search-overlay');
+        const searchModal = document.getElementById('search-modal');
+        const searchInput = document.getElementById('search-input');
+        const searchResultsEl = document.getElementById('search-results');
 
-   </script>
+        function openSearch() {
+            searchModal.style.display = 'block';
+            searchOverlay.style.display = 'block';
+            searchInput.value = '';
+            searchInput.focus();
+            searchResultsEl.innerHTML = '';
+            searchSelectedIdx = -1;
+        }
+
+        function closeSearch() {
+            searchModal.style.display = 'none';
+            searchOverlay.style.display = 'none';
+            searchSelectedIdx = -1;
+        }
+
+        searchOverlay.addEventListener('click', closeSearch);
+
+        function debounce(fn, ms) {
+            let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); };
+        }
+
+        searchInput.addEventListener('input', debounce(async (e) => {
+            const q = e.target.value.trim();
+            if (!q) { searchResultsEl.innerHTML = ''; return; }
+            try {
+                const res = await fetch('/api/search_notes', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ query: q })
+                });
+                const notes = await res.json();
+                searchResultsEl.innerHTML = '';
+                searchSelectedIdx = -1;
+                if (notes.length === 0) {
+                    searchResultsEl.innerHTML = '<div class="search-empty">No notes found</div>';
+                    return;
+                }
+                notes.forEach((note, i) => {
+                    const div = document.createElement('div');
+                    div.className = 'search-result';
+                    div.textContent = note.title;
+                    div.addEventListener('click', () => { window.location.href = '/note/' + note.id; });
+                    div.addEventListener('mouseover', () => { searchSelectedIdx = i; highlightSearch(); });
+                    searchResultsEl.appendChild(div);
+                });
+            } catch(err) {
+                searchResultsEl.innerHTML = '<div class="search-empty">Search error</div>';
+            }
+        }, 250));
+
+        function highlightSearch() {
+            const items = searchResultsEl.querySelectorAll('.search-result');
+            items.forEach((el, i) => el.classList.toggle('selected', i === searchSelectedIdx));
+        }
+
+        // ── Theme Toggle ────────────────────────────────
+        function toggleTheme() {
+            const isLight = document.body.hasAttribute('data-theme');
+            if (isLight) {
+                document.body.removeAttribute('data-theme');
+                document.getElementById('theme-btn').innerHTML = '&#9790;';
+                fetch('/api/save_dark_mode/1');
+            } else {
+                document.body.setAttribute('data-theme', 'light');
+                document.getElementById('theme-btn').innerHTML = '&#9728;';
+                fetch('/api/save_dark_mode/0');
+            }
+        }
+
+        // ── Toast ───────────────────────────────────────
+        function toast(msg, type) {
+            const el = document.getElementById('toast');
+            el.textContent = msg;
+            el.className = 'toast ' + (type || 'success');
+            requestAnimationFrame(() => el.classList.add('visible'));
+            setTimeout(() => el.classList.remove('visible'), 2500);
+        }
+
+        // ── Helpers ─────────────────────────────────────
+        function updateColumnCount(col) {
+            const count = col.querySelectorAll('.card').length;
+            const badge = col.querySelector('.column-count');
+            if (badge) badge.textContent = count;
+        }
+
+        function escapeHtml(str) {
+            const div = document.createElement('div');
+            div.textContent = str;
+            return div.innerHTML;
+        }
+
+        // ── Keyboard Shortcuts ──────────────────────────
+        document.addEventListener('keydown', (e) => {
+            // Ctrl+K → search
+            if (e.ctrlKey && e.key.toLowerCase() === 'k') {
+                e.preventDefault();
+                openSearch();
+            }
+            // Ctrl+S → save (when modal open)
+            if (e.ctrlKey && e.key === 's') {
+                e.preventDefault();
+                if (currentNote) saveNote();
+            }
+            // Escape
+            if (e.key === 'Escape') {
+                if (searchModal.style.display === 'block') closeSearch();
+                else if (currentNote) closeNoteModal();
+                else if (currentCat) closeCatModal();
+            }
+            // Search navigation
+            if (searchModal.style.display === 'block') {
+                const items = searchResultsEl.querySelectorAll('.search-result');
+                if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    searchSelectedIdx = Math.min(searchSelectedIdx + 1, items.length - 1);
+                    highlightSearch();
+                } else if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    searchSelectedIdx = Math.max(searchSelectedIdx - 1, -1);
+                    highlightSearch();
+                } else if (e.key === 'Enter' && searchSelectedIdx >= 0) {
+                    e.preventDefault();
+                    items[searchSelectedIdx].click();
+                }
+            }
+        });
+
+        // Close modals on overlay click
+        document.getElementById('note-modal-overlay').addEventListener('click', closeNoteModal);
+        document.getElementById('cat-modal-overlay').addEventListener('click', closeCatModal);
+    </script>
 </body>
 </html>
