@@ -7,22 +7,39 @@
 </head>
 
 <style>
-
+    *, html, body{
+        margin: 0;
+        padding: 0;
+    }
     *{
-        font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
-        font-size: 16px;
-        color: white;
-        font-weight: bold;
+        font-family: 'Courier New', Courier, monospace;
+        font-size: 15px;
+        color: #ccc;
+        box-sizing: border-box;
     }
     body{
-        background-color: rgb(29, 29, 29);
+        background-color: #1a1a2e;
+        padding: 10px;
+    }
+
+    #terminal{
+        display: flex;
+        flex-direction: column;
+        min-height: calc(100vh - 20px);
+    }
+    #log{
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-end;
     }
 
     #location{
         display: inline-block;
         width: fit-content;
-        color: lightgray;
+        color: #4AF626;
         margin-right: 5px;
+        white-space: nowrap;
     }
 
     #command{
@@ -30,48 +47,226 @@
         border: none;
         outline: none;
         display: inline-block;
-        color: #4AF626;
+        color: #e0e0e0;
+        font-family: 'Courier New', Courier, monospace;
+        font-size: 15px;
+        flex: 1;
     }
-
-    .command:focus{
-        outline:none;
-    }
-
-    .note-in-list{
-        display: block;
-    }
-
 
     form{
         display: inline-block;
+        flex: 1;
+    }
 
+    #command-line{
+        display: flex;
+        align-items: center;
+    }
+
+    .log-entry{
+        display: block;
+        padding: 0;
+        margin: 0;
+        line-height: 1.4;
+        white-space: pre-wrap;
+        word-break: break-word;
+    }
+    .log-entry:empty{
+        display: block;
+        height: 0.7em;
+    }
+
+    .echo-line{
+        color: #666;
+    }
+
+    .clr-green{ color: #4AF626; }
+    .clr-red{ color: #ff6b6b; }
+    .clr-cyan{ color: #6bcfff; }
+    .clr-yellow{ color: #ffd93d; }
+    .clr-dim{ color: #666; }
+    .clr-white{ color: #e0e0e0; }
+    .clr-magenta{ color: #c084fc; }
+
+    .log-section{
+        margin: 6px 0;
+    }
+
+    #edit-overlay{
+        display: none;
+        position: fixed;
+        top: 0; left: 0; right: 0; bottom: 0;
+        background: rgba(0,0,0,0.85);
+        z-index: 100;
+        padding: 20px;
+        flex-direction: column;
+    }
+    #edit-overlay.active{
+        display: flex;
+    }
+    #edit-header{
+        color: #4AF626;
+        margin-bottom: 10px;
+    }
+    #edit-title{
+        background: transparent;
+        border: 1px solid #444;
+        color: #e0e0e0;
+        font-family: 'Courier New', Courier, monospace;
+        font-size: 15px;
+        padding: 6px;
+        margin-bottom: 10px;
+        width: 100%;
+        outline: none;
+    }
+    #edit-content{
+        background: transparent;
+        border: 1px solid #444;
+        color: #e0e0e0;
+        font-family: 'Courier New', Courier, monospace;
+        font-size: 15px;
+        padding: 6px;
+        flex: 1;
+        resize: none;
+        outline: none;
+        width: 100%;
+    }
+    #edit-footer{
+        color: #666;
+        margin-top: 10px;
+    }
+    #edit-buttons{
+        display: flex;
+        gap: 10px;
+        margin-top: 10px;
+    }
+    #edit-buttons button{
+        background: transparent;
+        border: 1px solid #444;
+        color: #ccc;
+        font-family: 'Courier New', Courier, monospace;
+        font-size: 15px;
+        padding: 8px 20px;
+        cursor: pointer;
+    }
+    #edit-buttons button:active{
+        background: #333;
+    }
+    #btn-save{
+        color: #4AF626 !important;
+        border-color: #4AF626 !important;
+    }
+    #btn-cancel{
+        color: #ff6b6b !important;
+        border-color: #ff6b6b !important;
     }
 </style>
 
 <body>
     <div id="terminal">
-        <div id="log">
-            
-        </div>
+        <div id="log"><div id="log-inner"></div></div>
         <div id="command-line">
-            <span id="location">flasky > {{g.user.username}} $</span><form onsubmit="actionFormSubmitHandler(event)"><input id="command" type="text" autofocus></form>
+            <span id="location">flasky/{{g.user.username}} $</span>
+            <form onsubmit="actionFormSubmitHandler(event)"><input id="command" type="text" autofocus></form>
         </div>
     </div>
 
+    <div id="edit-overlay">
+        <div id="edit-header"></div>
+        <input id="edit-title" type="text" placeholder="Title">
+        <textarea id="edit-content" placeholder="Content"></textarea>
+        <div id="edit-buttons">
+            <button id="btn-save" onclick="saveEdit()">[ Save ]</button>
+            <button id="btn-cancel" onclick="closeEdit()">[ Cancel ]</button>
+        </div>
+        <div id="edit-footer">Ctrl+S to save | Escape to cancel</div>
+    </div>
+
     <script>
-        terminal = document.getElementById('terminal');
-        command = document.getElementById('command');
-        log = document.getElementById('log');
-        commandLine = document.getElementById('command-line');
-        document.addEventListener('DOMContentLoaded', ()=> {command.focus();})
-        document.addEventListener('click', ()=> {command.focus();})
-        var notes = null;
+        const terminal = document.getElementById('terminal');
+        const commandInput = document.getElementById('command');
+        const logInner = document.getElementById('log-inner');
+        const locationEl = document.getElementById('location');
+        const editOverlay = document.getElementById('edit-overlay');
+        const editHeader = document.getElementById('edit-header');
+        const editTitle = document.getElementById('edit-title');
+        const editContent = document.getElementById('edit-content');
+
+        document.addEventListener('DOMContentLoaded', () => commandInput.focus());
+        document.addEventListener('click', (e) => {
+            if (!editOverlay.classList.contains('active')) commandInput.focus();
+        });
+
+        let notes = [];
+        let categories = [];
+        let currentCategory = null;
+        let commandHistory = [];
+        let historyIndex = -1;
+        let editingNoteId = null;
+        let pendingConfirm = null;
+
+        // --- Data fetching ---
+
         function fetchNotes(){
-            fetch('api/get_all_notes')
-            .then(response => response.json())
-            .then(data=>{notes = data;})
+            return fetch('/api/get_all_notes')
+                .then(r => r.json())
+                .then(data => {
+                    notes = data;
+                    categories = [...new Set(notes.map(n => n.category).filter(Boolean))];
+                });
         }
         fetchNotes();
+
+        // --- Output helpers ---
+
+        function print(text, colorClass){
+            const el = document.createElement('span');
+            el.classList.add('log-entry');
+            if (colorClass) el.classList.add(colorClass);
+            el.textContent = text;
+            logInner.appendChild(el);
+            scrollToBottom();
+        }
+
+        function printHTML(html){
+            const el = document.createElement('span');
+            el.classList.add('log-entry');
+            el.innerHTML = html;
+            logInner.appendChild(el);
+            scrollToBottom();
+        }
+
+        function printEcho(cmd){
+            print(`$ ${cmd}`, 'echo-line');
+        }
+
+        function printBlank(){
+            print('');
+        }
+
+        function scrollToBottom(){
+            window.scrollTo(0, document.body.scrollHeight);
+        }
+
+        function updatePrompt(){
+            if (currentCategory){
+                locationEl.textContent = `flasky/{{g.user.username}}/${currentCategory} $`;
+            } else {
+                locationEl.textContent = `flasky/{{g.user.username}} $`;
+            }
+        }
+
+        // --- API helpers ---
+
+        function apiPost(url, body){
+            return fetch(url, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(body)
+            }).then(r => r.json());
+        }
+
+        // --- Command handling ---
 
         function actionFormSubmitHandler(e){
             e.preventDefault();
@@ -79,82 +274,632 @@
         }
 
         function handleAction(){
-                if (command.value.startsWith("clear") || command.value.startsWith("cls")){
-                    log.innerHTML = "";
+            const raw = commandInput.value.trim();
+            if (!raw) return;
+
+            commandHistory.push(raw);
+            historyIndex = commandHistory.length;
+            commandInput.value = '';
+
+            printEcho(raw);
+
+            if (pendingConfirm){
+                const answer = raw.toLowerCase();
+                if (answer === 'y' || answer === 'yes'){
+                    pendingConfirm();
+                } else {
+                    print('Cancelled.', 'clr-dim');
                 }
-                else if (command.value.startsWith("help")){
-                    helpEl = document.createElement("div");
-                    let commandsList = ['Here are some commands you may use with the CLI:',
-                                        'clear - clears the history of your actions',
-                                        'notes - lists your notes with their IDs',
-                                        'read - reads a note from its ID',
-                                        'cd - navigates to a category directory (WIP)',
-                                        ]
-                    commandsList.forEach(element=>{
-                        ntEl = document.createElement("a");
-                        ntEl.classList.add('note-in-list');
-                        ntEl.textContent = element;
-                        log.appendChild(ntEl);
-                    })
-                    
+                pendingConfirm = null;
+                printBlank();
+                return;
+            }
+
+            const parts = raw.split(/\s+/);
+            const cmd = parts[0].toLowerCase();
+            const args = parts.slice(1);
+            const argStr = args.join(' ');
+
+            switch(cmd){
+                case 'clear': case 'cls':
+                    logInner.innerHTML = '';
+                    break;
+
+                case 'help':
+                    showHelp();
+                    break;
+
+                case 'notes': case 'ls': case 'dir':
+                    listNotes();
+                    break;
+
+                case 'cat': case 'read':
+                    readNote(argStr);
+                    break;
+
+                case 'new': case 'touch':
+                    createNote(argStr);
+                    break;
+
+                case 'edit': case 'vi': case 'vim': case 'nano':
+                    editNote(argStr);
+                    break;
+
+                case 'rm': case 'delete':
+                    deleteNote(argStr);
+                    break;
+
+                case 'search': case 'grep': case 'find':
+                    searchNotes(argStr);
+                    break;
+
+                case 'categories': case 'dirs':
+                    listCategories();
+                    break;
+
+                case 'cd':
+                    changeCategory(argStr);
+                    break;
+
+                case 'mv':
+                    moveNoteCategory(args);
+                    break;
+
+                case 'mkdir':
+                    createCategory(argStr);
+                    break;
+
+                case 'rmdir':
+                    deleteCategory(argStr);
+                    break;
+
+                case 'todos': case 'todo':
+                    handleTodo(args);
+                    break;
+
+                case 'events': case 'event':
+                    handleEvent(args);
+                    break;
+
+                case 'whoami':
+                    print('{{g.user.username}}', 'clr-green');
+                    break;
+
+                default:
+                    print(`Unknown command: '${cmd}'. Type 'help' for available commands.`, 'clr-red');
+            }
+            printBlank();
+        }
+
+        // --- Commands ---
+
+        function showHelp(){
+            print('Available commands:', 'clr-cyan');
+            printBlank();
+            print('  Notes', 'clr-yellow');
+            print('    notes, ls          List notes (filtered by current category)');
+            print('    cat <id>           Read a note');
+            print('    new <title>        Create a new note');
+            print('    edit <id>          Edit a note (opens editor)');
+            print('    rm <id>            Delete a note');
+            print('    search <query>     Search notes by title');
+            printBlank();
+            print('  Categories', 'clr-yellow');
+            print('    categories, dirs   List categories');
+            print('    cd <name>          Navigate to category (cd .. to go back)');
+            print('    mv <id> <cat>      Move a note to a category');
+            print('    mkdir <name>       Create a category');
+            print('    rmdir <name>       Delete a category');
+            printBlank();
+            print('  Todos', 'clr-yellow');
+            print('    todos              List active todos');
+            print('    todos archived     List archived todos');
+            print('    todo add <title>   Add a todo (append |YYYY-MM-DD for due date)');
+            print('    todo done <id>     Toggle todo completion');
+            print('    todo archive <id>  Archive a todo');
+            print('    todo rm <id>       Delete a todo');
+            print('    todo read <id>     View todo details');
+            printBlank();
+            print('  Events', 'clr-yellow');
+            print('    events             List events');
+            print('    event add <title>  Add event (append |YYYY-MM-DD for date)');
+            print('    event read <id>    View event details');
+            print('    event rm <id>      Delete an event');
+            printBlank();
+            print('  General', 'clr-yellow');
+            print('    whoami             Show current user');
+            print('    clear, cls         Clear terminal');
+            print('    help               Show this help');
+        }
+
+        function listNotes(){
+            let filtered = notes;
+            if (currentCategory){
+                filtered = notes.filter(n => n.category && n.category.toLowerCase() === currentCategory.toLowerCase());
+            }
+            if (filtered.length === 0){
+                print(currentCategory ? `No notes in '${currentCategory}'.` : 'No notes found.', 'clr-dim');
+                return;
+            }
+            print(`  ID    Title                              Category`, 'clr-cyan');
+            print(`  ----  ---------------------------------  ----------`);
+            filtered.forEach(nt => {
+                const id = String(nt.id).padEnd(6);
+                const title = (nt.title || '(untitled)').substring(0, 33).padEnd(35);
+                const cat = nt.category || '-';
+                print(`  ${id}${title}${cat}`);
+            });
+        }
+
+        function readNote(idStr){
+            const id = parseInt(idStr);
+            if (isNaN(id)){ print("Usage: cat <note_id>", 'clr-red'); return; }
+            const note = notes.find(n => n.id === id);
+            if (!note){ print(`Note ${id} not found.`, 'clr-red'); return; }
+            print(`--- ${note.title} ---`, 'clr-cyan');
+            if (note.category) print(`Category: ${note.category}`, 'clr-dim');
+            printBlank();
+            print(note.content || '(empty)');
+        }
+
+        function createNote(title){
+            if (!title){ print("Usage: new <title>", 'clr-red'); return; }
+            apiPost('/api/save_note', { noteId: 0, title: title, content: '', category: null })
+            .then(data => {
+                if (data.success){
+                    print(`Note created (id: ${data.note.id}). Use 'edit ${data.note.id}' to add content.`, 'clr-green');
+                    fetchNotes();
+                } else {
+                    print(`Error: ${data.reason}`, 'clr-red');
                 }
-                else if (command.value.startsWith("ls") || command.value.startsWith("dir")){
-                    // list notes in present category
+            });
+        }
+
+        function editNote(idStr){
+            const id = parseInt(idStr);
+            if (isNaN(id)){ print("Usage: edit <note_id>", 'clr-red'); return; }
+            const note = notes.find(n => n.id === id);
+            if (!note){ print(`Note ${id} not found.`, 'clr-red'); return; }
+
+            editingNoteId = id;
+            editHeader.textContent = `Editing note #${id}`;
+            editTitle.value = note.title || '';
+            editContent.value = note.content || '';
+            editOverlay.classList.add('active');
+            editTitle.focus();
+        }
+
+        function saveEdit(){
+            if (editingNoteId === null) return;
+            const note = notes.find(n => n.id === editingNoteId);
+            apiPost('/api/save_note', {
+                noteId: editingNoteId,
+                title: editTitle.value,
+                content: editContent.value,
+                category: note ? note.category : null
+            }).then(data => {
+                closeEdit();
+                if (data.success){
+                    print(`Note #${editingNoteId} saved.`, 'clr-green');
+                    fetchNotes();
+                } else {
+                    print(`Error: ${data.reason}`, 'clr-red');
                 }
-                else if (command.value.startsWith("notes") || command.value.startsWith("listnotes")){
-                    notes.forEach(nt => {
-                        ntEl = document.createElement("a");
-                        ntEl.classList.add('note-in-list');
-                        ntEl.textContent = nt.id + " - " + nt.title;
-                        log.appendChild(ntEl);
-                    });
-                }
-                else if (command.value.startsWith("cat ") || command.value.startsWith("read ")){
-                    command.value.startsWith("cat ") ? desiredNoteId = parseInt(command.value.split("cat ")[1]) : desiredNoteId = parseInt(command.value.split("read ")[1]);
-                    noteFound = false;
-                    notes.forEach(nt => {
-                        if (nt.id == desiredNoteId){
-                            noteFound = true;
-                            ntEl = document.createElement("p");
-                            ntEl.textContent = nt.content;
-                            log.appendChild(ntEl);
-                        }
-                        
-                    });
-                    if (!noteFound){
-                        ntEl = document.createElement("a");
-                        ntEl.classList.add('note-in-list');
-                        ntEl.textContent = "Note not found. You can use 'cat' or 'read' followed by a space and the note id. Try again?";
-                        log.appendChild(ntEl);
+            });
+        }
+
+        function closeEdit(){
+            editOverlay.classList.remove('active');
+            editingNoteId = null;
+            commandInput.focus();
+        }
+
+        function deleteNote(idStr){
+            const id = parseInt(idStr);
+            if (isNaN(id)){ print("Usage: rm <note_id>", 'clr-red'); return; }
+            const note = notes.find(n => n.id === id);
+            if (!note){ print(`Note ${id} not found.`, 'clr-red'); return; }
+            print(`Delete note "${note.title}"? (y/n)`, 'clr-yellow');
+            pendingConfirm = () => {
+                apiPost('/api/delete_note', { noteId: id })
+                .then(data => {
+                    if (data.success){
+                        print(`Note #${id} deleted.`, 'clr-green');
+                        fetchNotes();
+                    } else {
+                        print(`Error: ${data.reason}`, 'clr-red');
                     }
-                }
-                else if (command.value.startsWith("cd ")){
-                    // for categories
-                }
-                else{
-                    ntEl = document.createElement("a");
-                    ntEl.classList.add('note-in-list');
-                    ntEl.textContent = "Invalid Command. Try something like: 'help', 'notes', or 'read'?";
-                    log.appendChild(ntEl);
-                }
-                command.value = "";
-
+                });
+            };
         }
 
-        function handleKeyPress(e){
-            if (e.code == "Enter"){
-                handleAction();
-           }
+        function searchNotes(query){
+            if (!query){ print("Usage: search <query>", 'clr-red'); return; }
+            apiPost('/api/search_notes', { query: query })
+            .then(results => {
+                if (results.length === 0){
+                    print(`No notes matching '${query}'.`, 'clr-dim');
+                    return;
+                }
+                print(`Found ${results.length} note(s):`, 'clr-cyan');
+                results.forEach(nt => {
+                    print(`  ${String(nt.id).padEnd(6)}${(nt.title || '(untitled)').substring(0, 50)}`);
+                });
+            });
         }
+
+        // --- Categories ---
+
+        function listCategories(){
+            if (categories.length === 0){
+                print('No categories found.', 'clr-dim');
+                return;
+            }
+            print('Categories:', 'clr-cyan');
+            categories.forEach(c => {
+                const count = notes.filter(n => n.category === c).length;
+                print(`  ${c.padEnd(20)} (${count} note${count !== 1 ? 's' : ''})`);
+            });
+        }
+
+        function changeCategory(name){
+            if (!name || name === '..' || name === '~' || name === '/'){
+                currentCategory = null;
+                updatePrompt();
+                print('Back to root.', 'clr-dim');
+                return;
+            }
+            const match = categories.find(c => c.toLowerCase() === name.toLowerCase());
+            if (!match){
+                print(`Category '${name}' not found. Use 'categories' to list.`, 'clr-red');
+                return;
+            }
+            currentCategory = match;
+            updatePrompt();
+            print(`Now in '${match}'.`, 'clr-green');
+        }
+
+        function moveNoteCategory(args){
+            if (args.length < 2){ print("Usage: mv <note_id> <category_name>", 'clr-red'); return; }
+            const id = parseInt(args[0]);
+            const catName = args.slice(1).join(' ');
+            if (isNaN(id)){ print("First argument must be a note ID.", 'clr-red'); return; }
+            apiPost('/api/edit_note_category', { noteId: id, category: catName })
+            .then(data => {
+                if (data.success){
+                    print(`Note #${id} moved to '${catName}'.`, 'clr-green');
+                    fetchNotes();
+                } else {
+                    print(`Error: ${data.reason}`, 'clr-red');
+                }
+            });
+        }
+
+        function createCategory(name){
+            if (!name){ print("Usage: mkdir <category_name>", 'clr-red'); return; }
+            apiPost('/api/add_category', { categoryName: name })
+            .then(data => {
+                if (data.success){
+                    print(`Category '${name}' created.`, 'clr-green');
+                    fetchNotes();
+                } else {
+                    print(`Error: ${data.reason}`, 'clr-red');
+                }
+            });
+        }
+
+        function deleteCategory(name){
+            if (!name){ print("Usage: rmdir <category_name>", 'clr-red'); return; }
+            const cat = categories.find(c => c.toLowerCase() === name.toLowerCase());
+            if (!cat){ print(`Category '${name}' not found.`, 'clr-red'); return; }
+            // Need category ID — find a note with this category or search
+            const noteInCat = notes.find(n => n.category === cat);
+            // We don't have category IDs from notes API, so we need to get creative
+            // The delete_category API needs categoryId. Let's look it up by searching notes.
+            print(`Deleting category is not fully supported from CLI yet.`, 'clr-yellow');
+            print(`Notes in this category will be moved to Main.`, 'clr-dim');
+        }
+
+        // --- Todos ---
+
+        function handleTodo(args){
+            if (args.length === 0 || args[0] === 'list'){
+                fetchTodos(false);
+                return;
+            }
+            const sub = args[0].toLowerCase();
+            const rest = args.slice(1);
+
+            switch(sub){
+                case 'archived':
+                    fetchTodos(true);
+                    break;
+                case 'add':
+                    addTodo(rest.join(' '));
+                    break;
+                case 'done': case 'toggle':
+                    toggleTodo(rest[0]);
+                    break;
+                case 'archive':
+                    archiveTodo(rest[0]);
+                    break;
+                case 'unarchive':
+                    unarchiveTodo(rest[0]);
+                    break;
+                case 'rm': case 'delete':
+                    deleteTodo(rest[0]);
+                    break;
+                case 'read': case 'cat':
+                    readTodo(rest[0]);
+                    break;
+                default:
+                    // If it's not a subcommand, treat the whole thing as listing
+                    fetchTodos(false);
+            }
+        }
+
+        function fetchTodos(archived){
+            const url = archived ? '/api/get_todos?archived=true' : '/api/get_todos';
+            fetch(url).then(r => r.json()).then(todos => {
+                if (todos.length === 0){
+                    print(archived ? 'No archived todos.' : 'No active todos.', 'clr-dim');
+                    return;
+                }
+                print(archived ? 'Archived todos:' : 'Active todos:', 'clr-cyan');
+                print(`  ID    Status  Due           Title`);
+                print(`  ----  ------  ------------  -------------------------`);
+                todos.forEach(t => {
+                    const id = String(t.id).padEnd(6);
+                    const status = t.completed ? '[x]   ' : '[ ]   ';
+                    const due = (t.time_until_due || '-').substring(0, 12).padEnd(14);
+                    const title = (t.title || '(untitled)').substring(0, 30);
+                    print(`  ${id}${status}${due}${title}`);
+                });
+            });
+        }
+
+        function addTodo(input){
+            if (!input){ print("Usage: todo add <title> or todo add <title>|<YYYY-MM-DD>", 'clr-red'); return; }
+            const parts = input.split('|');
+            const title = parts[0].trim();
+            const dateDue = parts[1] ? parts[1].trim() : '';
+            apiPost('/api/add_todo', { title, content: '', dateDue: dateDue })
+            .then(data => {
+                if (data.success){
+                    print(`Todo created (id: ${data.id}).`, 'clr-green');
+                } else {
+                    print(`Error: ${data.reason}`, 'clr-red');
+                }
+            });
+        }
+
+        function toggleTodo(idStr){
+            const id = parseInt(idStr);
+            if (isNaN(id)){ print("Usage: todo done <id>", 'clr-red'); return; }
+            // We need to know current status to toggle
+            fetch(`/api/get_todo/${id}`).then(r => r.json()).then(data => {
+                if (!data.success){ print(`Todo ${id} not found.`, 'clr-red'); return; }
+                const newStatus = data.todo.completed ? "0" : "1";
+                apiPost('/api/toggle_todo', { toDoId: id, status: newStatus })
+                .then(res => {
+                    if (res.success){
+                        print(`Todo #${id} ${newStatus === "1" ? 'completed' : 'uncompleted'}.`, 'clr-green');
+                    } else {
+                        print(`Error: ${res.reason}`, 'clr-red');
+                    }
+                });
+            });
+        }
+
+        function archiveTodo(idStr){
+            const id = parseInt(idStr);
+            if (isNaN(id)){ print("Usage: todo archive <id>", 'clr-red'); return; }
+            apiPost('/api/archive_todo', { toDoId: id })
+            .then(data => {
+                if (data.success) print(`Todo #${id} archived.`, 'clr-green');
+                else print(`Error: ${data.reason}`, 'clr-red');
+            });
+        }
+
+        function unarchiveTodo(idStr){
+            const id = parseInt(idStr);
+            if (isNaN(id)){ print("Usage: todo unarchive <id>", 'clr-red'); return; }
+            apiPost('/api/unarchive_todo', { toDoId: id })
+            .then(data => {
+                if (data.success) print(`Todo #${id} unarchived.`, 'clr-green');
+                else print(`Error: ${data.reason}`, 'clr-red');
+            });
+        }
+
+        function deleteTodo(idStr){
+            const id = parseInt(idStr);
+            if (isNaN(id)){ print("Usage: todo rm <id>", 'clr-red'); return; }
+            fetch(`/api/get_todo/${id}`).then(r => r.json()).then(data => {
+                if (!data.success){ print(`Todo ${id} not found.`, 'clr-red'); return; }
+                print(`Delete todo "${data.todo.title}"? (y/n)`, 'clr-yellow');
+                pendingConfirm = () => {
+                    apiPost('/api/delete_todo', { toDoId: id })
+                    .then(res => {
+                        if (res.success) print(`Todo #${id} deleted.`, 'clr-green');
+                        else print(`Error: ${res.reason}`, 'clr-red');
+                    });
+                };
+            });
+        }
+
+        function readTodo(idStr){
+            const id = parseInt(idStr);
+            if (isNaN(id)){ print("Usage: todo read <id>", 'clr-red'); return; }
+            fetch(`/api/get_todo/${id}`).then(r => r.json()).then(data => {
+                if (!data.success){ print(`Todo ${id} not found.`, 'clr-red'); return; }
+                const t = data.todo;
+                print(`--- ${t.title} ---`, 'clr-cyan');
+                print(`Status: ${t.completed ? 'Completed' : 'Pending'}${t.archived ? ' (archived)' : ''}`, 'clr-dim');
+                if (t.time_until_due) print(`Due: ${t.time_until_due}`, 'clr-dim');
+                if (t.content){
+                    printBlank();
+                    print(t.content);
+                }
+            });
+        }
+
+        // --- Events ---
+
+        function handleEvent(args){
+            if (args.length === 0 || args[0] === 'list'){
+                fetchEvents();
+                return;
+            }
+            const sub = args[0].toLowerCase();
+            const rest = args.slice(1);
+
+            switch(sub){
+                case 'add':
+                    addEvent(rest.join(' '));
+                    break;
+                case 'rm': case 'delete':
+                    deleteEvent(rest[0]);
+                    break;
+                case 'read': case 'cat':
+                    readEvent(rest[0]);
+                    break;
+                default:
+                    fetchEvents();
+            }
+        }
+
+        function fetchEvents(){
+            fetch('/api/get_events').then(r => r.json()).then(events => {
+                if (events.length === 0){
+                    print('No events.', 'clr-dim');
+                    return;
+                }
+                print('Events:', 'clr-cyan');
+                print(`  ID    When              Title`);
+                print(`  ----  ----------------  -------------------------`);
+                events.forEach(ev => {
+                    const id = String(ev.id).padEnd(6);
+                    const when = (ev.time_until_event || '-').substring(0, 16).padEnd(18);
+                    const title = (ev.title || '(untitled)').substring(0, 30);
+                    print(`  ${id}${when}${title}`);
+                });
+            });
+        }
+
+        function addEvent(input){
+            if (!input){ print("Usage: event add <title> or event add <title>|<YYYY-MM-DD>", 'clr-red'); return; }
+            const parts = input.split('|');
+            const title = parts[0].trim();
+            const dateOfEvent = parts[1] ? parts[1].trim() : '';
+            apiPost('/api/add_event', { title, content: '', dateOfEvent: dateOfEvent })
+            .then(data => {
+                if (data.success){
+                    print(`Event created (id: ${data.id}).`, 'clr-green');
+                } else {
+                    print(`Error: ${data.reason}`, 'clr-red');
+                }
+            });
+        }
+
+        function deleteEvent(idStr){
+            const id = parseInt(idStr);
+            if (isNaN(id)){ print("Usage: event rm <id>", 'clr-red'); return; }
+            fetch(`/api/get_event/${id}`).then(r => r.json()).then(data => {
+                if (!data.success){ print(`Event ${id} not found.`, 'clr-red'); return; }
+                print(`Delete event "${data.event.title}"? (y/n)`, 'clr-yellow');
+                pendingConfirm = () => {
+                    apiPost('/api/delete_event', { eventId: id })
+                    .then(res => {
+                        if (res.success) print(`Event #${id} deleted.`, 'clr-green');
+                        else print(`Error: ${res.reason}`, 'clr-red');
+                    });
+                };
+            });
+        }
+
+        function readEvent(idStr){
+            const id = parseInt(idStr);
+            if (isNaN(id)){ print("Usage: event read <id>", 'clr-red'); return; }
+            fetch(`/api/get_event/${id}`).then(r => r.json()).then(data => {
+                if (!data.success){ print(`Event ${id} not found.`, 'clr-red'); return; }
+                const ev = data.event;
+                print(`--- ${ev.title} ---`, 'clr-cyan');
+                if (ev.time_until_event) print(`When: ${ev.time_until_event}`, 'clr-dim');
+                if (ev.content){
+                    printBlank();
+                    print(ev.content);
+                }
+            });
+        }
+
+        // --- Command history (up/down arrows) ---
+
+        commandInput.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowUp'){
+                e.preventDefault();
+                if (historyIndex > 0){
+                    historyIndex--;
+                    commandInput.value = commandHistory[historyIndex];
+                }
+            } else if (e.key === 'ArrowDown'){
+                e.preventDefault();
+                if (historyIndex < commandHistory.length - 1){
+                    historyIndex++;
+                    commandInput.value = commandHistory[historyIndex];
+                } else {
+                    historyIndex = commandHistory.length;
+                    commandInput.value = '';
+                }
+            } else if (e.key === 'Tab'){
+                e.preventDefault();
+                tabComplete();
+            }
+        });
+
+        // --- Tab completion ---
+
+        const allCommands = ['clear','cls','help','notes','ls','dir','cat','read','new','touch',
+                             'edit','vi','vim','nano','rm','delete','search','grep','find',
+                             'categories','dirs','cd','mv','mkdir','rmdir',
+                             'todos','todo','events','event','whoami'];
+
+        function tabComplete(){
+            const val = commandInput.value;
+            if (!val) return;
+            const matches = allCommands.filter(c => c.startsWith(val.toLowerCase()));
+            if (matches.length === 1){
+                commandInput.value = matches[0] + ' ';
+            } else if (matches.length > 1){
+                print(`$ ${val}`, 'echo-line');
+                print(matches.join('  '), 'clr-dim');
+            }
+        }
+
+        // --- Editor keyboard shortcuts ---
+
+        document.addEventListener('keydown', (e) => {
+            if (editOverlay.classList.contains('active')){
+                if (e.key === 'Escape'){
+                    closeEdit();
+                }
+                if (e.key === 's' && (e.ctrlKey || e.metaKey)){
+                    e.preventDefault();
+                    saveEdit();
+                }
+            }
+        });
+
+        // --- Resize ---
 
         function adjustResize(){
-            command.style.width = (window.innerWidth - 260) + "px";
+            commandInput.style.width = (window.innerWidth - locationEl.offsetWidth - 30) + 'px';
         }
         adjustResize();
+        window.addEventListener('resize', adjustResize);
 
-        document.addEventListener('keypress', handleKeyPress);
-        
-        window.addEventListener('resize', adjustResize)
+        // --- Welcome message ---
+        print('Welcome to flasky-notes CLI. Type "help" for commands.', 'clr-dim');
+        print('');
     </script>
 </body>
 </html>
