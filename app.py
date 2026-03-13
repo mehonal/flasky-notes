@@ -12,6 +12,9 @@ from dotenv import load_dotenv
 load_dotenv()
 import math
 from zoneinfo import ZoneInfo, available_timezones
+import secrets
+import hashlib
+from functools import wraps
 
 #=============================================================================================================#
 #================================================APP SETTINGS=================================================#
@@ -54,6 +57,38 @@ def valid_email(email):
         return True
     else:
         return False
+
+def generate_api_token():
+    plaintext = secrets.token_urlsafe(32)
+    token_hash = hashlib.sha256(plaintext.encode('utf-8')).hexdigest()
+    return plaintext, token_hash
+
+def content_hash(content):
+    if content is None:
+        content = ""
+    return hashlib.sha256(content.encode('utf-8')).hexdigest()
+
+def format_utc_iso(dt):
+    if dt is None:
+        return None
+    return dt.strftime('%Y-%m-%dT%H:%M:%SZ')
+
+def require_sync_token(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        auth_header = request.headers.get('Authorization', '')
+        if not auth_header.startswith('Bearer '):
+            return jsonify(error="Missing or invalid Authorization header"), 401
+        token = auth_header[7:]
+        token_hash = hashlib.sha256(token.encode('utf-8')).hexdigest()
+        api_token = ApiToken.query.filter_by(token_hash=token_hash).first()
+        if api_token is None:
+            return jsonify(error="Invalid token"), 401
+        api_token.last_used_at = datetime.utcnow()
+        db.session.commit()
+        g.sync_user = api_token.user
+        return f(*args, **kwargs)
+    return decorated
 
 #=============================================================================================================#
 #==================================================CLASSES====================================================#
@@ -98,6 +133,16 @@ class UserSettings(db.Model):
     id = db.Column(db.Integer, primary_key = True)
     theme_preference = db.Column(db.String(100), default = "cozy")
     timezone = db.Column(db.String(100), default = "UTC")
+
+class ApiToken(db.Model):
+    __tablename__ = "api_token"
+    id = db.Column(db.Integer, primary_key = True)
+    user_id = db.Column(db.ForeignKey('user.id'), nullable=False)
+    token_hash = db.Column(db.String(64), unique=True, nullable=False)
+    name = db.Column(db.String(100), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    last_used_at = db.Column(db.DateTime)
+    user = db.relationship('User', backref="api_tokens")
 
 class User(db.Model):
     __tablename__ = "user"
@@ -1274,6 +1319,98 @@ def edit_note_external_api():
         return jsonify(success=False,reason="Note does not exist.")
 
 
+#================================================SYNC API=====================================================#
+
+@app.route("/api/sync/manifest", methods=['GET'])
+@require_sync_token
+def sync_manifest():
+    notes = UserNote.query.filter_by(userid=g.sync_user.id).order_by(UserNote.date_last_changed.desc()).all()
+    manifest = []
+    for note in notes:
+        manifest.append({
+            "id": note.id,
+            "title": note.title,
+            "category": note.get_category_name(),
+            "content_hash": content_hash(note.content),
+            "date_added_utc": format_utc_iso(note.date_added),
+            "date_last_changed_utc": format_utc_iso(note.date_last_changed)
+        })
+    return jsonify(manifest)
+
+@app.route("/api/sync/note/<int:note_id>", methods=['GET'])
+@require_sync_token
+def sync_get_note(note_id):
+    note = UserNote.query.filter_by(userid=g.sync_user.id, id=note_id).first()
+    if note is None:
+        return jsonify(error="Note not found"), 404
+    return jsonify({
+        "id": note.id,
+        "title": note.title,
+        "content": note.content,
+        "category": note.get_category_name(),
+        "content_hash": content_hash(note.content),
+        "date_added_utc": format_utc_iso(note.date_added),
+        "date_last_changed_utc": format_utc_iso(note.date_last_changed)
+    })
+
+@app.route("/api/sync/note", methods=['POST'])
+@require_sync_token
+def sync_create_note():
+    data = request.get_json()
+    if data is None:
+        return jsonify(error="Request body must be JSON"), 400
+    title = data.get('title', '')
+    content = data.get('content', '')
+    category = data.get('category', '')
+    note = g.sync_user.add_note(title, content, category)
+    if not note:
+        return jsonify(error="Could not create note"), 500
+    return jsonify({
+        "id": note.id,
+        "title": note.title,
+        "content": note.content,
+        "category": note.get_category_name(),
+        "content_hash": content_hash(note.content),
+        "date_added_utc": format_utc_iso(note.date_added),
+        "date_last_changed_utc": format_utc_iso(note.date_last_changed)
+    }), 201
+
+@app.route("/api/sync/note/<int:note_id>", methods=['PUT'])
+@require_sync_token
+def sync_update_note(note_id):
+    note = UserNote.query.filter_by(userid=g.sync_user.id, id=note_id).first()
+    if note is None:
+        return jsonify(error="Note not found"), 404
+    data = request.get_json()
+    if data is None:
+        return jsonify(error="Request body must be JSON"), 400
+    if 'title' in data:
+        note.change_title(data['title'])
+    if 'content' in data:
+        if note.content != data['content']:
+            note.change_content(data['content'])
+    if 'category' in data:
+        note.change_category(data['category'])
+    return jsonify({
+        "id": note.id,
+        "title": note.title,
+        "content": note.content,
+        "category": note.get_category_name(),
+        "content_hash": content_hash(note.content),
+        "date_added_utc": format_utc_iso(note.date_added),
+        "date_last_changed_utc": format_utc_iso(note.date_last_changed)
+    })
+
+@app.route("/api/sync/note/<int:note_id>", methods=['DELETE'])
+@require_sync_token
+def sync_delete_note(note_id):
+    success = g.sync_user.delete_note(note_id)
+    if success:
+        return jsonify(success=True)
+    else:
+        return jsonify(error="Note not found"), 404
+
+
 #==============================================request handling===============================================#
 
 @app.before_request
@@ -1326,8 +1463,25 @@ def settings_page():
             elif "update-font-family" in request.form:
                 font = request.form['font-family']
                 g.user.update_theme_font(g.user.settings.theme_preference, font)
+            elif "generate-api-token" in request.form:
+                token_name = request.form.get('token-name', '').strip()
+                if not token_name:
+                    token_name = "Unnamed Token"
+                plaintext, token_hash = generate_api_token()
+                new_token = ApiToken(user_id=g.user.id, token_hash=token_hash, name=token_name)
+                db.session.add(new_token)
+                db.session.commit()
+                tokens = ApiToken.query.filter_by(user_id=g.user.id).all()
+                return render_template("settings.html", themes=Theme.query.all(), timezones=available_timezones(), tokens=tokens, new_token=plaintext)
+            elif "revoke-api-token" in request.form:
+                token_id = request.form.get('token-id')
+                token = ApiToken.query.filter_by(id=token_id, user_id=g.user.id).first()
+                if token:
+                    db.session.delete(token)
+                    db.session.commit()
             return redirect(url_for('settings_page'))
-        return render_template("settings.html", themes = Theme.query.all(), timezones = available_timezones())
+        tokens = ApiToken.query.filter_by(user_id=g.user.id).all()
+        return render_template("settings.html", themes=Theme.query.all(), timezones=available_timezones(), tokens=tokens)
     return "You must be logged in to access this page."
 
 @app.route("/register", methods = ['GET','POST'])
