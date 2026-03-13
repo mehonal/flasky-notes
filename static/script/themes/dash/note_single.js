@@ -13,43 +13,28 @@ darkModeOn = false;
 titleVisible = true;
 
 function submitForm(){
-    console.log("Submitting form.");
     noteSaveBtn.click();
 }
 
 function toggleTitle(){
-    if (innerWidth > 600){
-        if (titleVisible){
-            title.style.display = "none";
-            content.style.height = "calc(100vh - 80px)";
-            contentMarkdown.style.height = "calc(100vh - 80px)";
-        }
-        else{
-            title.style.display = "block";
-            content.style.height = "calc(90vh - 80px)";
-            contentMarkdown.style.height = "calc(90vh - 80px)";
-        }
+    if (titleVisible){
+        title.style.display = "none";
+        content.style.height = innerWidth > 600
+            ? "calc(100vh - 44px)"
+            : "calc(100vh - " + (menu.offsetHeight) + "px)";
+        contentMarkdown.style.height = content.style.height;
     }
     else{
-        if (titleVisible){
-            title.style.display = "none";
-            content.style.height = "calc(100vh - " + (menu.offsetHeight + 40) + "px)";
-            contentMarkdown.style.height = "calc(100vh - " + (menu.offsetHeight + 40) + "px)";
-        }
-        else{
-            title.style.display = "block";
-            content.style.height = "calc(90vh - " + (menu.offsetHeight + 40) + "px)";
-            contentMarkdown.style.height = "calc(90vh - " + (menu.offsetHeight + 40) + "px)";
-        }
+        title.style.display = "block";
+        content.style.height = "";
+        contentMarkdown.style.height = "";
     }
     titleVisible = !titleVisible;
-    console.log("Toggled title");
 }
 
 function increaseFontSize(){
     newFontSize = (parseInt(content.style.fontSize) + 1);
-    content.style.fontSize =  newFontSize + "px";
-    console.log("Increased font size. New font size: " + newFontSize + "px");
+    content.style.fontSize = newFontSize + "px";
     fetch('/api/save_font_size/' + newFontSize)
     .then( response => response.json() )
 }
@@ -57,7 +42,6 @@ function increaseFontSize(){
 function decreaseFontSize(){
     newFontSize = (parseInt(content.style.fontSize) - 1);
     content.style.fontSize = newFontSize + "px";
-    console.log("Decreased font size. New font size: " + newFontSize + "px.");
     fetch('/api/save_font_size/' + newFontSize)
     .then( response => response.json() )
 }
@@ -101,7 +85,7 @@ function toggleMarkdown(){
         }
         else if (l.slice(0,5) == "#####"){
             contentMarkdown.innerHTML += `<h5>${l.slice(5)}</h5>`;
-        }   
+        }
         else if (l.slice(0,4) == "####"){
             contentMarkdown.innerHTML += `<h4>${l.slice(4)}</h4>`;
         }
@@ -146,22 +130,10 @@ function toggleMarkdown(){
 
 function toggleDarkMode(){
     if (darkModeOn){
-        title.style.backgroundColor = "white";
-        title.style.color = "black";
-        content.style.backgroundColor = "white";
-        content.style.color = "black";
-        contentMarkdown.style.backgroundColor = "white";
-        contentMarkdown.style.color = "black";
-        body.style.backgroundColor = "white";
+        body.classList.remove('dark-mode');
     }
     else{
-        title.style.backgroundColor = "black";
-        title.style.color = "white";
-        content.style.backgroundColor = "black";
-        content.style.color = "white";
-        contentMarkdown.style.backgroundColor = "black";
-        contentMarkdown.style.color = "white";
-        body.style.backgroundColor = "black";
+        body.classList.add('dark-mode');
     }
     darkModeOn = !darkModeOn;
     fetch('/api/save_dark_mode/' + (darkModeOn ? 1 : 0))
@@ -182,7 +154,7 @@ function toggleNotes(){
         }
         else{
             notes.style.display = "block";
-            noteContent.style.width = "calc(100vw - 200px)";
+            noteContent.style.width = "calc(100vw - 220px)";
         }
     }
     else{
@@ -255,10 +227,12 @@ function updateFont(newFont){
 
 function optimizeForMobile(){
     menu.style.position = "fixed";
+    menu.style.width = "100%";
+    menu.style.zIndex = "50";
     noteContent.style.position = "fixed";
     noteContent.style.top = menu.offsetHeight + "px";
     noteContent.style.height = "calc(100vh - " + menu.offsetHeight + "px)";
-    content.style.height = "calc(100vh - " + (menu.offsetHeight + title.offsetHeight + 40) + "px)";
+    content.style.height = "calc(100vh - " + (menu.offsetHeight + title.offsetHeight) + "px)";
 }
 
 function initRun(){
