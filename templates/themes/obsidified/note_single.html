@@ -1,0 +1,1153 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="{% if g.user.get_current_theme_dark_mode() %}dark{% else %}light{% endif %}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% if note %}{{ note.title or 'Untitled' }} — {% endif %}Obsidified</title>
+    <link rel="icon" type="image/x-icon" href="/static/images/amazing_logo.png">
+    <link rel="apple-touch-icon" href="/static/images/amazing_logo.png" sizes="180x180">
+    <link rel="manifest" href="/manifest.json">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/2.0.3/marked.min.js"></script>
+    <script src="{{ url_for('static', filename='js/wikilinks.js') }}"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css" id="hljs-dark">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css" id="hljs-light" disabled>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    <style>
+        :root {
+            --bg-primary: #1e1e2e;
+            --bg-secondary: #181825;
+            --bg-sidebar: #11111b;
+            --bg-hover: rgba(255,255,255,0.05);
+            --bg-active: rgba(255,255,255,0.08);
+            --bg-input: #1e1e2e;
+            --text-primary: #cdd6f4;
+            --text-secondary: #bac2de;
+            --text-muted: #585b70;
+            --accent: #b4befe;
+            --accent-dim: rgba(180,190,254,0.1);
+            --accent-hover: #cba6f7;
+            --border: rgba(255,255,255,0.06);
+            --border-light: rgba(255,255,255,0.1);
+            --green: #a6e3a1;
+            --red: #f38ba8;
+            --yellow: #f9e2af;
+            --blue: #89b4fa;
+            --scrollbar-track: transparent;
+            --scrollbar-thumb: rgba(255,255,255,0.1);
+            --shadow: 0 1px 3px rgba(0,0,0,0.3);
+        }
+
+        [data-theme="light"] {
+            --bg-primary: #f8f9fc;
+            --bg-secondary: #eff1f5;
+            --bg-sidebar: #e6e9ef;
+            --bg-hover: rgba(0,0,0,0.04);
+            --bg-active: rgba(0,0,0,0.07);
+            --bg-input: #ffffff;
+            --text-primary: #4c4f69;
+            --text-secondary: #5c5f77;
+            --text-muted: #9ca0b0;
+            --accent: #7287fd;
+            --accent-dim: rgba(114,135,253,0.08);
+            --accent-hover: #8839ef;
+            --border: rgba(0,0,0,0.06);
+            --border-light: rgba(0,0,0,0.1);
+            --green: #40a02b;
+            --red: #d20f39;
+            --yellow: #df8e1d;
+            --blue: #1e66f5;
+            --scrollbar-track: transparent;
+            --scrollbar-thumb: rgba(0,0,0,0.12);
+            --shadow: 0 1px 3px rgba(0,0,0,0.08);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', system-ui, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            height: 100vh;
+            overflow: hidden;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: var(--scrollbar-track); }
+        ::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+        /* Layout */
+        .app {
+            display: flex;
+            height: 100vh;
+        }
+
+        /* ============ Sidebar ============ */
+        .sidebar {
+            width: 260px;
+            min-width: 260px;
+            background: var(--bg-sidebar);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            transition: width 0.2s ease, min-width 0.2s ease, opacity 0.2s ease;
+        }
+
+        .sidebar.collapsed {
+            width: 0;
+            min-width: 0;
+            border-right: none;
+            opacity: 0;
+        }
+
+        .sidebar-header {
+            padding: 14px 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+        }
+
+        .sidebar-title {
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1.2px;
+        }
+
+        .sidebar-actions {
+            display: flex;
+            gap: 2px;
+        }
+
+        .icon-btn {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            cursor: pointer;
+            padding: 4px;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.15s ease;
+        }
+
+        .icon-btn:hover {
+            background: var(--bg-hover);
+            color: var(--text-primary);
+        }
+
+        .icon-btn svg {
+            width: 16px;
+            height: 16px;
+            stroke: currentColor;
+            fill: none;
+            stroke-width: 1.8;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+
+        .sidebar-search {
+            padding: 4px 12px 10px;
+        }
+
+        .sidebar-search input {
+            width: 100%;
+            background: var(--bg-hover);
+            border: 1px solid transparent;
+            border-radius: 6px;
+            padding: 7px 10px 7px 32px;
+            color: var(--text-primary);
+            font-size: 13px;
+            outline: none;
+            transition: border-color 0.15s ease, background 0.15s ease;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%23585b70' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cline x1='21' y1='21' x2='16.65' y2='16.65'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: 10px center;
+        }
+
+        [data-theme="light"] .sidebar-search input {
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%239ca0b0' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cline x1='21' y1='21' x2='16.65' y2='16.65'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: 10px center;
+        }
+
+        .sidebar-search input:focus {
+            border-color: var(--accent);
+            background-color: var(--bg-input);
+        }
+
+        .sidebar-search input::placeholder {
+            color: var(--text-muted);
+        }
+
+        .file-tree {
+            flex: 1;
+            overflow-y: auto;
+            padding: 2px 8px;
+        }
+
+        /* Folder */
+        .folder {
+            user-select: none;
+            margin-bottom: 2px;
+        }
+
+        .folder-header {
+            display: flex;
+            align-items: center;
+            padding: 5px 8px;
+            cursor: pointer;
+            color: var(--text-secondary);
+            font-size: 13px;
+            font-weight: 500;
+            gap: 6px;
+            border-radius: 6px;
+            transition: background 0.1s ease;
+        }
+
+        .folder-header:hover {
+            background: var(--bg-hover);
+        }
+
+        .folder-chevron {
+            width: 16px;
+            height: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            transition: transform 0.15s ease;
+            color: var(--text-muted);
+        }
+
+        .folder-chevron svg {
+            width: 12px;
+            height: 12px;
+            stroke: currentColor;
+            fill: none;
+            stroke-width: 2;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+
+        .folder.collapsed .folder-chevron {
+            transform: rotate(-90deg);
+        }
+
+        .folder-name {
+            flex: 1;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .folder-count {
+            font-size: 11px;
+            color: var(--text-muted);
+            flex-shrink: 0;
+            min-width: 16px;
+            text-align: center;
+        }
+
+        .folder-items {
+            overflow: hidden;
+            transition: max-height 0.2s ease;
+        }
+
+        .folder.collapsed .folder-items {
+            display: none;
+        }
+
+        /* File (note) */
+        .file-item {
+            display: flex;
+            align-items: center;
+            padding: 4px 8px 4px 30px;
+            cursor: pointer;
+            color: var(--text-muted);
+            font-size: 13px;
+            gap: 7px;
+            border-radius: 6px;
+            text-decoration: none;
+            transition: all 0.1s ease;
+        }
+
+        .file-item:hover {
+            background: var(--bg-hover);
+            color: var(--text-secondary);
+        }
+
+        .file-item.active {
+            background: var(--accent-dim);
+            color: var(--accent);
+        }
+
+        .file-icon {
+            flex-shrink: 0;
+            color: inherit;
+            opacity: 0.6;
+            display: flex;
+        }
+
+        .file-icon svg {
+            width: 14px;
+            height: 14px;
+            stroke: currentColor;
+            fill: none;
+            stroke-width: 1.8;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+
+        .file-name {
+            flex: 1;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        /* Sidebar footer */
+        .sidebar-footer {
+            padding: 8px 12px;
+            border-top: 1px solid var(--border);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .sidebar-footer a {
+            color: var(--text-muted);
+            padding: 5px 10px;
+            border-radius: 6px;
+            font-size: 12px;
+            text-decoration: none;
+            transition: all 0.1s ease;
+        }
+
+        .sidebar-footer a:hover {
+            background: var(--bg-hover);
+            color: var(--text-secondary);
+        }
+
+        /* ============ Main content ============ */
+        .main {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            min-width: 0;
+        }
+
+        /* Toolbar */
+        .toolbar {
+            display: flex;
+            align-items: center;
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border);
+            padding: 0 8px;
+            height: 42px;
+            gap: 4px;
+            flex-shrink: 0;
+        }
+
+        .toolbar .toggle-sidebar {
+            margin-right: 4px;
+        }
+
+        .breadcrumb {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 13px;
+            color: var(--text-muted);
+            min-width: 0;
+        }
+
+        .breadcrumb-sep {
+            color: var(--text-muted);
+            opacity: 0.4;
+            font-size: 11px;
+        }
+
+        .breadcrumb-item {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .breadcrumb-item.active {
+            color: var(--text-primary);
+            font-weight: 500;
+        }
+
+        .toolbar-spacer { flex: 1; }
+
+        .toolbar-actions {
+            display: flex;
+            gap: 2px;
+            align-items: center;
+        }
+
+        .toolbar-actions .icon-btn {
+            padding: 6px;
+        }
+
+        .toolbar-actions .icon-btn.active {
+            color: var(--accent);
+            background: var(--accent-dim);
+        }
+
+        .toolbar-actions .icon-btn.danger:hover {
+            color: var(--red);
+        }
+
+        .toolbar-divider {
+            width: 1px;
+            height: 18px;
+            background: var(--border-light);
+            margin: 0 4px;
+        }
+
+        /* ============ Editor ============ */
+        .editor {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            max-width: 900px;
+            width: 100%;
+            margin: 0 auto;
+        }
+
+        .editor-title {
+            width: 100%;
+            background: transparent;
+            border: none;
+            color: var(--text-primary);
+            font-size: 32px;
+            font-weight: 700;
+            padding: 32px 48px 4px;
+            outline: none;
+            letter-spacing: -0.02em;
+            line-height: 1.2;
+        }
+
+        .editor-title::placeholder {
+            color: var(--text-muted);
+            opacity: 0.6;
+        }
+
+        /* Properties bar */
+        .editor-properties {
+            padding: 8px 48px 16px;
+        }
+
+        .editor-content-wrapper {
+            flex: 1;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .editor-textarea {
+            width: 100%;
+            height: 100%;
+            background: transparent;
+            border: none;
+            color: var(--text-primary);
+            font-size: 15px;
+            line-height: 1.8;
+            padding: 0 48px 80px;
+            outline: none;
+            resize: none;
+            font-family: 'JetBrains Mono', 'Fira Code', 'SF Mono', 'Cascadia Code', 'Consolas', monospace;
+            overflow-y: auto;
+            display: none;
+        }
+
+        .editor-textarea::placeholder {
+            color: var(--text-muted);
+            opacity: 0.5;
+        }
+
+        /* Preview (default visible) */
+        .editor-preview {
+            width: 100%;
+            height: 100%;
+            overflow-y: auto;
+            padding: 0 48px 80px;
+            font-size: 15px;
+            line-height: 1.8;
+            cursor: text;
+        }
+
+        .editor-preview:empty::before {
+            content: 'Start writing...';
+            color: var(--text-muted);
+            opacity: 0.5;
+        }
+
+        /* Markdown rendered styles */
+        .editor-preview h1, .editor-preview h2, .editor-preview h3,
+        .editor-preview h4, .editor-preview h5, .editor-preview h6 {
+            color: var(--text-primary);
+            line-height: 1.3;
+            margin: 1.2em 0 0.4em;
+        }
+
+        .editor-preview h1:first-child, .editor-preview h2:first-child,
+        .editor-preview h3:first-child {
+            margin-top: 0;
+        }
+
+        .editor-preview h1 { font-size: 1.6em; font-weight: 700; }
+        .editor-preview h2 { font-size: 1.3em; font-weight: 600; }
+        .editor-preview h3 { font-size: 1.1em; font-weight: 600; }
+
+        .editor-preview p { margin: 0.6em 0; }
+
+        .editor-preview a {
+            color: var(--accent);
+            text-decoration: none;
+            border-bottom: 1px solid transparent;
+            transition: border-color 0.15s;
+        }
+        .editor-preview a:hover {
+            border-bottom-color: var(--accent);
+        }
+
+        .editor-preview code {
+            background: var(--bg-hover);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.88em;
+            font-family: 'JetBrains Mono', 'Fira Code', 'SF Mono', monospace;
+        }
+
+        .editor-preview pre {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 16px 20px;
+            overflow-x: auto;
+            margin: 1em 0;
+        }
+
+        .editor-preview pre code {
+            background: none;
+            padding: 0;
+            font-size: 13px;
+            line-height: 1.6;
+        }
+
+        .editor-preview blockquote {
+            border-left: 3px solid var(--accent);
+            padding-left: 16px;
+            color: var(--text-secondary);
+            margin: 0.8em 0;
+            font-style: italic;
+        }
+
+        .editor-preview img {
+            max-width: 100%;
+            border-radius: 8px;
+            margin: 0.5em 0;
+        }
+
+        .editor-preview ul, .editor-preview ol {
+            padding-left: 1.5em;
+            margin: 0.4em 0;
+        }
+
+        .editor-preview li { margin: 0.15em 0; }
+
+        .editor-preview li > ul, .editor-preview li > ol {
+            margin: 0;
+        }
+
+        .editor-preview hr {
+            border: none;
+            border-top: 1px solid var(--border-light);
+            margin: 1.5em 0;
+        }
+
+        .editor-preview table {
+            border-collapse: collapse;
+            width: 100%;
+            margin: 1em 0;
+            font-size: 14px;
+        }
+
+        .editor-preview th, .editor-preview td {
+            border: 1px solid var(--border);
+            padding: 8px 12px;
+            text-align: left;
+        }
+
+        .editor-preview th {
+            background: var(--bg-secondary);
+            font-weight: 600;
+        }
+
+        .editor-preview .wikilink-missing {
+            color: var(--red);
+            opacity: 0.7;
+        }
+
+        /* Task lists */
+        .editor-preview input[type="checkbox"] {
+            margin-right: 6px;
+            accent-color: var(--accent);
+        }
+
+        /* Empty state */
+        .empty-state {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-muted);
+            font-size: 14px;
+            gap: 12px;
+        }
+
+        .empty-state kbd {
+            display: inline-block;
+            padding: 2px 8px;
+            background: var(--bg-hover);
+            border: 1px solid var(--border-light);
+            border-radius: 4px;
+            font-size: 12px;
+            font-family: inherit;
+            color: var(--text-secondary);
+        }
+
+        /* ============ Status bar ============ */
+        .status-bar {
+            height: 26px;
+            background: var(--bg-sidebar);
+            border-top: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            padding: 0 16px;
+            font-size: 11px;
+            color: var(--text-muted);
+            gap: 16px;
+            flex-shrink: 0;
+        }
+
+        .status-item {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .status-spacer { flex: 1; }
+
+        #save-status { transition: color 0.2s ease; }
+
+        .mode-indicator {
+            padding: 1px 6px;
+            border-radius: 3px;
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-weight: 600;
+        }
+
+        .mode-indicator.editing {
+            background: var(--accent-dim);
+            color: var(--accent);
+        }
+
+        .mode-indicator.preview {
+            color: var(--text-muted);
+        }
+
+        /* ============ Mobile ============ */
+        @media (max-width: 768px) {
+            .sidebar {
+                position: fixed;
+                top: 0;
+                left: 0;
+                bottom: 0;
+                z-index: 100;
+                box-shadow: 4px 0 24px rgba(0,0,0,0.4);
+            }
+
+            .sidebar.collapsed {
+                width: 0;
+                box-shadow: none;
+            }
+
+            .editor { max-width: 100%; }
+            .editor-title { padding: 20px 20px 4px; font-size: 24px; }
+            .editor-properties { padding: 4px 20px 12px; }
+            .editor-textarea { padding: 0 20px 40px; }
+            .editor-preview { padding: 0 20px 40px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="app">
+        <!-- Sidebar -->
+        <div class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <span class="sidebar-title">Notes</span>
+                <div class="sidebar-actions">
+                    <button class="icon-btn" onclick="createNewNote()" title="New note (Ctrl+N)">
+                        <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                    </button>
+                </div>
+            </div>
+
+            <div class="sidebar-search">
+                <input type="text" id="search-input" placeholder="Search..." oninput="filterNotes(this.value)">
+            </div>
+
+            <div class="file-tree" id="file-tree">
+                {% for cat in g.user.categories %}
+                <div class="folder" data-category-id="{{ cat.id }}">
+                    <div class="folder-header" onclick="toggleFolder(this.parentElement)">
+                        <span class="folder-chevron"><svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg></span>
+                        <span class="folder-name">{{ cat.name }}</span>
+                        <span class="folder-count">{{ cat.notes | length }}</span>
+                    </div>
+                    <div class="folder-items">
+                        {% for n in cat.notes %}
+                        <div class="file-item {% if note and note.id == n.id %}active{% endif %}" data-note-id="{{ n.id }}" onclick="openNote({{ n.id }})">
+                            <span class="file-icon"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></span>
+                            <span class="file-name">{{ n.title or 'Untitled' }}</span>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+
+            <div class="sidebar-footer">
+                <a href="/settings">Settings</a>
+                <a href="/agenda">Agenda</a>
+                <a href="/logout">Logout</a>
+            </div>
+        </div>
+
+        <!-- Main -->
+        <div class="main">
+            <!-- Toolbar -->
+            <div class="toolbar">
+                <button class="icon-btn toggle-sidebar" onclick="toggleSidebar()" title="Toggle sidebar (Ctrl+B)">
+                    <svg viewBox="0 0 24 24"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+                </button>
+
+                <div class="breadcrumb">
+                    {% if note %}
+                    <span class="breadcrumb-item">{{ note.get_category_name() }}</span>
+                    <span class="breadcrumb-sep">/</span>
+                    <span class="breadcrumb-item active">{{ note.title or 'Untitled' }}</span>
+                    {% else %}
+                    <span class="breadcrumb-item active">New note</span>
+                    {% endif %}
+                </div>
+
+                <div class="toolbar-spacer"></div>
+
+                <div class="toolbar-actions">
+                    <button class="icon-btn" id="edit-toggle" onclick="enterEditMode()" title="Edit (click preview or just start typing)">
+                        <svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                    </button>
+                    <button class="icon-btn active" id="preview-toggle" onclick="enterPreviewMode()" title="Preview">
+                        <svg viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                    </button>
+
+                    <div class="toolbar-divider"></div>
+
+                    <button class="icon-btn" id="theme-toggle" onclick="toggleDarkMode()" title="Toggle theme">
+                        <svg viewBox="0 0 24 24" id="theme-icon">
+                            {% if g.user.get_current_theme_dark_mode() %}
+                            <circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+                            {% else %}
+                            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+                            {% endif %}
+                        </svg>
+                    </button>
+
+                    {% if note %}
+                    <button class="icon-btn danger" onclick="deleteCurrentNote()" title="Delete note">
+                        <svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                    </button>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Editor -->
+            {% if note or note_id == 0 %}
+            <div class="editor" id="editor">
+                <input type="text" class="editor-title" id="note-title" placeholder="Untitled" value="{% if note %}{{ note.title }}{% endif %}">
+
+                <div class="editor-properties">
+                    {% include "partials/note_properties.html" %}
+                </div>
+
+                <div class="editor-content-wrapper">
+                    <textarea class="editor-textarea" id="note-content" placeholder="Start writing...">{% if note %}{{ note.content }}{% endif %}</textarea>
+                    <div class="editor-preview" id="note-preview" onclick="enterEditMode()"></div>
+                </div>
+            </div>
+            {% else %}
+            <div class="empty-state">
+                <span>Select a note or press <kbd>Ctrl+N</kbd> to create one</span>
+            </div>
+            {% endif %}
+
+            <!-- Status bar -->
+            <div class="status-bar">
+                <span class="status-item" id="save-status"></span>
+                <span class="status-item mode-indicator preview" id="mode-indicator">Preview</span>
+                <span class="status-spacer"></span>
+                {% if note %}
+                <span class="status-item" id="char-count">{{ (note.content or '') | length }} chars</span>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <script>
+        var noteId = {{ note_id }};
+        var currentCategory = "{% if note %}{{ note.get_category_name() }}{% elif category %}{{ category }}{% else %}Main{% endif %}";
+        var autoSaveTimer = null;
+        var editMode = false;
+        var isDirty = false;
+
+        // ============ Sidebar ============
+
+        function toggleSidebar() {
+            document.getElementById('sidebar').classList.toggle('collapsed');
+        }
+
+        function toggleFolder(folder) {
+            folder.classList.toggle('collapsed');
+        }
+
+        function openNote(id) {
+            if (isDirty) {
+                saveNote(function() { window.location.href = '/note/' + id; });
+            } else {
+                window.location.href = '/note/' + id;
+            }
+        }
+
+        function createNewNote() {
+            if (isDirty) {
+                saveNote(function() { window.location.href = '/note/0'; });
+            } else {
+                window.location.href = '/note/0';
+            }
+        }
+
+        function filterNotes(query) {
+            query = query.toLowerCase();
+            document.querySelectorAll('.file-item').forEach(function(item) {
+                var name = item.querySelector('.file-name').textContent.toLowerCase();
+                item.style.display = name.includes(query) ? '' : 'none';
+            });
+            document.querySelectorAll('.folder').forEach(function(folder) {
+                var visibleItems = folder.querySelectorAll('.file-item:not([style*="display: none"])');
+                folder.style.display = (query && visibleItems.length === 0) ? 'none' : '';
+                if (query && visibleItems.length > 0) {
+                    folder.classList.remove('collapsed');
+                }
+            });
+        }
+
+        // ============ Edit / Preview modes ============
+
+        function renderPreview() {
+            var textarea = document.getElementById('note-content');
+            var preview = document.getElementById('note-preview');
+            if (!textarea || !preview) return;
+
+            var content = textarea.value;
+            if (content.trim()) {
+                preview.innerHTML = marked(content);
+                // Highlight code blocks
+                preview.querySelectorAll('pre code').forEach(function(block) {
+                    hljs.highlightElement(block);
+                });
+            } else {
+                preview.innerHTML = '';
+            }
+        }
+
+        function enterEditMode() {
+            if (editMode) return;
+            editMode = true;
+
+            var textarea = document.getElementById('note-content');
+            var preview = document.getElementById('note-preview');
+            var editBtn = document.getElementById('edit-toggle');
+            var previewBtn = document.getElementById('preview-toggle');
+            var modeIndicator = document.getElementById('mode-indicator');
+
+            if (!textarea || !preview) return;
+
+            preview.style.display = 'none';
+            textarea.style.display = '';
+            textarea.focus();
+
+            if (editBtn) editBtn.classList.add('active');
+            if (previewBtn) previewBtn.classList.remove('active');
+            if (modeIndicator) {
+                modeIndicator.textContent = 'Editing';
+                modeIndicator.className = 'status-item mode-indicator editing';
+            }
+        }
+
+        function enterPreviewMode() {
+            if (!editMode) return;
+            editMode = false;
+
+            var textarea = document.getElementById('note-content');
+            var preview = document.getElementById('note-preview');
+            var editBtn = document.getElementById('edit-toggle');
+            var previewBtn = document.getElementById('preview-toggle');
+            var modeIndicator = document.getElementById('mode-indicator');
+
+            if (!textarea || !preview) return;
+
+            renderPreview();
+            textarea.style.display = 'none';
+            preview.style.display = '';
+
+            if (editBtn) editBtn.classList.remove('active');
+            if (previewBtn) previewBtn.classList.add('active');
+            if (modeIndicator) {
+                modeIndicator.textContent = 'Preview';
+                modeIndicator.className = 'status-item mode-indicator preview';
+            }
+        }
+
+        // ============ Editor ============
+
+        function markDirty() {
+            isDirty = true;
+            document.getElementById('save-status').textContent = 'Unsaved';
+            document.getElementById('save-status').style.color = 'var(--yellow)';
+            updateCharCount();
+
+            clearTimeout(autoSaveTimer);
+            autoSaveTimer = setTimeout(function() { saveNote(); }, 3000);
+        }
+
+        function saveNote(callback) {
+            var title = document.getElementById('note-title').value;
+            var content = document.getElementById('note-content').value;
+
+            document.getElementById('save-status').textContent = 'Saving...';
+            document.getElementById('save-status').style.color = 'var(--text-muted)';
+
+            fetch('/api/save_note', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    noteId: noteId,
+                    title: title,
+                    content: content,
+                    category: currentCategory
+                })
+            })
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (data.success) {
+                    isDirty = false;
+                    document.getElementById('save-status').textContent = 'Saved';
+                    document.getElementById('save-status').style.color = 'var(--green)';
+
+                    if (noteId === 0 && data.note && data.note.id) {
+                        noteId = data.note.id;
+                        history.replaceState(null, '', '/note/' + noteId);
+                        updateSidebarAfterSave(data.note);
+                    } else if (data.note) {
+                        updateSidebarNoteTitle(noteId, data.note.title);
+                    }
+
+                    // Update preview if in preview mode
+                    if (!editMode) renderPreview();
+                }
+                if (callback) callback();
+            })
+            .catch(function() {
+                document.getElementById('save-status').textContent = 'Save failed';
+                document.getElementById('save-status').style.color = 'var(--red)';
+                if (callback) callback();
+            });
+        }
+
+        function updateSidebarNoteTitle(id, title) {
+            var item = document.querySelector('.file-item[data-note-id="' + id + '"] .file-name');
+            if (item) item.textContent = title || 'Untitled';
+            var breadcrumb = document.querySelector('.breadcrumb-item.active');
+            if (breadcrumb) breadcrumb.textContent = title || 'Untitled';
+        }
+
+        function updateSidebarAfterSave(note) {
+            var catName = note.category || 'Main';
+            var folders = document.querySelectorAll('.folder');
+            var targetFolder = null;
+
+            folders.forEach(function(f) {
+                if (f.querySelector('.folder-name').textContent.trim() === catName) {
+                    targetFolder = f;
+                }
+            });
+
+            if (targetFolder) {
+                var items = targetFolder.querySelector('.folder-items');
+                var div = document.createElement('div');
+                div.className = 'file-item active';
+                div.setAttribute('data-note-id', note.id);
+                div.setAttribute('onclick', 'openNote(' + note.id + ')');
+                div.innerHTML = '<span class="file-icon"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></span><span class="file-name">' + (note.title || 'Untitled') + '</span>';
+                items.appendChild(div);
+                targetFolder.classList.remove('collapsed');
+
+                var count = targetFolder.querySelector('.folder-count');
+                if (count) count.textContent = items.querySelectorAll('.file-item').length;
+            }
+
+            var breadcrumb = document.querySelector('.breadcrumb-item.active');
+            if (breadcrumb) breadcrumb.textContent = note.title || 'Untitled';
+        }
+
+        function deleteCurrentNote() {
+            if (!noteId || noteId === 0) return;
+            if (!confirm('Delete this note?')) return;
+
+            fetch('/api/delete_note', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ noteId: noteId })
+            })
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (data.success) window.location.href = '/note/0';
+            });
+        }
+
+        // ============ Theme ============
+
+        function toggleDarkMode() {
+            var html = document.documentElement;
+            var isDark = html.getAttribute('data-theme') === 'dark';
+            html.setAttribute('data-theme', isDark ? 'light' : 'dark');
+
+            // Swap hljs theme
+            document.getElementById('hljs-dark').disabled = isDark;
+            document.getElementById('hljs-light').disabled = !isDark;
+
+            // Swap icon
+            var icon = document.getElementById('theme-icon');
+            if (isDark) {
+                icon.innerHTML = '<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>';
+            } else {
+                icon.innerHTML = '<circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>';
+            }
+
+            // Re-render preview if active to update code highlighting
+            if (!editMode) renderPreview();
+
+            fetch('/api/save_dark_mode/' + (isDark ? 0 : 1));
+        }
+
+        // ============ Character count ============
+
+        function updateCharCount() {
+            var el = document.getElementById('char-count');
+            var textarea = document.getElementById('note-content');
+            if (el && textarea) {
+                el.textContent = textarea.value.length + ' chars';
+            }
+        }
+
+        // ============ Keyboard shortcuts ============
+
+        document.addEventListener('keydown', function(e) {
+            // Ctrl+S — save
+            if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+                e.preventDefault();
+                saveNote();
+            }
+            // Ctrl+N — new note
+            if ((e.ctrlKey || e.metaKey) && e.key === 'n') {
+                e.preventDefault();
+                createNewNote();
+            }
+            // Ctrl+E — toggle edit/preview
+            if ((e.ctrlKey || e.metaKey) && e.key === 'e') {
+                e.preventDefault();
+                if (editMode) enterPreviewMode();
+                else enterEditMode();
+            }
+            // Escape — exit edit mode
+            if (e.key === 'Escape' && editMode) {
+                enterPreviewMode();
+            }
+            // Ctrl+B — toggle sidebar
+            if ((e.ctrlKey || e.metaKey) && e.key === 'b') {
+                e.preventDefault();
+                toggleSidebar();
+            }
+            // Ctrl+P — quick search focus
+            if ((e.ctrlKey || e.metaKey) && e.key === 'p') {
+                e.preventDefault();
+                var searchInput = document.getElementById('search-input');
+                var sidebar = document.getElementById('sidebar');
+                if (sidebar.classList.contains('collapsed')) {
+                    sidebar.classList.remove('collapsed');
+                }
+                searchInput.focus();
+                searchInput.select();
+            }
+        });
+
+        // ============ Init ============
+
+        var titleInput = document.getElementById('note-title');
+        var contentInput = document.getElementById('note-content');
+
+        if (titleInput) {
+            titleInput.addEventListener('input', markDirty);
+        }
+        if (contentInput) {
+            contentInput.addEventListener('input', markDirty);
+        }
+
+        // Set initial hljs theme
+        (function() {
+            var isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+            document.getElementById('hljs-dark').disabled = !isDark;
+            document.getElementById('hljs-light').disabled = isDark;
+        })();
+
+        // Render preview on load (preview is default mode)
+        if (contentInput) {
+            renderPreview();
+
+            // New note starts in edit mode
+            if (noteId === 0) {
+                editMode = false; // so enterEditMode will work
+                enterEditMode();
+                if (titleInput) titleInput.focus();
+            }
+        }
+    </script>
+</body>
+</html>

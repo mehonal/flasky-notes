@@ -1974,6 +1974,9 @@ with app.app_context():
     if Theme.query.filter_by(slug="tahta").first() is None:
         tahta = Theme(name="Tahta",slug="tahta", has_categories_page = False, has_notes_page = False)
         db.session.add(tahta)
+    if Theme.query.filter_by(slug="obsidified").first() is None:
+        obsidified = Theme(name="Obsidified",slug="obsidified", has_categories_page = False, has_notes_page = False)
+        db.session.add(obsidified)
     db.session.commit()
 
     
