@@ -534,6 +534,7 @@
             {% for note in g.user.return_notes(5) %}
             <div class="note-card" id="note-{{ note.id }}-container" data-note-id="{{ note.id }}">
                 <h2 class="note-card-title">{{ note.title }}</h2>
+                {% include "partials/note_properties.html" %}
                 <div class="note-card-content">{{ note.content }}</div>
                 <div class="note-card-actions">
                     <button class="card-btn edit-note">Edit</button>

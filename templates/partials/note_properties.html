@@ -1,0 +1,14 @@
+{% if note and note.get_properties() %}
+<div class="note-properties" style="margin-bottom: 8px; padding: 6px 10px; background: rgba(128,128,128,0.1); border-radius: 6px; font-size: 0.85em;">
+    {% for key, value in note.get_properties().items() %}
+    <span class="note-prop" style="display: inline-block; margin: 2px 8px 2px 0;">
+        <strong style="opacity: 0.7;">{{ key }}:</strong>
+        {% if value is iterable and value is not string %}
+            {{ value | join(', ') }}
+        {% else %}
+            {{ value }}
+        {% endif %}
+    </span>
+    {% endfor %}
+</div>
+{% endif %}

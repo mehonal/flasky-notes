@@ -459,6 +459,7 @@
     </div>
     <div class="main-content">
         <input type="text" id="note-title" placeholder="Title" class="note-title" value="{% if note %}{{ note.title }}{% endif %}">
+        {% include "partials/note_properties.html" %}
         <textarea id="note-content" placeholder="Type your note here...">{% if note %}{{ note.content }}{% endif %}</textarea>
         <div id="markdown-note-content" style="display: none"></div>
     </div>

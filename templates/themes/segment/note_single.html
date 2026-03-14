@@ -668,6 +668,7 @@
 
             <div class="editor-body">
                 <input type="text" id="note-title" placeholder="Untitled note" value="{% if note %}{{ note.title }}{% endif %}">
+                {% include "partials/note_properties.html" %}
                 <textarea id="note-content" placeholder="Start writing...">{% if note %}{{ note.content }}{% endif %}</textarea>
                 <div id="markdown-preview"></div>
             </div>

@@ -15,7 +15,9 @@ from zoneinfo import ZoneInfo, available_timezones
 import secrets
 import hashlib
 from functools import wraps
+import json
 import mimetypes
+import yaml
 from werkzeug.utils import secure_filename
 
 #=============================================================================================================#
@@ -72,6 +74,58 @@ def content_hash(content):
     if content is None:
         content = ""
     return hashlib.sha256(content.encode('utf-8')).hexdigest()
+
+_FRONTMATTER_RE = re.compile(r'^---\n(.*?)\n---\n', re.DOTALL)
+
+# Keys the sync script uses locally — never stored in server properties
+_SYNC_META_KEYS = {'flasky_id', 'flasky_hash', 'conflict_source'}
+
+def _make_json_safe(val):
+    """Convert YAML-parsed values to JSON-safe types."""
+    import datetime as dt
+    if isinstance(val, (dt.date, dt.datetime)):
+        return val.isoformat()
+    if isinstance(val, list):
+        return [_make_json_safe(v) for v in val]
+    if isinstance(val, dict):
+        return {k: _make_json_safe(v) for k, v in val.items()}
+    return val
+
+def parse_note_frontmatter(text):
+    """Split text into (properties_dict, body). Strips sync-only keys."""
+    if not text:
+        return {}, text or ""
+    m = _FRONTMATTER_RE.match(text)
+    if not m:
+        return {}, text
+    try:
+        raw = yaml.safe_load(m.group(1))
+        if not isinstance(raw, dict):
+            return {}, text
+    except yaml.YAMLError:
+        return {}, text
+    props = {k: _make_json_safe(v) for k, v in raw.items() if k not in _SYNC_META_KEYS}
+    body = text[m.end():]
+    return props, body
+
+def build_note_frontmatter(props):
+    """Build a YAML frontmatter string from a dict."""
+    if not props:
+        return ""
+    # Use yaml.dump for proper list/nested value formatting
+    dumped = yaml.dump(props, default_flow_style=False, allow_unicode=True, sort_keys=False)
+    return f"---\n{dumped}---\n"
+
+def content_with_frontmatter(content, properties_json):
+    """Reconstruct full text with frontmatter prepended."""
+    props = {}
+    if properties_json:
+        try:
+            props = json.loads(properties_json)
+        except (json.JSONDecodeError, TypeError):
+            pass
+    fm = build_note_frontmatter(props)
+    return fm + (content or "")
 
 def format_utc_iso(dt):
     if dt is None:
@@ -495,6 +549,7 @@ class UserNote(db.Model):
     category_id = db.Column(db.ForeignKey('user_note_category.id'))
     title = db.Column(db.String(1_000))
     content = db.Column(db.String(1_000_000))
+    properties = db.Column(db.Text)  # JSON string of frontmatter key-value pairs
     previous_content = db.Column(db.String(1_000_000))
     date_added = db.Column(db.DateTime)
     date_last_changed = db.Column(db.DateTime)
@@ -539,7 +594,12 @@ class UserNote(db.Model):
 
     def change_content(self,new_content):
         self.previous_content = self.content
-        self.content = new_content
+        props, body = parse_note_frontmatter(new_content)
+        if props:
+            self.properties = json.dumps(props)
+            self.content = body
+        else:
+            self.content = new_content
         self.date_last_changed = datetime.utcnow()
         db.session.commit()
 
@@ -572,11 +632,24 @@ class UserNote(db.Model):
         except:
             return False
 
+    def get_properties(self):
+        if self.properties:
+            try:
+                return json.loads(self.properties)
+            except (json.JSONDecodeError, TypeError):
+                pass
+        return {}
+
+    def get_full_content(self):
+        """Return content with frontmatter prepended (for sync/export)."""
+        return content_with_frontmatter(self.content, self.properties)
+
     def return_json(self):
         return {
             "id": self.id,
             "title": self.title,
             "content": self.content,
+            "properties": self.get_properties(),
             "category": self.get_category_name(),
             "date_added": self.date_added,
             "date_last_changed": self.date_last_changed
@@ -585,10 +658,15 @@ class UserNote(db.Model):
     def __init__(self,userid,title,content,category_id):
         self.userid = userid
         self.title = title
-        self.content = content
         self.category_id = category_id
         self.date_added = datetime.utcnow()
         self.date_last_changed = datetime.utcnow()
+        props, body = parse_note_frontmatter(content)
+        if props:
+            self.properties = json.dumps(props)
+            self.content = body
+        else:
+            self.content = content
         db.session.add(self)
         db.session.commit()
 
@@ -1362,11 +1440,12 @@ def sync_manifest():
     notes = UserNote.query.filter_by(userid=g.sync_user.id).order_by(UserNote.date_last_changed.desc()).all()
     manifest = []
     for note in notes:
+        full = note.get_full_content()
         manifest.append({
             "id": note.id,
             "title": note.title,
             "category": note.get_category_name(),
-            "content_hash": content_hash(note.content),
+            "content_hash": content_hash(full),
             "date_added_utc": format_utc_iso(note.date_added),
             "date_last_changed_utc": format_utc_iso(note.date_last_changed)
         })
@@ -1378,12 +1457,13 @@ def sync_get_note(note_id):
     note = UserNote.query.filter_by(userid=g.sync_user.id, id=note_id).first()
     if note is None:
         return jsonify(error="Note not found"), 404
+    full = note.get_full_content()
     return jsonify({
         "id": note.id,
         "title": note.title,
-        "content": note.content,
+        "content": full,
         "category": note.get_category_name(),
-        "content_hash": content_hash(note.content),
+        "content_hash": content_hash(full),
         "date_added_utc": format_utc_iso(note.date_added),
         "date_last_changed_utc": format_utc_iso(note.date_last_changed)
     })
@@ -1400,12 +1480,13 @@ def sync_create_note():
     note = g.sync_user.add_note(title, content, category)
     if not note:
         return jsonify(error="Could not create note"), 500
+    full = note.get_full_content()
     return jsonify({
         "id": note.id,
         "title": note.title,
-        "content": note.content,
+        "content": full,
         "category": note.get_category_name(),
-        "content_hash": content_hash(note.content),
+        "content_hash": content_hash(full),
         "date_added_utc": format_utc_iso(note.date_added),
         "date_last_changed_utc": format_utc_iso(note.date_last_changed)
     }), 201
@@ -1422,16 +1503,16 @@ def sync_update_note(note_id):
     if 'title' in data:
         note.change_title(data['title'])
     if 'content' in data:
-        if note.content != data['content']:
-            note.change_content(data['content'])
+        note.change_content(data['content'])
     if 'category' in data:
         note.change_category(data['category'])
+    full = note.get_full_content()
     return jsonify({
         "id": note.id,
         "title": note.title,
-        "content": note.content,
+        "content": full,
         "category": note.get_category_name(),
-        "content_hash": content_hash(note.content),
+        "content_hash": content_hash(full),
         "date_added_utc": format_utc_iso(note.date_added),
         "date_last_changed_utc": format_utc_iso(note.date_last_changed)
     })

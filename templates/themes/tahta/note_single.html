@@ -819,6 +819,13 @@
                     {% for note in category.notes %}
                     <div class="card" data-note-id="{{ note.id }}" data-content="{% if note.content %}{{ note.content }}{% endif %}" onclick="showEditNoteModal(this)">
                         <div class="card-title">{{ note.title }}</div>
+                        {% if note.get_properties() %}
+                        <div class="card-props" style="font-size:0.8em; opacity:0.7; margin-bottom:4px;">
+                            {% for key, value in note.get_properties().items() %}
+                            <span>{{ key }}: {{ value }}{% if not loop.last %} · {% endif %}</span>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
                         {% if note.content %}<div class="card-preview">{{ note.content[:100] }}</div>{% endif %}
                     </div>
                     {% endfor %}
