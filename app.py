@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, session, redirect, url_for, g, jsonify
+from flask import Flask, render_template, request, session, redirect, url_for, g, jsonify, send_from_directory
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime, timedelta, timezone
 import bcrypt # for encrypting/decrypting passwords
@@ -15,6 +15,8 @@ from zoneinfo import ZoneInfo, available_timezones
 import secrets
 import hashlib
 from functools import wraps
+import mimetypes
+from werkzeug.utils import secure_filename
 
 #=============================================================================================================#
 #================================================APP SETTINGS=================================================#
@@ -26,6 +28,9 @@ app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 app.permanent_session_lifetime = timedelta(days=CONFIG.SESSION_LIFETIME)
+
+ATTACHMENT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'instance', 'attachments')
+os.makedirs(ATTACHMENT_DIR, exist_ok=True)
 
 convention = {
     "ix": 'ix_%(column_0_label)s',
@@ -133,6 +138,7 @@ class UserSettings(db.Model):
     id = db.Column(db.Integer, primary_key = True)
     theme_preference = db.Column(db.String(100), default = "cozy")
     timezone = db.Column(db.String(100), default = "UTC")
+    obsidian_sync_enabled = db.Column(db.Boolean, default = False)
 
 class ApiToken(db.Model):
     __tablename__ = "api_token"
@@ -143,6 +149,35 @@ class ApiToken(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     last_used_at = db.Column(db.DateTime)
     user = db.relationship('User', backref="api_tokens")
+
+class SyncConflict(db.Model):
+    __tablename__ = "sync_conflict"
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.ForeignKey('user.id'), nullable=False)
+    note_id = db.Column(db.Integer, nullable=True)
+    local_title = db.Column(db.String(1_000))
+    local_content = db.Column(db.String(1_000_000))
+    server_title = db.Column(db.String(1_000))
+    server_content = db.Column(db.String(1_000_000))
+    category = db.Column(db.String(100))
+    conflict_date = db.Column(db.DateTime, default=datetime.utcnow)
+    resolved = db.Column(db.Boolean, default=False)
+    user = db.relationship('User', backref="sync_conflicts")
+
+class Attachment(db.Model):
+    __tablename__ = "attachment"
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.ForeignKey('user.id'), nullable=False)
+    filename = db.Column(db.String(500), nullable=False)
+    content_type = db.Column(db.String(200))
+    file_hash = db.Column(db.String(64), nullable=False)
+    file_size = db.Column(db.Integer)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    user = db.relationship('User', backref="attachments")
+
+    def disk_path(self):
+        user_dir = os.path.join(ATTACHMENT_DIR, str(self.user_id))
+        return os.path.join(user_dir, f"{self.file_hash}_{secure_filename(self.filename)}")
 
 class User(db.Model):
     __tablename__ = "user"
@@ -1410,6 +1445,145 @@ def sync_delete_note(note_id):
     else:
         return jsonify(error="Note not found"), 404
 
+@app.route("/api/sync/conflict", methods=['POST'])
+@require_sync_token
+def sync_report_conflict():
+    data = request.get_json()
+    if data is None:
+        return jsonify(error="Request body must be JSON"), 400
+    conflict = SyncConflict(
+        user_id=g.sync_user.id,
+        note_id=data.get('note_id'),
+        local_title=data.get('local_title', ''),
+        local_content=data.get('local_content', ''),
+        server_title=data.get('server_title', ''),
+        server_content=data.get('server_content', ''),
+        category=data.get('category', '')
+    )
+    db.session.add(conflict)
+    db.session.commit()
+    return jsonify({"id": conflict.id}), 201
+
+@app.route("/api/sync/conflicts", methods=['GET'])
+@require_sync_token
+def sync_list_conflicts():
+    conflicts = SyncConflict.query.filter_by(user_id=g.sync_user.id, resolved=False).order_by(SyncConflict.conflict_date.desc()).all()
+    result = []
+    for c in conflicts:
+        result.append({
+            "id": c.id,
+            "note_id": c.note_id,
+            "local_title": c.local_title,
+            "server_title": c.server_title,
+            "category": c.category,
+            "conflict_date": format_utc_iso(c.conflict_date),
+            "resolved": c.resolved
+        })
+    return jsonify(result)
+
+#===============================================ATTACHMENTS====================================================#
+
+@app.route("/api/sync/attachments", methods=['GET'])
+@require_sync_token
+def sync_attachment_manifest():
+    attachments = Attachment.query.filter_by(user_id=g.sync_user.id).all()
+    result = []
+    for a in attachments:
+        result.append({
+            "id": a.id,
+            "filename": a.filename,
+            "content_type": a.content_type,
+            "file_hash": a.file_hash,
+            "file_size": a.file_size,
+        })
+    return jsonify(result)
+
+@app.route("/api/sync/attachment/<int:attachment_id>", methods=['GET'])
+@require_sync_token
+def sync_download_attachment(attachment_id):
+    a = Attachment.query.filter_by(id=attachment_id, user_id=g.sync_user.id).first()
+    if a is None:
+        return jsonify(error="Attachment not found"), 404
+    disk = a.disk_path()
+    if not os.path.exists(disk):
+        return jsonify(error="Attachment file missing"), 404
+    return send_from_directory(os.path.dirname(disk), os.path.basename(disk),
+                               mimetype=a.content_type,
+                               as_attachment=True,
+                               download_name=a.filename)
+
+@app.route("/api/sync/attachment", methods=['POST'])
+@require_sync_token
+def sync_upload_attachment():
+    if 'file' not in request.files:
+        return jsonify(error="No file part"), 400
+    f = request.files['file']
+    if not f.filename:
+        return jsonify(error="No filename"), 400
+    data = f.read()
+    file_hash = hashlib.sha256(data).hexdigest()
+    # Deduplicate: if same hash+filename exists, return existing
+    existing = Attachment.query.filter_by(user_id=g.sync_user.id, file_hash=file_hash, filename=f.filename).first()
+    if existing:
+        return jsonify({"id": existing.id, "filename": existing.filename, "file_hash": existing.file_hash, "file_size": existing.file_size}), 200
+    content_type = f.content_type or mimetypes.guess_type(f.filename)[0] or "application/octet-stream"
+    attachment = Attachment(
+        user_id=g.sync_user.id,
+        filename=f.filename,
+        content_type=content_type,
+        file_hash=file_hash,
+        file_size=len(data),
+    )
+    db.session.add(attachment)
+    db.session.commit()
+    user_dir = os.path.join(ATTACHMENT_DIR, str(g.sync_user.id))
+    os.makedirs(user_dir, exist_ok=True)
+    disk = attachment.disk_path()
+    with open(disk, 'wb') as out:
+        out.write(data)
+    return jsonify({"id": attachment.id, "filename": attachment.filename, "file_hash": attachment.file_hash, "file_size": attachment.file_size}), 201
+
+@app.route("/attachment/<int:attachment_id>/<filename>")
+def serve_attachment(attachment_id, filename):
+    if not g.user:
+        return "Unauthorized", 401
+    a = Attachment.query.filter_by(id=attachment_id, user_id=g.user.id).first()
+    if a is None:
+        return "Not found", 404
+    disk = a.disk_path()
+    if not os.path.exists(disk):
+        return "Not found", 404
+    return send_from_directory(os.path.dirname(disk), os.path.basename(disk), mimetype=a.content_type)
+
+#=============================================WIKI-LINK RESOLUTION============================================#
+
+@app.route("/api/sync/resolve-link", methods=['GET'])
+@require_sync_token
+def sync_resolve_link():
+    title = request.args.get('title', '').strip()
+    if not title:
+        return jsonify(error="Missing 'title' parameter"), 400
+    notes = UserNote.query.filter_by(userid=g.sync_user.id).all()
+    for note in notes:
+        if note.title and note.title.lower() == title.lower():
+            return jsonify({"id": note.id, "title": note.title, "category": note.get_category_name()})
+    return jsonify(error="Note not found"), 404
+
+@app.route("/api/note-map")
+def note_map():
+    if not g.user:
+        return jsonify(error="Unauthorized"), 401
+    notes = UserNote.query.filter_by(userid=g.user.id).all()
+    result = {}
+    for note in notes:
+        if note.title:
+            result[note.title.lower()] = {"id": note.id, "title": note.title}
+    attachments = Attachment.query.filter_by(user_id=g.user.id).all()
+    att_map = {}
+    for a in attachments:
+        att_map[a.filename.lower()] = {"id": a.id, "filename": a.filename}
+    return jsonify({"notes": result, "attachments": att_map})
+
 
 #==============================================request handling===============================================#
 
@@ -1479,9 +1653,29 @@ def settings_page():
                 if token:
                     db.session.delete(token)
                     db.session.commit()
+            elif "toggle-obsidian-sync" in request.form:
+                settings.obsidian_sync_enabled = not settings.obsidian_sync_enabled
+                db.session.commit()
+            elif "resolve-conflict" in request.form:
+                conflict_id = request.form.get('conflict-id')
+                resolution = request.form.get('resolution')
+                conflict = SyncConflict.query.filter_by(id=conflict_id, user_id=g.user.id).first()
+                if conflict and resolution in ('local', 'server'):
+                    if conflict.note_id:
+                        note = UserNote.query.filter_by(userid=g.user.id, id=conflict.note_id).first()
+                        if note:
+                            if resolution == 'local':
+                                note.change_title(conflict.local_title)
+                                note.change_content(conflict.local_content)
+                            else:
+                                note.change_title(conflict.server_title)
+                                note.change_content(conflict.server_content)
+                    conflict.resolved = True
+                    db.session.commit()
             return redirect(url_for('settings_page'))
         tokens = ApiToken.query.filter_by(user_id=g.user.id).all()
-        return render_template("settings.html", themes=Theme.query.all(), timezones=available_timezones(), tokens=tokens)
+        conflicts = SyncConflict.query.filter_by(user_id=g.user.id, resolved=False).order_by(SyncConflict.conflict_date.desc()).all()
+        return render_template("settings.html", themes=Theme.query.all(), timezones=available_timezones(), tokens=tokens, conflicts=conflicts, sync_enabled=settings.obsidian_sync_enabled)
     return "You must be logged in to access this page."
 
 @app.route("/register", methods = ['GET','POST'])

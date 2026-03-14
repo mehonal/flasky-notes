@@ -85,5 +85,55 @@
         </div>
     </div>
 
+    <h2 class="mt-4">Obsidian Sync</h2>
+    <div class="container d-flex justify-content-center">
+        <div class="col-12 col-md-8 col-lg-6">
+            <form method="POST" class="mb-3">
+                <div class="form-check form-switch d-flex justify-content-center gap-2">
+                    <input class="form-check-input" type="checkbox" id="obsidian-sync-toggle" {% if sync_enabled %}checked{% endif %} disabled>
+                    <label class="form-check-label" for="obsidian-sync-toggle">
+                        {% if sync_enabled %}Enabled{% else %}Disabled{% endif %}
+                    </label>
+                </div>
+                <input name="toggle-obsidian-sync" class="btn btn-primary btn-sm mt-2" type="submit" value="{% if sync_enabled %}Disable{% else %}Enable{% endif %} Obsidian Sync">
+            </form>
+
+            {% if conflicts %}
+            <h5>Sync Conflicts</h5>
+            <table class="table table-sm text-start">
+                <thead>
+                    <tr>
+                        <th>Note</th>
+                        <th>Category</th>
+                        <th>Date</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for conflict in conflicts %}
+                    <tr>
+                        <td>{{ conflict.local_title or conflict.server_title }}</td>
+                        <td>{{ conflict.category or '-' }}</td>
+                        <td>{{ conflict.conflict_date.strftime('%Y-%m-%d %H:%M') if conflict.conflict_date else '-' }}</td>
+                        <td>
+                            <form method="POST" style="display:inline">
+                                <input type="hidden" name="conflict-id" value="{{ conflict.id }}">
+                                <input type="hidden" name="resolution" value="local">
+                                <input name="resolve-conflict" class="btn btn-sm btn-outline-primary" type="submit" value="Keep Local">
+                            </form>
+                            <form method="POST" style="display:inline">
+                                <input type="hidden" name="conflict-id" value="{{ conflict.id }}">
+                                <input type="hidden" name="resolution" value="server">
+                                <input name="resolve-conflict" class="btn btn-sm btn-outline-secondary" type="submit" value="Keep Server">
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% endif %}
+        </div>
+    </div>
+
 </div>
 {% endblock %}
