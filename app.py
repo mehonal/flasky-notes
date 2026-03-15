@@ -878,12 +878,33 @@ def search_notes_api():
     if g.user:
         data = request.get_json()
         query = data.get('query')
+        seen = set()
         notes = []
         for note in UserNote.query.filter(UserNote.userid == g.user.id, UserNote.title.contains(query)).order_by(UserNote.date_added.desc()).all():
-            notes.append(note.return_json())
+            if note.id not in seen:
+                seen.add(note.id)
+                notes.append(note.return_json())
+        for note in UserNote.query.filter(UserNote.userid == g.user.id, UserNote.content.contains(query)).order_by(UserNote.date_added.desc()).all():
+            if note.id not in seen:
+                seen.add(note.id)
+                notes.append(note.return_json())
         return jsonify(notes)
     else:
         return jsonify(success=False,reason="Not logged in.")
+
+@app.route("/api/backlinks/<int:note_id>")
+def backlinks_api(note_id):
+    if g.user:
+        note = UserNote.query.filter_by(id=note_id).first()
+        if note and g.user == note.user and note.title:
+            pattern = "[[" + note.title.lower() + "]]"
+            linking_notes = []
+            for n in UserNote.query.filter_by(userid=g.user.id).all():
+                if n.id != note_id and n.content and pattern in n.content.lower():
+                    linking_notes.append({"id": n.id, "title": n.title or "Untitled"})
+            return jsonify(linking_notes)
+        return jsonify([])
+    return jsonify(error="Not logged in"), 401
 
 @app.route("/api/note/check_last_edited/<int:note_id>")
 def check_last_edited_note_api(note_id):
