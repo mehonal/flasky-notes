@@ -191,12 +191,14 @@
 
         .folder-chevron svg { width: 12px; height: 12px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
         .folder.collapsed .folder-chevron { transform: rotate(-90deg); }
+        .folder-icon { flex-shrink: 0; display: flex; align-items: center; color: var(--text-muted); }
+        .folder-icon svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
         .folder-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-        .folder-delete-btn, .folder-add-btn { display: none; padding: 2px !important; }
-        .folder-header:hover .folder-delete-btn, .folder-header:hover .folder-add-btn { display: flex; }
+        .folder-delete-btn, .folder-add-btn, .folder-newnote-btn { display: none; padding: 2px !important; }
+        .folder-header:hover .folder-delete-btn, .folder-header:hover .folder-add-btn, .folder-header:hover .folder-newnote-btn { display: flex; }
         .folder-delete-btn:hover { color: var(--red) !important; }
-        .folder-add-btn:hover { color: var(--accent) !important; }
+        .folder-add-btn:hover, .folder-newnote-btn:hover { color: var(--accent) !important; }
         .folder-count { font-size: 11px; color: var(--text-muted); flex-shrink: 0; min-width: 16px; text-align: center; }
         .folder.collapsed .folder-items { display: none; }
         .folder-items > .folder { padding-left: 8px; }
@@ -595,10 +597,15 @@
         @media (max-width: 768px) {
             .sidebar {
                 position: fixed; top: 0; left: 0; bottom: 0;
-                width: 280px; min-width: 280px;
-                box-shadow: 4px 0 24px rgba(0,0,0,0.4);
+                width: 100vw; min-width: 100vw;
+                box-shadow: none;
             }
             .sidebar.collapsed { width: 0; min-width: 0; box-shadow: none; }
+
+            /* Always show action icons on mobile for touch accessibility */
+            .folder-delete-btn, .folder-add-btn, .folder-newnote-btn { display: flex; }
+            .file-item .delete-btn { display: flex; position: static; }
+            .file-item .pin-btn { display: flex; position: static; }
 
             .sidebar-backdrop.visible { display: block; }
 
@@ -767,8 +774,14 @@
                 <div class="folder collapsed" {% if cat %}data-category-id="{{ cat.id }}"{% endif %} data-path="{{ full_path }}">
                     <div class="folder-header" onclick="toggleFolder(this.parentElement)">
                         <span class="folder-chevron"><svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg></span>
+                        <span class="folder-icon"><svg viewBox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg></span>
                         <span class="folder-name">{{ name }}</span>
                         <span class="folder-count">{{ total_notes }}</span>
+                        {% if cat %}
+                        <button class="icon-btn folder-newnote-btn" onclick="event.stopPropagation(); createNewNoteInFolder({{ cat.id }}, '{{ full_path | e }}')" title="New note in {{ name }}">
+                            <svg viewBox="0 0 24 24" width="12" height="12"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="11" x2="12" y2="17"/><line x1="9" y1="14" x2="15" y2="14"/></svg>
+                        </button>
+                        {% endif %}
                         <button class="icon-btn folder-add-btn" onclick="event.stopPropagation(); promptNewFolder('{{ full_path }}')" title="New subfolder">
                             <svg viewBox="0 0 24 24" width="12" height="12"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/><line x1="12" y1="11" x2="12" y2="17"/><line x1="9" y1="14" x2="15" y2="14"/></svg>
                         </button>
@@ -815,17 +828,16 @@
                 </button>
 
                 <div class="breadcrumb">
-                    {% if note %}
-                    <select class="breadcrumb-category-select" id="category-select" onchange="changeNoteCategory(this.value)" title="Move to category">
+                    <select class="breadcrumb-category-select" id="category-select" onchange="changeNoteCategory(this.value)" title="{% if note %}Move to category{% else %}Category for new note{% endif %}">
                         {% for cat in g.user.categories | sort(attribute='name') %}
-                        <option value="{{ cat.id }}" {% if note.category_id == cat.id %}selected{% endif %}>{{ cat.name }}</option>
+                        <option value="{{ cat.id }}"
+                            {% if note and note.category_id == cat.id %}selected{% endif %}
+                            {% if not note and category and cat.name == category %}selected{% endif %}
+                        >{{ cat.name }}</option>
                         {% endfor %}
                     </select>
                     <span class="breadcrumb-sep">/</span>
-                    <span class="breadcrumb-item active">{{ note.title or 'Untitled' }}</span>
-                    {% else %}
-                    <span class="breadcrumb-item active">New note</span>
-                    {% endif %}
+                    <span class="breadcrumb-item active">{{ note.title or 'Untitled' if note else 'New note' }}</span>
                 </div>
 
                 <div class="toolbar-spacer"></div>
@@ -1485,10 +1497,23 @@
         // ============ Category / Folder management ============
 
         function changeNoteCategory(categoryId) {
-            if (!noteId || noteId === 0) return;
+            // For new notes, just update currentCategory so the first save uses it
+            if (!noteId || noteId === 0) {
+                var sel = document.getElementById('category-select');
+                currentCategory = sel.options[sel.selectedIndex].text;
+                return;
+            }
             fetch('/api/edit_note_category', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ noteId: noteId, category: parseInt(categoryId) }) })
             .then(function(r) { return r.json(); })
             .then(function(data) { if (data.success) window.location.reload(); });
+        }
+
+        function createNewNoteInFolder(catId, catName) {
+            if (isDirty) {
+                saveNote(function() { window.location.href = '/note/0?category=' + encodeURIComponent(catName); });
+            } else {
+                window.location.href = '/note/0?category=' + encodeURIComponent(catName);
+            }
         }
 
         function promptNewFolder(parentPath) {
