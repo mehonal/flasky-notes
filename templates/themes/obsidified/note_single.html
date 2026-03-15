@@ -496,8 +496,15 @@
 
         .right-panel.collapsed { width: 0; min-width: 0; border-left: none; opacity: 0; pointer-events: none; }
 
+        .right-panel-top-bar {
+            display: flex; align-items: center; padding: 4px 8px; flex-shrink: 0; border-bottom: 1px solid var(--border);
+        }
+        .right-panel-top-spacer { flex: 1; }
+        .right-panel-config-btn { padding: 4px; }
+        .right-panel-config-btn svg { width: 14px; height: 14px; }
+
         .right-panel-close {
-            display: none; padding: 8px 12px; text-align: right; flex-shrink: 0;
+            display: none; padding: 4px; flex-shrink: 0;
         }
         .right-panel-close svg {
             width: 18px; height: 18px; stroke: var(--text-muted); fill: none;
@@ -505,7 +512,7 @@
         }
         .right-panel-close svg:hover { stroke: var(--text-primary); }
 
-        .right-panel-section { padding: 12px; overflow-y: auto; flex: 1; }
+        .right-panel-section { padding: 0; overflow-y: auto; flex: 1; }
 
         .right-panel-section-header {
             font-size: 11px; font-weight: 600; color: var(--text-muted);
@@ -539,6 +546,122 @@
         .right-panel-prop:hover { background: var(--bg-hover); }
         .right-panel-prop-key { color: var(--text-muted); font-weight: 500; min-width: 60px; flex-shrink: 0; }
         .right-panel-prop-val { color: var(--text-secondary); word-break: break-word; }
+
+        /* ============ Panel Widgets ============ */
+        .panel-widget { border-bottom: 1px solid var(--border); padding: 12px; }
+        .panel-widget:last-child { border-bottom: none; }
+        .panel-widget.hidden-widget { display: none; }
+
+        .widget-header {
+            cursor: pointer; user-select: none; position: relative; padding-right: 20px;
+        }
+        .widget-header .widget-label { flex: 1; }
+        .widget-chevron {
+            width: 12px; height: 12px; stroke: var(--text-muted); fill: none;
+            stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;
+            transition: transform 0.15s ease; position: absolute; right: 0; top: 50%; transform: translateY(-50%);
+        }
+        .panel-widget.collapsed-widget .widget-chevron { transform: translateY(-50%) rotate(-90deg); }
+        .panel-widget.collapsed-widget .widget-body { display: none; }
+
+        /* Widget config panel */
+        .widget-config-panel {
+            display: none; border-bottom: 1px solid var(--border);
+            background: var(--bg-primary); padding: 8px;
+        }
+        .widget-config-panel.visible { display: block; }
+        .widget-config-header {
+            font-size: 11px; font-weight: 600; color: var(--text-muted);
+            text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 6px;
+        }
+        .widget-config-item {
+            display: flex; align-items: center; gap: 8px; padding: 5px 6px;
+            border-radius: 4px; font-size: 12px; color: var(--text-secondary);
+            cursor: grab; user-select: none;
+        }
+        .widget-config-item:hover { background: var(--bg-hover); }
+        .widget-config-item.dragging { opacity: 0.4; }
+        .widget-config-item.drag-over { border-top: 2px solid var(--accent); }
+        .widget-config-drag-handle {
+            color: var(--text-muted); display: flex; flex-shrink: 0;
+        }
+        .widget-config-drag-handle svg { width: 12px; height: 12px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+        .widget-config-label { flex: 1; }
+        .widget-config-toggle { position: relative; width: 28px; height: 16px; flex-shrink: 0; }
+        .widget-config-toggle input { opacity: 0; width: 0; height: 0; }
+        .widget-config-toggle .wc-slider {
+            position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+            background: var(--bg-hover); border-radius: 8px; cursor: pointer;
+            transition: background 0.2s;
+        }
+        .widget-config-toggle .wc-slider::before {
+            content: ''; position: absolute; width: 12px; height: 12px;
+            left: 2px; bottom: 2px; background: var(--text-muted);
+            border-radius: 50%; transition: transform 0.2s, background 0.2s;
+        }
+        .widget-config-toggle input:checked + .wc-slider { background: var(--accent-dim); }
+        .widget-config-toggle input:checked + .wc-slider::before { transform: translateX(12px); background: var(--accent); }
+
+        /* Agenda widget */
+        .agenda-widget-content { font-size: 12px; }
+        .agenda-widget-filter {
+            display: flex; gap: 4px; margin-bottom: 8px;
+        }
+        .agenda-filter-btn {
+            background: none; border: 1px solid var(--border); color: var(--text-muted);
+            font-size: 10px; padding: 2px 8px; border-radius: 10px; cursor: pointer;
+            transition: all 0.15s;
+        }
+        .agenda-filter-btn:hover { color: var(--text-secondary); border-color: var(--text-muted); }
+        .agenda-filter-btn.active { background: var(--accent-dim); color: var(--accent); border-color: var(--accent); }
+        .agenda-widget-section { margin-bottom: 8px; }
+        .agenda-widget-section-title {
+            font-size: 10px; font-weight: 600; color: var(--text-muted);
+            text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px;
+        }
+        .agenda-widget-item {
+            display: flex; align-items: center; gap: 6px; padding: 4px 6px;
+            border-radius: 4px; color: var(--text-secondary); cursor: pointer;
+        }
+        .agenda-widget-item:hover { background: var(--bg-hover); }
+        .agenda-widget-item .agenda-dot {
+            width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0;
+        }
+        .agenda-dot.todo-dot { background: var(--accent); }
+        .agenda-dot.event-dot { background: var(--green); }
+        .agenda-dot.overdue-dot { background: var(--red); }
+        .agenda-widget-item .agenda-item-title { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .agenda-widget-item .agenda-item-date { font-size: 10px; color: var(--text-muted); flex-shrink: 0; }
+        .agenda-widget-item.completed { text-decoration: line-through; opacity: 0.5; }
+        .agenda-todo-check {
+            width: 14px; height: 14px; border: 1.5px solid var(--text-muted); border-radius: 3px;
+            background: none; cursor: pointer; flex-shrink: 0; padding: 0; display: flex; align-items: center; justify-content: center;
+        }
+        .agenda-todo-check:hover { border-color: var(--accent); }
+        .agenda-todo-check.checked { border-color: var(--accent); background: var(--accent); }
+        .agenda-todo-check.checked svg { display: block; }
+        .agenda-todo-check svg { display: none; width: 10px; height: 10px; stroke: var(--bg-primary); fill: none; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+
+        /* Quick settings widget */
+        .quick-settings-content { padding: 2px 0; }
+        .quick-setting-toggle {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 5px 6px; border-radius: 4px; font-size: 12px; color: var(--text-secondary);
+            cursor: pointer; user-select: none;
+        }
+        .quick-setting-toggle:hover { background: var(--bg-hover); }
+        .quick-setting-toggle input { display: none; }
+        .qs-toggle-slider {
+            position: relative; width: 28px; height: 16px; flex-shrink: 0;
+            background: var(--bg-hover); border-radius: 8px; transition: background 0.2s;
+        }
+        .qs-toggle-slider::before {
+            content: ''; position: absolute; width: 12px; height: 12px;
+            left: 2px; bottom: 2px; background: var(--text-muted);
+            border-radius: 50%; transition: transform 0.2s, background 0.2s;
+        }
+        .quick-setting-toggle input:checked ~ .qs-toggle-slider { background: var(--accent-dim); }
+        .quick-setting-toggle input:checked ~ .qs-toggle-slider::before { transform: translateX(12px); background: var(--accent); }
 
         /* ============ Search Modal ============ */
         .modal-overlay {
@@ -624,7 +747,7 @@
                 box-shadow: -4px 0 24px rgba(0,0,0,0.4);
             }
             .right-panel.collapsed { width: 0; min-width: 0; box-shadow: none; }
-            .right-panel-close { display: block; }
+            .right-panel-close { display: flex; }
 
             .editor { max-width: 100%; }
             .editor-title { padding: 16px 16px 4px; font-size: 22px; }
@@ -1088,46 +1211,143 @@
                 {% endif %}
 
                 <div class="right-panel {% if theme_settings and not theme_settings.right_panel_collapsed %}{% else %}collapsed{% endif %}" id="right-panel">
-                    <div class="right-panel-close" onclick="toggleRightPanel()">
-                        <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                    <div class="right-panel-top-bar">
+                        <div class="right-panel-close" onclick="toggleRightPanel()">
+                            <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                        </div>
+                        <span class="right-panel-top-spacer"></span>
+                        <button class="icon-btn right-panel-config-btn" onclick="toggleWidgetConfig()" title="Configure widgets">
+                            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+                        </button>
                     </div>
-                    <div class="right-panel-section">
-                        <div class="right-panel-section-header">
-                            <svg viewBox="0 0 24 24"><line x1="3" y1="6" x2="13" y2="6"/><line x1="3" y1="10" x2="9" y2="10"/><line x1="3" y1="14" x2="13" y2="14"/><line x1="3" y1="18" x2="9" y2="18"/></svg>
-                            Outline
+
+                    <!-- Widget config panel (hidden by default) -->
+                    <div class="widget-config-panel" id="widget-config-panel">
+                        <div class="widget-config-header">Widgets</div>
+                        <div class="widget-config-list" id="widget-config-list"></div>
+                    </div>
+
+                    <div class="right-panel-section" id="right-panel-widgets">
+                        <!-- Outline widget -->
+                        <div class="panel-widget" data-widget-id="outline" id="widget-outline">
+                            <div class="right-panel-section-header widget-header" onclick="toggleWidgetCollapse('outline')">
+                                <svg viewBox="0 0 24 24"><line x1="3" y1="6" x2="13" y2="6"/><line x1="3" y1="10" x2="9" y2="10"/><line x1="3" y1="14" x2="13" y2="14"/><line x1="3" y1="18" x2="9" y2="18"/></svg>
+                                <span class="widget-label">Outline</span>
+                                <svg class="widget-chevron" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
+                            </div>
+                            <div class="widget-body">
+                                <ul class="outline-list" id="outline-list">
+                                    <li class="outline-empty">No headings</li>
+                                </ul>
+                            </div>
                         </div>
-                        <ul class="outline-list" id="outline-list">
-                            <li class="outline-empty">No headings</li>
-                        </ul>
 
-                        <div class="right-panel-divider"></div>
-
-                        <div class="right-panel-section-header">
-                            <svg viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
-                            Backlinks
+                        <!-- Backlinks widget -->
+                        <div class="panel-widget" data-widget-id="backlinks" id="widget-backlinks">
+                            <div class="right-panel-section-header widget-header" onclick="toggleWidgetCollapse('backlinks')">
+                                <svg viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+                                <span class="widget-label">Backlinks</span>
+                                <svg class="widget-chevron" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
+                            </div>
+                            <div class="widget-body">
+                                <ul class="backlinks-list" id="backlinks-list">
+                                    <li class="backlinks-empty">No backlinks</li>
+                                </ul>
+                            </div>
                         </div>
-                        <ul class="backlinks-list" id="backlinks-list">
-                            <li class="backlinks-empty">No backlinks</li>
-                        </ul>
 
-                        <div class="right-panel-divider"></div>
-
-                        <div class="right-panel-section-header">
-                            <svg viewBox="0 0 24 24"><line x1="7" y1="17" x2="17" y2="7"/><polyline points="7 7 17 7 17 17"/></svg>
-                            Outbound Links
+                        <!-- Outbound Links widget -->
+                        <div class="panel-widget" data-widget-id="outbound_links" id="widget-outbound_links">
+                            <div class="right-panel-section-header widget-header" onclick="toggleWidgetCollapse('outbound_links')">
+                                <svg viewBox="0 0 24 24"><line x1="7" y1="17" x2="17" y2="7"/><polyline points="7 7 17 7 17 17"/></svg>
+                                <span class="widget-label">Outbound Links</span>
+                                <svg class="widget-chevron" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
+                            </div>
+                            <div class="widget-body">
+                                <ul class="backlinks-list" id="outbound-links-list">
+                                    <li class="backlinks-empty">No outbound links</li>
+                                </ul>
+                            </div>
                         </div>
-                        <ul class="backlinks-list" id="outbound-links-list">
-                            <li class="backlinks-empty">No outbound links</li>
-                        </ul>
 
-                        <div class="right-panel-divider"></div>
-
-                        <div class="right-panel-section-header">
-                            <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="3" x2="9" y2="21"/></svg>
-                            Properties
+                        <!-- Properties widget -->
+                        <div class="panel-widget" data-widget-id="properties" id="widget-properties">
+                            <div class="right-panel-section-header widget-header" onclick="toggleWidgetCollapse('properties')">
+                                <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="3" x2="9" y2="21"/></svg>
+                                <span class="widget-label">Properties</span>
+                                <svg class="widget-chevron" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
+                            </div>
+                            <div class="widget-body">
+                                <div class="right-panel-props" id="right-panel-props">
+                                    <div class="outline-empty">No properties</div>
+                                </div>
+                            </div>
                         </div>
-                        <div class="right-panel-props" id="right-panel-props">
-                            <div class="outline-empty">No properties</div>
+
+                        <!-- Todos widget -->
+                        <div class="panel-widget" data-widget-id="todos" id="widget-todos">
+                            <div class="right-panel-section-header widget-header" onclick="toggleWidgetCollapse('todos')">
+                                <svg viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                                <span class="widget-label">To-dos</span>
+                                <svg class="widget-chevron" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
+                            </div>
+                            <div class="widget-body">
+                                <div class="agenda-widget-filter" id="todos-filter">
+                                    <button class="agenda-filter-btn active" data-filter="remaining" onclick="setTodoFilter('remaining')">Remaining</button>
+                                    <button class="agenda-filter-btn" data-filter="all" onclick="setTodoFilter('all')">All</button>
+                                    <button class="agenda-filter-btn" data-filter="completed" onclick="setTodoFilter('completed')">Completed</button>
+                                </div>
+                                <div class="agenda-widget-content" id="todos-widget-content">
+                                    <div class="outline-empty">Loading...</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Events widget -->
+                        <div class="panel-widget" data-widget-id="events" id="widget-events">
+                            <div class="right-panel-section-header widget-header" onclick="toggleWidgetCollapse('events')">
+                                <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                                <span class="widget-label">Events</span>
+                                <svg class="widget-chevron" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
+                            </div>
+                            <div class="widget-body">
+                                <div class="agenda-widget-content" id="events-widget-content">
+                                    <div class="outline-empty">Loading...</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Quick Settings widget -->
+                        <div class="panel-widget" data-widget-id="quick_settings" id="widget-quick_settings">
+                            <div class="right-panel-section-header widget-header" onclick="toggleWidgetCollapse('quick_settings')">
+                                <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+                                <span class="widget-label">Quick Settings</span>
+                                <svg class="widget-chevron" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
+                            </div>
+                            <div class="widget-body">
+                                <div class="quick-settings-content" id="quick-settings-content">
+                                    <label class="quick-setting-toggle">
+                                        <span>Dark mode</span>
+                                        <input type="checkbox" id="qs-dark-mode" onchange="toggleDarkMode()">
+                                        <span class="qs-toggle-slider"></span>
+                                    </label>
+                                    <label class="quick-setting-toggle">
+                                        <span>Preview mode</span>
+                                        <input type="checkbox" id="qs-preview-mode" onchange="toggleMode()">
+                                        <span class="qs-toggle-slider"></span>
+                                    </label>
+                                    <label class="quick-setting-toggle">
+                                        <span>Hide title</span>
+                                        <input type="checkbox" id="qs-hide-title" onchange="toggleHideTitle()">
+                                        <span class="qs-toggle-slider"></span>
+                                    </label>
+                                    <label class="quick-setting-toggle">
+                                        <span>Collapse properties</span>
+                                        <input type="checkbox" id="qs-props-collapsed" onchange="togglePropsPanel()">
+                                        <span class="qs-toggle-slider"></span>
+                                    </label>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -1516,6 +1736,7 @@
             if (toggleIcon) toggleIcon.innerHTML = '<path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>';
             if (modeIndicator) { modeIndicator.textContent = 'Editing'; modeIndicator.className = 'status-item mode-indicator editing'; }
             saveUiState({ preview_mode: false });
+            syncQuickSettingsState();
         }
 
         function enterPreviewMode() {
@@ -1537,6 +1758,7 @@
             if (toggleIcon) toggleIcon.innerHTML = '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>';
             if (modeIndicator) { modeIndicator.textContent = 'Preview'; modeIndicator.className = 'status-item mode-indicator preview'; }
             saveUiState({ preview_mode: true });
+            syncQuickSettingsState();
         }
 
         // ============ Save ============
@@ -1909,6 +2131,280 @@
             });
         }
 
+        // ============ Panel Widgets ============
+
+        var panelWidgets = {{ panel_widgets | tojson }};
+
+        function applyWidgetLayout() {
+            var container = document.getElementById('right-panel-widgets');
+            if (!container) return;
+            panelWidgets.forEach(function(w) {
+                var el = document.getElementById('widget-' + w.id);
+                if (!el) return;
+                container.appendChild(el); // reorder
+                if (w.visible) {
+                    el.classList.remove('hidden-widget');
+                } else {
+                    el.classList.add('hidden-widget');
+                }
+            });
+        }
+
+        function toggleWidgetConfig() {
+            var panel = document.getElementById('widget-config-panel');
+            panel.classList.toggle('visible');
+            if (panel.classList.contains('visible')) renderWidgetConfigList();
+        }
+
+        function renderWidgetConfigList() {
+            var list = document.getElementById('widget-config-list');
+            list.innerHTML = '';
+            panelWidgets.forEach(function(w, idx) {
+                var item = document.createElement('div');
+                item.className = 'widget-config-item';
+                item.setAttribute('draggable', 'true');
+                item.setAttribute('data-widget-idx', idx);
+                item.innerHTML =
+                    '<span class="widget-config-drag-handle"><svg viewBox="0 0 24 24"><line x1="8" y1="6" x2="8" y2="6.01"/><line x1="16" y1="6" x2="16" y2="6.01"/><line x1="8" y1="12" x2="8" y2="12.01"/><line x1="16" y1="12" x2="16" y2="12.01"/><line x1="8" y1="18" x2="8" y2="18.01"/><line x1="16" y1="18" x2="16" y2="18.01"/></svg></span>' +
+                    '<span class="widget-config-label">' + w.label + '</span>' +
+                    '<label class="widget-config-toggle"><input type="checkbox" ' + (w.visible ? 'checked' : '') + ' onchange="toggleWidgetVisibility(' + idx + ', this.checked)"><span class="wc-slider"></span></label>';
+
+                // Drag events
+                item.addEventListener('dragstart', function(e) {
+                    e.dataTransfer.setData('text/plain', idx);
+                    item.classList.add('dragging');
+                });
+                item.addEventListener('dragend', function() {
+                    item.classList.remove('dragging');
+                    list.querySelectorAll('.widget-config-item').forEach(function(el) { el.classList.remove('drag-over'); });
+                });
+                item.addEventListener('dragover', function(e) {
+                    e.preventDefault();
+                    item.classList.add('drag-over');
+                });
+                item.addEventListener('dragleave', function() {
+                    item.classList.remove('drag-over');
+                });
+                item.addEventListener('drop', function(e) {
+                    e.preventDefault();
+                    item.classList.remove('drag-over');
+                    var fromIdx = parseInt(e.dataTransfer.getData('text/plain'));
+                    var toIdx = idx;
+                    if (fromIdx === toIdx) return;
+                    var moved = panelWidgets.splice(fromIdx, 1)[0];
+                    panelWidgets.splice(toIdx, 0, moved);
+                    applyWidgetLayout();
+                    renderWidgetConfigList();
+                    saveWidgetConfig();
+                });
+
+                // Touch reorder: move up/down on tap-hold (simple approach: up/down buttons for mobile)
+                list.appendChild(item);
+            });
+
+            // Add mobile move buttons
+            if (isMobile) addMobileMoveButtons(list);
+        }
+
+        function addMobileMoveButtons(list) {
+            list.querySelectorAll('.widget-config-item').forEach(function(item, idx) {
+                var handle = item.querySelector('.widget-config-drag-handle');
+                handle.innerHTML = '';
+                if (idx > 0) {
+                    var upBtn = document.createElement('button');
+                    upBtn.className = 'icon-btn';
+                    upBtn.style.cssText = 'padding:2px;';
+                    upBtn.innerHTML = '<svg viewBox="0 0 24 24" width="12" height="12"><polyline points="18 15 12 9 6 15"/></svg>';
+                    upBtn.onclick = function(e) {
+                        e.stopPropagation();
+                        var moved = panelWidgets.splice(idx, 1)[0];
+                        panelWidgets.splice(idx - 1, 0, moved);
+                        applyWidgetLayout();
+                        renderWidgetConfigList();
+                        saveWidgetConfig();
+                    };
+                    handle.appendChild(upBtn);
+                }
+                if (idx < panelWidgets.length - 1) {
+                    var downBtn = document.createElement('button');
+                    downBtn.className = 'icon-btn';
+                    downBtn.style.cssText = 'padding:2px;';
+                    downBtn.innerHTML = '<svg viewBox="0 0 24 24" width="12" height="12"><polyline points="6 9 12 15 18 9"/></svg>';
+                    downBtn.onclick = function(e) {
+                        e.stopPropagation();
+                        var moved = panelWidgets.splice(idx, 1)[0];
+                        panelWidgets.splice(idx + 1, 0, moved);
+                        applyWidgetLayout();
+                        renderWidgetConfigList();
+                        saveWidgetConfig();
+                    };
+                    handle.appendChild(downBtn);
+                }
+                item.setAttribute('draggable', 'false');
+            });
+        }
+
+        function toggleWidgetVisibility(idx, visible) {
+            panelWidgets[idx].visible = visible;
+            applyWidgetLayout();
+            saveWidgetConfig();
+            // Load data for newly visible widgets
+            if (visible) refreshWidget(panelWidgets[idx].id);
+        }
+
+        function toggleWidgetCollapse(widgetId) {
+            var el = document.getElementById('widget-' + widgetId);
+            if (el) el.classList.toggle('collapsed-widget');
+        }
+
+        function saveWidgetConfig() {
+            saveUiState({ panel_widgets: panelWidgets });
+        }
+
+        function refreshWidget(widgetId) {
+            if (widgetId === 'outline') updateOutline();
+            else if (widgetId === 'backlinks') loadBacklinks();
+            else if (widgetId === 'outbound_links') loadOutboundLinks();
+            else if (widgetId === 'properties') updateRightPanelProps();
+            else if (widgetId === 'todos') loadTodosWidget();
+            else if (widgetId === 'events') loadEventsWidget();
+            else if (widgetId === 'quick_settings') syncQuickSettingsState();
+        }
+
+        function refreshAllVisibleWidgets() {
+            panelWidgets.forEach(function(w) {
+                if (w.visible) refreshWidget(w.id);
+            });
+        }
+
+        // Todos widget
+        var currentTodoFilter = 'remaining';
+        var cachedTodos = [];
+
+        function setTodoFilter(filter) {
+            currentTodoFilter = filter;
+            document.querySelectorAll('#todos-filter .agenda-filter-btn').forEach(function(btn) {
+                btn.classList.toggle('active', btn.getAttribute('data-filter') === filter);
+            });
+            renderTodos();
+        }
+
+        function loadTodosWidget() {
+            var container = document.getElementById('todos-widget-content');
+            if (!container) return;
+            var widget = document.getElementById('widget-todos');
+            if (widget && widget.classList.contains('hidden-widget')) return;
+
+            fetch('/api/get_todos').then(function(r) { return r.json(); })
+            .then(function(todos) {
+                // API returns bare array
+                cachedTodos = Array.isArray(todos) ? todos : [];
+                renderTodos();
+            }).catch(function() {
+                container.innerHTML = '<div class="outline-empty">Failed to load</div>';
+            });
+        }
+
+        function renderTodos() {
+            var container = document.getElementById('todos-widget-content');
+            if (!container) return;
+            var filtered;
+            if (currentTodoFilter === 'remaining') {
+                filtered = cachedTodos.filter(function(t) { return !t.completed && !t.archived; });
+            } else if (currentTodoFilter === 'completed') {
+                filtered = cachedTodos.filter(function(t) { return t.completed; });
+            } else {
+                filtered = cachedTodos.filter(function(t) { return !t.archived; });
+            }
+
+            if (filtered.length === 0) {
+                container.innerHTML = '<div class="outline-empty">No ' + currentTodoFilter + ' to-dos</div>';
+                return;
+            }
+
+            var html = '';
+            filtered.slice(0, 20).forEach(function(t) {
+                var dotClass = 'todo-dot';
+                if (t.time_until_due === 'Overdue') dotClass = 'overdue-dot';
+                var dateStr = t.time_until_due || '';
+                var checkedClass = t.completed ? ' checked' : '';
+                var itemClass = t.completed ? ' completed' : '';
+                html += '<div class="agenda-widget-item' + itemClass + '" onclick="window.location.href=\'/agenda\'">' +
+                    '<button class="agenda-todo-check' + checkedClass + '" onclick="event.stopPropagation(); completeTodoWidget(' + t.id + ', this)" title="' + (t.completed ? 'Completed' : 'Complete') + '">' +
+                    '<svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></button>' +
+                    '<span class="agenda-item-title">' + (t.title || 'Untitled').replace(/</g, '&lt;') + '</span>' +
+                    '<span class="agenda-item-date">' + dateStr + '</span></div>';
+            });
+            container.innerHTML = html;
+        }
+
+        function completeTodoWidget(todoId, btn) {
+            fetch('/api/complete_todo', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ todoId: todoId })
+            }).then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (data.success) {
+                    // Update cached state and re-render
+                    cachedTodos.forEach(function(t) { if (t.id === todoId) t.completed = true; });
+                    renderTodos();
+                }
+            });
+        }
+
+        // Events widget
+        function loadEventsWidget() {
+            var container = document.getElementById('events-widget-content');
+            if (!container) return;
+            var widget = document.getElementById('widget-events');
+            if (widget && widget.classList.contains('hidden-widget')) return;
+
+            fetch('/api/get_events').then(function(r) { return r.json(); })
+            .then(function(events) {
+                // API returns bare array
+                events = Array.isArray(events) ? events : [];
+                if (events.length === 0) {
+                    container.innerHTML = '<div class="outline-empty">No events</div>';
+                    return;
+                }
+                var html = '';
+                events.forEach(function(e) {
+                    html += '<div class="agenda-widget-item" onclick="window.location.href=\'/agenda\'">' +
+                        '<span class="agenda-dot event-dot"></span>' +
+                        '<span class="agenda-item-title">' + (e.title || 'Untitled').replace(/</g, '&lt;') + '</span>' +
+                        '<span class="agenda-item-date">' + (e.time_until_event || '') + '</span></div>';
+                });
+                container.innerHTML = html;
+            }).catch(function() {
+                container.innerHTML = '<div class="outline-empty">Failed to load</div>';
+            });
+        }
+
+        // Quick settings sync
+        function syncQuickSettingsState() {
+            var darkEl = document.getElementById('qs-dark-mode');
+            var previewEl = document.getElementById('qs-preview-mode');
+            var hideTitleEl = document.getElementById('qs-hide-title');
+            var propsEl = document.getElementById('qs-props-collapsed');
+            if (darkEl) darkEl.checked = document.documentElement.getAttribute('data-theme') === 'dark';
+            if (previewEl) previewEl.checked = !editMode;
+            if (hideTitleEl) hideTitleEl.checked = document.getElementById('note-title') && document.getElementById('note-title').style.display === 'none';
+            if (propsEl) propsEl.checked = document.getElementById('props-container') && document.getElementById('props-container').classList.contains('collapsed');
+        }
+
+        function toggleHideTitle() {
+            var titleEl = document.getElementById('note-title');
+            if (!titleEl) return;
+            var hidden = titleEl.style.display === 'none';
+            titleEl.style.display = hidden ? '' : 'none';
+            fetch('/api/save_hide_title', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ hideTitle: hidden ? 0 : 1 })
+            });
+        }
+
         // ============ Font size ============
 
         function changeFontSize(delta) {
@@ -1935,6 +2431,7 @@
             }
             if (!editMode) renderPreview();
             fetch('/api/save_dark_mode/' + (isDark ? 0 : 1));
+            syncQuickSettingsState();
         }
 
         // ============ Outline + Backlinks ============
@@ -1945,10 +2442,7 @@
             panel.classList.toggle('collapsed');
             if (!panel.classList.contains('collapsed')) {
                 if (btn) btn.classList.add('active');
-                updateOutline();
-                loadBacklinks();
-                loadOutboundLinks();
-                updateRightPanelProps();
+                refreshAllVisibleWidgets();
             } else {
                 if (btn) btn.classList.remove('active');
             }
@@ -2789,13 +3283,14 @@
             renderPinnedNotes();
             updatePinButtons();
 
+            // Apply widget layout from saved config
+            applyWidgetLayout();
+            syncQuickSettingsState();
+
             // Populate right panel if open on load
             var rp = document.getElementById('right-panel');
             if (rp && !rp.classList.contains('collapsed')) {
-                updateOutline();
-                loadBacklinks();
-                loadOutboundLinks();
-                updateRightPanelProps();
+                refreshAllVisibleWidgets();
             }
         })();
     </script>

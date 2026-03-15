@@ -243,7 +243,8 @@ def note_single_page(note_id):
             cat_obj = UserNoteCategory.query.filter_by(user_id=g.user.id, name=category).first()
             if cat_obj and cat_obj.default_template_id:
                 default_template = NoteTemplate.query.get(cat_obj.default_template_id)
-        return render_template(f"themes/{theme_settings.theme.slug}/note_single.html", note = note, note_id = note_id, font_size = font_size, category = category, theme_settings = theme_settings, category_tree = category_tree, default_template = default_template)
+        panel_widgets = theme_settings.get_panel_widgets()
+        return render_template(f"themes/{theme_settings.theme.slug}/note_single.html", note = note, note_id = note_id, font_size = font_size, category = category, theme_settings = theme_settings, category_tree = category_tree, default_template = default_template, panel_widgets = panel_widgets)
     return "You must log in."
 
 @web_bp.route("/search")

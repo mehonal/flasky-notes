@@ -166,6 +166,8 @@ def save_ui_state():
         for key in allowed:
             if key in data:
                 setattr(theme_settings, key, bool(data[key]))
+        if 'panel_widgets' in data and isinstance(data['panel_widgets'], list):
+            theme_settings.set_panel_widgets(data['panel_widgets'])
         db.session.commit()
         return jsonify(success=True)
     else:

@@ -37,8 +37,40 @@ class UserTheme(db.Model):
     right_panel_collapsed = db.Column(db.Boolean, default = True)
     properties_collapsed = db.Column(db.Boolean, default = True)
     preview_mode = db.Column(db.Boolean, default = False)
+    panel_widgets = db.Column(db.Text, default = None)  # JSON: widget order + visibility
     user = db.relationship('User', backref="themes")
     theme = db.relationship('Theme', backref="users")
+
+    DEFAULT_PANEL_WIDGETS = [
+        {"id": "outline", "label": "Outline", "visible": True},
+        {"id": "backlinks", "label": "Backlinks", "visible": True},
+        {"id": "outbound_links", "label": "Outbound Links", "visible": True},
+        {"id": "properties", "label": "Properties", "visible": True},
+        {"id": "todos", "label": "To-dos", "visible": False},
+        {"id": "events", "label": "Events", "visible": False},
+        {"id": "quick_settings", "label": "Quick Settings", "visible": False},
+    ]
+
+    def get_panel_widgets(self):
+        import json
+        if self.panel_widgets:
+            try:
+                saved = json.loads(self.panel_widgets)
+                # Remove retired widget ids
+                saved = [w for w in saved if w['id'] != 'agenda']
+                # Merge with defaults to pick up newly added widgets
+                saved_ids = [w['id'] for w in saved]
+                for default_w in self.DEFAULT_PANEL_WIDGETS:
+                    if default_w['id'] not in saved_ids:
+                        saved.append(dict(default_w))
+                return saved
+            except (json.JSONDecodeError, KeyError):
+                pass
+        return [dict(w) for w in self.DEFAULT_PANEL_WIDGETS]
+
+    def set_panel_widgets(self, widgets):
+        import json
+        self.panel_widgets = json.dumps(widgets)
 
 class UserSettings(db.Model):
     __tablename__ = "user_settings"
