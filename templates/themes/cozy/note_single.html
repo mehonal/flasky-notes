@@ -700,7 +700,7 @@
     {% endfor %}
     {% endmacro %}
 
-    <div class="sidebar">
+    <div class="sidebar {% if theme_settings and not theme_settings.sidebar_collapsed %}expanded{% endif %}">
         <button id="toggle-sidebar" title="Toggle Sidebar">☰</button>
         <div class="sidebar-category">
             <div class="sidebar-category-label">Note folder</div>
@@ -720,7 +720,7 @@
                  ondragover="onDragOver(event)" ondragleave="onDragLeave(event)"
                  ondrop="onRootDrop(event)">Drop here to move to root</div>
         </div>
-        <div class="sidebar-actions">
+        <div class="sidebar-actions {% if theme_settings and not theme_settings.sidebar_collapsed %}expanded{% endif %}">
             <button id="new-note" title="Add New Note">+<span class="button-text">New Note</span></button>
             <button id="delete-note" title="Delete Note">🗑️<span class="button-text">Delete</span></button>
             <button id="toggle-markdown" title="Toggle Markdown Mode">M<span class="button-text">Markdown</span></button>
@@ -951,8 +951,13 @@
 
 
         // if on mobile, mobile font size
-        if (window.innerWidth < 480) {
+        var isMobile = window.innerWidth < 480;
+        if (isMobile) {
             document.getElementById('note-content').style.fontSize = '{{ g.user.get_theme_settings().mobile_font_size }}px';
+            // Always start collapsed on mobile
+            document.querySelector('.sidebar').classList.remove('expanded');
+            document.querySelector('.main-content').classList.remove('expanded');
+            document.querySelector('.sidebar-actions').classList.remove('expanded');
         }
         else {
             document.getElementById('note-content').style.fontSize = '{{ g.user.get_theme_settings().font_size }}px';
@@ -963,6 +968,15 @@
             document.querySelector('.sidebar').classList.toggle('expanded');
             document.querySelector('.main-content').classList.toggle('expanded');
             document.querySelector('.sidebar-actions').classList.toggle('expanded');
+            var isExpanded = document.querySelector('.sidebar').classList.contains('expanded');
+            // Only persist on desktop
+            if (!isMobile) {
+                fetch('/api/save_ui_state', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ sidebar_collapsed: !isExpanded })
+                });
+            }
         });
 
         // Add new note
