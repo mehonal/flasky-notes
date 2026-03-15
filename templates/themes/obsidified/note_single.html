@@ -614,6 +614,8 @@
             .folder-delete-btn, .folder-add-btn, .folder-newnote-btn, .folder-move-btn { display: flex; }
             .file-item .delete-btn { display: flex; position: static; }
             .file-item .pin-btn { display: flex; position: static; }
+            .prop-remove-btn { opacity: 1; }
+            .status-item.desktop-only { display: none; }
 
             .sidebar-backdrop.visible { display: block; }
 
@@ -799,10 +801,14 @@
             border-radius: 4px;
         }
 
-        /* ============ Mobile search button ============ */
+        /* ============ Mobile-only toolbar buttons ============ */
         .mobile-search-btn { display: none; }
+        .mobile-save-btn { display: none; }
         @media (max-width: 768px) {
             .mobile-search-btn { display: flex; }
+            .mobile-save-btn { display: flex; }
+            .mobile-save-btn.saved { color: var(--green); }
+            .mobile-save-btn.unsaved { color: var(--yellow); }
         }
 
         /* ============ Callouts (preview) ============ */
@@ -983,6 +989,10 @@
                         </button>
                     </div>
 
+                    <button class="icon-btn mobile-save-btn" id="mobile-save-btn" onclick="saveNote()" title="Save note">
+                        <svg viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                    </button>
+
                     <div class="toolbar-divider desktop-only"></div>
 
                     <button class="icon-btn {% if not theme_settings or not theme_settings.preview_mode %}active{% endif %}" id="mode-toggle" onclick="toggleMode()" title="Toggle edit/preview (Ctrl+E)">
@@ -1128,7 +1138,7 @@
                 <span class="status-item mode-indicator {% if theme_settings and theme_settings.preview_mode %}preview{% else %}editing{% endif %}" id="mode-indicator">{% if theme_settings and theme_settings.preview_mode %}Preview{% else %}Editing{% endif %}</span>
                 <span class="status-spacer"></span>
                 {% if note %}
-                <span class="status-item status-clickable" onclick="toggleShortcutsModal()" title="Keyboard shortcuts">Ctrl+/</span>
+                <span class="status-item status-clickable desktop-only" onclick="toggleShortcutsModal()" title="Keyboard shortcuts">Ctrl+/</span>
                 <span class="status-item" id="word-count">0 words</span>
                 <span class="status-item" id="char-count">{{ (note.content or '') | length }} chars</span>
                 {% endif %}
@@ -1535,10 +1545,19 @@
 
         var hasBeenSavedOnce = {{ 'true' if note else 'false' }};
 
+        function updateMobileSaveBtn(state) {
+            var btn = document.getElementById('mobile-save-btn');
+            if (!btn) return;
+            btn.classList.remove('saved', 'unsaved');
+            if (state === 'unsaved') btn.classList.add('unsaved');
+            else if (state === 'saved') btn.classList.add('saved');
+        }
+
         function markDirty() {
             isDirty = true;
             var s = document.getElementById('save-status');
             if (s) { s.textContent = 'Unsaved'; s.style.color = 'var(--yellow)'; }
+            updateMobileSaveBtn('unsaved');
             updateCounts();
             clearTimeout(autoSaveTimer);
             // Only autosave if this note has been saved at least once (not a brand new note)
@@ -1613,6 +1632,7 @@
                     hasBeenSavedOnce = true;
                     document.getElementById('save-status').textContent = 'Saved';
                     document.getElementById('save-status').style.color = 'var(--green)';
+                    updateMobileSaveBtn('saved');
                     if (noteId === 0 && data.note && data.note.id) {
                         noteId = data.note.id;
                         history.replaceState(null, '', '/note/' + noteId);
@@ -1627,6 +1647,7 @@
             .catch(function() {
                 document.getElementById('save-status').textContent = 'Save failed';
                 document.getElementById('save-status').style.color = 'var(--red)';
+                updateMobileSaveBtn('unsaved');
                 if (callback) callback();
             });
         }
