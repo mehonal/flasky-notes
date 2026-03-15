@@ -1865,6 +1865,7 @@
         // ============ Save ============
 
         var outboundLinksTimer = null;
+        var outlineUpdateTimer = null;
 
         var hasBeenSavedOnce = {{ 'true' if note else 'false' }};
 
@@ -1888,11 +1889,13 @@
                 autoSaveTimer = setTimeout(function() { saveNote(); }, 3000);
             }
 
-            // Update outbound links in right panel (debounced)
+            // Update outline and outbound links in right panel (debounced)
             var panel = document.getElementById('right-panel');
             if (panel && !panel.classList.contains('collapsed')) {
                 clearTimeout(outboundLinksTimer);
                 outboundLinksTimer = setTimeout(updateOutboundLinksFromContent, 500);
+                clearTimeout(outlineUpdateTimer);
+                outlineUpdateTimer = setTimeout(updateOutline, 500);
             }
         }
 
