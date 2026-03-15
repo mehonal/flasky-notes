@@ -602,6 +602,53 @@
             outline: 2px solid var(--button-bg);
         }
 
+        /* Drag and drop */
+        .folder-header.drag-over {
+            background-color: #e76f51;
+            color: #fff;
+            opacity: 1;
+            border-radius: 5px;
+        }
+
+        .folder-header.drag-over .folder-chevron,
+        .folder-header.drag-over .folder-count {
+            opacity: 0.8;
+        }
+
+        .note-item.drag-over {
+            box-shadow: 0 2px 0 0 #e76f51;
+        }
+
+        a.drag-over .note-item {
+            box-shadow: 0 2px 0 0 #e76f51;
+        }
+
+        .dragging {
+            opacity: 0.35;
+        }
+
+        .root-drop-zone {
+            display: none;
+            padding: 8px;
+            margin: 6px 0;
+            text-align: center;
+            font-size: 11px;
+            color: var(--text-color);
+            opacity: 0.5;
+            border: 1.5px dashed var(--button-bg);
+            border-radius: 5px;
+        }
+
+        .root-drop-zone.visible {
+            display: block;
+        }
+
+        .root-drop-zone.drag-over {
+            border-color: #e76f51;
+            background-color: rgba(231, 111, 81, 0.1);
+            opacity: 1;
+        }
+
     </style>
 </head>
 <body>
@@ -621,7 +668,11 @@
     {% set children = data['_children'] %}
     {% set total_notes = notes_list | length %}
     <div class="folder collapsed" {% if cat %}data-category-id="{{ cat.id }}"{% endif %} data-path="{{ full_path }}">
-        <div class="folder-header" onclick="toggleFolder(this.parentElement)">
+        <div class="folder-header"
+             onclick="toggleFolder(this.parentElement)"
+             {% if cat %}draggable="true" ondragstart="onFolderDragStart(event, {{ cat.id }}, '{{ full_path | e }}')"{% endif %}
+             ondragover="onDragOver(event)" ondragleave="onDragLeave(event)"
+             ondrop="onDrop(event, '{{ full_path | e }}', {% if cat %}{{ cat.id }}{% else %}null{% endif %})">
             <span class="folder-chevron">&#9660;</span>
             <span class="folder-icon">📂</span>
             <span class="folder-name">{{ name }}</span>
@@ -637,7 +688,12 @@
         <div class="folder-items">
             {{ render_folder_tree(children, full_path) }}
             {% for n in notes_list %}
-            <a href="/note/{{ n.id }}"><div class="note-item {% if note_id == n.id %}active{% endif %}">{{ n.title or 'Untitled' }}</div></a>
+            <a href="/note/{{ n.id }}"
+               draggable="true" ondragstart="onNoteDragStart(event, {{ n.id }})"
+               ondragover="onDragOver(event)" ondragleave="onDragLeave(event)"
+               ondrop="onDrop(event, '{{ full_path | e }}', {% if cat %}{{ cat.id }}{% else %}null{% endif %})">
+                <div class="note-item {% if note_id == n.id %}active{% endif %}">{{ n.title or 'Untitled' }}</div>
+            </a>
             {% endfor %}
         </div>
     </div>
@@ -660,6 +716,9 @@
         <div class="note-list">
             <div class="sidebar-category-label" style="margin-bottom: 6px;">Folders</div>
             {{ render_folder_tree(category_tree) }}
+            <div class="root-drop-zone" id="root-drop-zone"
+                 ondragover="onDragOver(event)" ondragleave="onDragLeave(event)"
+                 ondrop="onRootDrop(event)">Drop here to move to root</div>
         </div>
         <div class="sidebar-actions">
             <button id="new-note" title="Add New Note">+<span class="button-text">New Note</span></button>
@@ -724,6 +783,117 @@
                 if (data.success) window.location.reload();
             });
         }
+
+        // Drag and drop
+        var dragType = null;
+        var dragNoteId = null;
+        var dragFolderId = null;
+        var dragFolderPath = null;
+
+        function onNoteDragStart(e, nid) {
+            dragType = 'note';
+            dragNoteId = nid;
+            dragFolderId = null;
+            dragFolderPath = null;
+            e.dataTransfer.effectAllowed = 'move';
+            e.target.classList.add('dragging');
+            // hide root drop zone for notes
+            document.getElementById('root-drop-zone').classList.remove('visible');
+        }
+
+        function onFolderDragStart(e, catId, path) {
+            dragType = 'folder';
+            dragFolderId = catId;
+            dragFolderPath = path;
+            dragNoteId = null;
+            e.dataTransfer.effectAllowed = 'move';
+            e.stopPropagation();
+            var folderEl = e.target.closest('.folder');
+            if (folderEl) folderEl.classList.add('dragging');
+            // show root drop zone for subfolders
+            if (path.indexOf('/') !== -1) {
+                document.getElementById('root-drop-zone').classList.add('visible');
+            }
+        }
+
+        function onDragOver(e) {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+            var target = e.target.closest('.folder-header, .root-drop-zone, a');
+            if (target) target.classList.add('drag-over');
+        }
+
+        function onDragLeave(e) {
+            var target = e.target.closest('.folder-header, .root-drop-zone, a');
+            if (target) target.classList.remove('drag-over');
+        }
+
+        function clearDragState() {
+            dragType = null;
+            dragNoteId = null;
+            dragFolderId = null;
+            dragFolderPath = null;
+            document.querySelectorAll('.drag-over').forEach(function(el) { el.classList.remove('drag-over'); });
+            document.querySelectorAll('.dragging').forEach(function(el) { el.classList.remove('dragging'); });
+            document.getElementById('root-drop-zone').classList.remove('visible');
+        }
+
+        function onDrop(e, targetPath, targetCatId) {
+            e.preventDefault();
+            e.stopPropagation();
+            if (!dragType) return;
+
+            if (dragType === 'note' && targetCatId !== null) {
+                var nid = dragNoteId;
+                clearDragState();
+                fetch('/api/edit_note_category', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ noteId: nid, category: targetCatId })
+                })
+                .then(function(r) { return r.json(); })
+                .then(function(data) {
+                    if (data.success) window.location.reload();
+                });
+            } else if (dragType === 'folder') {
+                if (targetPath === dragFolderPath) { clearDragState(); return; }
+                if (targetPath.startsWith(dragFolderPath + '/')) { clearDragState(); return; }
+                var fid = dragFolderId;
+                clearDragState();
+                fetch('/api/move_category', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ categoryId: fid, targetPath: targetPath })
+                })
+                .then(function(r) { return r.json(); })
+                .then(function(data) {
+                    if (data.success) window.location.reload();
+                    else if (data.reason) alert(data.reason);
+                });
+            } else {
+                clearDragState();
+            }
+        }
+
+        function onRootDrop(e) {
+            e.preventDefault();
+            if (dragType !== 'folder') { clearDragState(); return; }
+            var fid = dragFolderId;
+            clearDragState();
+            fetch('/api/move_category', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ categoryId: fid, targetPath: '' })
+            })
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (data.success) window.location.reload();
+                else if (data.reason) alert(data.reason);
+            });
+        }
+
+        // Clean up drag state if drop happens outside
+        document.addEventListener('dragend', clearDragState);
 
         function changeNoteCategory(categoryId) {
             var sel = document.getElementById('category-select');
