@@ -325,6 +325,22 @@ class User(db.Model):
             return self.get_main_category()
         return category_obj
 
+    def get_category_tree(self):
+        """Build a nested dict tree from path-based category names.
+        Returns {name: {_category, _notes, _children: {name: ...}}}"""
+        tree = {}
+        for cat in sorted(self.categories, key=lambda c: c.name):
+            parts = cat.name.split('/')
+            node = tree
+            for i, part in enumerate(parts):
+                if part not in node:
+                    node[part] = {'_children': {}, '_category': None, '_notes': []}
+                if i == len(parts) - 1:
+                    node[part]['_category'] = cat
+                    node[part]['_notes'] = sorted(cat.notes, key=lambda n: (n.title or '').lower())
+                node = node[part]['_children']
+        return tree
+
     def generate_theme_settings(self):
         for theme in Theme.query.all():
             if UserTheme.query.filter_by(user_id=self.id, theme_id=theme.id).first() is None:
@@ -678,7 +694,7 @@ class UserNoteCategory(db.Model):
     __tablename__ = "user_note_category"
     id = db.Column(db.Integer, primary_key = True)
     user_id = db.Column(db.ForeignKey('user.id'))
-    name = db.Column(db.String(100))
+    name = db.Column(db.String(500))
     user = db.relationship('User', backref="categories")
 
     def __init__(self, user_id,name):
@@ -1141,8 +1157,18 @@ def delete_category():
         category_id = int(data.get('categoryId'))
         category = UserNoteCategory.query.filter_by(id=category_id).first()
         if category and g.user == category.user and category.name != "Main" and category.name != "main":
+            main = g.user.get_main_category()
+            # Also delete child categories (subfolders)
+            children = UserNoteCategory.query.filter(
+                UserNoteCategory.user_id == g.user.id,
+                UserNoteCategory.name.startswith(category.name + "/")
+            ).all()
+            for child in children:
+                for note in child.notes:
+                    note.category_id = main.id
+                db.session.delete(child)
             for note in UserNote.query.filter_by(category_id=category_id):
-                note.category_id = g.user.get_main_category().id
+                note.category_id = main.id
             db.session.commit()
             db.session.delete(category)
             db.session.commit()
@@ -1968,7 +1994,8 @@ def note_single_page(note_id):
                     note.change_category(note_category)
                 return redirect(url_for('note_single_page', note_id = note.id))
         category = request.args.get('category')
-        return render_template(f"themes/{theme_settings.theme.slug}/note_single.html", note = note, note_id = note_id, font_size = font_size, category = category, theme_settings = theme_settings)
+        category_tree = g.user.get_category_tree()
+        return render_template(f"themes/{theme_settings.theme.slug}/note_single.html", note = note, note_id = note_id, font_size = font_size, category = category, theme_settings = theme_settings, category_tree = category_tree)
     return "You must log in."
 
 @app.route("/search")
