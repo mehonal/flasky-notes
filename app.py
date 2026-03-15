@@ -184,6 +184,10 @@ class UserTheme(db.Model):
     notes_row_count = db.Column(db.Integer, default = 3)
     notes_height = db.Column(db.Integer, default = 150)
     auto_save = db.Column(db.Boolean, default = False)
+    sidebar_collapsed = db.Column(db.Boolean, default = False)
+    right_panel_collapsed = db.Column(db.Boolean, default = True)
+    properties_collapsed = db.Column(db.Boolean, default = True)
+    preview_mode = db.Column(db.Boolean, default = False)
     user = db.relationship('User', backref="themes")
     theme = db.relationship('Theme', backref="users")
 
@@ -980,6 +984,23 @@ def save_dark_mode(dark_mode):
         return jsonify(success=True,theme=theme,new_dark_mode_setting=dark_mode)
     else:
         return jsonify(success=False,reason="Not logged in.")
+
+@app.route("/api/save_ui_state", methods=['POST'])
+def save_ui_state():
+    if g.user:
+        data = request.get_json()
+        if not data:
+            return jsonify(success=False, reason="No data provided.")
+        theme_slug = g.user.return_settings().theme_preference
+        theme_settings = g.user.get_theme_settings(theme_slug)
+        allowed = ('sidebar_collapsed', 'right_panel_collapsed', 'properties_collapsed', 'preview_mode')
+        for key in allowed:
+            if key in data:
+                setattr(theme_settings, key, bool(data[key]))
+        db.session.commit()
+        return jsonify(success=True)
+    else:
+        return jsonify(success=False, reason="Not logged in.")
 
 @app.route("/api/save_font", methods=['POST'])
 def save_font():
@@ -1920,7 +1941,7 @@ def note_single_page(note_id):
                     note.change_category(note_category)
                 return redirect(url_for('note_single_page', note_id = note.id))
         category = request.args.get('category')
-        return render_template(f"themes/{theme_settings.theme.slug}/note_single.html", note = note, note_id = note_id, font_size = font_size, category = category)
+        return render_template(f"themes/{theme_settings.theme.slug}/note_single.html", note = note, note_id = note_id, font_size = font_size, category = category, theme_settings = theme_settings)
     return "You must log in."
 
 @app.route("/search")

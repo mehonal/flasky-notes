@@ -643,7 +643,7 @@
         <div class="sidebar-backdrop" id="sidebar-backdrop" onclick="closeSidebar()"></div>
 
         <!-- Sidebar -->
-        <div class="sidebar collapsed" id="sidebar">
+        <div class="sidebar {% if theme_settings and not theme_settings.sidebar_collapsed %}{% else %}collapsed{% endif %}" id="sidebar">
             <div class="sidebar-header">
                 <span class="sidebar-title">Notes</span>
                 <div class="sidebar-actions">
@@ -744,15 +744,19 @@
 
                     <div class="toolbar-divider desktop-only"></div>
 
-                    <button class="icon-btn active" id="mode-toggle" onclick="toggleMode()" title="Toggle edit/preview (Ctrl+E)">
+                    <button class="icon-btn {% if not theme_settings or not theme_settings.preview_mode %}active{% endif %}" id="mode-toggle" onclick="toggleMode()" title="Toggle edit/preview (Ctrl+E)">
                         <svg viewBox="0 0 24 24" id="mode-toggle-icon">
+                            {% if theme_settings and theme_settings.preview_mode %}
+                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
+                            {% else %}
                             <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                            {% endif %}
                         </svg>
                     </button>
 
                     <div class="toolbar-divider desktop-only"></div>
 
-                    <button class="icon-btn" id="panel-toggle" onclick="toggleRightPanel()" title="Outline panel (Ctrl+Shift+O)">
+                    <button class="icon-btn {% if theme_settings and not theme_settings.right_panel_collapsed %}active{% endif %}" id="panel-toggle" onclick="toggleRightPanel()" title="Outline panel (Ctrl+Shift+O)">
                         <svg viewBox="0 0 24 24"><line x1="3" y1="6" x2="13" y2="6"/><line x1="3" y1="10" x2="10" y2="10"/><line x1="3" y1="14" x2="13" y2="14"/><line x1="3" y1="18" x2="10" y2="18"/><rect x="17" y="4" width="4" height="16" rx="1"/></svg>
                     </button>
 
@@ -786,7 +790,7 @@
 
                     <div class="editor-scroll">
                         <div class="editor-properties" id="editor-properties">
-                            <div class="props-container {% if not note or not note.get_properties() %}collapsed{% endif %}" id="props-container">
+                            <div class="props-container {% if theme_settings and theme_settings.properties_collapsed %}collapsed{% endif %}" id="props-container">
                                 <div class="props-header" onclick="togglePropsPanel()">
                                     <span>Properties</span>
                                     <svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
@@ -814,10 +818,10 @@
                         </div>
 
                         <div class="editor-content-wrapper">
-                            <div class="cm-wrapper active" id="cm-wrapper">
+                            <div class="cm-wrapper {% if not theme_settings or not theme_settings.preview_mode %}active{% endif %}" id="cm-wrapper">
                                 <textarea id="note-content">{% if note %}{{ note.content }}{% endif %}</textarea>
                             </div>
-                            <div class="editor-preview" id="note-preview"></div>
+                            <div class="editor-preview {% if theme_settings and theme_settings.preview_mode %}active{% endif %}" id="note-preview"></div>
                         </div>
                     </div>
                 </div>
@@ -828,7 +832,7 @@
                 </div>
                 {% endif %}
 
-                <div class="right-panel collapsed" id="right-panel">
+                <div class="right-panel {% if theme_settings and not theme_settings.right_panel_collapsed %}{% else %}collapsed{% endif %}" id="right-panel">
                     <div class="right-panel-close" onclick="toggleRightPanel()">
                         <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                     </div>
@@ -866,7 +870,7 @@
 
             <div class="status-bar">
                 <span class="status-item" id="save-status"></span>
-                <span class="status-item mode-indicator editing" id="mode-indicator">Editing</span>
+                <span class="status-item mode-indicator {% if theme_settings and theme_settings.preview_mode %}preview{% else %}editing{% endif %}" id="mode-indicator">{% if theme_settings and theme_settings.preview_mode %}Preview{% else %}Editing{% endif %}</span>
                 <span class="status-spacer"></span>
                 {% if note %}
                 <span class="status-item status-clickable" onclick="toggleShortcutsModal()" title="Keyboard shortcuts">Ctrl+/</span>
@@ -916,7 +920,7 @@
         var noteId = {{ note_id }};
         var currentCategory = "{% if note %}{{ note.get_category_name() }}{% elif category %}{{ category }}{% else %}Main{% endif %}";
         var autoSaveTimer = null;
-        var editMode = true;
+        var editMode = {% if theme_settings and theme_settings.preview_mode %}false{% else %}true{% endif %};
         var isDirty = false;
         var cmEditor = null;
         var currentFontSize = {{ font_size or 15 }};
@@ -925,6 +929,24 @@
         var searchResults = [];
         var pinnedNotes = JSON.parse(localStorage.getItem('obsidified-pinned') || '[]');
         var isMobile = window.innerWidth <= 768;
+
+        function saveUiState(updates) {
+            fetch('/api/save_ui_state', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(updates)
+            });
+        }
+
+        // On mobile, always collapse sidebar and right panel regardless of DB state
+        if (isMobile) {
+            (function() {
+                var sb = document.getElementById('sidebar');
+                var rp = document.getElementById('right-panel');
+                if (sb) sb.classList.add('collapsed');
+                if (rp) rp.classList.add('collapsed');
+            })();
+        }
 
         // ============ Sidebar ============
 
@@ -937,6 +959,7 @@
             } else {
                 closeSidebar();
             }
+            if (!isMobile) saveUiState({ sidebar_collapsed: sb.classList.contains('collapsed') });
         }
 
         function closeSidebar() {
@@ -1112,6 +1135,7 @@
             if (toggleBtn) toggleBtn.classList.add('active');
             if (toggleIcon) toggleIcon.innerHTML = '<path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>';
             if (modeIndicator) { modeIndicator.textContent = 'Editing'; modeIndicator.className = 'status-item mode-indicator editing'; }
+            saveUiState({ preview_mode: false });
         }
 
         function enterPreviewMode() {
@@ -1132,6 +1156,7 @@
             if (toggleBtn) toggleBtn.classList.remove('active');
             if (toggleIcon) toggleIcon.innerHTML = '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>';
             if (modeIndicator) { modeIndicator.textContent = 'Preview'; modeIndicator.className = 'status-item mode-indicator preview'; }
+            saveUiState({ preview_mode: true });
         }
 
         // ============ Save ============
@@ -1296,6 +1321,7 @@
             } else {
                 if (btn) btn.classList.remove('active');
             }
+            if (!isMobile) saveUiState({ right_panel_collapsed: panel.classList.contains('collapsed') });
         }
 
         function updateRightPanelProps() {
@@ -1430,7 +1456,10 @@
 
         function togglePropsPanel() {
             var c = document.getElementById('props-container');
-            if (c) c.classList.toggle('collapsed');
+            if (c) {
+                c.classList.toggle('collapsed');
+                saveUiState({ properties_collapsed: c.classList.contains('collapsed') });
+            }
         }
 
         function addPropRow() {
@@ -1554,11 +1583,14 @@
             var titleInput = document.getElementById('note-title');
             if (titleInput) titleInput.addEventListener('input', markDirty);
 
-            // Start in edit mode by default — initialize CodeMirror
             var ta = document.getElementById('note-content');
             if (ta) {
-                initCodeMirror();
-                setTimeout(function() { if (cmEditor) cmEditor.refresh(); }, 20);
+                if (editMode) {
+                    initCodeMirror();
+                    setTimeout(function() { if (cmEditor) cmEditor.refresh(); }, 20);
+                } else {
+                    renderPreview();
+                }
 
                 // New note → focus title
                 if (noteId === 0 && titleInput) titleInput.focus();
@@ -1568,9 +1600,12 @@
             renderPinnedNotes();
             updatePinButtons();
 
-            // On desktop, open sidebar by default
-            if (!isMobile) {
-                document.getElementById('sidebar').classList.remove('collapsed');
+            // Populate right panel if open on load
+            var rp = document.getElementById('right-panel');
+            if (rp && !rp.classList.contains('collapsed')) {
+                updateOutline();
+                loadBacklinks();
+                updateRightPanelProps();
             }
         })();
     </script>
