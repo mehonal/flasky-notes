@@ -76,10 +76,75 @@
         gap: 0.5rem;
         flex-wrap: wrap;
     }
+
+    /* Dark mode */
+    .settings-dark {
+        color: #d4d4d4;
+    }
+    body:has(.settings-dark) {
+        background: #1e1e1e;
+        color: #d4d4d4;
+    }
+    .settings-dark .settings-card {
+        background: #2d2d2d;
+        border-color: #404040;
+    }
+    .settings-dark .settings-card h2 {
+        color: #9d9d9d;
+    }
+    .settings-dark .form-select,
+    .settings-dark .form-control {
+        background: #383838;
+        border-color: #505050;
+        color: #d4d4d4;
+    }
+    .settings-dark .form-select:focus,
+    .settings-dark .form-control:focus {
+        background: #383838;
+        border-color: #6a9fff;
+        color: #d4d4d4;
+        box-shadow: 0 0 0 0.2rem rgba(106, 159, 255, 0.25);
+    }
+    .settings-dark .table {
+        color: #d4d4d4;
+        --bs-table-bg: transparent;
+    }
+    .settings-dark .table th {
+        border-color: #404040;
+    }
+    .settings-dark .table td {
+        border-color: #404040;
+    }
+    .settings-dark .text-muted {
+        color: #8a8a8a !important;
+    }
+    .settings-dark .btn-outline-dark {
+        color: #aaa;
+        border-color: #aaa;
+    }
+    .settings-dark .btn-outline-dark:hover {
+        background: #aaa;
+        color: #1e1e1e;
+    }
+    .settings-dark hr {
+        border-color: #404040;
+    }
+    .settings-dark .alert-warning {
+        background: #3d3520;
+        border-color: #5a4e2a;
+        color: #e0c97a;
+    }
 </style>
 
-<div class="settings-page">
+<div class="settings-page {% if g.user.get_current_theme_dark_mode() %}settings-dark{% endif %}">
     <h1>Settings</h1>
+
+    <!-- Quick Links -->
+    <div class="quick-links mb-3">
+        <a href="/notes" class="btn btn-outline-primary btn-sm">Notes</a>
+        <a href="/note/0" class="btn btn-outline-primary btn-sm">New Note</a>
+        <a href="/logout" class="btn btn-outline-dark btn-sm">Log Out</a>
+    </div>
 
     <div class="settings-grid">
 
@@ -224,16 +289,6 @@
             </table>
         </div>
         {% endif %}
-
-        <!-- Quick Links -->
-        <div class="settings-card settings-card-wide">
-            <h2>Quick Access</h2>
-            <div class="quick-links">
-                <a href="/notes" class="btn btn-outline-primary btn-sm">Notes</a>
-                <a href="/note/0" class="btn btn-outline-primary btn-sm">New Note</a>
-                <a href="/logout" class="btn btn-outline-dark btn-sm">Log Out</a>
-            </div>
-        </div>
 
     </div>
 </div>
