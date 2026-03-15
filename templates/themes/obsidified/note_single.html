@@ -209,6 +209,9 @@
         .file-item:hover { background: var(--bg-hover); color: var(--text-secondary); }
         .file-item.active { background: var(--accent-dim); color: var(--accent); }
 
+        .file-item .delete-btn { display: none; position: absolute; right: 24px; padding: 2px; border-radius: 4px; }
+        .file-item:hover .delete-btn { display: flex; }
+        .file-item .delete-btn:hover { color: var(--red); }
         .file-item .pin-btn { display: none; position: absolute; right: 4px; padding: 2px; border-radius: 4px; }
         .file-item:hover .pin-btn { display: flex; }
         .file-item .pin-btn.pinned { display: flex; color: var(--yellow); }
@@ -768,6 +771,9 @@
                         <div class="file-item {% if note and note.id == n.id %}active{% endif %}" data-note-id="{{ n.id }}" onclick="openNote({{ n.id }})">
                             <span class="file-icon"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></span>
                             <span class="file-name">{{ n.title or 'Untitled' }}</span>
+                            <button class="icon-btn delete-btn" onclick="event.stopPropagation(); deleteSidebarNote({{ n.id }}, '{{ n.title | e }}')" title="Delete note">
+                                <svg viewBox="0 0 24 24" width="12" height="12"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                            </button>
                             <button class="icon-btn pin-btn" data-note-id="{{ n.id }}" onclick="event.stopPropagation(); togglePin({{ n.id }})" title="Pin note">
                                 <svg viewBox="0 0 24 24" width="12" height="12"><path d="M12 2L15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26z"/></svg>
                             </button>
@@ -1056,6 +1062,15 @@
         }
 
         function toggleFolder(folder) { folder.classList.toggle('collapsed'); }
+
+        // Auto-expand the folder containing the active note
+        (function() {
+            var activeItem = document.querySelector('#file-tree .file-item.active');
+            if (activeItem) {
+                var folder = activeItem.closest('.folder');
+                if (folder) folder.classList.remove('collapsed');
+            }
+        })();
 
         function openNote(id) {
             if (isDirty) {
@@ -1416,6 +1431,30 @@
             }
             var bc = document.querySelector('.breadcrumb-item.active');
             if (bc) bc.textContent = note.title || 'Untitled';
+        }
+
+        function deleteSidebarNote(id, title) {
+            if (!confirm('Delete "' + (title || 'Untitled') + '"?')) return;
+            var idx = pinnedNotes.indexOf(id);
+            if (idx > -1) { pinnedNotes.splice(idx, 1); localStorage.setItem('obsidified-pinned', JSON.stringify(pinnedNotes)); }
+            fetch('/api/delete_note', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ noteId: id }) })
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (data.success) {
+                    var item = document.querySelector('.file-item[data-note-id="' + id + '"]');
+                    if (item) {
+                        var folder = item.closest('.folder');
+                        item.remove();
+                        if (folder) {
+                            var count = folder.querySelector('.folder-count');
+                            var items = folder.querySelector('.folder-items');
+                            if (count && items) count.textContent = items.querySelectorAll('.file-item').length;
+                        }
+                    }
+                    updatePinnedSection();
+                    if (noteId === id) window.location.href = '/note/0';
+                }
+            });
         }
 
         function deleteCurrentNote() {
