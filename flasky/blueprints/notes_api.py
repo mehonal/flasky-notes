@@ -4,7 +4,7 @@ import re
 
 from flasky import db
 from flasky.models import (
-    UserNote, UserNoteCategory, UserTodo, UserEvent, Attachment
+    UserNote, UserNoteCategory, UserTodo, UserEvent, Attachment, NoteTemplate
 )
 
 notes_api_bp = Blueprint('notes_api', __name__, url_prefix='/api')
@@ -589,3 +589,88 @@ def note_map():
     for a in attachments:
         att_map[a.filename.lower()] = {"id": a.id, "filename": a.filename}
     return jsonify({"notes": result, "attachments": att_map})
+
+
+# ============ Templates ============
+
+@notes_api_bp.route("/templates", methods=['GET'])
+def list_templates():
+    if not g.user:
+        return jsonify(error="Not logged in"), 401
+    templates = NoteTemplate.query.filter_by(user_id=g.user.id).order_by(NoteTemplate.name).all()
+    return jsonify([t.return_json() for t in templates])
+
+@notes_api_bp.route("/templates/<int:template_id>", methods=['GET'])
+def get_template(template_id):
+    if not g.user:
+        return jsonify(error="Not logged in"), 401
+    t = NoteTemplate.query.filter_by(id=template_id, user_id=g.user.id).first()
+    if not t:
+        return jsonify(success=False, reason="Template not found."), 404
+    return jsonify(t.return_json())
+
+@notes_api_bp.route("/templates", methods=['POST'])
+def create_template():
+    if not g.user:
+        return jsonify(error="Not logged in"), 401
+    data = request.get_json()
+    name = (data.get('name') or '').strip()
+    if not name:
+        return jsonify(success=False, reason="Name is required.")
+    content = data.get('content', '')
+    properties = data.get('properties')
+    import json
+    props_json = json.dumps(properties) if properties else None
+    t = NoteTemplate(user_id=g.user.id, name=name, content=content, properties=props_json)
+    return jsonify(success=True, template=t.return_json())
+
+@notes_api_bp.route("/templates/<int:template_id>", methods=['PUT'])
+def update_template(template_id):
+    if not g.user:
+        return jsonify(error="Not logged in"), 401
+    t = NoteTemplate.query.filter_by(id=template_id, user_id=g.user.id).first()
+    if not t:
+        return jsonify(success=False, reason="Template not found."), 404
+    data = request.get_json()
+    if 'name' in data:
+        t.name = (data['name'] or '').strip() or t.name
+    if 'content' in data:
+        t.content = data['content']
+    if 'properties' in data:
+        import json
+        t.properties = json.dumps(data['properties']) if data['properties'] else None
+    db.session.commit()
+    return jsonify(success=True, template=t.return_json())
+
+@notes_api_bp.route("/templates/<int:template_id>", methods=['DELETE'])
+def delete_template(template_id):
+    if not g.user:
+        return jsonify(error="Not logged in"), 401
+    t = NoteTemplate.query.filter_by(id=template_id, user_id=g.user.id).first()
+    if not t:
+        return jsonify(success=False, reason="Template not found."), 404
+    # Clear any folder defaults referencing this template
+    UserNoteCategory.query.filter_by(user_id=g.user.id, default_template_id=t.id).update({'default_template_id': None})
+    db.session.delete(t)
+    db.session.commit()
+    return jsonify(success=True)
+
+@notes_api_bp.route("/set_folder_template", methods=['POST'])
+def set_folder_template():
+    if not g.user:
+        return jsonify(error="Not logged in"), 401
+    data = request.get_json()
+    category_id = data.get('categoryId')
+    template_id = data.get('templateId')  # null to unset
+    cat = UserNoteCategory.query.filter_by(id=category_id, user_id=g.user.id).first()
+    if not cat:
+        return jsonify(success=False, reason="Folder not found.")
+    if template_id:
+        t = NoteTemplate.query.filter_by(id=template_id, user_id=g.user.id).first()
+        if not t:
+            return jsonify(success=False, reason="Template not found.")
+        cat.default_template_id = t.id
+    else:
+        cat.default_template_id = None
+    db.session.commit()
+    return jsonify(success=True)

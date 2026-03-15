@@ -7,7 +7,7 @@ import config as CONFIG
 from flasky import db
 from flasky.models import (
     User, UserNote, UserNoteCategory, UserTodo, UserEvent,
-    Theme, UserTheme, UserSettings, ApiToken, SyncConflict, Attachment
+    Theme, UserTheme, UserSettings, ApiToken, SyncConflict, Attachment, NoteTemplate
 )
 from flasky.utils import has_banned_chars, valid_email, generate_api_token
 from zoneinfo import available_timezones
@@ -238,7 +238,12 @@ def note_single_page(note_id):
                 return redirect(url_for('web.note_single_page', note_id = note.id))
         category = request.args.get('category')
         category_tree = g.user.get_category_tree()
-        return render_template(f"themes/{theme_settings.theme.slug}/note_single.html", note = note, note_id = note_id, font_size = font_size, category = category, theme_settings = theme_settings, category_tree = category_tree)
+        default_template = None
+        if note_id == 0 and category:
+            cat_obj = UserNoteCategory.query.filter_by(user_id=g.user.id, name=category).first()
+            if cat_obj and cat_obj.default_template_id:
+                default_template = NoteTemplate.query.get(cat_obj.default_template_id)
+        return render_template(f"themes/{theme_settings.theme.slug}/note_single.html", note = note, note_id = note_id, font_size = font_size, category = category, theme_settings = theme_settings, category_tree = category_tree, default_template = default_template)
     return "You must log in."
 
 @web_bp.route("/search")

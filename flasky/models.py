@@ -546,11 +546,48 @@ class UserNoteCategory(db.Model):
     id = db.Column(db.Integer, primary_key = True)
     user_id = db.Column(db.ForeignKey('user.id'))
     name = db.Column(db.String(500))
+    default_template_id = db.Column(db.ForeignKey('note_template.id'), nullable=True)
     user = db.relationship('User', backref="categories")
+    default_template = db.relationship('NoteTemplate')
 
     def __init__(self, user_id,name):
         self.user_id = user_id
         self.name = name
+        db.session.add(self)
+        db.session.commit()
+
+class NoteTemplate(db.Model):
+    __tablename__ = "note_template"
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.ForeignKey('user.id'), nullable=False)
+    name = db.Column(db.String(500), nullable=False)
+    content = db.Column(db.String(1_000_000))
+    properties = db.Column(db.Text)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    user = db.relationship('User', backref="templates")
+
+    def get_properties(self):
+        if self.properties:
+            try:
+                return json.loads(self.properties)
+            except (json.JSONDecodeError, TypeError):
+                pass
+        return {}
+
+    def return_json(self):
+        return {
+            "id": self.id,
+            "name": self.name,
+            "content": self.content or "",
+            "properties": self.get_properties(),
+        }
+
+    def __init__(self, user_id, name, content="", properties=None):
+        self.user_id = user_id
+        self.name = name
+        self.content = content
+        self.properties = properties
+        self.created_at = datetime.utcnow()
         db.session.add(self)
         db.session.commit()
 

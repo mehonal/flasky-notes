@@ -202,7 +202,7 @@
         .folder-count { font-size: 11px; color: var(--text-muted); flex-shrink: 0; min-width: 16px; text-align: center; }
         .folder.collapsed .folder-items { display: none; }
         .folder-items > .folder { padding-left: 8px; }
-        .folder-header.drag-over { background: var(--accent-dim); outline: 2px dashed var(--accent); outline-offset: -2px; border-radius: 6px; }
+        .folder-header.drag-over, .file-item.drag-over { background: var(--accent-dim); outline: 2px dashed var(--accent); outline-offset: -2px; border-radius: 6px; }
         .file-item.dragging { opacity: 0.4; }
         .folder.dragging > .folder-header { opacity: 0.4; }
         .root-drop-zone { display: none; padding: 8px; margin: 4px 0; text-align: center; font-size: 12px; color: var(--text-muted); border: 2px dashed var(--border); border-radius: 6px; }
@@ -694,6 +694,117 @@
             font-size: 12px;
         }
 
+        /* ============ Slash Commands ============ */
+        .slash-command-popup {
+            position: absolute;
+            z-index: 500;
+            background: var(--bg-primary);
+            border: 1px solid var(--border-light);
+            border-radius: 8px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+            max-height: 260px;
+            overflow-y: auto;
+            min-width: 220px;
+            max-width: 320px;
+            font-size: 13px;
+        }
+        .slash-command-item {
+            padding: 7px 12px;
+            cursor: pointer;
+            color: var(--text-secondary);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .slash-command-item:first-child { border-radius: 8px 8px 0 0; }
+        .slash-command-item:last-child { border-radius: 0 0 8px 8px; }
+        .slash-command-item:only-child { border-radius: 8px; }
+        .slash-command-item:hover,
+        .slash-command-item.selected {
+            background: var(--accent-dim);
+            color: var(--accent);
+        }
+        .slash-command-icon {
+            width: 16px; height: 16px;
+            flex-shrink: 0;
+            opacity: 0.7;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .slash-command-item.selected .slash-command-icon,
+        .slash-command-item:hover .slash-command-icon { opacity: 1; }
+
+        /* ============ Template Modal ============ */
+        .template-modal {
+            background: var(--bg-primary);
+            border: 1px solid var(--border-light);
+            border-radius: 12px;
+            width: 500px;
+            max-width: 95vw;
+            max-height: 70vh;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+        }
+        .template-modal-header {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 14px 16px;
+            border-bottom: 1px solid var(--border);
+            font-weight: 600; font-size: 14px;
+        }
+        .template-modal-header .icon-btn { padding: 4px; }
+        .template-modal-body {
+            overflow-y: auto; flex: 1;
+            padding: 8px 0;
+        }
+        .template-item {
+            padding: 10px 16px;
+            cursor: pointer;
+            display: flex; align-items: center; justify-content: space-between;
+            gap: 8px;
+            color: var(--text-secondary);
+            font-size: 13px;
+        }
+        .template-item:hover { background: var(--bg-hover); color: var(--text-primary); }
+        .template-item.selected { background: var(--accent-dim); color: var(--accent); }
+        .template-item-name { flex: 1; }
+        .template-item-actions { display: flex; gap: 4px; }
+        .template-item-actions .icon-btn { padding: 3px; }
+        .template-modal-footer {
+            padding: 10px 16px;
+            border-top: 1px solid var(--border);
+            display: flex; gap: 8px; justify-content: space-between; align-items: center;
+            font-size: 12px; color: var(--text-muted);
+        }
+        .template-modal-footer button {
+            background: var(--accent-dim);
+            color: var(--accent);
+            border: 1px solid var(--border-light);
+            border-radius: 6px;
+            padding: 5px 12px;
+            font-size: 12px;
+            cursor: pointer;
+        }
+        .template-modal-footer button:hover { background: var(--accent); color: var(--bg-primary); }
+        .template-empty {
+            padding: 20px 16px;
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 13px;
+        }
+        .template-folder-badge {
+            font-size: 11px;
+            background: var(--accent-dim);
+            color: var(--accent);
+            padding: 1px 6px;
+            border-radius: 4px;
+        }
+
+        /* ============ Mobile search button ============ */
+        .mobile-search-btn { display: none; }
+        @media (max-width: 768px) {
+            .mobile-search-btn { display: flex; }
+        }
+
         /* ============ Callouts (preview) ============ */
         .callout {
             border-left: 4px solid var(--accent);
@@ -798,6 +909,9 @@
                             <svg viewBox="0 0 24 24" width="12" height="12"><polyline points="5 9 2 12 5 15"/><polyline points="19 9 22 12 19 15"/><line x1="2" y1="12" x2="22" y2="12"/></svg>
                         </button>
                         {% endif %}
+                        {% if cat and cat.default_template_id %}
+                        <span class="template-folder-badge" title="Has default template">T</span>
+                        {% endif %}
                         <button class="icon-btn folder-add-btn" onclick="event.stopPropagation(); promptNewFolder('{{ full_path }}')" title="New subfolder">
                             <svg viewBox="0 0 24 24" width="12" height="12"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/><line x1="12" y1="11" x2="12" y2="17"/><line x1="9" y1="14" x2="15" y2="14"/></svg>
                         </button>
@@ -810,7 +924,7 @@
                     <div class="folder-items">
                         {{ render_folder_tree(children, full_path) }}
                         {% for n in notes_list %}
-                        <div class="file-item {% if note and note.id == n.id %}active{% endif %}" data-note-id="{{ n.id }}" onclick="openNote({{ n.id }})" draggable="true" ondragstart="onNoteDragStart(event, {{ n.id }})" ondragover="event.preventDefault()">
+                        <div class="file-item {% if note and note.id == n.id %}active{% endif %}" data-note-id="{{ n.id }}" onclick="openNote({{ n.id }})" draggable="true" ondragstart="onNoteDragStart(event, {{ n.id }})" ondragover="onItemDragOver(event)" ondragleave="onItemDragLeave(event)" ondrop="onItemDrop(event, '{{ full_path | e }}', {% if cat %}{{ cat.id }}{% else %}null{% endif %})">
                             <span class="file-icon"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></span>
                             <span class="file-name">{{ n.title or 'Untitled' }}</span>
                             <button class="icon-btn delete-btn" onclick="event.stopPropagation(); deleteSidebarNote({{ n.id }}, '{{ n.title | e }}')" title="Delete note">
@@ -882,6 +996,10 @@
                     </button>
 
                     <div class="toolbar-divider desktop-only"></div>
+
+                    <button class="icon-btn mobile-search-btn" onclick="openSearchModal()" title="Search (Ctrl+K)">
+                        <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                    </button>
 
                     <button class="icon-btn {% if theme_settings and not theme_settings.right_panel_collapsed %}active{% endif %}" id="panel-toggle" onclick="toggleRightPanel()" title="Outline panel (Ctrl+Shift+O)">
                         <svg viewBox="0 0 24 24"><line x1="3" y1="6" x2="13" y2="6"/><line x1="3" y1="10" x2="10" y2="10"/><line x1="3" y1="14" x2="13" y2="14"/><line x1="3" y1="18" x2="10" y2="18"/><rect x="17" y="4" width="4" height="16" rx="1"/></svg>
@@ -1048,6 +1166,44 @@
                 <div class="shortcut-item"><span class="shortcut-label">Toggle sidebar</span><span class="shortcut-keys"><kbd>Ctrl</kbd><kbd>B</kbd></span></div>
                 <div class="shortcut-item"><span class="shortcut-label">Outline panel</span><span class="shortcut-keys"><kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>O</kbd></span></div>
                 <div class="shortcut-item"><span class="shortcut-label">This help</span><span class="shortcut-keys"><kbd>Ctrl</kbd><kbd>/</kbd></span></div>
+                <div class="shortcut-item"><span class="shortcut-label">Slash commands</span><span class="shortcut-keys"><kbd>/</kbd> in editor</span></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Template Picker Modal -->
+    <div class="modal-overlay" id="template-overlay" onclick="if(event.target===this)closeTemplatePicker()">
+        <div class="template-modal">
+            <div class="template-modal-header">
+                <span id="template-modal-title">Insert Template</span>
+                <button class="icon-btn" onclick="closeTemplatePicker()">
+                    <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+            </div>
+            <div class="template-modal-body" id="template-list"></div>
+            <div class="template-modal-footer">
+                <span><kbd>Esc</kbd> Close</span>
+                <div style="display:flex;gap:6px">
+                    <button onclick="saveCurrentAsTemplate()">Save current note as template</button>
+                    <button onclick="openManageTemplates()">Manage</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Manage Templates Modal -->
+    <div class="modal-overlay" id="manage-templates-overlay" onclick="if(event.target===this)closeManageTemplates()">
+        <div class="template-modal">
+            <div class="template-modal-header">
+                <span>Manage Templates</span>
+                <button class="icon-btn" onclick="closeManageTemplates()">
+                    <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+            </div>
+            <div class="template-modal-body" id="manage-template-list"></div>
+            <div class="template-modal-footer">
+                <span>Delete templates or assign them as folder defaults</span>
+                <button onclick="closeManageTemplates()">Done</button>
             </div>
         </div>
     </div>
@@ -1066,6 +1222,8 @@
         var searchResults = [];
         var pinnedNotes = JSON.parse(localStorage.getItem('obsidified-pinned') || '[]');
         var isMobile = window.innerWidth <= 768;
+        var defaultTemplateContent = {% if default_template %}{{ default_template.content | tojson }}{% else %}null{% endif %};
+        var defaultTemplateProps = {% if default_template %}{{ default_template.properties | default('{}', true) }}{% else %}null{% endif %};
 
         function saveUiState(updates) {
             fetch('/api/save_ui_state', {
@@ -1223,10 +1381,19 @@
             cmEditor.on('inputRead', function(cm, change) {
                 if (change.origin === '+input' || change.origin === 'paste') {
                     showWikiAutocomplete(cm);
+                    showSlashCommands(cm);
                 }
             });
 
             cmEditor.on('cursorActivity', function(cm) {
+                if (isSlashCommandVisible()) {
+                    var cursor = cm.getCursor();
+                    var line = cm.getLine(cursor.line);
+                    var before = line.substring(0, cursor.ch);
+                    if (!before.match(/(^|\s)\/([\w\s]*)$/)) {
+                        hideSlashCommands();
+                    }
+                }
                 if (isWikiAutocompleteVisible()) {
                     // Check if still inside [[ ]]
                     var cursor = cm.getCursor();
@@ -1241,6 +1408,23 @@
 
             // Intercept keys for autocomplete navigation
             cmEditor.on('keydown', function(cm, e) {
+                // Slash commands
+                if (isSlashCommandVisible()) {
+                    if (e.key === 'ArrowDown') {
+                        e.preventDefault();
+                        if (slashSelectedIndex < slashFilteredCommands.length - 1) { slashSelectedIndex++; renderSlashCommands(); }
+                    } else if (e.key === 'ArrowUp') {
+                        e.preventDefault();
+                        if (slashSelectedIndex > 0) { slashSelectedIndex--; renderSlashCommands(); }
+                    } else if (e.key === 'Enter' || e.key === 'Tab') {
+                        e.preventDefault();
+                        acceptSlashCommand(slashSelectedIndex);
+                    } else if (e.key === 'Escape') {
+                        e.preventDefault();
+                        hideSlashCommands();
+                    }
+                    return;
+                }
                 if (!isWikiAutocompleteVisible()) return;
                 if (e.key === 'ArrowDown') {
                     e.preventDefault();
@@ -1980,6 +2164,15 @@
                 if (e.key === 'Escape') { e.preventDefault(); closeShortcutsModal(); return; }
                 return;
             }
+            // Template modals
+            if (document.getElementById('template-overlay').classList.contains('visible')) {
+                if (e.key === 'Escape') { e.preventDefault(); closeTemplatePicker(); return; }
+                return;
+            }
+            if (document.getElementById('manage-templates-overlay').classList.contains('visible')) {
+                if (e.key === 'Escape') { e.preventDefault(); closeManageTemplates(); return; }
+                return;
+            }
 
             var ctrl = e.ctrlKey || e.metaKey;
             if (ctrl && e.key === 's') { e.preventDefault(); saveNote(); }
@@ -2081,6 +2274,8 @@
                     renderWikiAutocomplete();
                 });
             });
+            var sel = wikiAutocomplete.querySelector('.wikilink-autocomplete-item.selected');
+            if (sel) sel.scrollIntoView({ block: 'nearest' });
         }
 
         function hideWikiAutocomplete() {
@@ -2213,6 +2408,328 @@
             return div.innerHTML;
         }
 
+        // ============ Slash Commands ============
+
+        var slashPopup = null;
+        var slashSelectedIndex = -1;
+        var slashFilteredCommands = [];
+        var slashTriggerLine = -1;
+        var slashTriggerCh = -1;
+
+        var slashCommands = [
+            { label: 'Heading 1', icon: 'H1', insert: '# ' },
+            { label: 'Heading 2', icon: 'H2', insert: '## ' },
+            { label: 'Heading 3', icon: 'H3', insert: '### ' },
+            { label: 'Callout', icon: '!', insert: '> [!note] \n> ' },
+            { label: 'Code block', icon: '{}', insert: '```\n\n```', cursorBack: 4 },
+            { label: 'Divider', icon: '--', insert: '---\n' },
+            { label: 'Table', icon: '||', insert: '| Column 1 | Column 2 |\n| --- | --- |\n|  |  |\n' },
+            { label: 'Checkbox list', icon: '[]', insert: '- [ ] ' },
+            { label: 'Bullet list', icon: '-', insert: '- ' },
+            { label: 'Numbered list', icon: '1.', insert: '1. ' },
+            { label: 'Date (today)', icon: 'D', insert: '__DATE__' },
+            { label: 'Insert template', icon: 'T', action: 'template' },
+        ];
+
+        function showSlashCommands(cm) {
+            if (isWikiAutocompleteVisible()) return;
+            var cursor = cm.getCursor();
+            var line = cm.getLine(cursor.line);
+            var before = line.substring(0, cursor.ch);
+
+            // Find / at start of line or after whitespace
+            var slashMatch = before.match(/(^|\s)\/([\w\s]*)$/);
+            if (!slashMatch) { hideSlashCommands(); return; }
+
+            var query = slashMatch[2].toLowerCase();
+            slashTriggerLine = cursor.line;
+            slashTriggerCh = cursor.ch - slashMatch[0].length + (slashMatch[1] ? 1 : 0);
+
+            slashFilteredCommands = slashCommands.filter(function(cmd) {
+                return cmd.label.toLowerCase().indexOf(query) > -1;
+            });
+
+            if (slashFilteredCommands.length === 0) { hideSlashCommands(); return; }
+            slashSelectedIndex = 0;
+
+            if (!slashPopup) {
+                slashPopup = document.createElement('div');
+                slashPopup.className = 'slash-command-popup';
+                document.body.appendChild(slashPopup);
+            }
+
+            renderSlashCommands();
+            var coords = cm.cursorCoords(true, 'page');
+            slashPopup.style.left = coords.left + 'px';
+            slashPopup.style.top = (coords.bottom + 4) + 'px';
+            slashPopup.style.display = 'block';
+        }
+
+        function renderSlashCommands() {
+            if (!slashPopup) return;
+            var html = '';
+            slashFilteredCommands.forEach(function(cmd, i) {
+                html += '<div class="slash-command-item' + (i === slashSelectedIndex ? ' selected' : '') + '" data-index="' + i + '">';
+                html += '<span class="slash-command-icon">' + cmd.icon + '</span>';
+                html += '<span>' + cmd.label + '</span>';
+                html += '</div>';
+            });
+            slashPopup.innerHTML = html;
+            slashPopup.querySelectorAll('.slash-command-item').forEach(function(item) {
+                item.addEventListener('mousedown', function(e) {
+                    e.preventDefault();
+                    acceptSlashCommand(parseInt(item.getAttribute('data-index')));
+                });
+                item.addEventListener('mouseenter', function() {
+                    slashSelectedIndex = parseInt(item.getAttribute('data-index'));
+                    renderSlashCommands();
+                });
+            });
+            var sel = slashPopup.querySelector('.slash-command-item.selected');
+            if (sel) sel.scrollIntoView({ block: 'nearest' });
+        }
+
+        function hideSlashCommands() {
+            if (slashPopup) slashPopup.style.display = 'none';
+            slashFilteredCommands = [];
+            slashSelectedIndex = -1;
+        }
+
+        function isSlashCommandVisible() {
+            return slashPopup && slashPopup.style.display === 'block';
+        }
+
+        function acceptSlashCommand(index) {
+            if (!cmEditor || index < 0 || index >= slashFilteredCommands.length) return;
+            var cmd = slashFilteredCommands[index];
+            var cursor = cmEditor.getCursor();
+            var line = cmEditor.getLine(cursor.line);
+            var before = line.substring(0, cursor.ch);
+
+            // Find the / trigger position
+            var slashMatch = before.match(/(^|\s)\/([\w\s]*)$/);
+            if (!slashMatch) { hideSlashCommands(); return; }
+            var slashStart = cursor.ch - slashMatch[0].length + (slashMatch[1].length);
+
+            hideSlashCommands();
+
+            if (cmd.action === 'template') {
+                // Remove the /command text first
+                cmEditor.replaceRange('', { line: cursor.line, ch: slashStart }, cursor);
+                openTemplatePicker('insert');
+                return;
+            }
+
+            var text = cmd.insert;
+            if (text === '__DATE__') {
+                text = new Date().toISOString().split('T')[0];
+            }
+
+            cmEditor.replaceRange(text, { line: cursor.line, ch: slashStart }, cursor);
+
+            if (cmd.cursorBack) {
+                var newCursor = cmEditor.getCursor();
+                cmEditor.setCursor({ line: newCursor.line, ch: newCursor.ch - cmd.cursorBack });
+            }
+
+            cmEditor.focus();
+        }
+
+        // ============ Template Picker ============
+
+        var templatePickerMode = 'insert'; // 'insert' or 'new'
+        var cachedTemplates = null;
+
+        function openTemplatePicker(mode) {
+            templatePickerMode = mode || 'insert';
+            var title = document.getElementById('template-modal-title');
+            if (title) title.textContent = mode === 'new' ? 'New Note from Template' : 'Insert Template';
+            document.getElementById('template-overlay').classList.add('visible');
+            loadTemplateList();
+        }
+
+        function closeTemplatePicker() {
+            document.getElementById('template-overlay').classList.remove('visible');
+        }
+
+        function loadTemplateList() {
+            var container = document.getElementById('template-list');
+            container.innerHTML = '<div class="template-empty">Loading...</div>';
+            fetch('/api/templates')
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                cachedTemplates = data;
+                if (data.length === 0) {
+                    container.innerHTML = '<div class="template-empty">No templates yet. Save a note as a template to get started.</div>';
+                    return;
+                }
+                var html = '';
+                data.forEach(function(t, i) {
+                    html += '<div class="template-item" onclick="applyTemplate(' + t.id + ')">';
+                    html += '<span class="template-item-name">' + t.name.replace(/</g, '&lt;') + '</span>';
+                    html += '</div>';
+                });
+                container.innerHTML = html;
+            })
+            .catch(function() {
+                container.innerHTML = '<div class="template-empty">Failed to load templates.</div>';
+            });
+        }
+
+        function applyTemplate(templateId) {
+            fetch('/api/templates/' + templateId)
+            .then(function(r) { return r.json(); })
+            .then(function(t) {
+                if (templatePickerMode === 'insert') {
+                    // Insert at cursor position
+                    if (cmEditor) {
+                        var content = t.content || '';
+                        cmEditor.replaceRange(content, cmEditor.getCursor());
+                        cmEditor.focus();
+                    }
+                } else {
+                    // 'new' mode: populate the full note
+                    populateFromTemplate(t);
+                }
+                closeTemplatePicker();
+            });
+        }
+
+        function populateFromTemplate(t) {
+            // Set content
+            if (cmEditor && t.content) {
+                cmEditor.setValue(t.content);
+            }
+            // Set properties
+            if (t.properties && Object.keys(t.properties).length > 0) {
+                var body = document.getElementById('props-body');
+                var addBtn = body.querySelector('.prop-add-row');
+                // Remove existing prop rows
+                body.querySelectorAll('.prop-row').forEach(function(row) { row.remove(); });
+                Object.keys(t.properties).forEach(function(key) {
+                    var val = t.properties[key];
+                    if (Array.isArray(val)) val = val.join(', ');
+                    var row = document.createElement('div');
+                    row.className = 'prop-row';
+                    row.setAttribute('data-prop-key', key);
+                    row.innerHTML = '<div class="prop-key">' + key.replace(/</g, '&lt;') + '</div>' +
+                        '<div class="prop-value"><input type="text" class="prop-value-input" value="' + String(val).replace(/"/g, '&quot;') + '" onchange="onPropChanged()"></div>' +
+                        '<button class="prop-remove-btn" onclick="removeProp(this)" title="Remove property"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>';
+                    body.insertBefore(row, addBtn);
+                });
+                // Expand props panel
+                var container = document.getElementById('props-container');
+                if (container) container.classList.remove('collapsed');
+            }
+            markDirty();
+        }
+
+        function saveCurrentAsTemplate() {
+            var name = prompt('Template name:');
+            if (!name || !name.trim()) return;
+            var content = getEditorContent();
+            var props = collectProperties();
+            fetch('/api/templates', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name: name.trim(), content: content, properties: Object.keys(props).length > 0 ? props : null })
+            })
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (data.success) {
+                    cachedTemplates = null;
+                    loadTemplateList();
+                } else {
+                    alert(data.reason || 'Failed to save template.');
+                }
+            });
+        }
+
+        // ============ Manage Templates ============
+
+        function openManageTemplates() {
+            closeTemplatePicker();
+            document.getElementById('manage-templates-overlay').classList.add('visible');
+            loadManageTemplateList();
+        }
+
+        function closeManageTemplates() {
+            document.getElementById('manage-templates-overlay').classList.remove('visible');
+        }
+
+        function loadManageTemplateList() {
+            var container = document.getElementById('manage-template-list');
+            container.innerHTML = '<div class="template-empty">Loading...</div>';
+            fetch('/api/templates')
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (data.length === 0) {
+                    container.innerHTML = '<div class="template-empty">No templates yet.</div>';
+                    return;
+                }
+                var html = '';
+                data.forEach(function(t) {
+                    html += '<div class="template-item">';
+                    html += '<span class="template-item-name">' + t.name.replace(/</g, '&lt;') + '</span>';
+                    html += '<div class="template-item-actions">';
+                    html += '<button class="icon-btn" onclick="assignTemplateToFolder(' + t.id + ', \'' + t.name.replace(/'/g, "\\'") + '\')" title="Set as folder default">';
+                    html += '<svg viewBox="0 0 24 24" width="14" height="14"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg></button>';
+                    html += '<button class="icon-btn danger" onclick="deleteTemplate(' + t.id + ', \'' + t.name.replace(/'/g, "\\'") + '\')" title="Delete template">';
+                    html += '<svg viewBox="0 0 24 24" width="14" height="14"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>';
+                    html += '</div></div>';
+                });
+                container.innerHTML = html;
+            });
+        }
+
+        function deleteTemplate(id, name) {
+            if (!confirm('Delete template "' + name + '"?')) return;
+            fetch('/api/templates/' + id, { method: 'DELETE' })
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (data.success) {
+                    cachedTemplates = null;
+                    loadManageTemplateList();
+                }
+            });
+        }
+
+        function assignTemplateToFolder(templateId, templateName) {
+            var folders = [];
+            document.querySelectorAll('.folder[data-category-id]').forEach(function(f) {
+                folders.push({ id: f.dataset.categoryId, path: f.dataset.path });
+            });
+            if (folders.length === 0) { alert('No folders available.'); return; }
+            var options = '0: (none — clear default)\n';
+            folders.forEach(function(f, i) { options += (i + 1) + ': ' + f.path + '\n'; });
+            var choice = prompt('Assign "' + templateName + '" as default template for folder:\n\n' + options + '\nEnter number:');
+            if (choice === null) return;
+            choice = parseInt(choice);
+            if (choice === 0) {
+                // Clear all assignments for this template
+                folders.forEach(function(f) {
+                    fetch('/api/set_folder_template', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ categoryId: parseInt(f.id), templateId: null })
+                    });
+                });
+                return;
+            }
+            if (choice > 0 && choice <= folders.length) {
+                var folder = folders[choice - 1];
+                fetch('/api/set_folder_template', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ categoryId: parseInt(folder.id), templateId: templateId })
+                })
+                .then(function(r) { return r.json(); })
+                .then(function(data) {
+                    if (data.success) alert('Template assigned to "' + folder.path + '".');
+                });
+            }
+        }
+
         // ============ Responsive ============
 
         window.addEventListener('resize', function() { isMobile = window.innerWidth <= 768; });
@@ -2234,6 +2751,13 @@
                     setTimeout(function() { if (cmEditor) cmEditor.refresh(); }, 20);
                 } else {
                     renderPreview();
+                }
+
+                // New note with default template → populate
+                if (noteId === 0 && defaultTemplateContent !== null) {
+                    setTimeout(function() {
+                        populateFromTemplate({ content: defaultTemplateContent, properties: defaultTemplateProps || {} });
+                    }, 50);
                 }
 
                 // New note → focus title
