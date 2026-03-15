@@ -1,16 +1,15 @@
 numberOfRows = 3;
 rowHeight = 150;
 noteDivs = document.querySelectorAll(".note-div");
-mobileMenu = document.getElementById('mobile-menu');
-mobileMenuToggle = document.getElementById('mobile-menu-toggle');
+menuOverlay = document.getElementById('menu-overlay');
+menuToggle = document.getElementById('menu-toggle');
 
-function toggleMobileMenu(){
-    mobileMenu.style.display == "flex" ? mobileMenu.style.display = "none" : mobileMenu.style.display = "flex";
-    console.log("Toggled mobile menu");
+function toggleMenu(){
+    menuOverlay.style.display == "flex" ? menuOverlay.style.display = "none" : menuOverlay.style.display = "flex";
 }
 
 function addNewNote(){
-    window.location.href = "/note/0/full";
+    window.location.href = "/note/0";
 }
 
 function navigateToSettings(){
@@ -18,11 +17,11 @@ function navigateToSettings(){
 }
 
 function navigateToAllNotes(){
-    window.location.href = "/notes/full";
+    window.location.href = "/notes";
 }
 
 function navigateToCategories(){
-    window.location.href = "/categories/full";
+    window.location.href = "/categories";
 }
 
 function tweakRows(){

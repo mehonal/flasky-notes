@@ -3,8 +3,8 @@
 var title = document.getElementById('title');
 var content = document.getElementById('content');
 var contentMarkdown = document.getElementById('content-markdown');
-var mobileMenu = document.getElementById('mobile-menu');
-var mobileMenuToggle = document.getElementById('mobile-menu-toggle');
+var menuOverlay = document.getElementById('menu-overlay');
+var menuToggle = document.getElementById('menu-toggle');
 var categoriesInput = document.getElementById('categories-input');
 var category = document.getElementById('category');
 var noteIdEl = document.getElementById('note-id');
@@ -29,8 +29,8 @@ function fullToast(msg, type) {
     setTimeout(function() { el.style.opacity = '0'; }, 2500);
 }
 
-function toggleMobileMenu(){
-    mobileMenu.style.display = mobileMenu.style.display === "flex" ? "none" : "flex";
+function toggleMenu(){
+    menuOverlay.style.display = menuOverlay.style.display === "flex" ? "none" : "flex";
 }
 
 // AJAX save
@@ -88,15 +88,15 @@ function decreaseFontSize(){
 }
 
 function navigateToNotes(){
-    window.location.href = "/notes/full";
+    window.location.href = "/notes";
 }
 
 function navigateToCategories(){
-    window.location.href = "/categories/full";
+    window.location.href = "/categories";
 }
 
 function addNewNote(){
-    window.location.href = "/note/0/full";
+    window.location.href = "/note/0";
 }
 
 function navigateToSettings(){
@@ -191,7 +191,7 @@ document.addEventListener('keydown', function(e){
     }
     else if (e.ctrlKey && e.key === "m"){
         e.preventDefault();
-        toggleMobileMenu();
+        toggleMenu();
     }
     else if (e.ctrlKey && e.key === "ArrowUp"){
         e.preventDefault();

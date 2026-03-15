@@ -98,15 +98,14 @@ a{
     color: white;
 }
 
-  #mobile-menu{
+  #menu-overlay{
     position: fixed;
     width: 100vw;
     height: 100vh;
     z-index: 9999;
     top: 0px;
     left: 0px;
-    background-color: black;
-    opacity: 0.9;
+    background-color: rgba(0,0,0,0.9);
     color: white;
     justify-content: center;
     display: none;
@@ -114,27 +113,19 @@ a{
     align-content: center;
 }
 
-
-#mobile-menu-toggle{
-    display: none;
+#menu-toggle{
     text-align: center;
     width: calc(100% - 6px);
     top: 0px;
     left: 0px;
     height: 20px;
     background-color: white;
-    color:black;
+    color: black;
     padding: 3px;
+    cursor: pointer;
+    font-size: 13px;
 }
 
-@media screen and (max-width: 600px){
-    #mobile-menu-toggle{
-        display: block;
-    }
-    #content{
-        height: calc(90vh - 76px);
-    }
-    #content-markdown{
-        height: calc(90vh - 76px);
-    }
+#menu-toggle:hover{
+    background-color: #e8e8e8;
 }

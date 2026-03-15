@@ -17,18 +17,14 @@
     <title>{% if note and note.title %}{{note.title}} - {% endif %}Full</title>
 </head>
 <body>
-    <!-- Mobile Menu Toggle -->
-    <div id="mobile-menu-toggle" onclick="toggleMobileMenu()">
-        Open Mobile Menu
-    </div>
+    <div id="menu-toggle" onclick="toggleMenu()">Menu</div>
     <input type="hidden" id="note-id" value="{% if note %}{{note.id}}{% else %}0{% endif %}">
     <input type="hidden" name="category" id="category" {% if note.category %}value="{{note.category}}"{% endif %}>
     <input id="title" type="text" placeholder="Note Title..." {% if note and note.title %}value="{{note.title}}"{% endif %}>
     <textarea id="content" placeholder="Note..." style="font-size: {{font_size}}px;">{% if note and note.content %}{{note.content}}{% endif %}</textarea>
     <div id="content-markdown"></div>
 
-    <!-- Mobile Menu -->
-    <div id="mobile-menu">
+    <div id="menu-overlay">
         <h1>Menu</h1>
         <button class="btn btn-primary" onclick="toggleTitle()">Toggle Title</button>
         <button class="btn btn-primary" onclick="toggleMarkdown()">Toggle Markdown</button>
@@ -57,7 +53,7 @@
         <button class="btn btn-primary" onclick="navigateToCategories()">Go To Categories</button>
         <button class="btn btn-primary" onclick="navigateToSettings()">Go To Settings</button>
         <button class="btn btn-primary" onclick="FlaskySearch.open()">Search (Ctrl+K)</button>
-        <button class="btn btn-secondary" onclick="toggleMobileMenu()">Close Menu</button>
+        <button class="btn btn-secondary" onclick="toggleMenu()">Close Menu</button>
     </div>
 
     {% include 'partials/search_modal.html' %}
