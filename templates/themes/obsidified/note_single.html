@@ -885,7 +885,7 @@
                                     <div class="prop-row" data-prop-key="{{ key }}">
                                         <div class="prop-key">{{ key }}</div>
                                         <div class="prop-value">
-                                            <input type="text" class="prop-value-input" value="{% if value is iterable and value is not string %}{{ value | join(', ') }}{% else %}{{ value }}{% endif %}" onchange="onPropChanged()">
+                                            <input type="text" class="prop-value-input" value="{% if value is none %}{% elif value is iterable and value is not string %}{{ value | join(', ') }}{% else %}{{ value }}{% endif %}" onchange="onPropChanged()">
                                         </div>
                                         <button class="prop-remove-btn" onclick="removeProp(this)" title="Remove property">
                                             <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
