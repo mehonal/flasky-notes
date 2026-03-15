@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="{% if g.user.get_theme_settings().dark_mode %}dark{% else %}light{% endif %}">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -12,429 +12,940 @@
 
   <link rel="manifest" href="/manifest.json?page=agenda">
 
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <style>
-    body.light-mode {
-      background-color: #f8f9fa;
-      color: #212529;
+    /* ============ Variables ============ */
+    :root {
+        --bg-primary: #1e1e2e;
+        --bg-secondary: #181825;
+        --bg-sidebar: #11111b;
+        --bg-hover: rgba(255,255,255,0.05);
+        --bg-active: rgba(255,255,255,0.08);
+        --bg-input: #1e1e2e;
+        --text-primary: #cdd6f4;
+        --text-secondary: #bac2de;
+        --text-muted: #585b70;
+        --accent: #b4befe;
+        --accent-dim: rgba(180,190,254,0.1);
+        --accent-hover: #cba6f7;
+        --border: rgba(255,255,255,0.06);
+        --border-light: rgba(255,255,255,0.1);
+        --green: #a6e3a1;
+        --red: #f38ba8;
+        --yellow: #f9e2af;
+        --blue: #89b4fa;
+        --peach: #fab387;
+        --scrollbar-track: transparent;
+        --scrollbar-thumb: rgba(255,255,255,0.1);
+        --shadow: 0 1px 3px rgba(0,0,0,0.3);
     }
-    body.dark-mode {
-      background-color: #212529;
-      color: #f8f9fa;
+
+    [data-theme="light"] {
+        --bg-primary: #f8f9fc;
+        --bg-secondary: #eff1f5;
+        --bg-sidebar: #e6e9ef;
+        --bg-hover: rgba(0,0,0,0.04);
+        --bg-active: rgba(0,0,0,0.07);
+        --bg-input: #ffffff;
+        --text-primary: #4c4f69;
+        --text-secondary: #5c5f77;
+        --text-muted: #9ca0b0;
+        --accent: #7287fd;
+        --accent-dim: rgba(114,135,253,0.08);
+        --accent-hover: #8839ef;
+        --border: rgba(0,0,0,0.06);
+        --border-light: rgba(0,0,0,0.1);
+        --green: #40a02b;
+        --red: #d20f39;
+        --yellow: #df8e1d;
+        --blue: #1e66f5;
+        --peach: #fe640b;
+        --scrollbar-track: transparent;
+        --scrollbar-thumb: rgba(0,0,0,0.12);
+        --shadow: 0 1px 3px rgba(0,0,0,0.08);
     }
-    body.dark-mode .modal-content {
-      background-color: #2c3034;
-      color: #f8f9fa;
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', system-ui, sans-serif;
+        background: var(--bg-primary);
+        color: var(--text-primary);
+        height: 100vh;
+        height: 100dvh;
+        overflow: hidden;
+        -webkit-font-smoothing: antialiased;
     }
-    body.dark-mode .modal-header {
-      border-bottom-color: #495057;
-    }
-    body.dark-mode .modal-footer {
-      border-top-color: #495057;
-    }
-    body.dark-mode .form-control {
-      background-color: #343a40;
-      color: #f8f9fa;
-      border-color: #495057;
-    }
-    body.dark-mode .form-control::placeholder {
-      color: #adb5bd;
-    }
-    body.dark-mode .list-group-item {
-      background-color: #2c3034;
-      color: #f8f9fa;
-      border-color: #495057;
-    }
-    body.dark-mode .btn-close {
-      filter: invert(1);
-    }
+
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: var(--scrollbar-track); }
+    ::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+    /* ============ Layout ============ */
+    .app { display: flex; height: 100vh; height: 100dvh; }
+
+    /* ============ Sidebar ============ */
     .sidebar {
-      padding-top: 1rem;
-      background-color: #343a40;
-      color: white;
-    }
-    .sidebar a {
-      color: white;
-      text-decoration: none;
-      display: block;
-      padding: 0.75rem 1rem;
-      border-radius: 0.25rem;
-    }
-    .sidebar a:hover {
-      background-color: #495057;
-    }
-    span.completed {
-      text-decoration: line-through;
-      color: gray;
+        width: 240px;
+        min-width: 240px;
+        background: var(--bg-sidebar);
+        border-right: 1px solid var(--border);
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        transition: width 0.2s ease, min-width 0.2s ease, opacity 0.15s ease;
+        z-index: 200;
     }
 
-    /* Toast notification */
-    .toast-container {
-      position: fixed;
-      bottom: 1rem;
-      right: 1rem;
-      z-index: 9999;
+    .sidebar.collapsed { width: 0; min-width: 0; border-right: none; opacity: 0; pointer-events: none; }
+
+    .sidebar-header {
+        padding: 14px 16px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        flex-shrink: 0;
     }
 
-    /* Empty state */
+    .sidebar-title {
+        font-size: 14px; font-weight: 700; color: var(--text-primary);
+        letter-spacing: -0.01em;
+    }
+
+    .sidebar-actions { display: flex; gap: 2px; }
+
+    .icon-btn {
+        background: none; border: none; color: var(--text-muted); cursor: pointer;
+        padding: 4px; border-radius: 6px; display: flex; align-items: center;
+        justify-content: center; transition: all 0.15s ease;
+    }
+
+    .icon-btn:hover { background: var(--bg-hover); color: var(--text-primary); }
+
+    .icon-btn svg {
+        width: 16px; height: 16px; stroke: currentColor; fill: none;
+        stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round;
+    }
+
+    .sidebar-nav { flex: 1; overflow-y: auto; padding: 4px 8px; }
+
+    .sidebar-section-label {
+        font-size: 11px; font-weight: 600; color: var(--text-muted);
+        text-transform: uppercase; letter-spacing: 0.8px;
+        padding: 12px 8px 6px;
+    }
+
+    .sidebar-divider { height: 1px; background: var(--border); margin: 6px 8px; }
+
+    .nav-item {
+        display: flex; align-items: center; gap: 8px;
+        padding: 6px 10px; border-radius: 6px; cursor: pointer;
+        color: var(--text-secondary); font-size: 13px;
+        text-decoration: none; transition: all 0.1s ease;
+    }
+
+    .nav-item:hover { background: var(--bg-hover); color: var(--text-primary); }
+    .nav-item.active { background: var(--accent-dim); color: var(--accent); }
+
+    .nav-item svg {
+        width: 16px; height: 16px; stroke: currentColor; fill: none;
+        stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round;
+        flex-shrink: 0;
+    }
+
+    .sidebar-footer {
+        padding: 8px 12px; border-top: 1px solid var(--border);
+        display: flex; justify-content: center; flex-shrink: 0;
+    }
+
+    .sidebar-footer a {
+        color: var(--text-muted); padding: 5px 10px; border-radius: 6px;
+        font-size: 12px; text-decoration: none; transition: all 0.1s ease;
+    }
+
+    .sidebar-footer a:hover { background: var(--bg-hover); color: var(--text-secondary); }
+
+    /* Mobile sidebar backdrop */
+    .sidebar-backdrop {
+        display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+        background: rgba(0,0,0,0.5); z-index: 199;
+    }
+
+    /* ============ Main ============ */
+    .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; min-width: 0; }
+
+    .toolbar {
+        display: flex; align-items: center; background: var(--bg-secondary);
+        border-bottom: 1px solid var(--border); padding: 0 12px;
+        height: 42px; gap: 8px; flex-shrink: 0;
+    }
+
+    .toolbar-title { font-size: 13px; font-weight: 500; color: var(--text-primary); }
+    .toolbar-spacer { flex: 1; }
+
+    .toolbar-actions { display: flex; gap: 2px; align-items: center; }
+
+    /* ============ Content ============ */
+    .content-area { flex: 1; overflow-y: auto; padding: 24px; }
+
+    .content-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 24px;
+        max-width: 1200px;
+        margin: 0 auto;
+    }
+
+    .content-full {
+        max-width: 1200px;
+        margin: 24px auto 0;
+    }
+
+    /* ============ Panels ============ */
+    .panel {
+        background: var(--bg-secondary);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        overflow: hidden;
+    }
+
+    .panel-header {
+        display: flex; align-items: center; justify-content: space-between;
+        padding: 12px 16px;
+        border-bottom: 1px solid var(--border);
+    }
+
+    .panel-title {
+        font-size: 13px; font-weight: 600; color: var(--text-primary);
+        display: flex; align-items: center; gap: 8px;
+    }
+
+    .panel-title svg {
+        width: 16px; height: 16px; stroke: currentColor; fill: none;
+        stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round;
+        color: var(--text-muted);
+    }
+
+    .panel-actions { display: flex; gap: 4px; align-items: center; }
+
+    .panel-body { padding: 0; }
+
+    /* ============ Filter pills ============ */
+    .filter-group { display: flex; gap: 2px; }
+
+    .filter-pill {
+        background: none; border: 1px solid transparent; color: var(--text-muted);
+        font-size: 11px; font-weight: 500; padding: 3px 10px; border-radius: 20px;
+        cursor: pointer; transition: all 0.15s ease; font-family: inherit;
+    }
+
+    .filter-pill:hover { color: var(--text-secondary); background: var(--bg-hover); }
+    .filter-pill.active { color: var(--accent); background: var(--accent-dim); border-color: var(--accent); font-weight: 600; }
+
+    /* ============ Small buttons ============ */
+    .btn-sm {
+        background: none; border: 1px solid var(--border-light); color: var(--text-secondary);
+        font-size: 12px; font-weight: 500; padding: 4px 12px; border-radius: 6px;
+        cursor: pointer; transition: all 0.15s ease; font-family: inherit;
+        display: inline-flex; align-items: center; gap: 4px;
+    }
+
+    .btn-sm:hover { background: var(--bg-hover); color: var(--text-primary); border-color: var(--text-muted); }
+
+    .btn-sm.primary { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); }
+    .btn-sm.primary:hover { background: var(--accent); color: var(--bg-primary); }
+
+    .btn-sm svg {
+        width: 14px; height: 14px; stroke: currentColor; fill: none;
+        stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round;
+    }
+
+    /* ============ List items ============ */
+    .list-item {
+        display: flex; align-items: center; justify-content: space-between;
+        padding: 8px 16px; border-bottom: 1px solid var(--border);
+        transition: background 0.1s ease; gap: 8px;
+    }
+
+    .list-item:last-child { border-bottom: none; }
+    .list-item:hover { background: var(--bg-hover); }
+
+    .list-item-left { display: flex; align-items: center; gap: 10px; min-width: 0; flex: 1; }
+    .list-item-right { display: flex; gap: 4px; flex-shrink: 0; opacity: 0; transition: opacity 0.15s; }
+    .list-item:hover .list-item-right { opacity: 1; }
+
+    .todo-checkbox {
+        width: 16px; height: 16px; accent-color: var(--accent);
+        cursor: pointer; flex-shrink: 0;
+    }
+
+    .todo-label {
+        font-size: 13px; color: var(--text-primary); cursor: pointer;
+        white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+
+    .todo-label.completed { text-decoration: line-through; color: var(--text-muted); }
+
+    .event-label {
+        font-size: 13px; color: var(--text-primary); cursor: pointer;
+        white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+
+    .badge {
+        display: inline-block; font-size: 10px; font-weight: 600;
+        padding: 2px 7px; border-radius: 10px; white-space: nowrap;
+    }
+
+    .badge-success { background: rgba(166,227,161,0.15); color: var(--green); }
+    .badge-warning { background: rgba(249,226,175,0.15); color: var(--yellow); }
+    .badge-danger { background: rgba(243,139,168,0.15); color: var(--red); }
+    .badge-info { background: rgba(137,180,250,0.15); color: var(--blue); }
+    .badge-secondary { background: var(--bg-hover); color: var(--text-muted); }
+
+    [data-theme="light"] .badge-success { background: rgba(64,160,43,0.1); }
+    [data-theme="light"] .badge-warning { background: rgba(223,142,29,0.1); }
+    [data-theme="light"] .badge-danger { background: rgba(210,15,57,0.1); }
+    [data-theme="light"] .badge-info { background: rgba(30,102,245,0.1); }
+
+    .action-btn {
+        background: none; border: none; color: var(--text-muted); cursor: pointer;
+        padding: 4px; border-radius: 4px; display: flex; align-items: center;
+        transition: all 0.1s ease;
+    }
+
+    .action-btn:hover { background: var(--bg-hover); color: var(--text-secondary); }
+    .action-btn.danger:hover { color: var(--red); }
+    .action-btn.warning:hover { color: var(--yellow); }
+
+    .action-btn svg {
+        width: 14px; height: 14px; stroke: currentColor; fill: none;
+        stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round;
+    }
+
+    /* ============ Quick add ============ */
+    .quick-add {
+        display: flex; align-items: center; gap: 8px;
+        padding: 8px 16px; border-top: 1px solid var(--border);
+    }
+
+    .quick-add input {
+        flex: 1; background: var(--bg-hover); border: 1px solid transparent;
+        border-radius: 6px; padding: 7px 12px; color: var(--text-primary);
+        font-size: 13px; font-family: inherit; outline: none;
+        transition: border-color 0.15s ease, background 0.15s ease;
+    }
+
+    .quick-add input:focus { border-color: var(--accent); background: var(--bg-input); }
+    .quick-add input::placeholder { color: var(--text-muted); }
+
+    /* ============ Empty state ============ */
     .empty-state {
-      text-align: center;
-      padding: 1.5rem;
-      color: #6c757d;
-      font-style: italic;
+        text-align: center; padding: 24px 16px;
+        color: var(--text-muted); font-size: 13px; font-style: italic;
     }
 
-    /* Filter buttons */
-    .filter-btn.active {
-      font-weight: bold;
+    /* ============ Notes section ============ */
+    .notes-textarea {
+        width: 100%; background: var(--bg-input); border: 1px solid var(--border);
+        border-radius: 8px; padding: 16px; color: var(--text-primary);
+        font-size: 14px; font-family: 'JetBrains Mono', 'Fira Code', 'SF Mono', 'Cascadia Code', monospace;
+        line-height: 1.7; outline: none; resize: vertical; min-height: 300px;
+        transition: border-color 0.15s ease;
     }
 
-    /* Loading spinner */
-    .spinner-inline {
-      display: inline-block;
-      width: 1rem;
-      height: 1rem;
-      border: 2px solid currentColor;
-      border-right-color: transparent;
-      border-radius: 50%;
-      animation: spin 0.75s linear infinite;
-    }
-    @keyframes spin {
-      to { transform: rotate(360deg); }
+    .notes-textarea:focus { border-color: var(--accent); }
+    .notes-textarea::placeholder { color: var(--text-muted); }
+
+    .save-bar {
+        display: flex; align-items: center; justify-content: space-between;
+        margin-top: 10px; gap: 12px;
     }
 
-    @media screen and (max-width: 768px) {
-      .sidebar {
-        height: auto;
-        padding-bottom: 10px;
-      }
+    .save-status { font-size: 12px; color: var(--text-muted); }
+
+    .btn-save {
+        background: var(--accent-dim); border: 1px solid var(--accent); color: var(--accent);
+        font-size: 13px; font-weight: 500; padding: 7px 20px; border-radius: 6px;
+        cursor: pointer; transition: all 0.15s ease; font-family: inherit;
     }
 
-    @media screen and (min-width: 768px) {
+    .btn-save:hover { background: var(--accent); color: var(--bg-primary); }
+    .btn-save:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    /* ============ Modal overlay ============ */
+    .modal-overlay {
+        position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+        background: rgba(0,0,0,0.5); z-index: 1000; display: none;
+        align-items: flex-start; justify-content: center; padding-top: 15vh;
+    }
+
+    .modal-overlay.visible { display: flex; }
+
+    .modal-box {
+        width: 480px; max-width: 92vw; background: var(--bg-primary);
+        border: 1px solid var(--border-light); border-radius: 12px;
+        box-shadow: 0 16px 48px rgba(0,0,0,0.3); overflow: hidden;
+    }
+
+    .modal-box-sm { width: 360px; }
+
+    .modal-header {
+        display: flex; align-items: center; justify-content: space-between;
+        padding: 16px 20px; border-bottom: 1px solid var(--border);
+    }
+
+    .modal-title {
+        font-size: 15px; font-weight: 600; color: var(--text-primary);
+    }
+
+    .modal-close {
+        background: none; border: none; color: var(--text-muted); cursor: pointer;
+        padding: 4px; border-radius: 6px; display: flex; transition: all 0.15s ease;
+    }
+
+    .modal-close:hover { background: var(--bg-hover); color: var(--text-primary); }
+
+    .modal-close svg {
+        width: 16px; height: 16px; stroke: currentColor; fill: none;
+        stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;
+    }
+
+    .modal-body { padding: 16px 20px; }
+
+    .modal-footer {
+        display: flex; justify-content: flex-end; gap: 8px;
+        padding: 12px 20px; border-top: 1px solid var(--border);
+    }
+
+    .modal-input {
+        width: 100%; background: var(--bg-hover); border: 1px solid transparent;
+        border-radius: 6px; padding: 8px 12px; color: var(--text-primary);
+        font-size: 13px; font-family: inherit; outline: none;
+        transition: border-color 0.15s ease, background 0.15s ease;
+    }
+
+    .modal-input:focus { border-color: var(--accent); background: var(--bg-input); }
+    .modal-input::placeholder { color: var(--text-muted); }
+
+    .modal-input + .modal-input { margin-top: 8px; }
+
+    textarea.modal-input { resize: vertical; min-height: 100px; line-height: 1.6; }
+
+    .btn-modal {
+        background: none; border: 1px solid var(--border-light); color: var(--text-secondary);
+        font-size: 13px; font-weight: 500; padding: 7px 16px; border-radius: 6px;
+        cursor: pointer; transition: all 0.15s ease; font-family: inherit;
+    }
+
+    .btn-modal:hover { background: var(--bg-hover); color: var(--text-primary); }
+
+    .btn-modal.primary { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); }
+    .btn-modal.primary:hover { background: var(--accent); color: var(--bg-primary); }
+
+    .btn-modal.danger { border-color: var(--red); color: var(--red); }
+    .btn-modal.danger:hover { background: var(--red); color: var(--bg-primary); }
+
+    /* ============ Toast ============ */
+    .toast-container {
+        position: fixed; bottom: 16px; right: 16px; z-index: 9999;
+        display: flex; flex-direction: column; gap: 8px;
+    }
+
+    .toast {
+        background: var(--bg-secondary); border: 1px solid var(--border-light);
+        border-radius: 8px; padding: 10px 16px; font-size: 13px;
+        color: var(--text-primary); box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+        display: flex; align-items: center; gap: 8px;
+        animation: toast-in 0.2s ease;
+    }
+
+    .toast.success { border-left: 3px solid var(--green); }
+    .toast.danger { border-left: 3px solid var(--red); }
+    .toast.warning { border-left: 3px solid var(--yellow); }
+
+    .toast-close {
+        background: none; border: none; color: var(--text-muted); cursor: pointer;
+        padding: 2px; border-radius: 4px; display: flex; margin-left: 8px;
+    }
+
+    .toast-close:hover { color: var(--text-primary); }
+
+    .toast-close svg {
+        width: 14px; height: 14px; stroke: currentColor; fill: none;
+        stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;
+    }
+
+    @keyframes toast-in {
+        from { opacity: 0; transform: translateY(8px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ============ Loading spinner ============ */
+    .spinner {
+        display: inline-block; width: 16px; height: 16px;
+        border: 2px solid var(--border-light); border-top-color: var(--accent);
+        border-radius: 50%; animation: spin 0.6s linear infinite;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .loading-state {
+        display: flex; align-items: center; justify-content: center;
+        gap: 8px; padding: 24px; color: var(--text-muted); font-size: 13px;
+    }
+
+    /* ============ Archived list in modal ============ */
+    .archived-list { list-style: none; max-height: 320px; overflow-y: auto; }
+
+    .archived-item {
+        display: flex; align-items: center; justify-content: space-between;
+        padding: 8px 0; border-bottom: 1px solid var(--border); gap: 8px;
+    }
+
+    .archived-item:last-child { border-bottom: none; }
+
+    .archived-item-title {
+        font-size: 13px; color: var(--text-secondary);
+        overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+
+    .archived-item-actions { display: flex; gap: 4px; flex-shrink: 0; }
+
+    /* ============ Status bar ============ */
+    .status-bar {
+        height: 26px; background: var(--bg-sidebar); border-top: 1px solid var(--border);
+        display: flex; align-items: center; padding: 0 16px; font-size: 11px;
+        color: var(--text-muted); gap: 16px; flex-shrink: 0;
+    }
+
+    .status-spacer { flex: 1; }
+
+    .status-clickable {
+        cursor: pointer; padding: 1px 4px; border-radius: 3px; transition: background 0.1s;
+    }
+
+    .status-clickable:hover { background: var(--bg-hover); color: var(--text-secondary); }
+
+    /* ============ Mobile ============ */
+    @media (max-width: 768px) {
         .sidebar {
-          min-height: 100vh;
+            position: fixed; top: 0; left: 0; bottom: 0;
+            width: 280px; min-width: 280px;
+            box-shadow: 4px 0 24px rgba(0,0,0,0.4);
         }
-    }
+        .sidebar.collapsed { width: 0; min-width: 0; box-shadow: none; }
+        .sidebar-backdrop.visible { display: block; }
 
+        .content-grid { grid-template-columns: 1fr; }
+
+        .content-area { padding: 16px; }
+
+        .list-item-right { opacity: 1; }
+    }
   </style>
 </head>
-<body class="light-mode">
+<body>
   <!-- Toast container -->
   <div class="toast-container" id="toast-container"></div>
 
-  <div class="container-fluid">
-    <div class="row">
-      <!-- Sidebar -->
-      <nav class="col-md-3 col-lg-2 d-md-block sidebar">
-        <div class="d-flex d-md-block justify-content-between align-items-center">
-          <h2 class="mx-0 mb-2 w-md-100 text-center">Agenda</h2>
-          <button class="btn btn-sm d-md-none btn-outline-light" onclick="toggleMobileMenu()">☰</button>
-        </div>
-        <div id="collapsable-menu" class="d-md-block d-none">
-            <a href="/notes" class="text-center">Notes</a>
-            <a href="/note/0" class="text-center">New Note</a>
-            <a href="/search" class="text-center">Search Notes</a>
-            <a href="/settings" class="text-center">Settings</a>
-            <hr>
-            <h5 class="text-center">Actions</h5>
-            <a href="javascript:void(0)" class="text-center" onclick="toggleDarkMode()">Toggle Dark/Light Mode</a>
-            <a href="javascript:void(0)" class="text-center" onclick="showArchivedTodosModal()">Show Archived To-Dos</a>
-            <hr>
-            <h5 class="text-center">Latest Notes</h5>
-            {% for note in g.user.return_notes(3) %}
-            <a href="/note/{{ note.id }}" class="text-center">{{ note.title }}</a>
-            {% endfor %}
-            <hr>
-            <a href="/logout" class="text-center">Logout</a>
-        </div>
-      </nav>
+  <!-- Sidebar backdrop (mobile) -->
+  <div class="sidebar-backdrop" id="sidebar-backdrop" onclick="toggleSidebar()"></div>
 
-      <!-- Main Content -->
-      <main class="col-md-9 col-lg-10 ms-sm-auto px-md-3 p-0">
-        <div class="container-fluid">
-          <div class="row my-4">
-            <div class="col-lg-6">
-              <div class="d-flex justify-content-between align-items-center mb-3">
-                <h5 class="m-0">To-Do List</h5>
-                <div class="d-flex gap-1">
-                  <div class="btn-group btn-group-sm me-2" role="group" aria-label="Filter todos">
-                    <button type="button" class="btn btn-outline-secondary filter-btn active" data-filter="all" onclick="filterTodos('all')">All</button>
-                    <button type="button" class="btn btn-outline-secondary filter-btn" data-filter="pending" onclick="filterTodos('pending')">Pending</button>
-                    <button type="button" class="btn btn-outline-secondary filter-btn" data-filter="done" onclick="filterTodos('done')">Done</button>
-                  </div>
-                  <button class="btn btn-sm btn-primary" onclick="showAddTodoModal()">Add To-Do</button>
-                </div>
+  <div class="app">
+    <!-- Sidebar -->
+    <nav class="sidebar" id="sidebar">
+      <div class="sidebar-header">
+        <span class="sidebar-title">Agenda</span>
+        <div class="sidebar-actions">
+          <button class="icon-btn" onclick="toggleTheme()" title="Toggle theme">
+            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <div class="sidebar-nav">
+        <div class="sidebar-section-label">Navigation</div>
+        <a href="/notes" class="nav-item">
+          <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+          Notes
+        </a>
+        <a href="/note/0" class="nav-item">
+          <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          New Note
+        </a>
+        <a href="/search" class="nav-item">
+          <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          Search Notes
+        </a>
+        <a href="/settings" class="nav-item">
+          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+          Settings
+        </a>
+
+        <div class="sidebar-divider"></div>
+        <div class="sidebar-section-label">Actions</div>
+        <a href="javascript:void(0)" class="nav-item" onclick="showArchivedTodosModal()">
+          <svg viewBox="0 0 24 24"><path d="M21 8v13H3V8M1 3h22v5H1zM10 12h4"/></svg>
+          Archived To-Dos
+        </a>
+
+        <div class="sidebar-divider"></div>
+        <div class="sidebar-section-label">Recent Notes</div>
+        {% for note in g.user.return_notes(3) %}
+        <a href="/note/{{ note.id }}" class="nav-item">
+          <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+          {{ note.title }}
+        </a>
+        {% endfor %}
+      </div>
+
+      <div class="sidebar-footer">
+        <a href="/logout">Logout</a>
+      </div>
+    </nav>
+
+    <!-- Main content -->
+    <div class="main">
+      <div class="toolbar">
+        <button class="icon-btn" onclick="toggleSidebar()" title="Toggle sidebar">
+          <svg viewBox="0 0 24 24"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+        </button>
+        <span class="toolbar-title">Agenda</span>
+        <div class="toolbar-spacer"></div>
+      </div>
+
+      <div class="content-area">
+        <div class="content-grid">
+          <!-- To-Do Panel -->
+          <div class="panel">
+            <div class="panel-header">
+              <div class="panel-title">
+                <svg viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                To-Do List
               </div>
-              <ul class="list-group" id="todo-list">
+              <div class="panel-actions">
+                <div class="filter-group">
+                  <button class="filter-pill active" data-filter="all" onclick="filterTodos('all')">All</button>
+                  <button class="filter-pill" data-filter="pending" onclick="filterTodos('pending')">Pending</button>
+                  <button class="filter-pill" data-filter="done" onclick="filterTodos('done')">Done</button>
+                </div>
+                <button class="btn-sm primary" onclick="showAddTodoModal()">
+                  <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                  Add
+                </button>
+              </div>
+            </div>
+            <div class="panel-body">
+              <div id="todo-list">
                 {% for todo in todos %}
-                <li class="list-group-item d-flex justify-content-between align-items-center todo-item" data-completed="{{ 'true' if todo.completed else 'false' }}">
-                  <div>
-                      <input type="checkbox" class="form-check-input me-2 todo-checkbox" {% if todo.completed %}checked{% endif %} onclick="toggleTodoItem(event)" />
-                      <span data-todo-id="{{ todo.id }}" class="todo-item-info{% if todo.completed %} completed{% endif %}" onclick="showTodoDetailsModal({{ todo.id }})">{{ '💭 ' if todo.has_content() }}{{ todo.title }} {% if todo.date_due %}<small class="badge text-bg-{{ todo.get_due_css_class() }}">⌛{{ todo.get_time_until_due() }}</small>{% endif %}</span>
+                <div class="list-item todo-item" data-completed="{{ 'true' if todo.completed else 'false' }}">
+                  <div class="list-item-left">
+                    <input type="checkbox" class="todo-checkbox" {% if todo.completed %}checked{% endif %} onclick="toggleTodoItem(event)" />
+                    <span data-todo-id="{{ todo.id }}" class="todo-label{% if todo.completed %} completed{% endif %}" onclick="showTodoDetailsModal({{ todo.id }})">{{ todo.title }}{% if todo.has_content() %} <span style="opacity:0.5">...</span>{% endif %} {% if todo.date_due %}<span class="badge badge-{{ todo.get_due_css_class() }}">{{ todo.get_time_until_due() }}</span>{% endif %}</span>
                   </div>
-                  <div class="d-flex gap-1">
-                      <button class="btn btn-sm btn-outline-warning archive-btn" data-todo-id="{{ todo.id }}" onclick="archiveTodo(event)">🗃️</button>
-                      <button class="btn btn-sm btn-outline-danger archive-btn" data-todo-id="{{ todo.id }}" onclick="confirmDeleteTodo(event)">🗑️</button>
+                  <div class="list-item-right">
+                    <button class="action-btn warning" data-todo-id="{{ todo.id }}" onclick="archiveTodo(event)" title="Archive">
+                      <svg viewBox="0 0 24 24"><path d="M21 8v13H3V8M1 3h22v5H1zM10 12h4"/></svg>
+                    </button>
+                    <button class="action-btn danger" data-todo-id="{{ todo.id }}" onclick="confirmDeleteTodo(event)" title="Delete">
+                      <svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                    </button>
                   </div>
-                </li>
+                </div>
                 {% endfor %}
 
                 {% if not todos %}
-                <li class="list-group-item empty-state todo-empty-state">No to-do items yet. Add one below!</li>
+                <div class="empty-state todo-empty-state">No to-do items yet. Add one above!</div>
                 {% endif %}
-
-                <li class="list-group-item quick-add-row">
-                  <div class="row">
-                      <div class="col-12 col-sm-9 mb-2 mb-sm-0">
-                      <input type="text" class="form-control form-control-sm" name="new-todo" id="new-todo" value="" placeholder="New todo..." onkeydown="if(event.key==='Enter')quickAddTodo()">
-                      </div>
-                      <div class="col-12 col-sm-3">
-                      <button class="btn btn-sm btn-primary w-100" onclick="quickAddTodo()">Add</button>
-                      </div>
-                  </div>
-                </li>
-              </ul>
-            </div>
-
-            <div class="col-lg-6 mt-4 mt-lg-0">
-              <div class="d-flex justify-content-between align-items-center mb-3">
-                <h5 class="m-0">Upcoming Events</h5>
-                <button class="btn btn-sm btn-primary" onclick="showAddEventModal()">Add Event</button>
               </div>
-              <ul class="list-group" id="event-list">
+              <div class="quick-add">
+                <input type="text" id="new-todo" placeholder="Add a to-do..." onkeydown="if(event.key==='Enter')quickAddTodo()">
+                <button class="btn-sm primary" onclick="quickAddTodo()">Add</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Events Panel -->
+          <div class="panel">
+            <div class="panel-header">
+              <div class="panel-title">
+                <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                Upcoming Events
+              </div>
+              <div class="panel-actions">
+                <button class="btn-sm primary" onclick="showAddEventModal()">
+                  <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                  Add
+                </button>
+              </div>
+            </div>
+            <div class="panel-body">
+              <div id="event-list">
                 {% for event in events %}
-                <li class="list-group-item d-flex justify-content-between align-items-center event-item">
-                  <div>
-                      <span data-event-id="{{ event.id }}" onclick="showEventDetailsModal({{ event.id }})">{{ '💭 ' if event.has_content() }}{{ event.title }} {% if event.date_of_event %}<small class="badge text-bg-{{ event.get_event_css_class() }}">⌛ {{ event.get_time_until_event() }}</small>{% endif %}</span>
+                <div class="list-item event-item">
+                  <div class="list-item-left">
+                    <span data-event-id="{{ event.id }}" class="event-label" onclick="showEventDetailsModal({{ event.id }})">{{ event.title }}{% if event.has_content() %} <span style="opacity:0.5">...</span>{% endif %} {% if event.date_of_event %}<span class="badge badge-{{ event.get_event_css_class() }}">{{ event.get_time_until_event() }}</span>{% endif %}</span>
                   </div>
-                  <div class="d-flex gap-1">
-                      <button data-event-id="{{ event.id }}" class="btn btn-sm btn-outline-danger archive-btn" onclick="confirmDeleteEvent(event)">🗑️</button>
+                  <div class="list-item-right">
+                    <button class="action-btn danger" data-event-id="{{ event.id }}" onclick="confirmDeleteEvent(event)" title="Delete">
+                      <svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                    </button>
                   </div>
-                </li>
+                </div>
                 {% endfor %}
 
                 {% if not events %}
-                <li class="list-group-item empty-state event-empty-state">No upcoming events. Add one below!</li>
+                <div class="empty-state event-empty-state">No upcoming events. Add one above!</div>
                 {% endif %}
-
-                <li class="list-group-item quick-add-row">
-                  <div class="row">
-                      <div class="col-12 col-sm-9 mb-2 mb-sm-0">
-                          <input type="text" class="form-control form-control-sm" name="new-event" id="new-event" value="" placeholder="New event..." onkeydown="if(event.key==='Enter')quickAddEvent()">
-                      </div>
-                      <div class="col-12 col-sm-3">
-                      <button class="btn btn-sm btn-primary w-100" onclick="quickAddEvent()">Add</button>
-                      </div>
-                  </div>
-                </li>
-              </ul>
-            </div>
-          </div>
-
-          <div class="row my-4">
-            <div class="col">
-              <div class="d-flex justify-content-between align-items-center mb-2">
-                <h5 class="m-0">Notes</h5>
-                <small id="autosave-status" class="text-muted"></small>
               </div>
-              <textarea id="agenda-notes" class="form-control" rows="20" placeholder="Write your notes here..." onkeydown="if(event.ctrlKey&&event.key==='s'){event.preventDefault();saveNotes()}">{{ g.user.agenda_notes.content if g.user.agenda_notes and g.user.agenda_notes.content }}</textarea>
-              <button id="save-notes-btn" class="btn btn-primary w-100 mt-2" onclick="saveNotes()">Save Notes</button>
+              <div class="quick-add">
+                <input type="text" id="new-event" placeholder="Add an event..." onkeydown="if(event.key==='Enter')quickAddEvent()">
+                <button class="btn-sm primary" onclick="quickAddEvent()">Add</button>
+              </div>
             </div>
           </div>
         </div>
-      </main>
+
+        <!-- Notes Section -->
+        <div class="content-full">
+          <div class="panel">
+            <div class="panel-header">
+              <div class="panel-title">
+                <svg viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+                Notes
+              </div>
+              <span id="autosave-status" class="save-status"></span>
+            </div>
+            <div style="padding: 16px;">
+              <textarea id="agenda-notes" class="notes-textarea" rows="16" placeholder="Write your notes here..." onkeydown="if(event.ctrlKey&&event.key==='s'){event.preventDefault();saveNotes()}">{{ g.user.agenda_notes.content if g.user.agenda_notes and g.user.agenda_notes.content }}</textarea>
+              <div class="save-bar">
+                <div></div>
+                <button id="save-notes-btn" class="btn-save" onclick="saveNotes()">Save Notes</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Status bar -->
+      <div class="status-bar">
+        <span>Agenda</span>
+        <div class="status-spacer"></div>
+        <span class="status-clickable" onclick="toggleTheme()">
+          <span id="theme-label">{{ 'Dark' if g.user.get_theme_settings().dark_mode else 'Light' }}</span>
+        </span>
+      </div>
     </div>
   </div>
+
+  <!-- ============ Modals ============ -->
 
   <!-- Confirm Delete Modal -->
-  <div class="modal fade" id="confirmDeleteModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-sm modal-dialog-centered">
-      <div class="modal-content">
-        <div class="modal-body text-center py-4">
-          <p class="mb-3" id="confirmDeleteMessage">Are you sure you want to delete this item?</p>
-          <div class="d-flex gap-2 justify-content-center">
-            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-            <button type="button" class="btn btn-danger" id="confirmDeleteBtn">Delete</button>
-          </div>
-        </div>
+  <div class="modal-overlay" id="confirmDeleteOverlay">
+    <div class="modal-box modal-box-sm">
+      <div class="modal-header">
+        <span class="modal-title">Confirm Delete</span>
+        <button class="modal-close" onclick="hideModal('confirmDeleteOverlay')">
+          <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div class="modal-body">
+        <p id="confirmDeleteMessage" style="font-size:13px;color:var(--text-secondary);">Are you sure you want to delete this item?</p>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-modal" onclick="hideModal('confirmDeleteOverlay')">Cancel</button>
+        <button class="btn-modal danger" id="confirmDeleteBtn">Delete</button>
       </div>
     </div>
   </div>
 
-  <!-- Modals -->
-  <div class="modal fade" id="addTodoModal" tabindex="-1" aria-labelledby="addTodoModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h5 class="modal-title" id="addTodoModalLabel">Add To-Do</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-        </div>
-        <div class="modal-body">
-          <input type="text" class="form-control" placeholder="To-Do Item..." />
-          <input type="date" class="form-control mt-2" />
-          <textarea class="form-control mt-2" rows="5" placeholder="Todo details..."></textarea>
-        </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-          <button type="button" class="btn btn-primary" onclick="addTodoFromModal()">Add To-Do</button>
-        </div>
+  <!-- Add To-Do Modal -->
+  <div class="modal-overlay" id="addTodoOverlay">
+    <div class="modal-box">
+      <div class="modal-header">
+        <span class="modal-title">Add To-Do</span>
+        <button class="modal-close" onclick="hideModal('addTodoOverlay')">
+          <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div class="modal-body">
+        <input type="text" class="modal-input" placeholder="To-Do title..." />
+        <input type="date" class="modal-input" />
+        <textarea class="modal-input" rows="4" placeholder="Details (optional)..."></textarea>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-modal" onclick="hideModal('addTodoOverlay')">Cancel</button>
+        <button class="btn-modal primary" onclick="addTodoFromModal()">Add To-Do</button>
       </div>
     </div>
   </div>
 
-<div class="modal fade" id="addEventModal" tabindex="-1" aria-labelledby="addEventModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h5 class="modal-title" id="addEventModalLabel">Add Event</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-        </div>
-        <div class="modal-body">
-          <input type="text" class="form-control" placeholder="Event Title..." />
-          <input type="date" class="form-control mt-2" />
-          <textarea class="form-control mt-2" rows="5" placeholder="Event details..."></textarea>
-        </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-          <button type="button" class="btn btn-primary" onclick="addEventFromModal()">Add Event</button>
-        </div>
-        </div>
+  <!-- Add Event Modal -->
+  <div class="modal-overlay" id="addEventOverlay">
+    <div class="modal-box">
+      <div class="modal-header">
+        <span class="modal-title">Add Event</span>
+        <button class="modal-close" onclick="hideModal('addEventOverlay')">
+          <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div class="modal-body">
+        <input type="text" class="modal-input" placeholder="Event title..." />
+        <input type="date" class="modal-input" />
+        <textarea class="modal-input" rows="4" placeholder="Details (optional)..."></textarea>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-modal" onclick="hideModal('addEventOverlay')">Cancel</button>
+        <button class="btn-modal primary" onclick="addEventFromModal()">Add Event</button>
+      </div>
     </div>
-    </div>
+  </div>
 
-<div class="modal fade" id="archivedTodosModal" tabindex="-1" aria-labelledby="archivedTodosModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h5 class="modal-title" id="archivedTodosModalLabel">Archived To-Dos</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+  <!-- Archived To-Dos Modal -->
+  <div class="modal-overlay" id="archivedTodosOverlay">
+    <div class="modal-box">
+      <div class="modal-header">
+        <span class="modal-title">Archived To-Dos</span>
+        <button class="modal-close" onclick="hideModal('archivedTodosOverlay')">
+          <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div id="archivedTodosLoading" class="loading-state" style="display:none;">
+          <span class="spinner"></span> Loading...
         </div>
-        <div class="modal-body">
-          <div id="archivedTodosLoading" class="text-center py-3" style="display:none;">
-            <span class="spinner-inline"></span> Loading...
-          </div>
-          <ul class="list-group" id="archivedTodosList">
-            </ul>
-            <p id="archivedTodosEmpty" class="empty-state" style="display:none;">No archived to-dos.</p>
-        </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-        </div>
-        </div>
+        <div class="archived-list" id="archivedTodosList"></div>
+        <p id="archivedTodosEmpty" class="empty-state" style="display:none;">No archived to-dos.</p>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-modal" onclick="hideModal('archivedTodosOverlay')">Close</button>
+      </div>
     </div>
-    </div>
+  </div>
 
-<div class="modal fade" id="todoDetailsModal" tabindex="-1" aria-labelledby="todoDetailsModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h5 class="modal-title" id="todoDetailsModalLabel">To-Do Details</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+  <!-- To-Do Details Modal -->
+  <div class="modal-overlay" id="todoDetailsOverlay">
+    <div class="modal-box">
+      <div class="modal-header">
+        <span class="modal-title" id="todoDetailsModalLabel">To-Do Details</span>
+        <button class="modal-close" onclick="hideModal('todoDetailsOverlay')">
+          <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div id="todoDetailsLoading" class="loading-state">
+          <span class="spinner"></span> Loading...
         </div>
-        <div class="modal-body">
-            <div id="todoDetailsLoading" class="text-center py-3">
-              <span class="spinner-inline"></span> Loading...
-            </div>
-            <div id="todoDetailsFields" style="display:none;">
-              <input type="text" class="form-control" value="" />
-              <input type="date" class="form-control mt-2" />
-              <textarea class="form-control mt-2" rows="5"></textarea>
-            </div>
+        <div id="todoDetailsFields" style="display:none;">
+          <input type="text" class="modal-input" value="" />
+          <input type="date" class="modal-input" />
+          <textarea class="modal-input" rows="5"></textarea>
         </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-          <button type="button" class="btn btn-primary" onclick="saveTodoFromModal()">Save</button>
-        </div>
-        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-modal" onclick="hideModal('todoDetailsOverlay')">Cancel</button>
+        <button class="btn-modal primary" onclick="saveTodoFromModal()">Save</button>
+      </div>
     </div>
-    </div>
+  </div>
 
-<div class="modal fade" id="eventDetailsModal" tabindex="-1" aria-labelledby="eventDetailsModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h5 class="modal-title" id="eventDetailsModalLabel">Event Details</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+  <!-- Event Details Modal -->
+  <div class="modal-overlay" id="eventDetailsOverlay">
+    <div class="modal-box">
+      <div class="modal-header">
+        <span class="modal-title" id="eventDetailsModalLabel">Event Details</span>
+        <button class="modal-close" onclick="hideModal('eventDetailsOverlay')">
+          <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div id="eventDetailsLoading" class="loading-state">
+          <span class="spinner"></span> Loading...
         </div>
-        <div class="modal-body">
-            <div id="eventDetailsLoading" class="text-center py-3">
-              <span class="spinner-inline"></span> Loading...
-            </div>
-            <div id="eventDetailsFields" style="display:none;">
-              <input type="text" class="form-control" value="" />
-              <input type="date" class="form-control mt-2" />
-              <textarea class="form-control mt-2" rows="5"></textarea>
-            </div>
+        <div id="eventDetailsFields" style="display:none;">
+          <input type="text" class="modal-input" value="" />
+          <input type="date" class="modal-input" />
+          <textarea class="modal-input" rows="5"></textarea>
         </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-          <button type="button" class="btn btn-primary" onclick="saveEventFromModal()">Save</button>
-        </div>
-        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-modal" onclick="hideModal('eventDetailsOverlay')">Cancel</button>
+        <button class="btn-modal primary" onclick="saveEventFromModal()">Save</button>
+      </div>
     </div>
-    </div>
+  </div>
 
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
   <script>
+    // ============ Modal system ============
+    function showModal(id) {
+        document.getElementById(id).classList.add('visible');
+    }
 
-    {% if g.user.get_theme_settings().dark_mode %}
-    toggleDarkMode();
-    {% endif %}
+    function hideModal(id) {
+        document.getElementById(id).classList.remove('visible');
+        // Clear form inputs if it's an add modal
+        if (id === 'addTodoOverlay' || id === 'addEventOverlay') {
+            const overlay = document.getElementById(id);
+            overlay.querySelectorAll('input[type="text"], input[type="date"]').forEach(i => i.value = '');
+            overlay.querySelectorAll('textarea').forEach(t => t.value = '');
+        }
+    }
 
-    // modal
-    var addTodoModal = new bootstrap.Modal(document.getElementById('addTodoModal'), {
-      keyboard: false
+    // Close modal on overlay click
+    document.querySelectorAll('.modal-overlay').forEach(overlay => {
+        overlay.addEventListener('click', function(e) {
+            if (e.target === this) hideModal(this.id);
+        });
     });
 
-    var addEventModal = new bootstrap.Modal(document.getElementById('addEventModal'), {
-      keyboard: false
+    // Close modal on Escape key
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            document.querySelectorAll('.modal-overlay.visible').forEach(o => hideModal(o.id));
+        }
     });
 
-    var archivedTodosModal = new bootstrap.Modal(document.getElementById('archivedTodosModal'), {
-      keyboard: false
-    });
+    // ============ Sidebar ============
+    function toggleSidebar() {
+        const sidebar = document.getElementById('sidebar');
+        const backdrop = document.getElementById('sidebar-backdrop');
+        sidebar.classList.toggle('collapsed');
+        if (window.innerWidth <= 768) {
+            backdrop.classList.toggle('visible');
+        }
+    }
 
-    var todoDetailsModal = new bootstrap.Modal(document.getElementById('todoDetailsModal'), {
-      keyboard: false
-    });
+    // Collapse sidebar on mobile by default
+    if (window.innerWidth <= 768) {
+        document.getElementById('sidebar').classList.add('collapsed');
+    }
 
-    var eventDetailsModal = new bootstrap.Modal(document.getElementById('eventDetailsModal'), {
-      keyboard: false
-    });
+    // ============ Theme ============
+    function toggleTheme() {
+        const html = document.documentElement;
+        const isDark = html.getAttribute('data-theme') === 'dark';
+        html.setAttribute('data-theme', isDark ? 'light' : 'dark');
+        document.getElementById('theme-label').innerText = isDark ? 'Light' : 'Dark';
+        fetch('/api/save_dark_mode/' + (isDark ? '0' : '1'));
+    }
 
-    var confirmDeleteModal = new bootstrap.Modal(document.getElementById('confirmDeleteModal'), {
-      keyboard: false
-    });
-
-    // Clear modal forms on close
-    document.getElementById('addTodoModal').addEventListener('hidden.bs.modal', function () {
-        this.querySelector('input[type="text"]').value = '';
-        this.querySelector('input[type="date"]').value = '';
-        this.querySelector('textarea').value = '';
-    });
-    document.getElementById('addEventModal').addEventListener('hidden.bs.modal', function () {
-        this.querySelector('input[type="text"]').value = '';
-        this.querySelector('input[type="date"]').value = '';
-        this.querySelector('textarea').value = '';
-    });
-
-    // Toast notification system
+    // ============ Toast ============
     function showToast(message, type = 'success') {
         const container = document.getElementById('toast-container');
         const toast = document.createElement('div');
-        toast.className = `toast align-items-center text-bg-${type} border-0 show`;
-        toast.setAttribute('role', 'alert');
+        toast.className = `toast ${type}`;
         toast.innerHTML = `
-            <div class="d-flex">
-                <div class="toast-body">${message}</div>
-                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
-            </div>
+            <span>${message}</span>
+            <button class="toast-close" onclick="this.parentElement.remove()">
+                <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
         `;
         container.appendChild(toast);
-        setTimeout(() => { toast.remove(); }, 3000);
+        setTimeout(() => { if (toast.parentElement) toast.remove(); }, 3000);
     }
 
-    // Autosave for notes
+    // ============ Autosave ============
     var autosaveTimer = null;
     var lastSavedContent = document.getElementById('agenda-notes').value;
     document.getElementById('agenda-notes').addEventListener('input', function() {
@@ -448,12 +959,12 @@
         }, 3000);
     });
 
-    // Todo filter
+    // ============ Todo filter ============
     var currentFilter = 'all';
     function filterTodos(filter) {
         currentFilter = filter;
-        document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
-        document.querySelector(`.filter-btn[data-filter="${filter}"]`).classList.add('active');
+        document.querySelectorAll('.filter-pill').forEach(btn => btn.classList.remove('active'));
+        document.querySelector(`.filter-pill[data-filter="${filter}"]`).classList.add('active');
         const todos = document.querySelectorAll('#todo-list .todo-item');
         let visibleCount = 0;
         todos.forEach(item => {
@@ -465,14 +976,12 @@
                 item.style.display = 'none';
             }
         });
-        // Show/hide empty state for filtered view
         let emptyState = document.querySelector('#todo-list .todo-empty-state');
         if (visibleCount === 0 && todos.length > 0) {
             if (!emptyState) {
-                emptyState = document.createElement('li');
-                emptyState.className = 'list-group-item empty-state todo-empty-state';
-                const quickAdd = document.querySelector('#todo-list .quick-add-row');
-                document.getElementById('todo-list').insertBefore(emptyState, quickAdd);
+                emptyState = document.createElement('div');
+                emptyState.className = 'empty-state todo-empty-state';
+                document.getElementById('todo-list').appendChild(emptyState);
             }
             emptyState.style.display = '';
             emptyState.innerText = filter === 'pending' ? 'No pending to-dos.' : 'No completed to-dos.';
@@ -481,31 +990,33 @@
         }
     }
 
-    // Confirm delete
+    // ============ Confirm delete ============
     function confirmDeleteTodo(event) {
-        const todoId = event.target.dataset.todoId;
-        const listItem = event.target.closest('.list-group-item');
+        const btn = event.target.closest('.action-btn');
+        const todoId = btn.dataset.todoId;
+        const listItem = btn.closest('.list-item');
         document.getElementById('confirmDeleteMessage').innerText = 'Delete this to-do item?';
-        confirmDeleteModal.show();
+        showModal('confirmDeleteOverlay');
         document.getElementById('confirmDeleteBtn').onclick = function() {
             deleteTodo(todoId);
             listItem.remove();
             updateTodoEmptyState();
-            confirmDeleteModal.hide();
+            hideModal('confirmDeleteOverlay');
             showToast('To-do deleted.');
         };
     }
 
     function confirmDeleteEvent(event) {
-        const eventId = event.target.dataset.eventId;
-        const listItem = event.target.closest('.list-group-item');
+        const btn = event.target.closest('.action-btn');
+        const eventId = btn.dataset.eventId;
+        const listItem = btn.closest('.list-item');
         document.getElementById('confirmDeleteMessage').innerText = 'Delete this event?';
-        confirmDeleteModal.show();
+        showModal('confirmDeleteOverlay');
         document.getElementById('confirmDeleteBtn').onclick = function() {
             deleteEvent(eventId);
             listItem.remove();
             updateEventEmptyState();
-            confirmDeleteModal.hide();
+            hideModal('confirmDeleteOverlay');
             showToast('Event deleted.');
         };
     }
@@ -515,11 +1026,10 @@
         let emptyState = document.querySelector('#todo-list .todo-empty-state');
         if (todos.length === 0) {
             if (!emptyState) {
-                emptyState = document.createElement('li');
-                emptyState.className = 'list-group-item empty-state todo-empty-state';
-                emptyState.innerText = 'No to-do items yet. Add one below!';
-                const quickAdd = document.querySelector('#todo-list .quick-add-row');
-                document.getElementById('todo-list').insertBefore(emptyState, quickAdd);
+                emptyState = document.createElement('div');
+                emptyState.className = 'empty-state todo-empty-state';
+                emptyState.innerText = 'No to-do items yet. Add one above!';
+                document.getElementById('todo-list').appendChild(emptyState);
             }
             emptyState.style.display = '';
         } else if (emptyState) {
@@ -532,11 +1042,10 @@
         let emptyState = document.querySelector('#event-list .event-empty-state');
         if (events.length === 0) {
             if (!emptyState) {
-                emptyState = document.createElement('li');
-                emptyState.className = 'list-group-item empty-state event-empty-state';
-                emptyState.innerText = 'No upcoming events. Add one below!';
-                const quickAdd = document.querySelector('#event-list .quick-add-row');
-                document.getElementById('event-list').insertBefore(emptyState, quickAdd);
+                emptyState = document.createElement('div');
+                emptyState.className = 'empty-state event-empty-state';
+                emptyState.innerText = 'No upcoming events. Add one above!';
+                document.getElementById('event-list').appendChild(emptyState);
             }
             emptyState.style.display = '';
         } else if (emptyState) {
@@ -544,50 +1053,24 @@
         }
     }
 
-    function toggleMobileMenu() {
-        const menu = document.querySelector('#collapsable-menu');
-        if (menu.classList.contains('d-none')) {
-            menu.classList.remove('d-none');
-            menu.classList.add('d-block');
-        } else {
-            menu.classList.remove('d-block');
-            menu.classList.add('d-none');
-        }
-    }
-
+    // ============ Toggle todo ============
     function toggleTodoItem(event) {
-      const listItem = event.target.closest('.todo-item');
-      const spanEl = listItem.querySelector('span');
-      spanEl.classList.toggle('completed', event.target.checked);
-      listItem.dataset.completed = event.target.checked ? 'true' : 'false';
-      fetch('/api/toggle_todo', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            toDoId: spanEl.dataset.todoId
-          })
-      })
-      .catch(() => showToast('Failed to update to-do.', 'danger'));
-      // Re-apply filter
-      if (currentFilter !== 'all') filterTodos(currentFilter);
+        const listItem = event.target.closest('.todo-item');
+        const spanEl = listItem.querySelector('.todo-label');
+        spanEl.classList.toggle('completed', event.target.checked);
+        listItem.dataset.completed = event.target.checked ? 'true' : 'false';
+        fetch('/api/toggle_todo', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ toDoId: spanEl.dataset.todoId })
+        })
+        .catch(() => showToast('Failed to update to-do.', 'danger'));
+        if (currentFilter !== 'all') filterTodos(currentFilter);
     }
 
-    function toggleDarkMode() {
-      if (document.body.classList.contains('dark-mode')) {
-        fetch('/api/save_dark_mode/0')
-        document.body.classList.remove('dark-mode');
-        document.querySelectorAll('.modal-title').forEach(title => title.classList.remove('text-dark'));
-      } else {
-        fetch('/api/save_dark_mode/1')
-        document.body.classList.add('dark-mode');
-        document.querySelectorAll('.modal-title').forEach(title => title.classList.add('text-dark'));
-      }
-    }
-
+    // ============ Archived todos ============
     function showArchivedTodosModal() {
-        archivedTodosModal.show();
+        showModal('archivedTodosOverlay');
         document.getElementById('archivedTodosLoading').style.display = '';
         document.getElementById('archivedTodosEmpty').style.display = 'none';
         document.getElementById('archivedTodosList').innerHTML = '';
@@ -599,10 +1082,22 @@
                 document.getElementById('archivedTodosEmpty').style.display = '';
                 return;
             }
-            const archivedTodosList = document.getElementById('archivedTodosList');
+            const list = document.getElementById('archivedTodosList');
             data.forEach(todo => {
-                const todoDOM = bakeTodoDOM(todo);
-                archivedTodosList.appendChild(todoDOM);
+                const item = document.createElement('div');
+                item.className = 'archived-item';
+                item.innerHTML = `
+                    <span class="archived-item-title">${todo.title}</span>
+                    <div class="archived-item-actions">
+                        <button class="action-btn" onclick="unarchiveTodo(${todo.id})" title="Restore">
+                            <svg viewBox="0 0 24 24"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+                        </button>
+                        <button class="action-btn danger" data-todo-id="${todo.id}" onclick="deleteTodoFromEvent(event)" title="Delete">
+                            <svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                        </button>
+                    </div>
+                `;
+                list.appendChild(item);
             });
         })
         .catch(() => {
@@ -611,16 +1106,12 @@
         });
     }
 
-    function showAddTodoModal() {
-        addTodoModal.show();
-    }
-
-    function showAddEventModal() {
-        addEventModal.show();
-    }
+    // ============ Show modals ============
+    function showAddTodoModal() { showModal('addTodoOverlay'); }
+    function showAddEventModal() { showModal('addEventOverlay'); }
 
     function showTodoDetailsModal(id) {
-        todoDetailsModal.show();
+        showModal('todoDetailsOverlay');
         document.getElementById('todoDetailsLoading').style.display = '';
         document.getElementById('todoDetailsFields').style.display = 'none';
         fetch('/api/get_todo/' + id)
@@ -632,11 +1123,7 @@
             document.getElementById('todoDetailsModalLabel').dataset.todoId = data.todo.id;
             document.getElementById('todoDetailsModalLabel').dataset.todoArchived = data.todo.archived;
             document.querySelector('#todoDetailsFields input[type="text"]').value = data.todo.title;
-            if (data.todo.date_due === null) {
-                document.querySelector('#todoDetailsFields input[type="date"]').value = '';
-            } else {
-                document.querySelector('#todoDetailsFields input[type="date"]').value = new Date(data.todo.date_due).toISOString().split('T')[0];
-            }
+            document.querySelector('#todoDetailsFields input[type="date"]').value = data.todo.date_due ? new Date(data.todo.date_due).toISOString().split('T')[0] : '';
             document.querySelector('#todoDetailsFields textarea').value = data.todo.content;
         })
         .catch(() => {
@@ -646,7 +1133,7 @@
     }
 
     function showEventDetailsModal(id) {
-        eventDetailsModal.show();
+        showModal('eventDetailsOverlay');
         document.getElementById('eventDetailsLoading').style.display = '';
         document.getElementById('eventDetailsFields').style.display = 'none';
         fetch('/api/get_event/' + id)
@@ -657,11 +1144,7 @@
             document.getElementById('eventDetailsModalLabel').innerText = data.event.title;
             document.getElementById('eventDetailsModalLabel').dataset.eventId = data.event.id;
             document.querySelector('#eventDetailsFields input[type="text"]').value = data.event.title;
-            if (data.event.date_of_event === null) {
-                document.querySelector('#eventDetailsFields input[type="date"]').value = '';
-            } else {
-                document.querySelector('#eventDetailsFields input[type="date"]').value = new Date(data.event.date_of_event).toISOString().split('T')[0];
-            }
+            document.querySelector('#eventDetailsFields input[type="date"]').value = data.event.date_of_event ? new Date(data.event.date_of_event).toISOString().split('T')[0] : '';
             document.querySelector('#eventDetailsFields textarea').value = data.event.content;
         })
         .catch(() => {
@@ -670,19 +1153,17 @@
         });
     }
 
+    // ============ CRUD operations ============
     function archiveTodo(event) {
+        const btn = event.target.closest('.action-btn');
         fetch('/api/archive_todo', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                toDoId: event.target.dataset.todoId
-            })
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ toDoId: btn.dataset.todoId })
         })
         .then(response => response.json())
         .then(data => {
-            event.target.closest('.list-group-item').remove();
+            btn.closest('.list-item').remove();
             updateTodoEmptyState();
             showToast('To-do archived.');
         })
@@ -692,24 +1173,17 @@
     function unarchiveTodo(id) {
         fetch('/api/unarchive_todo', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                toDoId: id
-            })
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ toDoId: id })
         })
         .then(response => response.json())
         .then(data => {
-            // add to-do back to list
             const todoList = document.getElementById('todo-list');
             const todoDOM = bakeTodoDOM(data.todo);
-            const quickAdd = document.querySelector('#todo-list .quick-add-row');
-            todoList.insertBefore(todoDOM, quickAdd);
-            // Hide empty state
+            todoList.appendChild(todoDOM);
             const emptyState = document.querySelector('#todo-list .todo-empty-state');
             if (emptyState) emptyState.style.display = 'none';
-            archivedTodosModal.hide();
+            hideModal('archivedTodosOverlay');
             showToast('To-do restored.');
         })
         .catch(() => showToast('Failed to restore to-do.', 'danger'));
@@ -718,37 +1192,31 @@
     function deleteTodo(id) {
         fetch('/api/delete_todo', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                toDoId: id
-            })
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ toDoId: id })
         })
         .catch(() => showToast('Failed to delete to-do.', 'danger'));
     }
 
     function deleteTodoFromEvent(event) {
-        deleteTodo(event.target.dataset.todoId);
-        event.target.closest('.list-group-item').remove();
-    }
-
-    function deleteEventFromEvent(event) {
-        deleteEvent(event.target.dataset.eventId);
-        event.target.closest('.list-group-item').remove();
+        const btn = event.target.closest('.action-btn');
+        deleteTodo(btn.dataset.todoId);
+        btn.closest('.archived-item').remove();
     }
 
     function deleteEvent(id) {
         fetch('/api/delete_event', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                eventId: id
-            })
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ eventId: id })
         })
         .catch(() => showToast('Failed to delete event.', 'danger'));
+    }
+
+    function deleteEventFromEvent(event) {
+        const btn = event.target.closest('.action-btn');
+        deleteEvent(btn.dataset.eventId);
+        btn.closest('.list-item').remove();
     }
 
     function saveTodoFromModal() {
@@ -758,29 +1226,19 @@
         const todoContent = document.querySelector('#todoDetailsFields textarea').value;
         fetch('/api/edit_todo', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                toDoId: todoId,
-                title: todoTitle,
-                content: todoContent,
-                dateDue: todoDate
-            })
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ toDoId: todoId, title: todoTitle, content: todoContent, dateDue: todoDate })
         })
         .then(response => response.json())
         .then(data => {
             const todoItem = document.querySelector(`span[data-todo-id="${todoId}"]`);
-            if (todoContent) {
-                todoItem.innerText = '💭\u00A0';
-            } else {
-                todoItem.innerText = '';
+            if (todoItem) {
+                let text = todoTitle;
+                if (todoContent) text += ' <span style="opacity:0.5">...</span>';
+                if (todoDate) text += ` <span class="badge badge-${data.todo.due_css_class}">${data.todo.time_until_due}</span>`;
+                todoItem.innerHTML = text;
             }
-            todoItem.innerText += todoTitle;
-            if (todoDate) {
-                todoItem.innerHTML += ` \u00A0<small class="badge text-bg-${data.todo.due_css_class}">⌛${data.todo.time_until_due}</small>`;
-            }
-            todoDetailsModal.hide();
+            hideModal('todoDetailsOverlay');
             showToast('To-do saved.');
         })
         .catch(() => showToast('Failed to save to-do.', 'danger'));
@@ -793,206 +1251,175 @@
         const eventContent = document.querySelector('#eventDetailsFields textarea').value;
         fetch('/api/edit_event', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                eventId: eventId,
-                title: eventTitle,
-                content: eventContent,
-                dateOfEvent: eventDate
-            })
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ eventId: eventId, title: eventTitle, content: eventContent, dateOfEvent: eventDate })
         })
         .then(response => response.json())
         .then(data => {
             const eventItem = document.querySelector(`span[data-event-id="${eventId}"]`);
-            if (eventContent) {
-                eventItem.innerText = '💭 \u00A0';
-            } else {
-                eventItem.innerText = '';
+            if (eventItem) {
+                let text = eventTitle;
+                if (eventContent) text += ' <span style="opacity:0.5">...</span>';
+                if (eventDate) text += ` <span class="badge badge-${data.event.event_css_class}">${data.event.time_until_event}</span>`;
+                eventItem.innerHTML = text;
             }
-            eventItem.innerText += eventTitle;
-            if (eventDate) {
-                eventItem.innerHTML += ` \u00A0<small class="badge text-bg-${data.event.event_css_class}">⌛${data.event.time_until_event}</small>`;
-            }
-            eventDetailsModal.hide();
+            hideModal('eventDetailsOverlay');
             showToast('Event saved.');
         })
         .catch(() => showToast('Failed to save event.', 'danger'));
     }
 
+    // ============ DOM builders ============
     function bakeTodoDOM(todo) {
-        const listItem = document.createElement('li');
-        listItem.classList.add('list-group-item', 'd-flex', 'justify-content-between', 'align-items-center', 'todo-item');
-        listItem.dataset.completed = todo.completed ? 'true' : 'false';
-        listItem.innerHTML = `
-            <div>
-            <input type="checkbox" class="form-check-input me-2 todo-checkbox" ${todo.completed ? 'checked' : ''} onclick="toggleTodoItem(event)"/>
-                    <span data-todo-id="${todo.id}" class="todo-item-info${todo.completed ? ' completed' : ''}" onclick="showTodoDetailsModal(${todo.id})">${todo.has_content ? '💭 \u00A0' : ''}${todo.title} ${todo.time_until_due ? ` \u00A0<small class="badge text-bg-${todo.due_css_class}">⌛${todo.time_until_due}</small>` : ''}</span>
-            </div>
-            `;
-        if (todo.archived) {
-            listItem.innerHTML += `
-                <div class="d-flex gap-1">
-                    <button class="btn btn-sm btn-outline-success" onclick="unarchiveTodo(${todo.id})">↩️</button>
-                    <button data-todo-id="${todo.id}" class="btn btn-sm btn-outline-danger" onclick="deleteTodoFromEvent(event)">🗑️</button>
-                </div>
-            `;
-        } else {
-            listItem.innerHTML += `
-                <div class="d-flex gap-1">
-                    <button class="btn btn-sm btn-outline-warning archive-btn" data-todo-id="${todo.id}" onclick="archiveTodo(event)">🗃️</button>
-                    <button class="btn btn-sm btn-outline-danger archive-btn" data-todo-id="${todo.id}" onclick="confirmDeleteTodo(event)">🗑️</button>
-                </div>
-            `;
+        const item = document.createElement('div');
+        item.className = 'list-item todo-item';
+        item.dataset.completed = todo.completed ? 'true' : 'false';
+
+        let badgeHtml = '';
+        if (todo.time_until_due) {
+            badgeHtml = ` <span class="badge badge-${todo.due_css_class}">${todo.time_until_due}</span>`;
         }
-        return listItem;
+        let contentHint = todo.has_content ? ' <span style="opacity:0.5">...</span>' : '';
+
+        item.innerHTML = `
+            <div class="list-item-left">
+                <input type="checkbox" class="todo-checkbox" ${todo.completed ? 'checked' : ''} onclick="toggleTodoItem(event)" />
+                <span data-todo-id="${todo.id}" class="todo-label${todo.completed ? ' completed' : ''}" onclick="showTodoDetailsModal(${todo.id})">${todo.title}${contentHint}${badgeHtml}</span>
+            </div>
+            <div class="list-item-right">
+                <button class="action-btn warning" data-todo-id="${todo.id}" onclick="archiveTodo(event)" title="Archive">
+                    <svg viewBox="0 0 24 24"><path d="M21 8v13H3V8M1 3h22v5H1zM10 12h4"/></svg>
+                </button>
+                <button class="action-btn danger" data-todo-id="${todo.id}" onclick="confirmDeleteTodo(event)" title="Delete">
+                    <svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                </button>
+            </div>
+        `;
+        return item;
     }
 
+    function bakeEventDOM(event) {
+        const item = document.createElement('div');
+        item.className = 'list-item event-item';
+
+        let badgeHtml = '';
+        if (event.time_until_event) {
+            badgeHtml = ` <span class="badge badge-${event.event_css_class}">${event.time_until_event}</span>`;
+        }
+        let contentHint = event.has_content ? ' <span style="opacity:0.5">...</span>' : '';
+
+        item.innerHTML = `
+            <div class="list-item-left">
+                <span data-event-id="${event.id}" class="event-label" onclick="showEventDetailsModal(${event.id})">${event.title}${contentHint}${badgeHtml}</span>
+            </div>
+            <div class="list-item-right">
+                <button class="action-btn danger" data-event-id="${event.id}" onclick="confirmDeleteEvent(event)" title="Delete">
+                    <svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                </button>
+            </div>
+        `;
+        return item;
+    }
+
+    // ============ Add from modal ============
     function addTodoFromModal() {
-        const newTodoTitle = document.querySelector('#addTodoModal input[type="text"]').value;
-        const newTodoDate = document.querySelector('#addTodoModal input[type="date"]').value;
-        const newTodoContent = document.querySelector('#addTodoModal textarea').value;
-        if (!newTodoTitle || newTodoTitle.trim().length < 2) {
+        const title = document.querySelector('#addTodoOverlay input[type="text"]').value;
+        const date = document.querySelector('#addTodoOverlay input[type="date"]').value;
+        const content = document.querySelector('#addTodoOverlay textarea').value;
+        if (!title || title.trim().length < 2) {
             showToast('Please enter a valid to-do title.', 'warning');
             return;
         }
         fetch('/api/add_todo', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                title: newTodoTitle,
-                content: newTodoContent,
-                dateDue: newTodoDate
-            })
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ title: title, content: content, dateDue: date })
         })
         .then(response => response.json())
         .then(data => {
-            const todoList = document.getElementById('todo-list');
             const todoDOM = bakeTodoDOM(data.todo);
-            const quickAdd = document.querySelector('#todo-list .quick-add-row');
-            todoList.insertBefore(todoDOM, quickAdd);
-            // Hide empty state
+            document.getElementById('todo-list').appendChild(todoDOM);
             const emptyState = document.querySelector('#todo-list .todo-empty-state');
             if (emptyState) emptyState.style.display = 'none';
             showToast('To-do added.');
         })
         .catch(() => showToast('Failed to add to-do.', 'danger'));
-        addTodoModal.hide();
+        hideModal('addTodoOverlay');
     }
 
     function addEventFromModal() {
-        const newEventTitle = document.querySelector('#addEventModal input[type="text"]').value;
-        const newEventDate = document.querySelector('#addEventModal input[type="date"]').value;
-        const newEventContent = document.querySelector('#addEventModal textarea').value;
-        if (!newEventTitle || newEventTitle.trim().length < 2) {
+        const title = document.querySelector('#addEventOverlay input[type="text"]').value;
+        const date = document.querySelector('#addEventOverlay input[type="date"]').value;
+        const content = document.querySelector('#addEventOverlay textarea').value;
+        if (!title || title.trim().length < 2) {
             showToast('Please enter a valid event title.', 'warning');
             return;
         }
         fetch('/api/add_event', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                title: newEventTitle,
-                content: newEventContent,
-                dateOfEvent: newEventDate
-            })
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ title: title, content: content, dateOfEvent: date })
         })
         .then(response => response.json())
         .then(data => {
-            const eventList = document.getElementById('event-list');
             const eventDOM = bakeEventDOM(data.event);
-            const quickAdd = document.querySelector('#event-list .quick-add-row');
-            eventList.insertBefore(eventDOM, quickAdd);
-            // Hide empty state
+            document.getElementById('event-list').appendChild(eventDOM);
             const emptyState = document.querySelector('#event-list .event-empty-state');
             if (emptyState) emptyState.style.display = 'none';
             showToast('Event added.');
         })
         .catch(() => showToast('Failed to add event.', 'danger'));
-        addEventModal.hide();
+        hideModal('addEventOverlay');
     }
 
+    // ============ Quick add ============
     function quickAddTodo() {
-        const newTodo = document.getElementById('new-todo').value;
-        if (!newTodo || newTodo.trim() === '' || newTodo.length < 2) {
+        const input = document.getElementById('new-todo');
+        const title = input.value;
+        if (!title || title.trim() === '' || title.length < 2) {
             showToast('Please enter a valid to-do item.', 'warning');
             return;
         }
         fetch('/api/add_todo', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                title: document.getElementById('new-todo').value,
-                content: '',
-                dateDue: '',
-            })
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ title: title, content: '', dateDue: '' })
         })
         .then(response => response.json())
         .then(data => {
-            const todoList = document.getElementById('todo-list');
             const todoDOM = bakeTodoDOM(data.todo);
-            const quickAdd = document.querySelector('#todo-list .quick-add-row');
-            todoList.insertBefore(todoDOM, quickAdd);
-            document.getElementById('new-todo').value = '';
-            // Hide empty state
+            document.getElementById('todo-list').appendChild(todoDOM);
+            input.value = '';
             const emptyState = document.querySelector('#todo-list .todo-empty-state');
             if (emptyState) emptyState.style.display = 'none';
         })
         .catch(() => showToast('Failed to add to-do.', 'danger'));
     }
 
-    function bakeEventDOM(event) {
-        const listItem = document.createElement('li');
-        listItem.classList.add('list-group-item', 'd-flex', 'justify-content-between', 'align-items-center', 'event-item');
-        listItem.innerHTML = `
-            <div>
-            <span data-event-id="${event.id}" onclick="showEventDetailsModal(${event.id})">${event.has_content ? '💭 ' : ''}${event.title} ${event.time_until_event ? ` \u00A0<small class="badge text-bg-${event.event_css_class}">⌛${event.time_until_event}</small>` : ''}</span>
-            </div>
-            <div class="d-flex gap-1">
-                <button data-event-id="${event.id}" class="btn btn-sm btn-outline-danger archive-btn" onclick="confirmDeleteEvent(event)">🗑️</button>
-            </div>
-        `;
-        return listItem;
-    }
-
     function quickAddEvent() {
-        const newEvent = document.getElementById('new-event').value;
-        if (!newEvent || newEvent.trim() === '' || newEvent.length < 2) {
+        const input = document.getElementById('new-event');
+        const title = input.value;
+        if (!title || title.trim() === '' || title.length < 2) {
             showToast('Please enter a valid event.', 'warning');
             return;
         }
         fetch('/api/add_event', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                title: newEvent,
-                content: '',
-                dateOfEvent: '',
-            })
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ title: title, content: '', dateOfEvent: '' })
         })
         .then(response => response.json())
         .then(data => {
-            const eventList = document.getElementById('event-list');
             const eventDOM = bakeEventDOM(data.event);
-            const quickAdd = document.querySelector('#event-list .quick-add-row');
-            eventList.insertBefore(eventDOM, quickAdd);
-            document.getElementById('new-event').value = '';
-            // Hide empty state
+            document.getElementById('event-list').appendChild(eventDOM);
+            input.value = '';
             const emptyState = document.querySelector('#event-list .event-empty-state');
             if (emptyState) emptyState.style.display = 'none';
         })
         .catch(() => showToast('Failed to add event.', 'danger'));
     }
 
+    // ============ Save notes ============
     function saveNotes(isAutosave) {
         if (!isAutosave) {
             document.getElementById('save-notes-btn').disabled = true;
@@ -1000,21 +1427,15 @@
         }
         fetch('/api/save_agenda_notes', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                content: document.querySelector('#agenda-notes').value
-            })
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ content: document.getElementById('agenda-notes').value })
         })
         .then(response => response.json())
         .then(data => {
             lastSavedContent = document.getElementById('agenda-notes').value;
             if (isAutosave) {
                 document.getElementById('autosave-status').innerText = 'Saved';
-                setTimeout(() => {
-                    document.getElementById('autosave-status').innerText = '';
-                }, 2000);
+                setTimeout(() => { document.getElementById('autosave-status').innerText = ''; }, 2000);
             } else {
                 document.getElementById('save-notes-btn').innerText = 'Saved!';
                 document.getElementById('autosave-status').innerText = '';
@@ -1032,7 +1453,6 @@
             showToast('Failed to save notes.', 'danger');
         });
     }
-
   </script>
 </body>
 </html>
