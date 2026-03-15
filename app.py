@@ -1150,6 +1150,39 @@ def edit_note_category():
     else:
         return jsonify(success=False,reason="Not logged in.")
 
+@app.route("/api/move_category", methods=['POST'])
+def move_category():
+    if g.user:
+        data = request.get_json()
+        category_id = int(data.get('categoryId'))
+        target_path = data.get('targetPath', '').strip('/')
+        category = UserNoteCategory.query.filter_by(id=category_id).first()
+        if not category or g.user != category.user:
+            return jsonify(success=False, reason="Category does not exist.")
+        old_path = category.name
+        leaf_name = old_path.rsplit('/', 1)[-1]
+        new_path = target_path + '/' + leaf_name if target_path else leaf_name
+        if new_path == old_path:
+            return jsonify(success=True)
+        # Prevent moving into itself or its own children
+        if new_path == old_path or new_path.startswith(old_path + '/'):
+            return jsonify(success=False, reason="Cannot move a folder into itself.")
+        # Check for name collision
+        if UserNoteCategory.query.filter_by(user_id=g.user.id, name=new_path).first():
+            return jsonify(success=False, reason="A folder with that name already exists there.")
+        # Rename this category and all children
+        children = UserNoteCategory.query.filter(
+            UserNoteCategory.user_id == g.user.id,
+            UserNoteCategory.name.startswith(old_path + '/')
+        ).all()
+        for child in children:
+            child.name = new_path + child.name[len(old_path):]
+        category.name = new_path
+        db.session.commit()
+        return jsonify(success=True)
+    else:
+        return jsonify(success=False, reason="Not logged in.")
+
 @app.route("/api/delete_category", methods=['POST'])
 def delete_category():
     if g.user:

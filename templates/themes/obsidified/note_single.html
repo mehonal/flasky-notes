@@ -202,6 +202,14 @@
         .folder-count { font-size: 11px; color: var(--text-muted); flex-shrink: 0; min-width: 16px; text-align: center; }
         .folder.collapsed .folder-items { display: none; }
         .folder-items > .folder { padding-left: 8px; }
+        .folder-header.drag-over { background: var(--accent-dim); outline: 2px dashed var(--accent); outline-offset: -2px; border-radius: 6px; }
+        .file-item.dragging { opacity: 0.4; }
+        .folder.dragging > .folder-header { opacity: 0.4; }
+        .root-drop-zone { display: none; padding: 8px; margin: 4px 0; text-align: center; font-size: 12px; color: var(--text-muted); border: 2px dashed var(--border); border-radius: 6px; }
+        .root-drop-zone.visible { display: block; }
+        .root-drop-zone.drag-over { border-color: var(--accent); background: var(--accent-dim); color: var(--accent); }
+        .folder-move-btn { display: none; padding: 2px !important; }
+        .folder-move-btn:hover { color: var(--accent) !important; }
 
         .file-item {
             display: flex; align-items: center; padding: 4px 8px 4px 30px;
@@ -603,7 +611,7 @@
             .sidebar.collapsed { width: 0; min-width: 0; box-shadow: none; }
 
             /* Always show action icons on mobile for touch accessibility */
-            .folder-delete-btn, .folder-add-btn, .folder-newnote-btn { display: flex; }
+            .folder-delete-btn, .folder-add-btn, .folder-newnote-btn, .folder-move-btn { display: flex; }
             .file-item .delete-btn { display: flex; position: static; }
             .file-item .pin-btn { display: flex; position: static; }
 
@@ -763,6 +771,9 @@
             </div>
 
             <div class="file-tree" id="file-tree">
+                <div class="root-drop-zone" id="root-drop-zone" ondragover="onRootDragOver(event)" ondragleave="onRootDragLeave(event)" ondrop="onRootDrop(event)">
+                    Drop here to move to root
+                </div>
                 {% macro render_folder_tree(tree, path_prefix="") %}
                 {% for name in tree | sort %}
                 {% set data = tree[name] %}
@@ -772,7 +783,7 @@
                 {% set children = data['_children'] %}
                 {% set total_notes = notes_list | length %}
                 <div class="folder collapsed" {% if cat %}data-category-id="{{ cat.id }}"{% endif %} data-path="{{ full_path }}">
-                    <div class="folder-header" onclick="toggleFolder(this.parentElement)">
+                    <div class="folder-header" onclick="toggleFolder(this.parentElement)" {% if cat %}draggable="true" ondragstart="onFolderDragStart(event, {{ cat.id }}, '{{ full_path | e }}')"{% endif %} ondragover="onItemDragOver(event)" ondragleave="onItemDragLeave(event)" ondrop="onItemDrop(event, '{{ full_path | e }}', {% if cat %}{{ cat.id }}{% else %}null{% endif %})">
                         <span class="folder-chevron"><svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg></span>
                         <span class="folder-icon"><svg viewBox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg></span>
                         <span class="folder-name">{{ name }}</span>
@@ -780,6 +791,11 @@
                         {% if cat %}
                         <button class="icon-btn folder-newnote-btn" onclick="event.stopPropagation(); createNewNoteInFolder({{ cat.id }}, '{{ full_path | e }}')" title="New note in {{ name }}">
                             <svg viewBox="0 0 24 24" width="12" height="12"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="11" x2="12" y2="17"/><line x1="9" y1="14" x2="15" y2="14"/></svg>
+                        </button>
+                        {% endif %}
+                        {% if cat %}
+                        <button class="icon-btn folder-move-btn" onclick="event.stopPropagation(); promptMoveFolder({{ cat.id }}, '{{ full_path | e }}')" title="Move folder">
+                            <svg viewBox="0 0 24 24" width="12" height="12"><polyline points="5 9 2 12 5 15"/><polyline points="19 9 22 12 19 15"/><line x1="2" y1="12" x2="22" y2="12"/></svg>
                         </button>
                         {% endif %}
                         <button class="icon-btn folder-add-btn" onclick="event.stopPropagation(); promptNewFolder('{{ full_path }}')" title="New subfolder">
@@ -794,7 +810,7 @@
                     <div class="folder-items">
                         {{ render_folder_tree(children, full_path) }}
                         {% for n in notes_list %}
-                        <div class="file-item {% if note and note.id == n.id %}active{% endif %}" data-note-id="{{ n.id }}" onclick="openNote({{ n.id }})">
+                        <div class="file-item {% if note and note.id == n.id %}active{% endif %}" data-note-id="{{ n.id }}" onclick="openNote({{ n.id }})" draggable="true" ondragstart="onNoteDragStart(event, {{ n.id }})" ondragover="event.preventDefault()">
                             <span class="file-icon"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></span>
                             <span class="file-name">{{ n.title or 'Untitled' }}</span>
                             <button class="icon-btn delete-btn" onclick="event.stopPropagation(); deleteSidebarNote({{ n.id }}, '{{ n.title | e }}')" title="Delete note">
@@ -1533,6 +1549,158 @@
             .then(function(r) { return r.json(); })
             .then(function(data) {
                 if (data.success) window.location.reload();
+            });
+        }
+
+        // ============ Drag and drop notes & folders ============
+
+        var dragType = null;   // 'note' or 'folder'
+        var dragNoteId = null;
+        var dragFolderId = null;
+        var dragFolderPath = null;
+
+        function onNoteDragStart(e, noteId) {
+            dragType = 'note';
+            dragNoteId = noteId;
+            e.dataTransfer.effectAllowed = 'move';
+            e.dataTransfer.setData('text/plain', 'note:' + noteId);
+            e.target.classList.add('dragging');
+        }
+
+        function onFolderDragStart(e, catId, path) {
+            dragType = 'folder';
+            dragFolderId = catId;
+            dragFolderPath = path;
+            e.dataTransfer.effectAllowed = 'move';
+            e.dataTransfer.setData('text/plain', 'folder:' + catId);
+            e.target.closest('.folder').classList.add('dragging');
+            // Show root drop zone when dragging a subfolder (has "/" in path)
+            if (path.indexOf('/') !== -1) {
+                document.getElementById('root-drop-zone').classList.add('visible');
+            }
+        }
+
+        document.addEventListener('dragend', function() {
+            dragType = null;
+            dragNoteId = null;
+            dragFolderId = null;
+            dragFolderPath = null;
+            document.querySelectorAll('.dragging').forEach(function(el) { el.classList.remove('dragging'); });
+            document.querySelectorAll('.drag-over').forEach(function(el) { el.classList.remove('drag-over'); });
+            document.getElementById('root-drop-zone').classList.remove('visible');
+        });
+
+        function onItemDragOver(e) {
+            if (!dragType) return;
+            // Prevent dropping a folder onto itself or its children
+            if (dragType === 'folder') {
+                var targetPath = e.currentTarget.closest('.folder').dataset.path;
+                if (targetPath === dragFolderPath || targetPath.startsWith(dragFolderPath + '/')) return;
+            }
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+            e.currentTarget.classList.add('drag-over');
+        }
+
+        function onItemDragLeave(e) {
+            e.currentTarget.classList.remove('drag-over');
+        }
+
+        function onItemDrop(e, targetPath, targetCatId) {
+            e.preventDefault();
+            e.currentTarget.classList.remove('drag-over');
+            if (!dragType) return;
+
+            if (dragType === 'note') {
+                if (targetCatId === null) return;
+                var nid = dragNoteId;
+                dragType = null;
+                fetch('/api/edit_note_category', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ noteId: nid, category: targetCatId })
+                })
+                .then(function(r) { return r.json(); })
+                .then(function(data) { if (data.success) window.location.reload(); });
+            } else if (dragType === 'folder') {
+                if (targetPath === dragFolderPath) return;
+                // Prevent dropping into own subtree
+                if (targetPath.startsWith(dragFolderPath + '/')) return;
+                var fid = dragFolderId;
+                dragType = null;
+                fetch('/api/move_category', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ categoryId: fid, targetPath: targetPath })
+                })
+                .then(function(r) { return r.json(); })
+                .then(function(data) {
+                    if (data.success) window.location.reload();
+                    else if (data.reason) alert(data.reason);
+                });
+            }
+        }
+
+        function onRootDragOver(e) {
+            if (dragType !== 'folder') return;
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+            e.currentTarget.classList.add('drag-over');
+        }
+
+        function onRootDragLeave(e) {
+            e.currentTarget.classList.remove('drag-over');
+        }
+
+        function onRootDrop(e) {
+            e.preventDefault();
+            e.currentTarget.classList.remove('drag-over');
+            if (dragType !== 'folder') return;
+            var fid = dragFolderId;
+            dragType = null;
+            fetch('/api/move_category', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ categoryId: fid, targetPath: '' })
+            })
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (data.success) window.location.reload();
+                else if (data.reason) alert(data.reason);
+            });
+        }
+
+        function promptMoveFolder(catId, currentPath) {
+            var folders = [];
+            document.querySelectorAll('.folder[data-path]').forEach(function(f) {
+                var p = f.dataset.path;
+                // Exclude self and children
+                if (p !== currentPath && !p.startsWith(currentPath + '/')) {
+                    folders.push(p);
+                }
+            });
+            var options = '0: (root)\n';
+            folders.forEach(function(f, i) { options += (i + 1) + ': ' + f + '\n'; });
+            var choice = prompt('Move "' + currentPath + '" to:\n\n' + options + '\nEnter number:');
+            if (choice === null) return;
+            choice = parseInt(choice);
+            var targetPath = '';
+            if (choice === 0) {
+                targetPath = '';
+            } else if (choice > 0 && choice <= folders.length) {
+                targetPath = folders[choice - 1];
+            } else {
+                return;
+            }
+            fetch('/api/move_category', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ categoryId: catId, targetPath: targetPath })
+            })
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (data.success) window.location.reload();
+                else if (data.reason) alert(data.reason);
             });
         }
 
