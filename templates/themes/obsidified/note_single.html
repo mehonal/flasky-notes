@@ -511,6 +511,7 @@
         .outline-list .h6 { padding-left: 48px; }
 
         .outline-empty, .backlinks-empty { color: var(--text-muted); font-size: 12px; font-style: italic; padding: 4px 6px; }
+        .outbound-missing { opacity: 0.5; font-style: italic; }
 
         .right-panel-divider { height: 1px; background: var(--border); margin: 12px 0; }
 
@@ -635,6 +636,83 @@
             .CodeMirror-scroll { padding: 0 12px 40px !important; }
             .breadcrumb-item.active { max-width: 120px; }
         }
+
+        /* ============ Wikilink Autocomplete ============ */
+        .wikilink-autocomplete {
+            position: absolute;
+            z-index: 500;
+            background: var(--bg-primary);
+            border: 1px solid var(--border-light);
+            border-radius: 8px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+            max-height: 200px;
+            overflow-y: auto;
+            min-width: 200px;
+            max-width: 320px;
+            font-size: 13px;
+        }
+        .wikilink-autocomplete-item {
+            padding: 6px 12px;
+            cursor: pointer;
+            color: var(--text-secondary);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .wikilink-autocomplete-item:first-child { border-radius: 8px 8px 0 0; }
+        .wikilink-autocomplete-item:last-child { border-radius: 0 0 8px 8px; }
+        .wikilink-autocomplete-item:only-child { border-radius: 8px; }
+        .wikilink-autocomplete-item:hover,
+        .wikilink-autocomplete-item.selected {
+            background: var(--accent-dim);
+            color: var(--accent);
+        }
+        .wikilink-autocomplete-empty {
+            padding: 8px 12px;
+            color: var(--text-muted);
+            font-style: italic;
+            font-size: 12px;
+        }
+
+        /* ============ Callouts (preview) ============ */
+        .callout {
+            border-left: 4px solid var(--accent);
+            border-radius: 6px;
+            background: var(--accent-dim);
+            padding: 12px 16px;
+            margin: 0.8em 0;
+            font-style: normal;
+        }
+        .callout-title {
+            font-weight: 600;
+            font-size: 0.95em;
+            margin-bottom: 4px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .callout-title-icon { font-size: 1.1em; }
+        .callout-content { font-style: normal; color: var(--text-secondary); }
+        .callout-content p { margin: 0.3em 0; }
+        .callout-content p:first-child { margin-top: 0; }
+
+        .callout[data-callout="info"], .callout[data-callout="note"] { border-left-color: var(--blue); background: rgba(137,180,250,0.08); }
+        .callout[data-callout="tip"], .callout[data-callout="hint"] { border-left-color: #94e2d5; background: rgba(148,226,213,0.08); }
+        .callout[data-callout="warning"], .callout[data-callout="caution"], .callout[data-callout="attention"] { border-left-color: var(--yellow); background: rgba(249,226,175,0.08); }
+        .callout[data-callout="danger"], .callout[data-callout="error"], .callout[data-callout="failure"], .callout[data-callout="fail"], .callout[data-callout="missing"] { border-left-color: var(--red); background: rgba(243,139,168,0.08); }
+        .callout[data-callout="success"], .callout[data-callout="check"], .callout[data-callout="done"] { border-left-color: var(--green); background: rgba(166,227,161,0.08); }
+        .callout[data-callout="question"], .callout[data-callout="help"], .callout[data-callout="faq"] { border-left-color: #fab387; background: rgba(250,179,135,0.08); }
+        .callout[data-callout="example"] { border-left-color: #cba6f7; background: rgba(203,166,247,0.08); }
+        .callout[data-callout="quote"], .callout[data-callout="cite"] { border-left-color: var(--text-muted); background: var(--bg-hover); }
+        .callout[data-callout="abstract"], .callout[data-callout="summary"], .callout[data-callout="tldr"] { border-left-color: #74c7ec; background: rgba(116,199,236,0.08); }
+        .callout[data-callout="bug"] { border-left-color: #f38ba8; background: rgba(243,139,168,0.08); }
+        .callout[data-callout="todo"] { border-left-color: var(--accent); background: var(--accent-dim); }
+
+        [data-theme="light"] .callout[data-callout="info"], [data-theme="light"] .callout[data-callout="note"] { background: rgba(30,102,245,0.06); }
+        [data-theme="light"] .callout[data-callout="tip"], [data-theme="light"] .callout[data-callout="hint"] { background: rgba(23,146,153,0.06); }
+        [data-theme="light"] .callout[data-callout="warning"], [data-theme="light"] .callout[data-callout="caution"], [data-theme="light"] .callout[data-callout="attention"] { background: rgba(223,142,29,0.06); }
+        [data-theme="light"] .callout[data-callout="danger"], [data-theme="light"] .callout[data-callout="error"], [data-theme="light"] .callout[data-callout="failure"], [data-theme="light"] .callout[data-callout="fail"], [data-theme="light"] .callout[data-callout="missing"] { background: rgba(210,15,57,0.06); }
+        [data-theme="light"] .callout[data-callout="success"], [data-theme="light"] .callout[data-callout="check"], [data-theme="light"] .callout[data-callout="done"] { background: rgba(64,160,43,0.06); }
     </style>
 </head>
 <body>
@@ -858,6 +936,16 @@
                         <div class="right-panel-divider"></div>
 
                         <div class="right-panel-section-header">
+                            <svg viewBox="0 0 24 24"><line x1="7" y1="17" x2="17" y2="7"/><polyline points="7 7 17 7 17 17"/></svg>
+                            Outbound Links
+                        </div>
+                        <ul class="backlinks-list" id="outbound-links-list">
+                            <li class="backlinks-empty">No outbound links</li>
+                        </ul>
+
+                        <div class="right-panel-divider"></div>
+
+                        <div class="right-panel-section-header">
                             <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="3" x2="9" y2="21"/></svg>
                             Properties
                         </div>
@@ -1072,6 +1160,45 @@
             });
 
             cmEditor.on('change', function() { markDirty(); });
+
+            // Wikilink autocomplete on typing
+            cmEditor.on('inputRead', function(cm, change) {
+                if (change.origin === '+input' || change.origin === 'paste') {
+                    showWikiAutocomplete(cm);
+                }
+            });
+
+            cmEditor.on('cursorActivity', function(cm) {
+                if (isWikiAutocompleteVisible()) {
+                    // Check if still inside [[ ]]
+                    var cursor = cm.getCursor();
+                    var line = cm.getLine(cursor.line);
+                    var before = line.substring(0, cursor.ch);
+                    var openIdx = before.lastIndexOf('[[');
+                    if (openIdx === -1 || before.substring(openIdx + 2).indexOf(']]') > -1) {
+                        hideWikiAutocomplete();
+                    }
+                }
+            });
+
+            // Intercept keys for autocomplete navigation
+            cmEditor.on('keydown', function(cm, e) {
+                if (!isWikiAutocompleteVisible()) return;
+                if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    if (wikiSelectedIndex < wikiFilteredNotes.length - 1) { wikiSelectedIndex++; renderWikiAutocomplete(); }
+                } else if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    if (wikiSelectedIndex > 0) { wikiSelectedIndex--; renderWikiAutocomplete(); }
+                } else if (e.key === 'Enter' || e.key === 'Tab') {
+                    e.preventDefault();
+                    acceptWikiAutocomplete(wikiSelectedIndex);
+                } else if (e.key === 'Escape') {
+                    e.preventDefault();
+                    hideWikiAutocomplete();
+                }
+            });
+
         }
 
         function wrapSelection(wrapper) {
@@ -1099,7 +1226,8 @@
             if (!preview) return;
             var content = getEditorContent();
             if (content && content.trim()) {
-                preview.innerHTML = marked(content);
+                var renderedHtml = marked(content);
+                preview.innerHTML = processCallouts(renderedHtml);
                 preview.querySelectorAll('pre code').forEach(function(block) { hljs.highlightElement(block); });
             } else {
                 preview.innerHTML = '';
@@ -1161,13 +1289,61 @@
 
         // ============ Save ============
 
+        var outboundLinksTimer = null;
+
+        var hasBeenSavedOnce = {{ 'true' if note else 'false' }};
+
         function markDirty() {
             isDirty = true;
             var s = document.getElementById('save-status');
             if (s) { s.textContent = 'Unsaved'; s.style.color = 'var(--yellow)'; }
             updateCounts();
             clearTimeout(autoSaveTimer);
-            autoSaveTimer = setTimeout(function() { saveNote(); }, 3000);
+            // Only autosave if this note has been saved at least once (not a brand new note)
+            if (hasBeenSavedOnce) {
+                autoSaveTimer = setTimeout(function() { saveNote(); }, 3000);
+            }
+
+            // Update outbound links in right panel (debounced)
+            var panel = document.getElementById('right-panel');
+            if (panel && !panel.classList.contains('collapsed')) {
+                clearTimeout(outboundLinksTimer);
+                outboundLinksTimer = setTimeout(updateOutboundLinksFromContent, 500);
+            }
+        }
+
+        function updateOutboundLinksFromContent() {
+            var content = getEditorContent();
+            var list = document.getElementById('outbound-links-list');
+            if (!list || !content) { if (list) list.innerHTML = '<li class="backlinks-empty">No outbound links</li>'; return; }
+
+            var re = /\[\[([^\]|]+)(?:\|[^\]]+)?\]\]/g;
+            var match;
+            var seen = {};
+            var links = [];
+            while ((match = re.exec(content)) !== null) {
+                var title = match[1].trim();
+                var key = title.toLowerCase();
+                if (seen[key]) continue;
+                seen[key] = true;
+                links.push(title);
+            }
+
+            if (links.length === 0) { list.innerHTML = '<li class="backlinks-empty">No outbound links</li>'; return; }
+
+            loadWikiNoteList(function() {
+                var html = '';
+                links.forEach(function(title) {
+                    var key = title.toLowerCase();
+                    var found = wikiNoteList.find(function(n) { return n.title.toLowerCase() === key; });
+                    if (found) {
+                        html += '<li><a href="/note/' + found.id + '">' + (found.title || 'Untitled').replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</a></li>';
+                    } else {
+                        html += '<li><span class="backlinks-empty outbound-missing">' + title.replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</span></li>';
+                    }
+                });
+                list.innerHTML = html;
+            });
         }
 
         function saveNote(callback) {
@@ -1192,6 +1368,7 @@
             .then(function(data) {
                 if (data.success) {
                     isDirty = false;
+                    hasBeenSavedOnce = true;
                     document.getElementById('save-status').textContent = 'Saved';
                     document.getElementById('save-status').style.color = 'var(--green)';
                     if (noteId === 0 && data.note && data.note.id) {
@@ -1317,6 +1494,7 @@
                 if (btn) btn.classList.add('active');
                 updateOutline();
                 loadBacklinks();
+                loadOutboundLinks();
                 updateRightPanelProps();
             } else {
                 if (btn) btn.classList.remove('active');
@@ -1396,6 +1574,10 @@
                 list.innerHTML = html;
             })
             .catch(function() { list.innerHTML = '<li class="backlinks-empty">Failed to load</li>'; });
+        }
+
+        function loadOutboundLinks() {
+            updateOutboundLinksFromContent();
         }
 
         // ============ Search Modal ============
@@ -1569,6 +1751,220 @@
             if (ctrl && e.key === 'b' && !editMode) { e.preventDefault(); toggleSidebar(); }
         });
 
+        // ============ Wikilink Autocomplete ============
+
+        var wikiAutocomplete = null;
+        var wikiNoteList = null;
+        var wikiSelectedIndex = -1;
+        var wikiFilteredNotes = [];
+
+        function loadWikiNoteList(callback) {
+            if (wikiNoteList !== null) { if (callback) callback(); return; }
+            fetch('/api/note-map')
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                var notes = data.notes || {};
+                wikiNoteList = [];
+                Object.keys(notes).forEach(function(key) {
+                    wikiNoteList.push({ title: notes[key].title || key, id: notes[key].id });
+                });
+                wikiNoteList.sort(function(a, b) { return a.title.localeCompare(b.title); });
+                if (callback) callback();
+            })
+            .catch(function() { wikiNoteList = []; if (callback) callback(); });
+        }
+
+        function showWikiAutocomplete(cm) {
+            var cursor = cm.getCursor();
+            var line = cm.getLine(cursor.line);
+            var before = line.substring(0, cursor.ch);
+
+            // Find [[ before cursor that isn't closed yet
+            var openIdx = before.lastIndexOf('[[');
+            if (openIdx === -1) { hideWikiAutocomplete(); return; }
+            var afterOpen = before.substring(openIdx + 2);
+            if (afterOpen.indexOf(']]') > -1) { hideWikiAutocomplete(); return; }
+
+            var query = afterOpen.toLowerCase();
+
+            loadWikiNoteList(function() {
+                wikiFilteredNotes = wikiNoteList.filter(function(n) {
+                    return n.title.toLowerCase().indexOf(query) > -1;
+                }).slice(0, 12);
+
+                if (wikiFilteredNotes.length === 0) { hideWikiAutocomplete(); return; }
+
+                wikiSelectedIndex = 0;
+
+                if (!wikiAutocomplete) {
+                    wikiAutocomplete = document.createElement('div');
+                    wikiAutocomplete.className = 'wikilink-autocomplete';
+                    document.body.appendChild(wikiAutocomplete);
+                }
+
+                renderWikiAutocomplete();
+
+                // Position dropdown near cursor
+                var coords = cm.cursorCoords(true, 'page');
+                wikiAutocomplete.style.left = coords.left + 'px';
+                wikiAutocomplete.style.top = (coords.bottom + 4) + 'px';
+                wikiAutocomplete.style.display = 'block';
+            });
+        }
+
+        function renderWikiAutocomplete() {
+            if (!wikiAutocomplete) return;
+            var html = '';
+            wikiFilteredNotes.forEach(function(n, i) {
+                html += '<div class="wikilink-autocomplete-item' + (i === wikiSelectedIndex ? ' selected' : '') + '" data-index="' + i + '">' +
+                    n.title.replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</div>';
+            });
+            wikiAutocomplete.innerHTML = html;
+
+            // Add click handlers
+            wikiAutocomplete.querySelectorAll('.wikilink-autocomplete-item').forEach(function(item) {
+                item.addEventListener('mousedown', function(e) {
+                    e.preventDefault();
+                    var idx = parseInt(item.getAttribute('data-index'));
+                    acceptWikiAutocomplete(idx);
+                });
+                item.addEventListener('mouseenter', function() {
+                    wikiSelectedIndex = parseInt(item.getAttribute('data-index'));
+                    renderWikiAutocomplete();
+                });
+            });
+        }
+
+        function hideWikiAutocomplete() {
+            if (wikiAutocomplete) wikiAutocomplete.style.display = 'none';
+            wikiFilteredNotes = [];
+            wikiSelectedIndex = -1;
+        }
+
+        function acceptWikiAutocomplete(index) {
+            if (!cmEditor || index < 0 || index >= wikiFilteredNotes.length) return;
+            var selected = wikiFilteredNotes[index];
+            var cursor = cmEditor.getCursor();
+            var line = cmEditor.getLine(cursor.line);
+            var before = line.substring(0, cursor.ch);
+            var openIdx = before.lastIndexOf('[[');
+            if (openIdx === -1) return;
+
+            // autoCloseBrackets inserts ]] after the cursor, so we need to consume them
+            var after = line.substring(cursor.ch);
+            var extraClose = 0;
+            // Count how many ] characters follow the cursor that were auto-inserted
+            if (after.indexOf(']]') === 0) extraClose = 2;
+            else if (after.indexOf(']') === 0) extraClose = 1;
+
+            var from = { line: cursor.line, ch: openIdx };
+            var to = { line: cursor.line, ch: cursor.ch + extraClose };
+            cmEditor.replaceRange('[[' + selected.title + ']]', from, to);
+            hideWikiAutocomplete();
+            cmEditor.focus();
+
+            // Immediately update outbound links
+            var panel = document.getElementById('right-panel');
+            if (panel && !panel.classList.contains('collapsed')) {
+                clearTimeout(outboundLinksTimer);
+                updateOutboundLinksFromContent();
+            }
+        }
+
+        function isWikiAutocompleteVisible() {
+            return wikiAutocomplete && wikiAutocomplete.style.display === 'block';
+        }
+
+        // ============ Callout support for preview ============
+
+        var calloutIcons = {
+            note: 'pencil', info: 'info', tip: 'flame', hint: 'flame',
+            warning: 'alert-triangle', caution: 'alert-triangle', attention: 'alert-triangle',
+            danger: 'zap', error: 'x-circle', failure: 'x-circle', fail: 'x-circle', missing: 'x-circle',
+            success: 'check-circle', check: 'check-circle', done: 'check-circle',
+            question: 'help-circle', help: 'help-circle', faq: 'help-circle',
+            example: 'list', quote: 'quote', cite: 'quote',
+            abstract: 'clipboard', summary: 'clipboard', tldr: 'clipboard',
+            bug: 'bug', todo: 'check-square'
+        };
+
+        function getCalloutIcon(type) {
+            var iconName = calloutIcons[type] || 'info';
+            var icons = {
+                'pencil': '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>',
+                'info': '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>',
+                'flame': '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.07-2.14 0-5.5 3-7 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 1.5 3z"/></svg>',
+                'alert-triangle': '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>',
+                'zap': '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>',
+                'x-circle': '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>',
+                'check-circle': '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>',
+                'help-circle': '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>',
+                'list': '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>',
+                'quote': '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21c3 0 7-1 7-8V5c0-1.25-.756-2.017-2-2H4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2 1 0 1 0 1 1v1c0 1-1 2-2 2s-1 .008-1 1.031V21z"/><path d="M15 21c3 0 7-1 7-8V5c0-1.25-.757-2.017-2-2h-4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2h.75c0 2.25.25 4-2.75 4v3z"/></svg>',
+                'clipboard': '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/></svg>',
+                'bug': '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="6" width="8" height="14" rx="4"/><path d="M19 10h2"/><path d="M3 10h2"/><path d="M19 14h2"/><path d="M3 14h2"/><path d="M19 18h2"/><path d="M3 18h2"/><path d="M9 2l1.5 3"/><path d="M15 2l-1.5 3"/></svg>',
+                'check-square': '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>'
+            };
+            return '<span class="callout-title-icon">' + (icons[iconName] || icons['info']) + '</span>';
+        }
+
+        function processCallouts(html) {
+            // Transform blockquotes with [!TYPE] into callout divs
+            // marked.js renders > lines as <blockquote><p>content</p></blockquote>
+            var div = document.createElement('div');
+            div.innerHTML = html;
+
+            div.querySelectorAll('blockquote').forEach(function(bq) {
+                var firstP = bq.querySelector('p');
+                if (!firstP) return;
+                var text = firstP.innerHTML;
+                // Match [!TYPE] possibly followed by title text
+                var match = text.match(/^\[!(\w+)\]\s*(.*)/);
+                if (!match) return;
+
+                var calloutType = match[1].toLowerCase();
+                var titleText = match[2] || calloutType.charAt(0).toUpperCase() + calloutType.slice(1);
+
+                // Build callout
+                var callout = document.createElement('div');
+                callout.className = 'callout';
+                callout.setAttribute('data-callout', calloutType);
+
+                var titleDiv = document.createElement('div');
+                titleDiv.className = 'callout-title';
+                titleDiv.innerHTML = getCalloutIcon(calloutType) + '<span>' + titleText + '</span>';
+                callout.appendChild(titleDiv);
+
+                // Remaining content: everything after the first line in the first <p>, plus other children
+                var contentDiv = document.createElement('div');
+                contentDiv.className = 'callout-content';
+
+                // Check if there's content after the title in the same <p>
+                // The first <p> might contain <br> separated lines
+                var afterTitle = text.substring(match[0].length);
+                if (afterTitle.trim()) {
+                    var p = document.createElement('p');
+                    p.innerHTML = afterTitle.replace(/^<br\s*\/?>/, '');
+                    if (p.innerHTML.trim()) contentDiv.appendChild(p);
+                }
+
+                // Add remaining elements from the blockquote
+                var children = Array.from(bq.children);
+                for (var i = 0; i < children.length; i++) {
+                    if (children[i] === firstP) continue;
+                    contentDiv.appendChild(children[i].cloneNode(true));
+                }
+
+                if (contentDiv.innerHTML.trim()) {
+                    callout.appendChild(contentDiv);
+                }
+
+                bq.parentNode.replaceChild(callout, bq);
+            });
+
+            return div.innerHTML;
+        }
+
         // ============ Responsive ============
 
         window.addEventListener('resize', function() { isMobile = window.innerWidth <= 768; });
@@ -1605,6 +2001,7 @@
             if (rp && !rp.classList.contains('collapsed')) {
                 updateOutline();
                 loadBacklinks();
+                loadOutboundLinks();
                 updateRightPanelProps();
             }
         })();

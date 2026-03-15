@@ -910,6 +910,33 @@ def backlinks_api(note_id):
         return jsonify([])
     return jsonify(error="Not logged in"), 401
 
+
+@app.route("/api/outbound-links/<int:note_id>")
+def outbound_links_api(note_id):
+    if g.user:
+        note = UserNote.query.filter_by(id=note_id).first()
+        if note and g.user == note.user and note.content:
+            import re
+            links = re.findall(r'\[\[([^\]|]+)(?:\|[^\]]+)?\]\]', note.content)
+            seen = set()
+            result = []
+            for title in links:
+                key = title.strip().lower()
+                if key in seen:
+                    continue
+                seen.add(key)
+                target = UserNote.query.filter_by(userid=g.user.id).filter(
+                    db.func.lower(UserNote.title) == key
+                ).first()
+                if target:
+                    result.append({"id": target.id, "title": target.title or "Untitled"})
+                else:
+                    result.append({"id": None, "title": title.strip()})
+            return jsonify(result)
+        return jsonify([])
+    return jsonify(error="Not logged in"), 401
+
+
 @app.route("/api/note/check_last_edited/<int:note_id>")
 def check_last_edited_note_api(note_id):
     if g.user:
