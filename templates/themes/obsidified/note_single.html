@@ -642,6 +642,55 @@
         .agenda-todo-check.checked svg { display: block; }
         .agenda-todo-check svg { display: none; width: 10px; height: 10px; stroke: var(--bg-primary); fill: none; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
 
+        /* Widget add button */
+        .widget-add-btn {
+            padding: 2px; margin-right: 2px; opacity: 0.6; transition: opacity 0.15s;
+        }
+        .widget-add-btn:hover { opacity: 1; }
+        .widget-add-btn svg { stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+        /* Agenda modal */
+        .agenda-modal {
+            width: 400px; max-width: 92vw; background: var(--bg-primary);
+            border: 1px solid var(--border-light); border-radius: 12px;
+            box-shadow: 0 16px 48px rgba(0,0,0,0.3); overflow: hidden;
+        }
+        .agenda-modal-header {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 14px 16px; border-bottom: 1px solid var(--border);
+            font-size: 14px; font-weight: 600; color: var(--text-primary);
+        }
+        .agenda-modal-body { padding: 16px; display: flex; flex-direction: column; gap: 10px; }
+        .agenda-modal-input {
+            width: 100%; padding: 8px 12px; border: 1px solid var(--border-light);
+            border-radius: 6px; background: var(--bg-input, var(--bg-secondary));
+            color: var(--text-primary); font-size: 13px; font-family: inherit;
+            outline: none; box-sizing: border-box;
+        }
+        .agenda-modal-input:focus { border-color: var(--accent); }
+        .agenda-modal-textarea {
+            width: 100%; padding: 8px 12px; border: 1px solid var(--border-light);
+            border-radius: 6px; background: var(--bg-input, var(--bg-secondary));
+            color: var(--text-primary); font-size: 13px; font-family: inherit;
+            outline: none; resize: vertical; box-sizing: border-box;
+        }
+        .agenda-modal-textarea:focus { border-color: var(--accent); }
+        .agenda-modal-footer {
+            display: flex; align-items: center; gap: 8px;
+            padding: 12px 16px; border-top: 1px solid var(--border);
+        }
+        .agenda-modal-spacer { flex: 1; }
+        .agenda-modal-btn {
+            padding: 6px 14px; border: 1px solid var(--border-light); border-radius: 6px;
+            background: var(--bg-hover); color: var(--text-secondary); font-size: 12px;
+            cursor: pointer; font-family: inherit; transition: all 0.15s;
+        }
+        .agenda-modal-btn:hover { background: var(--bg-active, var(--bg-hover)); color: var(--text-primary); }
+        .agenda-modal-btn.primary { background: var(--accent-dim); color: var(--accent); border-color: var(--accent); }
+        .agenda-modal-btn.primary:hover { background: var(--accent); color: var(--bg-primary); }
+        .agenda-modal-btn.danger { background: none; color: var(--red); border-color: transparent; }
+        .agenda-modal-btn.danger:hover { background: rgba(243,139,168,0.1); }
+
         /* Quick settings widget */
         .quick-settings-content { padding: 2px 0; }
         .quick-setting-toggle {
@@ -1289,6 +1338,9 @@
                             <div class="right-panel-section-header widget-header" onclick="toggleWidgetCollapse('todos')">
                                 <svg viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
                                 <span class="widget-label">To-dos</span>
+                                <button class="icon-btn widget-add-btn" onclick="event.stopPropagation(); openAddTodoModal()" title="Add to-do">
+                                    <svg viewBox="0 0 24 24" width="12" height="12"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                                </button>
                                 <svg class="widget-chevron" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
                             </div>
                             <div class="widget-body">
@@ -1308,6 +1360,9 @@
                             <div class="right-panel-section-header widget-header" onclick="toggleWidgetCollapse('events')">
                                 <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
                                 <span class="widget-label">Events</span>
+                                <button class="icon-btn widget-add-btn" onclick="event.stopPropagation(); openAddEventModal()" title="Add event">
+                                    <svg viewBox="0 0 24 24" width="12" height="12"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                                </button>
                                 <svg class="widget-chevron" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
                             </div>
                             <div class="widget-body">
@@ -1434,6 +1489,52 @@
             <div class="template-modal-footer">
                 <span>Delete templates or assign them as folder defaults</span>
                 <button onclick="closeManageTemplates()">Done</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Todo Detail Modal -->
+    <div class="modal-overlay" id="todo-detail-overlay" onclick="if(event.target===this)closeTodoDetailModal()">
+        <div class="agenda-modal">
+            <div class="agenda-modal-header">
+                <span id="todo-modal-title">To-do</span>
+                <button class="icon-btn" onclick="closeTodoDetailModal()">
+                    <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+            </div>
+            <div class="agenda-modal-body">
+                <input type="text" class="agenda-modal-input" id="todo-modal-input-title" placeholder="Title">
+                <input type="date" class="agenda-modal-input" id="todo-modal-input-date">
+                <textarea class="agenda-modal-textarea" id="todo-modal-input-content" placeholder="Notes (optional)" rows="3"></textarea>
+            </div>
+            <div class="agenda-modal-footer">
+                <button class="agenda-modal-btn danger" id="todo-modal-delete-btn" onclick="deleteFromTodoModal()">Delete</button>
+                <span class="agenda-modal-spacer"></span>
+                <button class="agenda-modal-btn" onclick="closeTodoDetailModal()">Cancel</button>
+                <button class="agenda-modal-btn primary" onclick="saveFromTodoModal()">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Event Detail Modal -->
+    <div class="modal-overlay" id="event-detail-overlay" onclick="if(event.target===this)closeEventDetailModal()">
+        <div class="agenda-modal">
+            <div class="agenda-modal-header">
+                <span id="event-modal-title">Event</span>
+                <button class="icon-btn" onclick="closeEventDetailModal()">
+                    <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+            </div>
+            <div class="agenda-modal-body">
+                <input type="text" class="agenda-modal-input" id="event-modal-input-title" placeholder="Title">
+                <input type="date" class="agenda-modal-input" id="event-modal-input-date">
+                <textarea class="agenda-modal-textarea" id="event-modal-input-content" placeholder="Notes (optional)" rows="3"></textarea>
+            </div>
+            <div class="agenda-modal-footer">
+                <button class="agenda-modal-btn danger" id="event-modal-delete-btn" onclick="deleteFromEventModal()">Delete</button>
+                <span class="agenda-modal-spacer"></span>
+                <button class="agenda-modal-btn" onclick="closeEventDetailModal()">Cancel</button>
+                <button class="agenda-modal-btn primary" onclick="saveFromEventModal()">Save</button>
             </div>
         </div>
     </div>
@@ -2324,13 +2425,11 @@
 
             var html = '';
             filtered.slice(0, 20).forEach(function(t) {
-                var dotClass = 'todo-dot';
-                if (t.time_until_due === 'Overdue') dotClass = 'overdue-dot';
-                var dateStr = t.time_until_due || '';
                 var checkedClass = t.completed ? ' checked' : '';
                 var itemClass = t.completed ? ' completed' : '';
-                html += '<div class="agenda-widget-item' + itemClass + '" onclick="window.location.href=\'/agenda\'">' +
-                    '<button class="agenda-todo-check' + checkedClass + '" onclick="event.stopPropagation(); completeTodoWidget(' + t.id + ', this)" title="' + (t.completed ? 'Completed' : 'Complete') + '">' +
+                var dateStr = t.time_until_due || '';
+                html += '<div class="agenda-widget-item' + itemClass + '" onclick="openTodoDetail(' + t.id + ')">' +
+                    '<button class="agenda-todo-check' + checkedClass + '" onclick="event.stopPropagation(); completeTodoWidget(' + t.id + ')" title="' + (t.completed ? 'Completed' : 'Complete') + '">' +
                     '<svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></button>' +
                     '<span class="agenda-item-title">' + (t.title || 'Untitled').replace(/</g, '&lt;') + '</span>' +
                     '<span class="agenda-item-date">' + dateStr + '</span></div>';
@@ -2338,22 +2437,27 @@
             container.innerHTML = html;
         }
 
-        function completeTodoWidget(todoId, btn) {
-            fetch('/api/complete_todo', {
+        function completeTodoWidget(todoId) {
+            var todo = cachedTodos.find(function(t) { return t.id === todoId; });
+            var newStatus = todo && todo.completed ? '0' : '1';
+            fetch('/api/toggle_todo', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ todoId: todoId })
+                body: JSON.stringify({ toDoId: todoId, status: newStatus })
             }).then(function(r) { return r.json(); })
             .then(function(data) {
                 if (data.success) {
-                    // Update cached state and re-render
-                    cachedTodos.forEach(function(t) { if (t.id === todoId) t.completed = true; });
+                    cachedTodos.forEach(function(t) {
+                        if (t.id === todoId) t.completed = (newStatus === '1');
+                    });
                     renderTodos();
                 }
             });
         }
 
         // Events widget
+        var cachedEvents = [];
+
         function loadEventsWidget() {
             var container = document.getElementById('events-widget-content');
             if (!container) return;
@@ -2362,22 +2466,180 @@
 
             fetch('/api/get_events').then(function(r) { return r.json(); })
             .then(function(events) {
-                // API returns bare array
-                events = Array.isArray(events) ? events : [];
-                if (events.length === 0) {
-                    container.innerHTML = '<div class="outline-empty">No events</div>';
-                    return;
-                }
-                var html = '';
-                events.forEach(function(e) {
-                    html += '<div class="agenda-widget-item" onclick="window.location.href=\'/agenda\'">' +
-                        '<span class="agenda-dot event-dot"></span>' +
-                        '<span class="agenda-item-title">' + (e.title || 'Untitled').replace(/</g, '&lt;') + '</span>' +
-                        '<span class="agenda-item-date">' + (e.time_until_event || '') + '</span></div>';
-                });
-                container.innerHTML = html;
+                cachedEvents = Array.isArray(events) ? events : [];
+                renderEvents();
             }).catch(function() {
                 container.innerHTML = '<div class="outline-empty">Failed to load</div>';
+            });
+        }
+
+        function renderEvents() {
+            var container = document.getElementById('events-widget-content');
+            if (!container) return;
+            if (cachedEvents.length === 0) {
+                container.innerHTML = '<div class="outline-empty">No events</div>';
+                return;
+            }
+            var html = '';
+            cachedEvents.forEach(function(e) {
+                html += '<div class="agenda-widget-item" onclick="openEventDetail(' + e.id + ')">' +
+                    '<span class="agenda-dot event-dot"></span>' +
+                    '<span class="agenda-item-title">' + (e.title || 'Untitled').replace(/</g, '&lt;') + '</span>' +
+                    '<span class="agenda-item-date">' + (e.time_until_event || '') + '</span></div>';
+            });
+            container.innerHTML = html;
+        }
+
+        // ============ Todo/Event Modals ============
+
+        var currentModalTodoId = null;
+        var currentModalEventId = null;
+
+        function openAgendaModal(id) {
+            document.getElementById(id).classList.add('visible');
+        }
+        function closeAgendaModal(id) {
+            document.getElementById(id).classList.remove('visible');
+        }
+
+        // --- Todo detail ---
+        function openTodoDetail(todoId) {
+            currentModalTodoId = todoId;
+            document.getElementById('todo-modal-title').textContent = 'Edit To-do';
+            document.getElementById('todo-modal-delete-btn').style.display = '';
+            // Fetch full detail
+            fetch('/api/get_todo/' + todoId).then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (data.success) {
+                    var t = data.todo;
+                    document.getElementById('todo-modal-input-title').value = t.title || '';
+                    document.getElementById('todo-modal-input-date').value = t.date_due ? t.date_due.split('T')[0].split(' ')[0] : '';
+                    document.getElementById('todo-modal-input-content').value = t.content || '';
+                    openAgendaModal('todo-detail-overlay');
+                }
+            });
+        }
+
+        function openAddTodoModal() {
+            currentModalTodoId = null;
+            document.getElementById('todo-modal-title').textContent = 'New To-do';
+            document.getElementById('todo-modal-delete-btn').style.display = 'none';
+            document.getElementById('todo-modal-input-title').value = '';
+            document.getElementById('todo-modal-input-date').value = '';
+            document.getElementById('todo-modal-input-content').value = '';
+            openAgendaModal('todo-detail-overlay');
+        }
+
+        function closeTodoDetailModal() {
+            closeAgendaModal('todo-detail-overlay');
+            currentModalTodoId = null;
+        }
+
+        function saveFromTodoModal() {
+            var title = document.getElementById('todo-modal-input-title').value;
+            var date = document.getElementById('todo-modal-input-date').value;
+            var content = document.getElementById('todo-modal-input-content').value;
+            if (!title || title.trim().length < 1) return;
+
+            if (currentModalTodoId) {
+                // Edit existing
+                fetch('/api/edit_todo', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ toDoId: currentModalTodoId, title: title, content: content, dateDue: date })
+                }).then(function(r) { return r.json(); })
+                .then(function() { closeTodoDetailModal(); loadTodosWidget(); });
+            } else {
+                // Add new
+                fetch('/api/add_todo', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ title: title, content: content, dateDue: date })
+                }).then(function(r) { return r.json(); })
+                .then(function() { closeTodoDetailModal(); loadTodosWidget(); });
+            }
+        }
+
+        function deleteFromTodoModal() {
+            if (!currentModalTodoId) return;
+            if (!confirm('Delete this to-do?')) return;
+            fetch('/api/delete_todo', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ toDoId: currentModalTodoId })
+            }).then(function() {
+                cachedTodos = cachedTodos.filter(function(t) { return t.id !== currentModalTodoId; });
+                renderTodos();
+                closeTodoDetailModal();
+            });
+        }
+
+        // --- Event detail ---
+        function openEventDetail(eventId) {
+            currentModalEventId = eventId;
+            document.getElementById('event-modal-title').textContent = 'Edit Event';
+            document.getElementById('event-modal-delete-btn').style.display = '';
+            fetch('/api/get_event/' + eventId).then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (data.success) {
+                    var e = data.event;
+                    document.getElementById('event-modal-input-title').value = e.title || '';
+                    document.getElementById('event-modal-input-date').value = e.date_of_event ? e.date_of_event.split('T')[0].split(' ')[0] : '';
+                    document.getElementById('event-modal-input-content').value = e.content || '';
+                    openAgendaModal('event-detail-overlay');
+                }
+            });
+        }
+
+        function openAddEventModal() {
+            currentModalEventId = null;
+            document.getElementById('event-modal-title').textContent = 'New Event';
+            document.getElementById('event-modal-delete-btn').style.display = 'none';
+            document.getElementById('event-modal-input-title').value = '';
+            document.getElementById('event-modal-input-date').value = '';
+            document.getElementById('event-modal-input-content').value = '';
+            openAgendaModal('event-detail-overlay');
+        }
+
+        function closeEventDetailModal() {
+            closeAgendaModal('event-detail-overlay');
+            currentModalEventId = null;
+        }
+
+        function saveFromEventModal() {
+            var title = document.getElementById('event-modal-input-title').value;
+            var date = document.getElementById('event-modal-input-date').value;
+            var content = document.getElementById('event-modal-input-content').value;
+            if (!title || title.trim().length < 1) return;
+
+            if (currentModalEventId) {
+                fetch('/api/edit_event', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ eventId: currentModalEventId, title: title, content: content, dateOfEvent: date })
+                }).then(function(r) { return r.json(); })
+                .then(function() { closeEventDetailModal(); loadEventsWidget(); });
+            } else {
+                fetch('/api/add_event', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ title: title, content: content, dateOfEvent: date })
+                }).then(function(r) { return r.json(); })
+                .then(function() { closeEventDetailModal(); loadEventsWidget(); });
+            }
+        }
+
+        function deleteFromEventModal() {
+            if (!currentModalEventId) return;
+            if (!confirm('Delete this event?')) return;
+            fetch('/api/delete_event', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ eventId: currentModalEventId })
+            }).then(function() {
+                cachedEvents = cachedEvents.filter(function(e) { return e.id !== currentModalEventId; });
+                renderEvents();
+                closeEventDetailModal();
             });
         }
 
