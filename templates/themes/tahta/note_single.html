@@ -9,6 +9,8 @@
     <link rel="manifest" href="/manifest.json">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/2.0.3/marked.min.js"></script>
     <script src="{{ url_for('static', filename='js/wikilinks.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/markdown-extras.js') }}"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/callouts.css') }}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
     <style>
@@ -741,6 +743,56 @@
         .toast.success { background: var(--green); }
         .toast.error { background: var(--red); }
 
+        /* Drag and drop */
+        .card[draggable="true"] {
+            cursor: grab;
+        }
+
+        .card.dragging {
+            opacity: 0.4;
+            border: 1px dashed var(--accent);
+            cursor: grabbing;
+        }
+
+        .column.drag-over {
+            background: var(--accent-light);
+            border-color: var(--accent);
+        }
+
+        .drop-indicator {
+            height: 3px;
+            background: var(--accent);
+            border-radius: 2px;
+            margin: 4px 0;
+            transition: opacity 0.15s;
+        }
+
+        /* Font size controls */
+        .font-size-controls {
+            display: flex;
+            align-items: center;
+            gap: 2px;
+        }
+
+        .font-size-controls .header-btn {
+            padding: 7px 10px;
+            font-weight: 700;
+            font-size: 14px;
+            min-width: 32px;
+            justify-content: center;
+        }
+
+        /* Card preview markdown */
+        .card-preview p { margin: 0; }
+        .card-preview a { color: var(--accent); }
+        .card-preview code {
+            background: var(--surface-active);
+            padding: 1px 4px;
+            border-radius: 3px;
+            font-size: 0.9em;
+        }
+        .card-preview img { display: none; }
+
         /* Mobile */
         @media (max-width: 768px) {
             .board {
@@ -800,6 +852,10 @@
                 Tahta
             </div>
             <div class="header-spacer"></div>
+            <div class="font-size-controls">
+                <button class="header-btn" onclick="changeFontSize(-1)" title="Decrease font size">A-</button>
+                <button class="header-btn" onclick="changeFontSize(1)" title="Increase font size">A+</button>
+            </div>
             <button class="header-btn" onclick="openSearch()">&#128269; <span class="hide-mobile">Search</span> <kbd>Ctrl+K</kbd></button>
             <button class="header-btn" onclick="toggleTheme()" id="theme-btn" title="Toggle theme">
                 {% if g.user.get_theme_settings().dark_mode == false %}&#9728;{% else %}&#9790;{% endif %}
@@ -810,14 +866,14 @@
         <!-- Board -->
         <div class="board" id="board">
             {% for category in g.user.categories %}
-            <div class="column" data-category-id="{{ category.id }}">
+            <div class="column" data-category-id="{{ category.id }}" data-category-name="{{ category.name }}">
                 <div class="column-header" onclick="showEditCategoryModal(this)">
                     <span class="column-title">{{ category.name }}</span>
                     <span class="column-count">{{ category.notes | length }}</span>
                 </div>
                 <div class="column-notes">
                     {% for note in category.notes %}
-                    <div class="card" data-note-id="{{ note.id }}" data-content="{% if note.content %}{{ note.content }}{% endif %}" onclick="showEditNoteModal(this)">
+                    <div class="card" draggable="true" data-note-id="{{ note.id }}" data-content="{% if note.content %}{{ note.content }}{% endif %}" onclick="showEditNoteModal(this)">
                         <div class="card-title">{{ note.title }}</div>
                         {% if note.get_properties() %}
                         <div class="card-props" style="font-size:0.8em; opacity:0.7; margin-bottom:4px;">
@@ -826,7 +882,7 @@
                             {% endfor %}
                         </div>
                         {% endif %}
-                        {% if note.content %}<div class="card-preview">{{ note.content[:100] }}</div>{% endif %}
+                        {% if note.content %}<div class="card-preview" data-raw="{{ note.content[:100] | e }}"></div>{% endif %}
                     </div>
                     {% endfor %}
                 </div>
@@ -921,6 +977,176 @@
         let currentNote = null;   // { element, id }
         let currentCat = null;    // { element, id }
         let searchSelectedIdx = -1;
+        let currentFontSize = {{ g.user.get_theme_settings().font_size or 14 }};
+
+        // ── Font Size ────────────────────────────────────
+        function changeFontSize(delta) {
+            currentFontSize = Math.max(10, Math.min(24, currentFontSize + delta));
+            applyFontSize();
+            fetch('/api/save_font_size/' + currentFontSize);
+        }
+
+        function applyFontSize() {
+            document.querySelectorAll('.card-preview').forEach(el => {
+                el.style.fontSize = (currentFontSize - 2) + 'px';
+            });
+            document.querySelectorAll('.card-title').forEach(el => {
+                el.style.fontSize = currentFontSize + 'px';
+            });
+            const modalBody = document.querySelector('.modal-body');
+            if (modalBody) modalBody.style.fontSize = currentFontSize + 'px';
+        }
+
+        // ── Drag and Drop ────────────────────────────────
+        let draggedCard = null;
+
+        function initDragDrop() {
+            document.querySelectorAll('.card[draggable="true"]').forEach(card => {
+                card.addEventListener('dragstart', onDragStart);
+                card.addEventListener('dragend', onDragEnd);
+            });
+
+            document.querySelectorAll('.column-notes').forEach(colNotes => {
+                colNotes.addEventListener('dragover', onDragOver);
+                colNotes.addEventListener('dragleave', onDragLeave);
+                colNotes.addEventListener('drop', onDrop);
+            });
+        }
+
+        function onDragStart(e) {
+            draggedCard = this;
+            this.classList.add('dragging');
+            e.dataTransfer.effectAllowed = 'move';
+            e.dataTransfer.setData('text/plain', this.dataset.noteId);
+            // Prevent the card click from firing
+            e.stopPropagation();
+        }
+
+        function onDragEnd(e) {
+            this.classList.remove('dragging');
+            draggedCard = null;
+            // Clean up all indicators
+            document.querySelectorAll('.column').forEach(c => c.classList.remove('drag-over'));
+            document.querySelectorAll('.drop-indicator').forEach(i => i.remove());
+        }
+
+        function onDragOver(e) {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+            const column = this.closest('.column');
+            column.classList.add('drag-over');
+
+            // Remove old indicator in this column
+            this.querySelectorAll('.drop-indicator').forEach(i => i.remove());
+
+            // Find the card we're hovering over to insert before
+            const afterCard = getCardAfterDrag(this, e.clientY);
+            const indicator = document.createElement('div');
+            indicator.className = 'drop-indicator';
+            if (afterCard) {
+                this.insertBefore(indicator, afterCard);
+            } else {
+                this.appendChild(indicator);
+            }
+        }
+
+        function onDragLeave(e) {
+            const column = this.closest('.column');
+            // Only remove if we actually left the column-notes area
+            if (!this.contains(e.relatedTarget)) {
+                column.classList.remove('drag-over');
+                this.querySelectorAll('.drop-indicator').forEach(i => i.remove());
+            }
+        }
+
+        function getCardAfterDrag(container, y) {
+            const cards = [...container.querySelectorAll('.card:not(.dragging)')];
+            let closest = null;
+            let closestOffset = Number.NEGATIVE_INFINITY;
+            cards.forEach(card => {
+                const box = card.getBoundingClientRect();
+                const offset = y - box.top - box.height / 2;
+                if (offset < 0 && offset > closestOffset) {
+                    closestOffset = offset;
+                    closest = card;
+                }
+            });
+            return closest;
+        }
+
+        function onDrop(e) {
+            e.preventDefault();
+            const column = this.closest('.column');
+            column.classList.remove('drag-over');
+            this.querySelectorAll('.drop-indicator').forEach(i => i.remove());
+
+            if (!draggedCard) return;
+
+            const noteId = draggedCard.dataset.noteId;
+            const oldColumn = draggedCard.closest('.column');
+            const targetCategoryId = column.dataset.categoryId;
+
+            // Insert at correct position
+            const afterCard = getCardAfterDrag(this, e.clientY);
+            if (afterCard) {
+                this.insertBefore(draggedCard, afterCard);
+            } else {
+                this.appendChild(draggedCard);
+            }
+
+            // Update counts
+            updateColumnCount(oldColumn);
+            updateColumnCount(column);
+
+            // Persist category change if moved to different column
+            if (oldColumn !== column) {
+                fetch('/api/edit_note_category', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ noteId: parseInt(noteId), category: parseInt(targetCategoryId) })
+                })
+                .then(r => r.json())
+                .then(data => {
+                    if (data.success) {
+                        toast('Card moved', 'success');
+                    }
+                })
+                .catch(() => toast('Failed to move card', 'error'));
+            }
+        }
+
+        // ── Wiki-link Card Previews ──────────────────────
+        let noteMapData = null;
+
+        function renderCardPreviews() {
+            fetch('/api/note-map')
+                .then(r => r.json())
+                .then(data => {
+                    noteMapData = data;
+                    document.querySelectorAll('.card-preview[data-raw]').forEach(el => {
+                        const raw = el.dataset.raw;
+                        if (raw) {
+                            let html = marked(raw);
+                            html = FlaskyMarkdown.processCallouts(html);
+                            el.innerHTML = html;
+                            if (typeof resolveWikiLinks === 'function') {
+                                resolveWikiLinks(el, data);
+                            }
+                        }
+                    });
+                })
+                .catch(() => {
+                    // Fallback: render without wiki-link resolution
+                    document.querySelectorAll('.card-preview[data-raw]').forEach(el => {
+                        const raw = el.dataset.raw;
+                        if (raw) {
+                            let html = marked(raw);
+                            html = FlaskyMarkdown.processCallouts(html);
+                            el.innerHTML = html;
+                        }
+                    });
+                });
+        }
 
         // ── Add Note ────────────────────────────────────
         function showAddForm(btn) {
@@ -954,10 +1180,13 @@
                     const notes = column.querySelector('.column-notes');
                     const card = document.createElement('div');
                     card.className = 'card';
+                    card.draggable = true;
                     card.dataset.noteId = data.note.id;
                     card.dataset.content = '';
                     card.innerHTML = '<div class="card-title">' + escapeHtml(title) + '</div>';
                     card.onclick = () => showEditNoteModal(card);
+                    card.addEventListener('dragstart', onDragStart);
+                    card.addEventListener('dragend', onDragEnd);
                     notes.appendChild(card);
                     updateColumnCount(column);
                     hideAddForm(input);
@@ -995,6 +1224,7 @@
                 const col = document.createElement('div');
                 col.className = 'column';
                 col.dataset.categoryId = data.category;
+                col.dataset.categoryName = name;
                 col.innerHTML = `
                     <div class="column-header" onclick="showEditCategoryModal(this)">
                         <span class="column-title">${escapeHtml(name)}</span>
@@ -1010,6 +1240,12 @@
                         </div>
                     </div>`;
                 board.insertBefore(col, addCol);
+
+                // Init drag-drop on the new column
+                const newColNotes = col.querySelector('.column-notes');
+                newColNotes.addEventListener('dragover', onDragOver);
+                newColNotes.addEventListener('dragleave', onDragLeave);
+                newColNotes.addEventListener('drop', onDrop);
 
                 // add to category select in note modal
                 const select = document.getElementById('edit-note-category');
@@ -1065,7 +1301,7 @@
                     card.querySelector('.card-title').textContent = title;
                     card.dataset.content = content;
 
-                    // update or create preview
+                    // update or create preview with markdown rendering
                     let preview = card.querySelector('.card-preview');
                     if (content) {
                         if (!preview) {
@@ -1073,7 +1309,14 @@
                             preview.className = 'card-preview';
                             card.appendChild(preview);
                         }
-                        preview.textContent = content.substring(0, 100);
+                        const raw = content.substring(0, 100);
+                        preview.dataset.raw = raw;
+                        let html = marked(raw);
+                        html = FlaskyMarkdown.processCallouts(html);
+                        preview.innerHTML = html;
+                        if (noteMapData && typeof resolveWikiLinks === 'function') {
+                            resolveWikiLinks(preview, noteMapData);
+                        }
                     } else if (preview) {
                         preview.remove();
                     }
@@ -1188,7 +1431,7 @@
                 textarea.style.display = '';
                 btn.classList.remove('active');
             } else {
-                preview.innerHTML = marked(textarea.value);
+                preview.innerHTML = FlaskyMarkdown.processCallouts(marked(textarea.value));
                 preview.style.display = 'block';
                 textarea.style.display = 'none';
                 btn.classList.add('active');
@@ -1332,6 +1575,11 @@
         // Close modals on overlay click
         document.getElementById('note-modal-overlay').addEventListener('click', closeNoteModal);
         document.getElementById('cat-modal-overlay').addEventListener('click', closeCatModal);
+
+        // ── Init ─────────────────────────────────────────
+        initDragDrop();
+        applyFontSize();
+        renderCardPreviews();
     </script>
 </body>
 </html>

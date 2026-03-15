@@ -9,6 +9,8 @@
     <link rel="manifest" href="/manifest.json">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/2.0.3/marked.min.js"></script>
     <script src="{{ url_for('static', filename='js/wikilinks.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/markdown-extras.js') }}"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/callouts.css') }}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
     <style>
@@ -570,6 +572,49 @@
             .mobile-toggle { display: none !important; }
         }
 
+        /* Properties panel */
+        .properties-panel {
+            border: 1px solid var(--seg-border);
+            border-radius: var(--seg-radius);
+            margin: 0 20px 8px;
+            background: var(--seg-raised);
+            overflow: hidden;
+        }
+        .properties-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 6px 12px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--seg-text-secondary);
+            user-select: none;
+        }
+        .properties-header:hover { background: var(--seg-overlay); }
+        .properties-toggle { font-size: 10px; transition: transform 0.2s; }
+        .properties-panel.collapsed .properties-body { display: none; }
+        .properties-panel.collapsed .properties-toggle { transform: rotate(-90deg); }
+        .properties-body { padding: 6px 12px 10px; }
+        .prop-row {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-bottom: 4px;
+        }
+        .prop-key {
+            font-weight: 600;
+            font-size: 12px;
+            color: var(--seg-text-secondary);
+            min-width: 80px;
+        }
+        .prop-value {
+            font-size: 12px;
+            color: var(--seg-text);
+        }
+        .hide-mobile {}
+        @media (max-width: 768px) { .hide-mobile { display: none; } }
+
         /* Hidden utility */
         .hidden { display: none !important; }
     </style>
@@ -663,12 +708,28 @@
                 <button class="toolbar-btn" onclick="toggleTheme()" id="theme-btn" title="Toggle Light/Dark">
                     {% if g.user.get_theme_settings().dark_mode == false %}&#9728;{% else %}&#9790;{% endif %}
                 </button>
+                <button class="toolbar-btn" onclick="location.href='/agenda'" title="Agenda">&#128197; <span class="hide-mobile">Agenda</span></button>
                 <button class="toolbar-btn" onclick="location.href='/settings'" title="Settings">&#9881;</button>
             </div>
 
             <div class="editor-body">
                 <input type="text" id="note-title" placeholder="Untitled note" value="{% if note %}{{ note.title }}{% endif %}">
-                {% include "partials/note_properties.html" %}
+                {% if note and note.get_properties() %}
+                <div class="properties-panel" id="propertiesPanel">
+                    <div class="properties-header" onclick="document.getElementById('propertiesPanel').classList.toggle('collapsed')">
+                        <span>Properties</span>
+                        <span class="properties-toggle">&#9660;</span>
+                    </div>
+                    <div class="properties-body" id="propertiesBody">
+                        {% for key, value in note.get_properties().items() %}
+                        <div class="prop-row">
+                            <span class="prop-key">{{ key }}</span>
+                            <span class="prop-value">{% if value is iterable and value is not string %}{{ value|join(', ') }}{% else %}{{ value }}{% endif %}</span>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
                 <textarea id="note-content" placeholder="Start writing...">{% if note %}{{ note.content }}{% endif %}</textarea>
                 <div id="markdown-preview"></div>
             </div>
@@ -685,14 +746,25 @@
         startAutoSave();
         {% endif %}
 
+        var autoSaveDebounce = null;
         function startAutoSave() {
             if (autoSaveTimer) return;
-            autoSaveTimer = setInterval(() => saveNote(true), 30000);
+            autoSaveTimer = true;
             document.getElementById('autosave-btn').classList.add('active');
+            var textarea = document.getElementById('note-content');
+            var titleInput = document.getElementById('note-title');
+            function onContentChange() {
+                if (noteId === 0) return;
+                clearTimeout(autoSaveDebounce);
+                autoSaveDebounce = setTimeout(function() { saveNote(true); }, 3000);
+            }
+            textarea.addEventListener('input', onContentChange);
+            titleInput.addEventListener('input', onContentChange);
         }
 
         function stopAutoSave() {
-            if (autoSaveTimer) { clearInterval(autoSaveTimer); autoSaveTimer = null; }
+            clearTimeout(autoSaveDebounce);
+            autoSaveTimer = null;
             document.getElementById('autosave-btn').classList.remove('active');
         }
 
@@ -791,7 +863,7 @@
                 textarea.style.display = 'block';
                 btn.classList.remove('active');
             } else {
-                preview.innerHTML = marked(textarea.value);
+                preview.innerHTML = FlaskyMarkdown.processCallouts(marked(textarea.value));
                 preview.style.display = 'block';
                 textarea.style.display = 'none';
                 btn.classList.add('active');

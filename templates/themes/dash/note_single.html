@@ -8,25 +8,28 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="shortcut icon" href="{{url_for('static',filename='images/amazing_logo.png')}}" type="image/x-icon">
     <link rel="stylesheet" href="{{url_for('static',filename='style/themes/dash/note_single.css')}}">
+    <link rel="stylesheet" href="{{url_for('static',filename='css/callouts.css')}}">
     <link rel="manifest" href="/manifest.json">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/2.0.3/marked.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
+    <script src="{{url_for('static',filename='js/wikilinks.js')}}"></script>
+    <script src="{{url_for('static',filename='js/markdown-extras.js')}}"></script>
     <title>{% if note and note.title %}{{note.title}} - {% endif %}Dash</title>
 </head>
 <body>
-    {% if note %}
-    <form method="POST" id="note-delete-form" style="display:none;">
-        <input type="submit" id="note-delete-btn" name="delete_note" value="Delete Note">
-    </form>
-    {% endif %}
+    <input type="hidden" id="note-id" value="{% if note %}{{note.id}}{% else %}0{% endif %}">
     <div id="menu">
-        <button class="btn btn-menu" onclick="toggleTitle()" title="Toggle title (Ctrl+L)">T<span class="hide-mobile"> Title</span></button>
-        <button class="btn btn-menu" onclick="toggleMarkdown()" title="Toggle markdown (Ctrl+,)">M<span class="hide-mobile"> Markdown</span></button>
-        <button class="btn btn-menu" onclick="toggleDarkMode()" title="Toggle dark mode (Ctrl+Space)">D<span class="hide-mobile"> Dark</span></button>
-        <button class="btn btn-menu" onclick="toggleNotes()" title="Toggle sidebar (Ctrl+Enter)">N<span class="hide-mobile"> Notes</span></button>
-        <button class="btn btn-menu" onclick="increaseFontSize()" title="Increase font (Ctrl+Up)">A+</button>
-        <button class="btn btn-menu" onclick="decreaseFontSize()" title="Decrease font (Ctrl+Down)">A-</button>
-        <button class="btn btn-menu" onclick="submitForm()" title="Save note (Ctrl+S)">S<span class="hide-mobile"> Save</span></button>
-        {% if note %}<button class="btn btn-menu" onclick="deleteNote()" title="Delete note (Ctrl+D)">X<span class="hide-mobile"> Delete</span></button>{% endif %}
-        <button class="btn btn-menu" onclick="navigateToSettings()" title="Settings (Ctrl+Y)">G<span class="hide-mobile"> Settings</span></button>
+        <button class="btn btn-menu" onclick="toggleTitle()" title="Toggle title (Ctrl+L)">📝<span class="hide-mobile"> Title</span></button>
+        <button class="btn btn-menu" onclick="toggleMarkdown()" title="Toggle markdown (Ctrl+,)">📖<span class="hide-mobile"> Markdown</span></button>
+        <button class="btn btn-menu" onclick="toggleDarkMode()" title="Toggle dark mode (Ctrl+Space)">🌙<span class="hide-mobile"> Dark</span></button>
+        <button class="btn btn-menu" onclick="toggleNotes()" title="Toggle sidebar (Ctrl+Enter)">📂<span class="hide-mobile"> Notes</span></button>
+        <button class="btn btn-menu" onclick="increaseFontSize()" title="Increase font (Ctrl+Up)">🔼</button>
+        <button class="btn btn-menu" onclick="decreaseFontSize()" title="Decrease font (Ctrl+Down)">🔽</button>
+        <button class="btn btn-menu" onclick="saveNote()" title="Save note (Ctrl+S)">💾<span class="hide-mobile"> Save</span></button>
+        {% if note %}<button class="btn btn-menu" onclick="deleteNote()" title="Delete note (Ctrl+D)">🗑️<span class="hide-mobile"> Delete</span></button>{% endif %}
+        <button class="btn btn-menu" onclick="FlaskySearch.open()" title="Search (Ctrl+K)">🔍<span class="hide-mobile"> Search</span></button>
+        <button class="btn btn-menu" onclick="navigateToSettings()" title="Settings (Ctrl+Y)">⚙️<span class="hide-mobile"> Settings</span></button>
         <select class="btn" name="font-select" id="font-select" onchange="changeFont()">
             <option value="monospace" {% if font == "monospace" %}selected{% endif %}>Monospace</option>
             <option value="serif" {% if font == "serif" %}selected{% endif %}>Serif</option>
@@ -53,17 +56,13 @@
         {% endfor %}
     </div>
     <div id="note-content">
-        <form id="note-form" method="POST">
-        {% if note %}
-        <input type="hidden" name="note_id" value="{{note.id}}">
-        {% endif %}
-        <input id="title" type="text" placeholder="Note Title..." name="title" {% if note and note.title %}value="{{note.title}}"{% endif %}>
-        <textarea id="content" placeholder="Start writing..." name="content" style="font-size: {{font_size}}px;">{% if note and note.content %}{{note.content}}{% endif %}</textarea>
+        <input id="title" type="text" placeholder="Note Title..." {% if note and note.title %}value="{{note.title}}"{% endif %}>
+        <textarea id="content" placeholder="Start writing..." style="font-size: {{font_size}}px;">{% if note and note.content %}{{note.content}}{% endif %}</textarea>
         <div id="content-markdown"></div>
-        <input type="submit" id="note-save-btn" name="update-note" style="display:none;">
-        </form>
     </div>
     </div>
+
+    {% include 'partials/search_modal.html' %}
 
     <script src="{{url_for('static',filename='script/themes/dash/note_single.js')}}"></script>
 
@@ -76,6 +75,8 @@
 
         fontPreference = '{{font}}';
         updateFont(fontPreference);
+
+        if (typeof loadNoteMap === 'function') loadNoteMap();
     </script>
 </body>
 </html>

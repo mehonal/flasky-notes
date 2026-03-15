@@ -361,6 +361,14 @@
                     handleEvent(args);
                     break;
 
+                case 'backlinks': case 'bl':
+                    showBacklinks(argStr);
+                    break;
+
+                case 'outlinks': case 'ol':
+                    showOutlinks(argStr);
+                    break;
+
                 case 'whoami':
                     print('{{g.user.username}}', 'clr-green');
                     break;
@@ -383,6 +391,8 @@
             print('    edit <id>          Edit a note (opens editor)');
             print('    rm <id>            Delete a note');
             print('    search <query>     Search notes by title');
+            print('    backlinks <id>     Show notes linking to this note');
+            print('    outlinks <id>      Show outbound links from this note');
             printBlank();
             print('  Categories', 'clr-yellow');
             print('    categories, dirs   List categories');
@@ -526,6 +536,44 @@
                     print(`  ${String(nt.id).padEnd(6)}${(nt.title || '(untitled)').substring(0, 50)}`);
                 });
             });
+        }
+
+        function showBacklinks(idStr){
+            if (!idStr){ print("Usage: backlinks <id>", 'clr-red'); return; }
+            const id = parseInt(idStr);
+            if (isNaN(id)){ print("Invalid note ID.", 'clr-red'); return; }
+            fetch('/api/backlinks/' + id)
+            .then(r => r.json())
+            .then(data => {
+                if (!data.backlinks || data.backlinks.length === 0){
+                    print('No backlinks found.', 'clr-dim');
+                    return;
+                }
+                print(`Backlinks to note ${id}:`, 'clr-cyan');
+                data.backlinks.forEach(bl => {
+                    print(`  ${String(bl.id).padEnd(6)}${(bl.title || '(untitled)').substring(0, 50)}`);
+                });
+            })
+            .catch(() => print('Error fetching backlinks.', 'clr-red'));
+        }
+
+        function showOutlinks(idStr){
+            if (!idStr){ print("Usage: outlinks <id>", 'clr-red'); return; }
+            const id = parseInt(idStr);
+            if (isNaN(id)){ print("Invalid note ID.", 'clr-red'); return; }
+            fetch('/api/outbound-links/' + id)
+            .then(r => r.json())
+            .then(data => {
+                if (!data.outbound_links || data.outbound_links.length === 0){
+                    print('No outbound links found.', 'clr-dim');
+                    return;
+                }
+                print(`Outbound links from note ${id}:`, 'clr-cyan');
+                data.outbound_links.forEach(ol => {
+                    print(`  ${String(ol.id).padEnd(6)}${(ol.title || '(untitled)').substring(0, 50)}`);
+                });
+            })
+            .catch(() => print('Error fetching outbound links.', 'clr-red'));
         }
 
         // --- Categories ---

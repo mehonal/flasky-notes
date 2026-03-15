@@ -1,0 +1,68 @@
+/* Shared callout styles for all themes */
+.callout {
+    border-left: 4px solid var(--callout-color, #7c7cf0);
+    border-radius: 6px;
+    background: var(--callout-bg, rgba(124, 124, 240, 0.08));
+    padding: 12px 16px;
+    margin: 0.8em 0;
+    font-style: normal;
+}
+.callout-title {
+    font-weight: 600;
+    font-size: 0.95em;
+    margin-bottom: 4px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.callout-title-icon { font-size: 1.1em; }
+.callout-content { font-style: normal; color: var(--callout-text, inherit); opacity: 0.85; }
+.callout-content p { margin: 0.3em 0; }
+.callout-content p:first-child { margin-top: 0; }
+
+/* Type-specific colors */
+.callout[data-callout="info"], .callout[data-callout="note"] {
+    border-left-color: var(--callout-info, #5b9bf5);
+    background: var(--callout-info-bg, rgba(91, 155, 245, 0.08));
+}
+.callout[data-callout="tip"], .callout[data-callout="hint"] {
+    border-left-color: var(--callout-tip, #94e2d5);
+    background: var(--callout-tip-bg, rgba(148, 226, 213, 0.08));
+}
+.callout[data-callout="warning"], .callout[data-callout="caution"], .callout[data-callout="attention"] {
+    border-left-color: var(--callout-warning, #f0c674);
+    background: var(--callout-warning-bg, rgba(240, 198, 116, 0.08));
+}
+.callout[data-callout="danger"], .callout[data-callout="error"],
+.callout[data-callout="failure"], .callout[data-callout="fail"], .callout[data-callout="missing"] {
+    border-left-color: var(--callout-danger, #f38ba8);
+    background: var(--callout-danger-bg, rgba(243, 139, 168, 0.08));
+}
+.callout[data-callout="success"], .callout[data-callout="check"], .callout[data-callout="done"] {
+    border-left-color: var(--callout-success, #a6e3a1);
+    background: var(--callout-success-bg, rgba(166, 227, 161, 0.08));
+}
+.callout[data-callout="question"], .callout[data-callout="help"], .callout[data-callout="faq"] {
+    border-left-color: var(--callout-question, #fab387);
+    background: var(--callout-question-bg, rgba(250, 179, 135, 0.08));
+}
+.callout[data-callout="example"] {
+    border-left-color: var(--callout-example, #cba6f7);
+    background: var(--callout-example-bg, rgba(203, 166, 247, 0.08));
+}
+.callout[data-callout="quote"], .callout[data-callout="cite"] {
+    border-left-color: var(--callout-quote, #888);
+    background: var(--callout-quote-bg, rgba(136, 136, 136, 0.08));
+}
+.callout[data-callout="abstract"], .callout[data-callout="summary"], .callout[data-callout="tldr"] {
+    border-left-color: var(--callout-abstract, #74c7ec);
+    background: var(--callout-abstract-bg, rgba(116, 199, 236, 0.08));
+}
+.callout[data-callout="bug"] {
+    border-left-color: var(--callout-bug, #f38ba8);
+    background: var(--callout-bug-bg, rgba(243, 139, 168, 0.08));
+}
+.callout[data-callout="todo"] {
+    border-left-color: var(--callout-todo, #7c7cf0);
+    background: var(--callout-todo-bg, rgba(124, 124, 240, 0.08));
+}

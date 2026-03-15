@@ -227,6 +227,23 @@ def save_note():
     else:
         return jsonify(success=False,reason="Not logged in.")
 
+@notes_api_bp.route("/revert_note", methods=['POST'])
+def revert_note():
+    if g.user:
+        data = request.get_json()
+        note_id = int(data.get('noteId'))
+        note = UserNote.query.filter_by(id=note_id).first()
+        if note and g.user == note.user:
+            if note.previous_content is not None:
+                note.revert_to_last_version()
+                return jsonify(success=True, note=note.return_json())
+            else:
+                return jsonify(success=False, reason="No previous version available.")
+        else:
+            return jsonify(success=False, reason="Note does not exist.")
+    else:
+        return jsonify(success=False, reason="Not logged in.")
+
 @notes_api_bp.route("/load_notes", methods=['POST'])
 def load_notes():
     if g.user:

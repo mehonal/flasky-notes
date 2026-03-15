@@ -14,6 +14,8 @@
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/2.0.3/marked.min.js"></script>
     <script src="{{ url_for('static', filename='js/wikilinks.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/markdown-extras.js') }}"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/callouts.css') }}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
     <style>
@@ -425,6 +427,181 @@
         }
 
 
+        /* Folder tree */
+        .folder {
+            user-select: none;
+            margin-bottom: 2px;
+        }
+
+        .folder-header {
+            display: flex;
+            align-items: center;
+            padding: 6px 8px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 600;
+            gap: 6px;
+            border-radius: 5px;
+            color: var(--text-color);
+        }
+
+        .folder-header:hover {
+            background-color: var(--note-bg);
+        }
+
+        .folder-icon {
+            flex-shrink: 0;
+            font-size: 14px;
+            line-height: 1;
+        }
+
+        .folder-chevron {
+            font-size: 8px;
+            transition: transform 0.15s ease;
+            flex-shrink: 0;
+            width: 10px;
+            text-align: center;
+            opacity: 0.4;
+        }
+
+        .folder.collapsed .folder-chevron {
+            transform: rotate(-90deg);
+        }
+
+        .folder-name {
+            flex: 1;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .folder-count {
+            font-size: 10px;
+            opacity: 0.4;
+            flex-shrink: 0;
+            min-width: 14px;
+            text-align: center;
+        }
+
+        .folder-action-btn {
+            background: none;
+            border: none;
+            color: var(--text-color);
+            cursor: pointer;
+            padding: 0;
+            margin: 0;
+            width: 18px;
+            height: 18px;
+            font-size: 13px;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            border-radius: 3px;
+            opacity: 0.4;
+            line-height: 1;
+        }
+
+        .folder-header:hover .folder-action-btn {
+            display: flex;
+        }
+
+        .folder-header:hover .folder-count {
+            display: none;
+        }
+
+        .folder-action-btn:hover {
+            opacity: 1;
+            background: rgba(0,0,0,0.08);
+        }
+
+        .folder.collapsed .folder-items {
+            display: none;
+        }
+
+        .folder-items {
+            margin-left: 14px;
+            padding-left: 8px;
+            border-left: 1.5px solid rgba(0,0,0,0.08);
+        }
+
+        body.dark-mode .folder-items {
+            border-left-color: rgba(255,255,255,0.08);
+        }
+
+        .folder-items .note-item {
+            padding: 5px 8px;
+            font-size: 13px;
+            margin-bottom: 1px;
+            background: none;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .folder-items .note-item::before {
+            content: '📄';
+            font-size: 11px;
+            flex-shrink: 0;
+        }
+
+        .folder-items .note-item:hover {
+            background-color: var(--note-bg);
+            color: var(--text-color);
+        }
+
+        .folder-items .note-item.active {
+            background-color: #e76f51;
+            color: #fff;
+        }
+
+        /* Category select in sidebar */
+        .sidebar-category {
+            width: 100%;
+            margin-bottom: 10px;
+            display: none;
+            padding-bottom: 10px;
+            border-bottom: 1px solid rgba(0,0,0,0.1);
+        }
+
+        body.dark-mode .sidebar-category {
+            border-bottom-color: rgba(255,255,255,0.1);
+        }
+
+        .sidebar.expanded .sidebar-category {
+            display: block;
+        }
+
+        .sidebar-category-label {
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--text-color);
+            opacity: 0.5;
+            margin-bottom: 4px;
+        }
+
+        #category-select {
+            width: 100%;
+            padding: 6px 8px;
+            border: 1px solid rgba(0,0,0,0.1);
+            border-radius: 4px;
+            background-color: var(--note-bg);
+            color: var(--textbox-color);
+            font-size: 12px;
+            font-family: inherit;
+            cursor: pointer;
+        }
+
+        body.dark-mode #category-select {
+            border-color: rgba(255,255,255,0.1);
+        }
+
+        #category-select:focus {
+            outline: 2px solid var(--button-bg);
+        }
+
     </style>
 </head>
 <body>
@@ -435,12 +612,54 @@
         </div>
     </div>
     <div id="search-overlay"></div>
+    {% macro render_folder_tree(tree, path_prefix="") %}
+    {% for name in tree | sort %}
+    {% set data = tree[name] %}
+    {% set full_path = path_prefix ~ "/" ~ name if path_prefix else name %}
+    {% set cat = data['_category'] %}
+    {% set notes_list = data['_notes'] %}
+    {% set children = data['_children'] %}
+    {% set total_notes = notes_list | length %}
+    <div class="folder collapsed" {% if cat %}data-category-id="{{ cat.id }}"{% endif %} data-path="{{ full_path }}">
+        <div class="folder-header" onclick="toggleFolder(this.parentElement)">
+            <span class="folder-chevron">&#9660;</span>
+            <span class="folder-icon">📂</span>
+            <span class="folder-name">{{ name }}</span>
+            <span class="folder-count">{{ total_notes }}</span>
+            {% if cat %}
+            <span class="folder-action-btn" onclick="event.stopPropagation(); createNewNoteInFolder('{{ full_path | e }}')" title="New note">+</span>
+            {% endif %}
+            <span class="folder-action-btn" onclick="event.stopPropagation(); promptNewFolder('{{ full_path | e }}')" title="New subfolder">&#43;&#128193;</span>
+            {% if cat and total_notes == 0 and children | length == 0 %}
+            <span class="folder-action-btn" onclick="event.stopPropagation(); deleteFolder({{ cat.id }}, '{{ full_path | e }}')" title="Delete folder">&times;</span>
+            {% endif %}
+        </div>
+        <div class="folder-items">
+            {{ render_folder_tree(children, full_path) }}
+            {% for n in notes_list %}
+            <a href="/note/{{ n.id }}"><div class="note-item {% if note_id == n.id %}active{% endif %}">{{ n.title or 'Untitled' }}</div></a>
+            {% endfor %}
+        </div>
+    </div>
+    {% endfor %}
+    {% endmacro %}
+
     <div class="sidebar">
         <button id="toggle-sidebar" title="Toggle Sidebar">☰</button>
+        <div class="sidebar-category">
+            <div class="sidebar-category-label">Note folder</div>
+            <select id="category-select" onchange="changeNoteCategory(this.value)" title="Move note to folder">
+                {% for cat in g.user.categories | sort(attribute='name') %}
+                <option value="{{ cat.id }}"
+                    {% if note and note.category_id == cat.id %}selected{% endif %}
+                    {% if not note and category and cat.name == category %}selected{% endif %}
+                    data-name="{{ cat.name }}">{{ cat.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
         <div class="note-list">
-            {% for note in g.user.return_notes() %}
-            <a href="/note/{{ note.id }}"><div class="note-item {% if note_id == note.id %}active{% endif %}">{{ note.title }}</div></a>
-            {% endfor %}
+            <div class="sidebar-category-label" style="margin-bottom: 6px;">Folders</div>
+            {{ render_folder_tree(category_tree) }}
         </div>
         <div class="sidebar-actions">
             <button id="new-note" title="Add New Note">+<span class="button-text">New Note</span></button>
@@ -467,6 +686,71 @@
     <script>
         var noteId = {{ note_id }};
         var autoSaveInterval;
+        var currentCategory = "{% if note %}{{ note.get_category_name() }}{% elif category %}{{ category }}{% else %}Main{% endif %}";
+
+        // Folder tree functions
+        function toggleFolder(folderEl) {
+            folderEl.classList.toggle('collapsed');
+        }
+
+        function createNewNoteInFolder(catName) {
+            window.location.href = '/note/0?category=' + encodeURIComponent(catName);
+        }
+
+        function promptNewFolder(parentPath) {
+            var name = prompt(parentPath ? 'New subfolder in "' + parentPath + '":' : 'New folder name:');
+            if (!name || !name.trim()) return;
+            var fullPath = parentPath ? parentPath + '/' + name.trim() : name.trim();
+            fetch('/api/add_category', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ categoryName: fullPath })
+            })
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (data.success) window.location.reload();
+            });
+        }
+
+        function deleteFolder(catId, catName) {
+            if (!confirm('Delete folder "' + catName + '"?')) return;
+            fetch('/api/delete_category', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ categoryId: catId })
+            })
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (data.success) window.location.reload();
+            });
+        }
+
+        function changeNoteCategory(categoryId) {
+            var sel = document.getElementById('category-select');
+            currentCategory = sel.options[sel.selectedIndex].dataset.name;
+            if (!noteId || noteId === 0) return;
+            fetch('/api/edit_note_category', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ noteId: noteId, category: parseInt(categoryId) })
+            })
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (data.success) window.location.reload();
+            });
+        }
+
+        // Expand folder containing active note
+        (function() {
+            var active = document.querySelector('.note-item.active');
+            if (active) {
+                var folder = active.closest('.folder');
+                while (folder) {
+                    folder.classList.remove('collapsed');
+                    folder = folder.parentElement.closest('.folder');
+                }
+            }
+        })();
 
         // Load Theme Settings
         {% if g.user.get_theme_settings().dark_mode %}
@@ -475,12 +759,23 @@
         {% if g.user.get_theme_settings().hide_title %}
         document.getElementById('note-title').style.display = 'none';
         {% endif %}
+        var autoSaveTimer = null;
+        function setupAutoSaveDebounce() {
+            var textarea = document.getElementById('note-content');
+            var titleInput = document.getElementById('note-title');
+            function onContentChange() {
+                if (noteId === 0) return;
+                clearTimeout(autoSaveTimer);
+                autoSaveTimer = setTimeout(function() {
+                    document.getElementById('save-note').click();
+                }, 3000);
+            }
+            textarea.addEventListener('input', onContentChange);
+            titleInput.addEventListener('input', onContentChange);
+        }
         {% if g.user.get_theme_settings().auto_save %}
         document.getElementById('auto-save').classList.add('active');
-        autoSaveInterval = setInterval(() => {
-            document.getElementById('save-note').click();
-            console.log('Auto save');
-        }, 30000);
+        setupAutoSaveDebounce();
         document.getElementById('autosave-icon').innerHTML = '🔄';
         {% endif %}
 
@@ -507,6 +802,7 @@
             }
         });
 
+
         // Toggle markdown
         document.getElementById('toggle-markdown').addEventListener('click', () => {
             noteContent = document.getElementById('note-content');
@@ -514,7 +810,7 @@
             markdownContent.style.display = markdownContent.style.display === 'none' ? 'block' : 'none';
             noteContent.style.display = noteContent.style.display === 'none' ? 'block' : 'none';
             if (markdownContent.style.display === 'block') {
-                markdownContent.innerHTML = marked(noteContent.value);
+                markdownContent.innerHTML = FlaskyMarkdown.processCallouts(marked(noteContent.value));
                 hljs.highlightAll();
             }
         });
@@ -597,13 +893,14 @@
         document.getElementById('auto-save').addEventListener('click', () => {
             if (document.getElementById('auto-save').classList.contains('active')) {
                 document.getElementById('auto-save').classList.remove('active');
-                clearInterval(autoSaveInterval);
+                clearTimeout(autoSaveTimer);
+                var textarea = document.getElementById('note-content');
+                var titleInput = document.getElementById('note-title');
+                textarea.removeEventListener('input', function(){});
+                titleInput.removeEventListener('input', function(){});
             } else {
                 document.getElementById('auto-save').classList.add('active');
-                autoSaveInterval = setInterval(() => {
-                    document.getElementById('save-note').click();
-                    console.log('Auto save');
-                }, 5000);
+                setupAutoSaveDebounce();
             }
             if (document.getElementById('auto-save').classList.contains('active')) {
                 document.getElementById('autosave-icon').innerHTML = '🔄';
@@ -661,15 +958,15 @@
         document.getElementById('save-note').addEventListener('click', () => {
             const icon = document.getElementById('save-icon');
             const noteTitle = document.getElementById('note-title').value;
-            const noteContent = document.getElementById('note-content').value;
-            const noteCategory = "";
+            const rawContent = document.getElementById('note-content').value;
+            const noteContent = rawContent;
             icon.innerHTML = '⌛';
             fetch('/api/save_note', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({ noteId: noteId, title: noteTitle, content: noteContent, category: noteCategory })
+                body: JSON.stringify({ noteId: noteId, title: noteTitle, content: noteContent, category: currentCategory })
             })
             .then(response => response.json())
             .then(data => {

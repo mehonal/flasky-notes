@@ -1,19 +1,62 @@
-body = document.querySelector('body');
-title = document.getElementById('title');
-content = document.getElementById('content');
-contentMarkdown = document.getElementById('content-markdown');
-noteForm = document.getElementById('note-form');
-noteSaveBtn = document.getElementById('note-save-btn');
-noteDeleteBtn = document.getElementById('note-delete-btn');
-noteContent = document.getElementById('note-content');
-notes = document.getElementById('notes');
-menu = document.getElementById('menu');
-notesVisible = true;
-darkModeOn = false;
-titleVisible = true;
+// Dash Theme — Modernized JS with AJAX save, marked.js, search
+
+var body = document.querySelector('body');
+var title = document.getElementById('title');
+var content = document.getElementById('content');
+var contentMarkdown = document.getElementById('content-markdown');
+var noteContent = document.getElementById('note-content');
+var notes = document.getElementById('notes');
+var menu = document.getElementById('menu');
+var noteIdEl = document.getElementById('note-id');
+var noteId = noteIdEl ? parseInt(noteIdEl.value) : 0;
+var notesVisible = true;
+var darkModeOn = false;
+var titleVisible = true;
+var markdownVisible = false;
+
+function dashToast(msg, type) {
+    var el = document.getElementById('dashToast');
+    if (!el) {
+        el = document.createElement('div');
+        el.id = 'dashToast';
+        el.style.cssText = 'position:fixed;bottom:20px;right:20px;padding:10px 20px;border-radius:8px;color:#fff;font-size:14px;z-index:10000;opacity:0;transition:opacity 0.3s;pointer-events:none;';
+        document.body.appendChild(el);
+    }
+    el.textContent = msg;
+    el.style.background = type === 'error' ? '#f38ba8' : '#a6e3a1';
+    el.style.color = type === 'error' ? '#fff' : '#1c1c1e';
+    el.style.opacity = '1';
+    setTimeout(function() { el.style.opacity = '0'; }, 2500);
+}
+
+// AJAX save
+function saveNote(){
+    fetch('/api/save_note', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            noteId: noteId,
+            title: title.value,
+            content: content.value
+        })
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        if (data.success) {
+            if (noteId === 0 && data.note && data.note.id) {
+                noteId = data.note.id;
+                noteIdEl.value = noteId;
+                window.history.replaceState(null, '', '/note/' + noteId);
+            }
+        } else {
+            dashToast('Save failed: ' + (data.reason || 'Unknown error'), 'error');
+        }
+    })
+    .catch(function() { dashToast('Network error', 'error'); });
+}
 
 function submitForm(){
-    noteSaveBtn.click();
+    saveNote();
 }
 
 function toggleTitle(){
@@ -33,17 +76,15 @@ function toggleTitle(){
 }
 
 function increaseFontSize(){
-    newFontSize = (parseInt(content.style.fontSize) + 1);
+    var newFontSize = (parseInt(content.style.fontSize) + 1);
     content.style.fontSize = newFontSize + "px";
-    fetch('/api/save_font_size/' + newFontSize)
-    .then( response => response.json() )
+    fetch('/api/save_font_size/' + newFontSize).then(function(r) { return r.json(); });
 }
 
 function decreaseFontSize(){
-    newFontSize = (parseInt(content.style.fontSize) - 1);
+    var newFontSize = (parseInt(content.style.fontSize) - 1);
     content.style.fontSize = newFontSize + "px";
-    fetch('/api/save_font_size/' + newFontSize)
-    .then( response => response.json() )
+    fetch('/api/save_font_size/' + newFontSize).then(function(r) { return r.json(); });
 }
 
 function addNewNote(){
@@ -54,95 +95,42 @@ function navigateToSettings(){
     window.location.href = "/settings";
 }
 
+// Markdown toggle using marked.js
 function toggleMarkdown(){
-    contentMarkdown.innerHTML = "";
-    lines = content.value.split("\n");
-    lines.forEach(l =>{
-        // checking for bold
-        arr = l.split("**");
-        if (arr.length > 2){
-            bold = true;
-            newLine = "";
-            arr.forEach((el, i) =>{
-                bold == false ? newLine += "<b>" + el : newLine += "</b>" + el;
-                bold = !bold;
-            })
-            l = newLine;
-        }
-        // checking for code
-        arr = l.split("`");
-        if (arr.length > 2){
-            code = true;
-            newLine = "";
-            arr.forEach((el, i) =>{
-                code == false ? newLine += "<span class='code'>" + el : newLine += "</span>" + el;
-                code = !code;
-            })
-            l = newLine;
-        }
-        if (l.slice(0,6) == "######"){
-            contentMarkdown.innerHTML += `<h6>${l.slice(6)}</h6>`;
-        }
-        else if (l.slice(0,5) == "#####"){
-            contentMarkdown.innerHTML += `<h5>${l.slice(5)}</h5>`;
-        }
-        else if (l.slice(0,4) == "####"){
-            contentMarkdown.innerHTML += `<h4>${l.slice(4)}</h4>`;
-        }
-        else if (l.slice(0,3) == "###"){
-            contentMarkdown.innerHTML += `<h3>${l.slice(3)}</h3>`;
-        }
-        else if (l.slice(0,2) == "##"){
-            contentMarkdown.innerHTML += `<h2>${l.slice(2)}</h2>`;
-        }
-        else if (l[0] == "#"){
-            contentMarkdown.innerHTML += `<h1>${l.slice(1)}</h1>`;
-        }
-        else if (l[0] == ">"){
-            contentMarkdown.innerHTML += `<div class="callout">${l.slice(1)}</div>`;
-        }
-        else if (l == "---"){
-            contentMarkdown.innerHTML += "<hr>";
-        }
-        else if (l.slice(0,2) == "!["){
-            imageLink = l.slice(0,-1).split("(")[1];
-            contentMarkdown.innerHTML += `<img src="${imageLink}">`;
-        }
-        else if (l.slice(0,1) == "["){
-            linkText = l.slice(1).split("]")[0];
-            linkUrl = l.slice(0,-1).split("]")[1].slice(1);
-            contentMarkdown.innerHTML += `<a href="${linkUrl}">${linkText}</a>`;
-        }
-        else {
-            if (l.length != 0) contentMarkdown.innerHTML += `<p>${l}</p>`;
-        }
-    })
-
-    if (content.style.display == "none"){
-        content.style.display = "block";
-        contentMarkdown.style.display = "none";
-    }
-    else{
+    markdownVisible = !markdownVisible;
+    if (markdownVisible){
+        var html = marked(content.value);
+        html = FlaskyMarkdown.processCallouts(html);
+        if (typeof resolveWikiLinks === 'function') html = resolveWikiLinks(html);
+        contentMarkdown.innerHTML = html;
+        hljs.highlightAll();
         content.style.display = "none";
         contentMarkdown.style.display = "block";
+    } else {
+        content.style.display = "block";
+        contentMarkdown.style.display = "none";
     }
 }
 
 function toggleDarkMode(){
-    if (darkModeOn){
-        body.classList.remove('dark-mode');
-    }
-    else{
-        body.classList.add('dark-mode');
-    }
     darkModeOn = !darkModeOn;
-    fetch('/api/save_dark_mode/' + (darkModeOn ? 1 : 0))
-    .then( response => response.json() )
+    body.classList.toggle('dark-mode', darkModeOn);
+    fetch('/api/save_dark_mode/' + (darkModeOn ? 1 : 0)).then(function(r) { return r.json(); });
 }
 
 function deleteNote(){
     if (window.confirm("Are you sure you want to delete this note?")){
-        noteDeleteBtn.click();
+        fetch('/api/delete_note', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ noteId: noteId })
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (data.success) window.location.href = '/note/0';
+            else dashToast(data.reason || 'Delete failed', 'error');
+        })
+        .catch(function() { dashToast('Network error', 'error'); });
     }
 }
 
@@ -170,51 +158,55 @@ function toggleNotes(){
     notesVisible = !notesVisible;
 }
 
-document.addEventListener('keydown', e =>{
-    if (e.ctrlKey && e.key == "s"){
+document.addEventListener('keydown', function(e){
+    if (e.ctrlKey && e.key === "s"){
         e.preventDefault();
-        submitForm();
+        saveNote();
     }
-    else if (e.ctrlKey && e.key == "d"){
+    else if (e.ctrlKey && e.key === "k"){
+        e.preventDefault();
+        FlaskySearch.open();
+    }
+    else if (e.ctrlKey && e.key === "d"){
         e.preventDefault();
         deleteNote();
     }
-    else if (e.ctrlKey && e.key == "l"){
+    else if (e.ctrlKey && e.key === "l"){
         e.preventDefault();
         toggleTitle();
     }
-    else if (e.ctrlKey && e.key == "ArrowUp"){
+    else if (e.ctrlKey && e.key === "ArrowUp"){
         e.preventDefault();
         increaseFontSize();
     }
-    else if (e.ctrlKey && e.key == "ArrowDown"){
+    else if (e.ctrlKey && e.key === "ArrowDown"){
         e.preventDefault();
         decreaseFontSize();
     }
-    else if (e.ctrlKey && e.key == "e"){
+    else if (e.ctrlKey && e.key === "e"){
         e.preventDefault();
         addNewNote();
     }
-    else if (e.ctrlKey && e.key == "y"){
+    else if (e.ctrlKey && e.key === "y"){
         e.preventDefault();
         navigateToSettings();
     }
-    else if (e.ctrlKey && e.key == ","){
+    else if (e.ctrlKey && e.key === ","){
         e.preventDefault();
         toggleMarkdown();
     }
-    else if (e.ctrlKey && e.key == " "){
+    else if (e.ctrlKey && e.key === " "){
         e.preventDefault();
         toggleDarkMode();
     }
-    else if (e.ctrlKey && e.key == "Enter"){
+    else if (e.ctrlKey && e.key === "Enter"){
         e.preventDefault();
         toggleNotes();
     }
-})
+});
 
 function changeFont(){
-    newFont = document.getElementById('font-select').value;
+    var newFont = document.getElementById('font-select').value;
     updateFont(newFont);
     fetch('/api/save_font', {method: 'POST', body: newFont});
 }

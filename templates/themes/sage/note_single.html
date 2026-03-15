@@ -9,7 +9,9 @@
     <link rel="manifest" href="/manifest.json">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/2.0.3/marked.min.js"></script>
     <script src="{{ url_for('static', filename='js/wikilinks.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/markdown-extras.js') }}"></script>
     <script src="https://unpkg.com/turndown/dist/turndown.js"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/callouts.css') }}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
     <style>
@@ -210,6 +212,30 @@
 
         .editor-actions .topbar-spacer { flex: 1; }
 
+        .editor-category-select {
+            padding: 5px 10px;
+            background: var(--surface);
+            color: var(--text);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            font-size: 12px;
+            cursor: pointer;
+            outline: none;
+        }
+        .editor-category-select:hover { background: var(--surface-hover); }
+        .editor-category-select option { background: var(--surface); color: var(--text); }
+
+        .new-category-input {
+            padding: 5px 10px;
+            background: var(--surface);
+            color: var(--text);
+            border: 1px solid var(--accent);
+            border-radius: var(--radius);
+            font-size: 12px;
+            outline: none;
+            width: 140px;
+        }
+
         /* Divider */
         .feed-divider {
             display: flex;
@@ -335,6 +361,44 @@
             background: var(--red-light);
             border-color: var(--red);
             color: var(--red);
+        }
+
+        /* Category filter tabs */
+        .category-tabs {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 10px 20px;
+            background: var(--bg);
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: none;
+        }
+
+        .category-tabs::-webkit-scrollbar { display: none; }
+
+        .category-tab {
+            padding: 5px 14px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            color: var(--text-secondary);
+            font-size: 12px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.15s;
+            white-space: nowrap;
+        }
+
+        .category-tab:hover {
+            background: var(--surface-hover);
+            color: var(--text);
+        }
+
+        .category-tab.active {
+            background: var(--accent);
+            border-color: var(--accent);
+            color: #fff;
         }
 
         /* Load more */
@@ -512,6 +576,14 @@
         <a href="/settings" class="topbar-btn">&#9881; <span class="btn-text">Settings</span></a>
     </div>
 
+    <!-- Category filter tabs -->
+    <div class="category-tabs">
+        <button class="category-tab active" data-filter="">All</button>
+        {% for cat in g.user.categories | sort(attribute='name') %}
+        <button class="category-tab" data-filter="{{ cat.name }}">{{ cat.name }}</button>
+        {% endfor %}
+    </div>
+
     <!-- Main scrollable content -->
     <div class="container">
         <!-- Editor -->
@@ -519,6 +591,14 @@
             <input type="text" id="note-title" placeholder="Untitled">
             <textarea id="note-content" placeholder="Start writing..."></textarea>
             <div class="editor-actions">
+                <select class="editor-category-select" id="note-category" onchange="onCategoryChange(this)">
+                    <option value="">No Category</option>
+                    {% for cat in g.user.categories | sort(attribute='name') %}
+                    <option value="{{ cat.name }}">{{ cat.name }}</option>
+                    {% endfor %}
+                    <option value="__new__">+ New Category</option>
+                </select>
+                <input type="text" class="new-category-input" id="new-category-input" placeholder="Category name..." style="display:none" onkeydown="if(event.key==='Enter'){confirmNewCategory();event.preventDefault()}" onblur="confirmNewCategory()">
                 <button class="topbar-btn primary" id="save-note">
                     <span id="save-icon">&#128190;</span>
                     <span class="btn-text">Save</span>
@@ -532,7 +612,7 @@
         <div class="feed-divider">Your Notes</div>
         <div class="note-feed" id="note-feed">
             {% for note in g.user.return_notes(5) %}
-            <div class="note-card" id="note-{{ note.id }}-container" data-note-id="{{ note.id }}">
+            <div class="note-card" id="note-{{ note.id }}-container" data-note-id="{{ note.id }}" data-category="{{ note.category.name if note.category else '' }}" data-raw-content="{{ note.content|e }}">
                 <h2 class="note-card-title">{{ note.title }}</h2>
                 {% include "partials/note_properties.html" %}
                 <div class="note-card-content">{{ note.content }}</div>
@@ -568,19 +648,32 @@
             document.documentElement.style.setProperty('--font-size', '{{ g.user.get_theme_settings().font_size }}px');
         }
 
-        // Auto-save
+        // Auto-save with debounce
+        var autoSaveTimer = null;
+        function setupAutoSaveDebounce() {
+            var textarea = document.getElementById('note-content');
+            var titleInput = document.getElementById('note-title');
+            function onContentChange() {
+                var nid = document.querySelector('.editor-card') ? document.querySelector('.editor-card').dataset.noteId : '0';
+                if (nid === '0') return;
+                clearTimeout(autoSaveTimer);
+                autoSaveTimer = setTimeout(function() {
+                    document.getElementById('save-note').click();
+                }, 3000);
+            }
+            textarea.addEventListener('input', onContentChange);
+            titleInput.addEventListener('input', onContentChange);
+        }
         {% if g.user.get_theme_settings().auto_save %}
         document.getElementById('auto-save-btn').classList.add('active');
-        autoSaveInterval = setInterval(() => {
-            document.getElementById('save-note').click();
-        }, 30000);
+        setupAutoSaveDebounce();
         document.getElementById('autosave-icon').innerHTML = '&#10227;';
         {% endif %}
 
         // Render markdown in feed
         function renderMarkdown() {
             document.querySelectorAll('.note-card-content:not(.formatted)').forEach(el => {
-                el.innerHTML = marked(el.textContent);
+                el.innerHTML = FlaskyMarkdown.processCallouts(marked(el.textContent));
                 el.classList.add('formatted');
             });
             hljs.highlightAll();
@@ -600,6 +693,8 @@
                     const card = document.createElement('div');
                     card.className = 'note-card';
                     card.dataset.noteId = note.id;
+                    card.dataset.category = note.category || '';
+                    card.dataset.rawContent = note.content || '';
                     card.id = `note-${note.id}-container`;
                     card.innerHTML = `
                         <h2 class="note-card-title">${note.title}</h2>
@@ -610,6 +705,7 @@
                         </div>
                     `;
                     feed.appendChild(card);
+                    applyCategoryFilter(card);
                 });
                 page++;
                 renderMarkdown();
@@ -649,7 +745,7 @@
             const icon = document.getElementById('autosave-icon');
             if (btn.classList.contains('active')) {
                 btn.classList.remove('active');
-                clearInterval(autoSaveInterval);
+                clearTimeout(autoSaveTimer);
                 icon.innerHTML = '&#9208;';
                 fetch('/api/save_auto_save', {
                     method: 'POST',
@@ -659,9 +755,7 @@
             } else {
                 btn.classList.add('active');
                 icon.innerHTML = '&#10227;';
-                autoSaveInterval = setInterval(() => {
-                    document.getElementById('save-note').click();
-                }, 30000);
+                setupAutoSaveDebounce();
                 fetch('/api/save_auto_save', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -670,12 +764,41 @@
             }
         });
 
+        // New category handling
+        function onCategoryChange(sel) {
+            if (sel.value === '__new__') {
+                sel.style.display = 'none';
+                var input = document.getElementById('new-category-input');
+                input.style.display = '';
+                input.value = '';
+                input.focus();
+            }
+        }
+
+        function confirmNewCategory() {
+            var input = document.getElementById('new-category-input');
+            var sel = document.getElementById('note-category');
+            var name = input.value.trim();
+            if (name) {
+                // Add the new option and select it
+                var opt = document.createElement('option');
+                opt.value = name;
+                opt.textContent = name;
+                sel.insertBefore(opt, sel.querySelector('option[value="__new__"]'));
+                sel.value = name;
+            } else {
+                sel.value = '';
+            }
+            input.style.display = 'none';
+            sel.style.display = '';
+        }
+
         // Save note
         document.getElementById('save-note').addEventListener('click', () => {
             const icon = document.getElementById('save-icon');
             const status = document.getElementById('save-status');
             const rawContent = document.getElementById('note-content').value;
-            const renderedContent = marked(rawContent);
+            const renderedContent = FlaskyMarkdown.processCallouts(marked(rawContent));
             const noteTitle = document.getElementById('note-title').value;
             const noteId = document.querySelector('.editor-card').dataset.noteId;
 
@@ -686,7 +809,7 @@
             fetch('/api/save_note', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ noteId: noteId, title: noteTitle, content: rawContent })
+                body: JSON.stringify({ noteId: noteId, title: noteTitle, content: rawContent, category: (function(){ var v = document.getElementById('note-category').value; return (v && v !== '__new__') ? v : null; })() })
             })
             .then(r => r.json())
             .then(data => {
@@ -696,8 +819,11 @@
 
                     // Add/update card in feed
                     const existingCard = document.getElementById(`note-${data.note.id}-container`);
+                    var selectedCategory = document.getElementById('note-category').value || '';
                     if (existingCard) {
                         existingCard.querySelector('.note-card-title').textContent = noteTitle;
+                        existingCard.dataset.rawContent = rawContent;
+                        existingCard.dataset.category = selectedCategory;
                         const contentEl = existingCard.querySelector('.note-card-content');
                         contentEl.innerHTML = renderedContent;
                         contentEl.classList.add('formatted');
@@ -705,6 +831,8 @@
                         const card = document.createElement('div');
                         card.className = 'note-card';
                         card.dataset.noteId = data.note.id;
+                        card.dataset.rawContent = rawContent;
+                        card.dataset.category = selectedCategory;
                         card.id = `note-${data.note.id}-container`;
                         card.innerHTML = `
                             <h2 class="note-card-title">${noteTitle}</h2>
@@ -745,11 +873,11 @@
                 card.remove();
             } else if (e.target.classList.contains('edit-note')) {
                 const card = e.target.closest('.note-card');
-                const contentEl = card.querySelector('.note-card-content');
-                const markdown = turndownService.turndown(contentEl.innerHTML);
+                const rawContent = card.dataset.rawContent || '';
                 const title = card.querySelector('.note-card-title').textContent;
-                document.getElementById('note-content').value = markdown;
+                document.getElementById('note-content').value = rawContent;
                 document.getElementById('note-title').value = title;
+                document.getElementById('note-category').value = card.dataset.category || '';
                 document.querySelector('.editor-card').dataset.noteId = card.dataset.noteId;
                 card.remove();
                 window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -852,6 +980,29 @@
                     searchResults.innerHTML = '<div class="search-empty">Error searching</div>';
                 }
             }, 250);
+        });
+
+        // Category filter
+        var activeFilter = '';
+
+        function applyCategoryFilter(card) {
+            if (!activeFilter) {
+                card.style.display = '';
+            } else {
+                card.style.display = (card.dataset.category === activeFilter) ? '' : 'none';
+            }
+        }
+
+        function filterByCategory(filterName) {
+            activeFilter = filterName;
+            document.querySelectorAll('.category-tab').forEach(tab => {
+                tab.classList.toggle('active', tab.dataset.filter === filterName);
+            });
+            document.querySelectorAll('.note-card').forEach(applyCategoryFilter);
+        }
+
+        document.querySelectorAll('.category-tab').forEach(tab => {
+            tab.addEventListener('click', () => filterByCategory(tab.dataset.filter));
         });
 
         // Render on load
