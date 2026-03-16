@@ -356,6 +356,25 @@ def delete_category():
     else:
         return jsonify(success=False,reason="Not logged in.")
 
+@notes_api_bp.route("/sidebar_tree")
+def sidebar_tree():
+    if not g.user:
+        return jsonify(success=False, reason="Not logged in.")
+    from flask import render_template
+    category_tree = g.user.get_category_tree()
+    note_id = request.args.get('note_id', 0, type=int)
+    tree_html = render_template(
+        'themes/obsidified/partials/sidebar_tree.html',
+        category_tree=category_tree,
+        active_note_id=note_id
+    )
+    categories = [
+        {'id': cat.id, 'name': cat.name}
+        for cat in sorted(g.user.categories, key=lambda c: c.name)
+    ]
+    return jsonify(success=True, tree_html=tree_html, categories=categories)
+
+
 @notes_api_bp.route("/get_todos")
 def get_todos():
     if g.user:

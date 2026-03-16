@@ -1063,61 +1063,9 @@
                 <div class="root-drop-zone" id="root-drop-zone" ondragover="onRootDragOver(event)" ondragleave="onRootDragLeave(event)" ondrop="onRootDrop(event)">
                     Drop here to move to root
                 </div>
-                {% macro render_folder_tree(tree, path_prefix="") %}
-                {% for name in tree | sort %}
-                {% set data = tree[name] %}
-                {% set full_path = path_prefix ~ "/" ~ name if path_prefix else name %}
-                {% set cat = data['_category'] %}
-                {% set notes_list = data['_notes'] %}
-                {% set children = data['_children'] %}
-                {% set total_notes = notes_list | length %}
-                <div class="folder collapsed" {% if cat %}data-category-id="{{ cat.id }}"{% endif %} data-path="{{ full_path }}">
-                    <div class="folder-header" onclick="toggleFolder(this.parentElement)" {% if cat %}draggable="true" ondragstart="onFolderDragStart(event, {{ cat.id }}, '{{ full_path | e }}')"{% endif %} ondragover="onItemDragOver(event)" ondragleave="onItemDragLeave(event)" ondrop="onItemDrop(event, '{{ full_path | e }}', {% if cat %}{{ cat.id }}{% else %}null{% endif %})">
-                        <span class="folder-chevron"><svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg></span>
-                        <span class="folder-icon"><svg viewBox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg></span>
-                        <span class="folder-name">{{ name }}</span>
-                        <span class="folder-count">{{ total_notes }}</span>
-                        {% if cat %}
-                        <button class="icon-btn folder-newnote-btn" onclick="event.stopPropagation(); createNewNoteInFolder({{ cat.id }}, '{{ full_path | e }}')" title="New note in {{ name }}">
-                            <svg viewBox="0 0 24 24" width="12" height="12"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="11" x2="12" y2="17"/><line x1="9" y1="14" x2="15" y2="14"/></svg>
-                        </button>
-                        {% endif %}
-                        {% if cat %}
-                        <button class="icon-btn folder-move-btn" onclick="event.stopPropagation(); promptMoveFolder({{ cat.id }}, '{{ full_path | e }}')" title="Move folder">
-                            <svg viewBox="0 0 24 24" width="12" height="12"><polyline points="5 9 2 12 5 15"/><polyline points="19 9 22 12 19 15"/><line x1="2" y1="12" x2="22" y2="12"/></svg>
-                        </button>
-                        {% endif %}
-                        {% if cat and cat.default_template_id %}
-                        <span class="template-folder-badge" title="Has default template">T</span>
-                        {% endif %}
-                        <button class="icon-btn folder-add-btn" onclick="event.stopPropagation(); promptNewFolder('{{ full_path }}')" title="New subfolder">
-                            <svg viewBox="0 0 24 24" width="12" height="12"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/><line x1="12" y1="11" x2="12" y2="17"/><line x1="9" y1="14" x2="15" y2="14"/></svg>
-                        </button>
-                        {% if cat and total_notes == 0 and children | length == 0 %}
-                        <button class="icon-btn folder-delete-btn" onclick="event.stopPropagation(); deleteFolder({{ cat.id }}, '{{ full_path | e }}')" title="Delete empty folder">
-                            <svg viewBox="0 0 24 24" width="12" height="12"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-                        </button>
-                        {% endif %}
-                    </div>
-                    <div class="folder-items">
-                        {{ render_folder_tree(children, full_path) }}
-                        {% for n in notes_list %}
-                        <div class="file-item {% if note and note.id == n.id %}active{% endif %}" data-note-id="{{ n.id }}" onclick="openNote({{ n.id }})" draggable="true" ondragstart="onNoteDragStart(event, {{ n.id }})" ondragover="onItemDragOver(event)" ondragleave="onItemDragLeave(event)" ondrop="onItemDrop(event, '{{ full_path | e }}', {% if cat %}{{ cat.id }}{% else %}null{% endif %})">
-                            <span class="file-icon"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></span>
-                            <span class="file-name">{{ n.title or 'Untitled' }}</span>
-                            <button class="icon-btn delete-btn" onclick="event.stopPropagation(); deleteSidebarNote({{ n.id }}, '{{ n.title | e }}')" title="Delete note">
-                                <svg viewBox="0 0 24 24" width="12" height="12"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
-                            </button>
-                            <button class="icon-btn pin-btn" data-note-id="{{ n.id }}" onclick="event.stopPropagation(); togglePin({{ n.id }})" title="Pin note">
-                                <svg viewBox="0 0 24 24" width="12" height="12"><path d="M12 2L15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26z"/></svg>
-                            </button>
-                        </div>
-                        {% endfor %}
-                    </div>
-                </div>
-                {% endfor %}
-                {% endmacro %}
-                {{ render_folder_tree(category_tree) }}
+                {% with active_note_id = note.id if note else 0 %}
+                {% include 'themes/obsidified/partials/sidebar_tree.html' %}
+                {% endwith %}
             </div>
 
             <div class="sidebar-footer">
@@ -1609,6 +1557,75 @@
             }
         }
 
+        function refreshSidebar(callback) {
+            // Save expanded folder paths before replacing the tree
+            var expandedPaths = [];
+            document.querySelectorAll('#file-tree .folder:not(.collapsed)').forEach(function(f) {
+                if (f.dataset.path) expandedPaths.push(f.dataset.path);
+            });
+
+            // Save search filter state
+            var searchInput = document.getElementById('search-input');
+            var searchQuery = searchInput ? searchInput.value : '';
+
+            fetch('/api/sidebar_tree?note_id=' + noteId)
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (!data.success) return;
+
+                // Replace file-tree contents (preserve root-drop-zone)
+                var fileTree = document.getElementById('file-tree');
+                var rootDrop = document.getElementById('root-drop-zone');
+                fileTree.innerHTML = '';
+                fileTree.appendChild(rootDrop);
+                fileTree.insertAdjacentHTML('beforeend', data.tree_html);
+
+                // Restore expanded folders
+                expandedPaths.forEach(function(path) {
+                    var folder = fileTree.querySelector('.folder[data-path="' + path + '"]');
+                    if (folder) folder.classList.remove('collapsed');
+                });
+
+                // Auto-expand the folder containing the active note
+                var activeItem = fileTree.querySelector('.file-item.active');
+                if (activeItem) {
+                    var parentFolder = activeItem.closest('.folder');
+                    if (parentFolder) parentFolder.classList.remove('collapsed');
+                }
+
+                // Update breadcrumb category dropdown
+                var catSelect = document.getElementById('category-select');
+                if (catSelect && data.categories) {
+                    var selectedCatId = catSelect.value;
+                    catSelect.innerHTML = '';
+                    data.categories.forEach(function(cat) {
+                        var opt = document.createElement('option');
+                        opt.value = cat.id;
+                        opt.textContent = cat.name;
+                        catSelect.appendChild(opt);
+                    });
+                    // Re-select: prefer the active note's category from the tree
+                    if (activeItem) {
+                        var noteFolder = activeItem.closest('.folder[data-category-id]');
+                        if (noteFolder) catSelect.value = noteFolder.dataset.categoryId;
+                    } else {
+                        catSelect.value = selectedCatId;
+                    }
+                    // Update currentCategory from the new selection
+                    if (catSelect.selectedOptions.length > 0) {
+                        currentCategory = catSelect.selectedOptions[0].textContent;
+                    }
+                }
+
+                // Re-apply pinned notes and search filter
+                renderPinnedNotes();
+                updatePinButtons();
+                if (searchQuery) filterNotes(searchQuery);
+
+                if (callback) callback();
+            });
+        }
+
         function toggleFolder(folder) { folder.classList.toggle('collapsed'); }
 
         // Auto-expand the folder containing the active note
@@ -2073,7 +2090,7 @@
             }
             fetch('/api/edit_note_category', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ noteId: noteId, category: parseInt(categoryId) }) })
             .then(function(r) { return r.json(); })
-            .then(function(data) { if (data.success) { persistMobileSidebarState(); window.location.reload(); } });
+            .then(function(data) { if (data.success) { refreshSidebar(); } });
         }
 
         function createNewNoteInFolder(catId, catName) {
@@ -2091,7 +2108,7 @@
             fetch('/api/add_category', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ categoryName: fullPath }) })
             .then(function(r) { return r.json(); })
             .then(function(data) {
-                if (data.success) { persistMobileSidebarState(); window.location.reload(); }
+                if (data.success) { refreshSidebar(); }
             });
         }
 
@@ -2100,7 +2117,7 @@
             fetch('/api/delete_category', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ categoryId: catId }) })
             .then(function(r) { return r.json(); })
             .then(function(data) {
-                if (data.success) { persistMobileSidebarState(); window.location.reload(); }
+                if (data.success) { refreshSidebar(); }
             });
         }
 
@@ -2173,7 +2190,7 @@
                     body: JSON.stringify({ noteId: nid, category: targetCatId })
                 })
                 .then(function(r) { return r.json(); })
-                .then(function(data) { if (data.success) { persistMobileSidebarState(); window.location.reload(); } });
+                .then(function(data) { if (data.success) { refreshSidebar(); } });
             } else if (dragType === 'folder') {
                 if (targetPath === dragFolderPath) return;
                 // Prevent dropping into own subtree
@@ -2187,7 +2204,7 @@
                 })
                 .then(function(r) { return r.json(); })
                 .then(function(data) {
-                    if (data.success) { persistMobileSidebarState(); window.location.reload(); }
+                    if (data.success) { refreshSidebar(); }
                     else if (data.reason) alert(data.reason);
                 });
             }
@@ -2217,7 +2234,7 @@
             })
             .then(function(r) { return r.json(); })
             .then(function(data) {
-                if (data.success) { persistMobileSidebarState(); window.location.reload(); }
+                if (data.success) { refreshSidebar(); }
                 else if (data.reason) alert(data.reason);
             });
         }
@@ -2251,7 +2268,7 @@
             })
             .then(function(r) { return r.json(); })
             .then(function(data) {
-                if (data.success) { persistMobileSidebarState(); window.location.reload(); }
+                if (data.success) { refreshSidebar(); }
                 else if (data.reason) alert(data.reason);
             });
         }
