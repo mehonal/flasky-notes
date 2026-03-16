@@ -31,9 +31,11 @@
         border: 1px solid #dee2e6;
         border-radius: 0.5rem;
         padding: 1.25rem;
+        min-width: 0;
     }
     .settings-card-wide {
         grid-column: 1 / -1;
+        overflow: hidden;
     }
     .settings-card h2 {
         font-size: 1rem;
@@ -70,6 +72,62 @@
     .sync-badge {
         font-size: 0.8rem;
         padding: 0.25em 0.6em;
+    }
+    .theme-table {
+        font-size: 0.8rem;
+        width: 100%;
+        border-collapse: collapse;
+    }
+    .theme-table th, .theme-table td {
+        padding: 0.35rem 0.5rem;
+        border: 1px solid #dee2e6;
+        text-align: center;
+        white-space: nowrap;
+    }
+    .theme-table thead th {
+        background: #f8f9fa;
+        font-weight: 600;
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+    }
+    .theme-table tbody tr:hover {
+        background: #f0f4ff;
+    }
+    .theme-table .yes { color: #198754; }
+    .theme-table .no { color: #adb5bd; }
+    .settings-dark .theme-table th,
+    .settings-dark .theme-table td {
+        border-color: #404040;
+    }
+    .settings-dark .theme-table thead th {
+        background: #383838;
+    }
+    .settings-dark .theme-table tbody tr:hover {
+        background: #353535;
+    }
+    .settings-dark .theme-table .yes { color: #75b798; }
+    .settings-dark .theme-table .no { color: #6c757d; }
+    .theme-table-wrap {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        max-width: 100%;
+    }
+    .theme-table th:first-child,
+    .theme-table td:first-child {
+        position: sticky;
+        left: 0;
+        z-index: 1;
+        background: #fff;
+        text-align: left;
+        font-weight: 600;
+    }
+    .settings-dark .theme-table th:first-child,
+    .settings-dark .theme-table td:first-child {
+        background: #2d2d2d;
+    }
+    .settings-dark .theme-table thead th:first-child {
+        background: #383838;
     }
     .quick-links {
         display: flex;
@@ -289,6 +347,223 @@
             </table>
         </div>
         {% endif %}
+
+        <!-- Theme Comparison -->
+        <div class="settings-card settings-card-wide">
+            <h2>Theme Comparison</h2>
+            <div class="theme-table-wrap">
+                <table class="theme-table">
+                    <thead>
+                        <tr>
+                            <th>Feature</th>
+                            <th>Obsidified</th>
+                            <th>Cozy</th>
+                            <th>Sage</th>
+                            <th>Segment</th>
+                            <th>Tahta</th>
+                            <th>Paper</th>
+                            <th>Full</th>
+                            <th>Dash</th>
+                            <th>CLI</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Style</td>
+                            <td>File explorer</td>
+                            <td>Modern sidebar</td>
+                            <td>Card feed</td>
+                            <td>Three-panel</td>
+                            <td>Kanban board</td>
+                            <td>Traditional</td>
+                            <td>Extra Fullscreen</td>
+                            <td>Minimal toolbar</td>
+                            <td>Terminal</td>
+                        </tr>
+                        <tr>
+                            <td>Dark mode</td>
+                            <td class="yes">&#10003;</td>
+                            <td class="yes">&#10003;</td>
+                            <td class="yes">&#10003;</td>
+                            <td class="yes">&#10003;</td>
+                            <td class="yes">&#10003;</td>
+                            <td class="yes">&#10003;</td>
+                            <td class="yes">&#10003;</td>
+                            <td class="yes">&#10003;</td>
+                            <td class="yes">&#10003;</td>
+                        </tr>
+                        <tr>
+                            <td>Markdown</td>
+                            <td class="yes">&#10003;</td>
+                            <td class="yes">&#10003;</td>
+                            <td class="yes">&#10003;</td>
+                            <td class="yes">&#10003;</td>
+                            <td class="yes">&#10003;</td>
+                            <td class="yes">&#10003;</td>
+                            <td class="yes">&#10003;</td>
+                            <td class="yes">&#10003;</td>
+                            <td class="no">&mdash;</td>
+                        </tr>
+                        <tr>
+                            <td>Wiki-links</td>
+                            <td class="yes">&#10003;</td>
+                            <td class="yes">&#10003;</td>
+                            <td class="yes">&#10003;</td>
+                            <td class="yes">&#10003;</td>
+                            <td class="yes">&#10003;</td>
+                            <td class="yes">&#10003;</td>
+                            <td class="yes">&#10003;</td>
+                            <td class="yes">&#10003;</td>
+                            <td class="no">&mdash;</td>
+                        </tr>
+                        <tr>
+                            <td>Search</td>
+                            <td class="yes">&#10003;</td>
+                            <td class="yes">&#10003;</td>
+                            <td class="yes">&#10003;</td>
+                            <td class="yes">&#10003;</td>
+                            <td class="yes">&#10003;</td>
+                            <td class="yes">&#10003;</td>
+                            <td class="yes">&#10003;</td>
+                            <td class="yes">&#10003;</td>
+                            <td class="no">&mdash;</td>
+                        </tr>
+                        <tr>
+                            <td>Font settings</td>
+                            <td class="yes">&#10003;</td>
+                            <td class="yes">&#10003;</td>
+                            <td class="yes">&#10003;</td>
+                            <td class="yes">&#10003;</td>
+                            <td class="yes">&#10003;</td>
+                            <td class="yes">&#10003;</td>
+                            <td class="yes">&#10003;</td>
+                            <td class="yes">&#10003;</td>
+                            <td class="no">&mdash;</td>
+                        </tr>
+                        <tr>
+                            <td>Properties</td>
+                            <td class="yes">&#10003;</td>
+                            <td class="yes">&#10003;</td>
+                            <td class="yes">&#10003;</td>
+                            <td class="yes">&#10003;</td>
+                            <td class="yes">&#10003;</td>
+                            <td class="no">&mdash;</td>
+                            <td class="no">&mdash;</td>
+                            <td class="no">&mdash;</td>
+                            <td class="no">&mdash;</td>
+                        </tr>
+                        <tr>
+                            <td>Auto-save</td>
+                            <td class="yes">&#10003;</td>
+                            <td class="yes">&#10003;</td>
+                            <td class="yes">&#10003;</td>
+                            <td class="yes">&#10003;</td>
+                            <td class="no">&mdash;</td>
+                            <td class="no">&mdash;</td>
+                            <td class="no">&mdash;</td>
+                            <td class="no">&mdash;</td>
+                            <td class="no">&mdash;</td>
+                        </tr>
+                        <tr>
+                            <td>Sidebar</td>
+                            <td class="yes">&#10003;</td>
+                            <td class="yes">&#10003;</td>
+                            <td class="no">&mdash;</td>
+                            <td class="yes">&#10003;</td>
+                            <td class="no">&mdash;</td>
+                            <td class="no">&mdash;</td>
+                            <td class="no">&mdash;</td>
+                            <td class="yes">&#10003;</td>
+                            <td class="no">&mdash;</td>
+                        </tr>
+                        <tr>
+                            <td>Drag-drop</td>
+                            <td class="yes">&#10003;</td>
+                            <td class="yes">&#10003;</td>
+                            <td class="yes">&#10003;</td>
+                            <td class="no">&mdash;</td>
+                            <td class="yes">&#10003;</td>
+                            <td class="no">&mdash;</td>
+                            <td class="no">&mdash;</td>
+                            <td class="no">&mdash;</td>
+                            <td class="no">&mdash;</td>
+                        </tr>
+                        <tr>
+                            <td>Todos</td>
+                            <td class="yes">&#10003;</td>
+                            <td class="no">&mdash;</td>
+                            <td class="no">&mdash;</td>
+                            <td class="no">&mdash;</td>
+                            <td class="no">&mdash;</td>
+                            <td class="no">&mdash;</td>
+                            <td class="no">&mdash;</td>
+                            <td class="no">&mdash;</td>
+                            <td class="yes">&#10003;</td>
+                        </tr>
+                        <tr>
+                            <td>Events</td>
+                            <td class="yes">&#10003;</td>
+                            <td class="no">&mdash;</td>
+                            <td class="no">&mdash;</td>
+                            <td class="no">&mdash;</td>
+                            <td class="no">&mdash;</td>
+                            <td class="no">&mdash;</td>
+                            <td class="no">&mdash;</td>
+                            <td class="no">&mdash;</td>
+                            <td class="yes">&#10003;</td>
+                        </tr>
+                        <tr>
+                            <td>Notes page</td>
+                            <td class="no">&mdash;</td>
+                            <td class="no">&mdash;</td>
+                            <td class="no">&mdash;</td>
+                            <td class="no">&mdash;</td>
+                            <td class="no">&mdash;</td>
+                            <td class="yes">&#10003;</td>
+                            <td class="yes">&#10003;</td>
+                            <td class="no">&mdash;</td>
+                            <td class="no">&mdash;</td>
+                        </tr>
+                        <tr>
+                            <td>Categories page</td>
+                            <td class="no">&mdash;</td>
+                            <td class="no">&mdash;</td>
+                            <td class="no">&mdash;</td>
+                            <td class="no">&mdash;</td>
+                            <td class="no">&mdash;</td>
+                            <td class="yes">&#10003;</td>
+                            <td class="yes">&#10003;</td>
+                            <td class="no">&mdash;</td>
+                            <td class="no">&mdash;</td>
+                        </tr>
+                        <tr>
+                            <td>Outline panel</td>
+                            <td class="yes">&#10003;</td>
+                            <td class="no">&mdash;</td>
+                            <td class="no">&mdash;</td>
+                            <td class="no">&mdash;</td>
+                            <td class="no">&mdash;</td>
+                            <td class="no">&mdash;</td>
+                            <td class="no">&mdash;</td>
+                            <td class="no">&mdash;</td>
+                            <td class="no">&mdash;</td>
+                        </tr>
+                        <tr>
+                            <td>Backlinks</td>
+                            <td class="yes">&#10003;</td>
+                            <td class="no">&mdash;</td>
+                            <td class="no">&mdash;</td>
+                            <td class="no">&mdash;</td>
+                            <td class="no">&mdash;</td>
+                            <td class="no">&mdash;</td>
+                            <td class="no">&mdash;</td>
+                            <td class="no">&mdash;</td>
+                            <td class="no">&mdash;</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
 
     </div>
 </div>
