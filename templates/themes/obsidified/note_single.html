@@ -3479,16 +3479,29 @@
                 }
                 var html = '';
                 data.forEach(function(t) {
-                    html += '<div class="template-item">';
-                    html += '<span class="template-item-name">' + t.name.replace(/</g, '&lt;') + '</span>';
+                    var safeName = t.name.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+                    html += '<div class="template-item" data-template-id="' + t.id + '" data-template-name="' + safeName + '">';
+                    html += '<span class="template-item-name">' + safeName + '</span>';
                     html += '<div class="template-item-actions">';
-                    html += '<button class="icon-btn" onclick="assignTemplateToFolder(' + t.id + ', \'' + t.name.replace(/'/g, "\\'") + '\')" title="Set as folder default">';
+                    html += '<button class="icon-btn template-assign-btn" title="Set as folder default">';
                     html += '<svg viewBox="0 0 24 24" width="14" height="14"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg></button>';
-                    html += '<button class="icon-btn danger" onclick="deleteTemplate(' + t.id + ', \'' + t.name.replace(/'/g, "\\'") + '\')" title="Delete template">';
+                    html += '<button class="icon-btn danger template-delete-btn" title="Delete template">';
                     html += '<svg viewBox="0 0 24 24" width="14" height="14"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>';
                     html += '</div></div>';
                 });
                 container.innerHTML = html;
+                container.querySelectorAll('.template-assign-btn').forEach(function(btn) {
+                    btn.addEventListener('click', function() {
+                        var item = btn.closest('.template-item');
+                        assignTemplateToFolder(parseInt(item.dataset.templateId), item.dataset.templateName);
+                    });
+                });
+                container.querySelectorAll('.template-delete-btn').forEach(function(btn) {
+                    btn.addEventListener('click', function() {
+                        var item = btn.closest('.template-item');
+                        deleteTemplate(parseInt(item.dataset.templateId), item.dataset.templateName);
+                    });
+                });
             });
         }
 
