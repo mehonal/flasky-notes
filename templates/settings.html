@@ -134,6 +134,14 @@
         gap: 0.5rem;
         flex-wrap: wrap;
     }
+    .settings-row label {
+        white-space: nowrap;
+        margin: 0;
+    }
+    .settings-row .form-check.form-switch {
+        padding-left: 2.5em;
+        margin: 0;
+    }
 
     /* Dark mode */
     .settings-dark {
@@ -216,15 +224,135 @@
                         <option value="{{ theme.slug }}" {% if theme.slug == g.user.return_settings().theme_preference %}selected{% endif %}>{{ theme.name }}</option>
                         {% endfor %}
                     </select>
-                    <button name="update-theme" class="btn btn-primary" type="submit">Save</button>
+                    <button name="update-theme" class="btn btn-primary" type="submit">Switch</button>
                 </div>
             </form>
-            <form method="POST">
-                <div class="settings-row">
-                    <input name="font-family" class="form-control" type="text" value="{{ g.user.get_current_theme_font() }}" placeholder="Font family (e.g. Inter)">
-                    <button name="update-font-family" class="btn btn-primary" type="submit">Save</button>
-                </div>
-            </form>
+
+            {% if current_theme and current_theme.slug != 'cli' %}
+            <hr class="my-3">
+            <div id="theme-settings-area">
+                <form method="POST" id="theme-settings-form">
+                    {% set slug = current_theme.slug %}
+
+                    <!-- Dark mode: all except cli -->
+                    <div class="settings-row">
+                        <label class="form-check-label" for="dark-mode">Dark mode</label>
+                        <div class="form-check form-switch ms-auto">
+                            <input class="form-check-input" type="checkbox" id="dark-mode" name="dark-mode" value="1" {% if theme_settings.dark_mode %}checked{% endif %}>
+                        </div>
+                    </div>
+
+                    <!-- Font size: all except cli -->
+                    <div class="settings-row">
+                        <label for="font-size">Font size</label>
+                        <input name="font-size" id="font-size" class="form-control" type="number" min="10" max="32" value="{{ theme_settings.font_size }}" style="max-width:80px">
+                    </div>
+
+                    <!-- Mobile font size: cozy, sage, segment -->
+                    {% if slug in ('cozy', 'sage', 'segment') %}
+                    <div class="settings-row">
+                        <label for="mobile-font-size">Mobile font size</label>
+                        <input name="mobile-font-size" id="mobile-font-size" class="form-control" type="number" min="10" max="32" value="{{ theme_settings.mobile_font_size }}" style="max-width:80px">
+                    </div>
+                    {% endif %}
+
+                    <!-- Font family: cozy, sage, segment, full, dash -->
+                    {% if slug in ('cozy', 'sage', 'segment', 'full', 'dash') %}
+                    <div class="settings-row">
+                        <label for="font-family">Font family</label>
+                        <input name="font-family" id="font-family" class="form-control" type="text" value="{{ theme_settings.font }}" placeholder="e.g. Inter, serif">
+                    </div>
+                    {% endif %}
+
+                    <!-- Hide title: obsidified, cozy -->
+                    {% if slug in ('obsidified', 'cozy') %}
+                    <div class="settings-row">
+                        <label class="form-check-label" for="hide-title">Hide title</label>
+                        <div class="form-check form-switch ms-auto">
+                            <input class="form-check-input" type="checkbox" id="hide-title" name="hide-title" value="1" {% if theme_settings.hide_title %}checked{% endif %}>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <!-- Auto-save: cozy, sage, segment -->
+                    {% if slug in ('cozy', 'sage', 'segment') %}
+                    <div class="settings-row">
+                        <label class="form-check-label" for="auto-save">Auto-save</label>
+                        <div class="form-check form-switch ms-auto">
+                            <input class="form-check-input" type="checkbox" id="auto-save" name="auto-save" value="1" {% if theme_settings.auto_save %}checked{% endif %}>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <!-- Sidebar collapsed: obsidified, cozy -->
+                    {% if slug in ('obsidified', 'cozy') %}
+                    <div class="settings-row">
+                        <label class="form-check-label" for="sidebar-collapsed">Sidebar collapsed</label>
+                        <div class="form-check form-switch ms-auto">
+                            <input class="form-check-input" type="checkbox" id="sidebar-collapsed" name="sidebar-collapsed" value="1" {% if theme_settings.sidebar_collapsed %}checked{% endif %}>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <!-- Obsidified-only settings -->
+                    {% if slug == 'obsidified' %}
+                    <div class="settings-row">
+                        <label class="form-check-label" for="right-panel-collapsed">Right panel collapsed</label>
+                        <div class="form-check form-switch ms-auto">
+                            <input class="form-check-input" type="checkbox" id="right-panel-collapsed" name="right-panel-collapsed" value="1" {% if theme_settings.right_panel_collapsed %}checked{% endif %}>
+                        </div>
+                    </div>
+
+                    <div class="settings-row">
+                        <label class="form-check-label" for="properties-collapsed">Properties collapsed</label>
+                        <div class="form-check form-switch ms-auto">
+                            <input class="form-check-input" type="checkbox" id="properties-collapsed" name="properties-collapsed" value="1" {% if theme_settings.properties_collapsed %}checked{% endif %}>
+                        </div>
+                    </div>
+
+                    <div class="settings-row">
+                        <label class="form-check-label" for="preview-mode">Preview mode</label>
+                        <div class="form-check form-switch ms-auto">
+                            <input class="form-check-input" type="checkbox" id="preview-mode" name="preview-mode" value="1" {% if theme_settings.preview_mode %}checked{% endif %}>
+                        </div>
+                    </div>
+
+                    <!-- Panel widgets visibility -->
+                    {% set widgets = theme_settings.get_panel_widgets() %}
+                    <div class="settings-row" style="flex-direction:column; align-items:stretch; gap:0.35rem">
+                        <label class="text-muted" style="font-size:0.8rem; font-weight:600; text-transform:uppercase; letter-spacing:0.03em">Panel widgets</label>
+                        {% for widget in widgets %}
+                        <div style="display:flex; align-items:center; justify-content:space-between; padding:0.15rem 0">
+                            <label class="form-check-label" for="widget-{{ widget.id }}" style="font-size:0.9rem">{{ widget.label }}</label>
+                            <div class="form-check form-switch" style="padding-left:2.5em; margin:0">
+                                <input class="form-check-input" type="checkbox" id="widget-{{ widget.id }}" name="widget-{{ widget.id }}" value="1" {% if widget.visible %}checked{% endif %}>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+
+                    <!-- Notes row count & height: full -->
+                    {% if slug == 'full' %}
+                    <div class="settings-row">
+                        <label for="notes-row-count">Notes per row</label>
+                        <input name="notes-row-count" id="notes-row-count" class="form-control" type="number" min="1" max="8" value="{{ theme_settings.notes_row_count }}" style="max-width:80px">
+                    </div>
+                    <div class="settings-row">
+                        <label for="notes-height">Note card height</label>
+                        <input name="notes-height" id="notes-height" class="form-control" type="number" min="50" max="500" value="{{ theme_settings.notes_height }}" style="max-width:80px">
+                    </div>
+                    {% endif %}
+
+                    <div class="settings-row mt-2">
+                        <button name="update-theme-settings" class="btn btn-primary" type="submit">Save</button>
+                    </div>
+                </form>
+            </div>
+            <div id="theme-switch-hint" style="display:none">
+                <p class="text-muted small mb-0">Switch theme first to configure its settings.</p>
+            </div>
+            {% endif %}
         </div>
 
         <!-- Timezone -->
@@ -567,4 +695,18 @@
 
     </div>
 </div>
+<script>
+(function() {
+    var themeSelect = document.querySelector('select[name="theme"]');
+    var settingsArea = document.getElementById('theme-settings-area');
+    var switchHint = document.getElementById('theme-switch-hint');
+    if (!themeSelect || !settingsArea) return;
+    var currentTheme = '{{ g.user.return_settings().theme_preference }}';
+    themeSelect.addEventListener('change', function() {
+        var changed = themeSelect.value !== currentTheme;
+        settingsArea.style.display = changed ? 'none' : '';
+        if (switchHint) switchHint.style.display = changed ? '' : 'none';
+    });
+})();
+</script>
 {% endblock %}

@@ -53,9 +53,58 @@ def settings_page():
             elif "update-timezone" in request.form:
                 timezone = request.form['timezone']
                 g.user.set_timezone(timezone)
-            elif "update-font-family" in request.form:
-                font = request.form['font-family']
-                g.user.update_theme_font(g.user.settings.theme_preference, font)
+            elif "update-theme-settings" in request.form:
+                current_theme = g.user.settings.theme_preference
+                if 'font-family' in request.form:
+                    g.user.update_theme_font(current_theme, request.form['font-family'])
+                if 'font-size' in request.form:
+                    try:
+                        g.user.update_theme_font_size(current_theme, int(request.form['font-size']))
+                    except (ValueError, TypeError):
+                        pass
+                if 'mobile-font-size' in request.form:
+                    try:
+                        g.user.update_theme_mobile_font_size(current_theme, int(request.form['mobile-font-size']))
+                    except (ValueError, TypeError):
+                        pass
+                if 'dark-mode' in request.form:
+                    g.user.update_theme_dark_mode(current_theme, request.form['dark-mode'] == '1')
+                else:
+                    g.user.update_theme_dark_mode(current_theme, False)
+                if 'auto-save' in request.form:
+                    g.user.update_theme_auto_save(current_theme, request.form['auto-save'] == '1')
+                else:
+                    g.user.update_theme_auto_save(current_theme, False)
+                if 'hide-title' in request.form:
+                    g.user.update_theme_hide_title(current_theme, request.form['hide-title'] == '1')
+                else:
+                    g.user.update_theme_hide_title(current_theme, False)
+                if 'notes-row-count' in request.form:
+                    try:
+                        g.user.update_theme_notes_row_count(current_theme, int(request.form['notes-row-count']))
+                    except (ValueError, TypeError):
+                        pass
+                if 'notes-height' in request.form:
+                    try:
+                        g.user.update_theme_notes_height(current_theme, int(request.form['notes-height']))
+                    except (ValueError, TypeError):
+                        pass
+                # UI state booleans
+                ts = g.user.get_theme_settings(current_theme)
+                for field in ('sidebar_collapsed', 'right_panel_collapsed', 'properties_collapsed', 'preview_mode'):
+                    form_key = field.replace('_', '-')
+                    if form_key in request.form:
+                        setattr(ts, field, request.form[form_key] == '1')
+                    else:
+                        setattr(ts, field, False)
+                # Panel widgets visibility
+                widget_keys = [k for k in request.form if k.startswith('widget-')]
+                if widget_keys or current_theme == 'obsidified':
+                    widgets = ts.get_panel_widgets()
+                    for w in widgets:
+                        w['visible'] = ('widget-' + w['id']) in request.form
+                    ts.set_panel_widgets(widgets)
+                db.session.commit()
             elif "generate-api-token" in request.form:
                 token_name = request.form.get('token-name', '').strip()
                 if not token_name:
@@ -65,7 +114,9 @@ def settings_page():
                 db.session.add(new_token)
                 db.session.commit()
                 tokens = ApiToken.query.filter_by(user_id=g.user.id).all()
-                return render_template("settings.html", themes=Theme.query.all(), timezones=available_timezones(), tokens=tokens, new_token=plaintext)
+                current_theme_obj = Theme.query.filter_by(slug=settings.theme_preference).first()
+                ts = g.user.get_theme_settings(settings.theme_preference)
+                return render_template("settings.html", themes=Theme.query.all(), timezones=available_timezones(), tokens=tokens, new_token=plaintext, sync_enabled=settings.obsidian_sync_enabled, current_theme=current_theme_obj, theme_settings=ts)
             elif "revoke-api-token" in request.form:
                 token_id = request.form.get('token-id')
                 token = ApiToken.query.filter_by(id=token_id, user_id=g.user.id).first()
@@ -94,7 +145,10 @@ def settings_page():
             return redirect(url_for('web.settings_page'))
         tokens = ApiToken.query.filter_by(user_id=g.user.id).all()
         conflicts = SyncConflict.query.filter_by(user_id=g.user.id, resolved=False).order_by(SyncConflict.conflict_date.desc()).all()
-        return render_template("settings.html", themes=Theme.query.all(), timezones=available_timezones(), tokens=tokens, conflicts=conflicts, sync_enabled=settings.obsidian_sync_enabled)
+        current_theme_slug = settings.theme_preference
+        current_theme = Theme.query.filter_by(slug=current_theme_slug).first()
+        theme_settings = g.user.get_theme_settings(current_theme_slug)
+        return render_template("settings.html", themes=Theme.query.all(), timezones=available_timezones(), tokens=tokens, conflicts=conflicts, sync_enabled=settings.obsidian_sync_enabled, current_theme=current_theme, theme_settings=theme_settings)
     return "You must be logged in to access this page."
 
 @web_bp.route("/register", methods = ['GET','POST'])
