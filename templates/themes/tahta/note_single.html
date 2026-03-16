@@ -1579,7 +1579,11 @@
         // ── Init ─────────────────────────────────────────
         initDragDrop();
         applyFontSize();
-        renderCardPreviews();
+        if (window._wikiLinksReady) {
+            renderCardPreviews();
+        } else {
+            document.addEventListener('wikiLinksReady', function() { renderCardPreviews(); }, { once: true });
+        }
     </script>
 </body>
 </html>

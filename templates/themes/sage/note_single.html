@@ -696,9 +696,10 @@
                     card.dataset.category = note.category || '';
                     card.dataset.rawContent = note.content || '';
                     card.id = `note-${note.id}-container`;
+                    var safeTitle = (note.title || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
                     card.innerHTML = `
-                        <h2 class="note-card-title">${note.title}</h2>
-                        <div class="note-card-content">${note.content}</div>
+                        <h2 class="note-card-title">${safeTitle}</h2>
+                        <div class="note-card-content">${(note.content || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>
                         <div class="note-card-actions">
                             <button class="card-btn edit-note">Edit</button>
                             <button class="card-btn danger delete-note">Delete</button>
@@ -1005,8 +1006,14 @@
             tab.addEventListener('click', () => filterByCategory(tab.dataset.filter));
         });
 
-        // Render on load
-        document.addEventListener('DOMContentLoaded', renderMarkdown);
+        // Render on load — wait for wikilinks.js to finish loading the note map
+        document.addEventListener('DOMContentLoaded', function() {
+            if (window._wikiLinksReady) {
+                renderMarkdown();
+            } else {
+                document.addEventListener('wikiLinksReady', function() { renderMarkdown(); }, { once: true });
+            }
+        });
     </script>
 </body>
 </html>

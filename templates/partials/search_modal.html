@@ -202,10 +202,12 @@ var FlaskySearch = (function() {
                 return;
             }
             results.innerHTML = data.notes.map(function(note) {
-                var preview = (note.content || '').substring(0, 120).replace(/</g, '&lt;');
-                var cat = note.category ? '<div class="search-result-category">' + note.category + '</div>' : '';
+                var preview = (note.content || '').substring(0, 120).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                var title = (note.title || 'Untitled').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                var catName = (note.category || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                var cat = catName ? '<div class="search-result-category">' + catName + '</div>' : '';
                 return '<a class="search-result-item" href="/note/' + note.id + '">' +
-                    '<div class="search-result-title">' + (note.title || 'Untitled') + '</div>' +
+                    '<div class="search-result-title">' + title + '</div>' +
                     '<div class="search-result-preview">' + preview + '</div>' +
                     cat + '</a>';
             }).join('');

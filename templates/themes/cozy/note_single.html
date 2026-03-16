@@ -930,18 +930,19 @@
         document.getElementById('note-title').style.display = 'none';
         {% endif %}
         var autoSaveTimer = null;
+        var autoSaveHandler = null;
         function setupAutoSaveDebounce() {
             var textarea = document.getElementById('note-content');
             var titleInput = document.getElementById('note-title');
-            function onContentChange() {
+            autoSaveHandler = function() {
                 if (noteId === 0) return;
                 clearTimeout(autoSaveTimer);
                 autoSaveTimer = setTimeout(function() {
                     document.getElementById('save-note').click();
                 }, 3000);
-            }
-            textarea.addEventListener('input', onContentChange);
-            titleInput.addEventListener('input', onContentChange);
+            };
+            textarea.addEventListener('input', autoSaveHandler);
+            titleInput.addEventListener('input', autoSaveHandler);
         }
         {% if g.user.get_theme_settings().auto_save %}
         document.getElementById('auto-save').classList.add('active');
@@ -1080,8 +1081,11 @@
                 clearTimeout(autoSaveTimer);
                 var textarea = document.getElementById('note-content');
                 var titleInput = document.getElementById('note-title');
-                textarea.removeEventListener('input', function(){});
-                titleInput.removeEventListener('input', function(){});
+                if (autoSaveHandler) {
+                    textarea.removeEventListener('input', autoSaveHandler);
+                    titleInput.removeEventListener('input', autoSaveHandler);
+                    autoSaveHandler = null;
+                }
             } else {
                 document.getElementById('auto-save').classList.add('active');
                 setupAutoSaveDebounce();
@@ -1291,7 +1295,7 @@
                     resultDiv.style.cursor = 'pointer';
                     resultDiv.style.borderBottom = '1px solid var(--button-bg)';
                     resultDiv.style.transition = 'background-color 0.2s';
-                    resultDiv.innerHTML = note.title;
+                    resultDiv.textContent = note.title;
 
                     resultDiv.addEventListener('mouseover', () => {
                         selectedIndex = index;

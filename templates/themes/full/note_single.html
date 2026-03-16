@@ -19,7 +19,7 @@
 <body>
     <div id="menu-toggle" onclick="toggleMenu()">Menu</div>
     <input type="hidden" id="note-id" value="{% if note %}{{note.id}}{% else %}0{% endif %}">
-    <input type="hidden" name="category" id="category" {% if note.category %}value="{{note.category}}"{% endif %}>
+    <input type="hidden" name="category" id="category" {% if note and note.category %}value="{{note.category}}"{% endif %}>
     <input id="title" type="text" placeholder="Note Title..." {% if note and note.title %}value="{{note.title}}"{% endif %}>
     <textarea id="content" placeholder="Note..." style="font-size: {{font_size}}px;">{% if note and note.content %}{{note.content}}{% endif %}</textarea>
     <div id="content-markdown"></div>
@@ -42,7 +42,7 @@
             <option value="Times New Roman, serif" {% if font == "Times New Roman, serif" %}selected{% endif %}>Times New Roman</option>
             <option value="Trebuchet MS, sans-serif" {% if font == "Trebuchet MS, sans-serif" %}selected{% endif %}>Trebuchet MS</option>
         </select>
-        <input id="categories-input" class="categories-input" placeholder="Categories..." onchange="syncCategory()" {% if note.category %}value="{{note.category}}"{% endif %}>
+        <input id="categories-input" class="categories-input" placeholder="Categories..." onchange="syncCategory()" {% if note and note.category %}value="{{note.category}}"{% endif %}>
         <button class="btn btn-secondary" onclick="increaseFontSize()">Font +</button>
         <button class="btn btn-secondary" onclick="decreaseFontSize()">Font -</button>
         <button class="btn btn-success" onclick="revertNote()">Restore Last Save of Note</button>
