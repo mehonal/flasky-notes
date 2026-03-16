@@ -10,29 +10,61 @@ The noting app aims to provide simple, fast and bloat-free noting with clean int
 
 # Themes
 
+Flasky Notes ships with 9 themes. Each offers a different layout and feature set. Users pick their theme in `/settings`, where a full comparison table is also available.
+
+| Theme | Style | Dark mode | Markdown | Wiki-links | Search | Font | Properties | Auto-save | Sidebar | Drag-drop | Todos | Events | Notes page | Categories page | Outline | Backlinks |
+|-------|-------|-----------|----------|------------|--------|------|------------|-----------|---------|-----------|-------|--------|------------|-----------------|---------|-----------|
+| Obsidified | File explorer | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | - | - | Yes | Yes |
+| Cozy | Modern sidebar | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | - | - | - | - | - | - |
+| Sage | Card feed | Yes | Yes | Yes | Yes | Yes | Yes | Yes | - | Yes | - | - | - | - | - | - |
+| Segment | Three-panel | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | - | - | - | - | - | - | - |
+| Tahta | Kanban board | Yes | Yes | Yes | Yes | Yes | Yes | - | - | Yes | - | - | - | - | - | - |
+| Paper | Traditional | Yes | Yes | Yes | Yes | Yes | - | - | - | - | - | - | Yes | Yes | - | - |
+| Full | Extra Fullscreen | Yes | Yes | Yes | Yes | Yes | - | - | - | - | - | - | Yes | Yes | - | - |
+| Dash | Minimal toolbar | Yes | Yes | Yes | Yes | Yes | - | - | Yes | - | - | - | - | - | - | - |
+| CLI | Terminal | Yes | - | - | - | - | - | - | - | - | Yes | Yes | - | - | - | - |
+
+All themes except CLI render markdown client-side with `[[wiki-link]]` and `![[embed]]` support. All themes support dark mode.
+
+## Obsidified
+
+The most feature-rich theme. Obsidian-style file explorer sidebar with a customizable right panel featuring outline, backlinks, properties, todos, and events widgets. Supports drag-drop note organization, auto-save, and inline frontmatter editing.
+
+## Cozy
+
+![Cozy Theme - Note Single](https://raw.githubusercontent.com/mehonal/flasky-notes/master/static/images/themes/cozy/note_single.png)
+
+Modern sidebar theme with folder tree navigation and note cards. Features drag-drop note moving between folders, auto-save, and a search modal.
+
+### Shortcuts
+- Ctrl + s: Save Note
+- Ctrl + k: Search Notes
+
+## Sage
+
+![Sage Theme - Note Single](https://raw.githubusercontent.com/mehonal/flasky-notes/master/static/images/themes/sage/note_single.png)
+
+A card feed theme with a top navigation bar. Editor at the top, existing notes rendered as cards below. Features auto-save, category filtering, and drag-drop.
+
+## Segment
+
+A three-panel layout inspired by Discord: category rail on the left, notes list in the middle, editor on the right. Features auto-save, markdown preview toggle, and a search modal.
+
+## Tahta
+
+A kanban board theme for organizing notes visually across columns. Supports drag-drop and markdown rendering.
+
 ## Paper
 
 ![Paper Theme - Note Single](https://raw.githubusercontent.com/mehonal/flasky-notes/master/static/images/themes/paper/note_single.png)
 
-The Paper theme has options provided via GUI and does not rely on keyboard shortcuts. It's used to be the default theme and aims to be easy to use for the average user.
-
-### Theme-Specific Features
-
-- Fully Responsive & Optimized for all devices
-- Easy to Use
-- Notes can have categories
+The Paper theme has options provided via GUI and does not rely on keyboard shortcuts. It aims to be easy to use for the average user. Has dedicated notes and categories listing pages.
 
 ## Full
 
 ![Full Theme - Note Single](https://raw.githubusercontent.com/mehonal/flasky-notes/master/static/images/themes/full/note_single.png)
 
-The Full theme features a fullscreen keyboard-shortcut intensive approach to noting. It's aimed to provide a swift and content-focused experience.
-
-### Theme-Specific Features
-
-- Fullscreen Noting Experience
-- Keyboard Shortcuts
-- Clean, Bloat-Free Interface
+The Full theme features a fullscreen keyboard-shortcut intensive approach to noting. It's aimed to provide a swift and content-focused experience. Has dedicated notes and categories listing pages.
 
 ### Keyboard Shortcuts
 
@@ -63,16 +95,9 @@ The Full theme features a fullscreen keyboard-shortcut intensive approach to not
 
 ![Dash Theme - Note Single](https://raw.githubusercontent.com/mehonal/flasky-notes/master/static/images/themes/dash/note_single.png)
 
-Dash aims to combine the "best of two themes" by preserving keyboard-shortcuts available in Full and having the option to navigate around with a GUI, similar to Paper. Dash takes a single-page approach, allowing to add/edit notes and view the list of existing notes from the same page.
-
-### Theme-Specific Features
-
-- Controls via Keyboard Shortcuts + GUI
-- Everything on one page
+Dash combines keyboard shortcuts with a minimal toolbar GUI. Everything lives on one page with a collapsible notes sidebar.
 
 ### Keyboard Shortcuts
-
-#### Note Single / Notes
 
 - Ctrl + ArrowUp: Increase Font Size
 - Ctrl + ArrowDown: Decrease Font Size
@@ -84,31 +109,13 @@ Dash aims to combine the "best of two themes" by preserving keyboard-shortcuts a
 - Ctrl + ,: Toggle Markdown
 - Ctrl + Space: Toggle Dark Mode
 
+## CLI
 
-## Cozy
+A terminal-style interface for command-line note management. Supports todos and events via built-in commands. Type `help` for available commands.
 
-![Cozy Theme - Note Single](https://raw.githubusercontent.com/mehonal/flasky-notes/master/static/images/themes/cozy/note_single.png)
+# Obsidian Sync
 
-The Cozy theme is the latest, modern looking theme that is similar to Dash, but comes with a sidebar that minimizes into a smaller version rather than collapsing entirely. The theme currently lacks Markdown support and shortcuts other than for saving notes.
-
-### Theme-Specific Features
-
-- Flagship Theme
-- Modern Look
-- Sidebar Navigation
-- Full Markdown Support (with toggle markdown option)
-- Search Notes Modal
-- Just about everything on one page
-
-### Shortcuts
-- Ctrl + s: Save Note
-- Ctrl + k: Toggle Search Notes Modal
-
-## Sage
-
-![Sage Theme - Note Single](https://raw.githubusercontent.com/mehonal/flasky-notes/master/static/images/themes/sage/note_single.png)
-
-The Sage theme is a markdown-focused simple, single-page theme that renders existing notes to HTML right under the current note for your ease.
+**Beta — not tested thoroughly.** Flasky Notes supports two-way syncing with an Obsidian vault via [flasky-notes-sync](https://github.com/mehonal/flasky-notes-sync), a standalone sync client that runs on the machine with your Obsidian vault. Enable sync in `/settings`, generate an API token, and follow the setup instructions in the sync repo. Folders map to categories, attachments sync alongside notes, and conflicts are flagged for web-based resolution.
 
 # How to deploy
 
@@ -153,8 +160,6 @@ If you want to exit the virtual environment, you can use the `deactivate` comman
 
 ### Installing pip modules
 
-Currently all the Python code is packed in `app.py`.
-
 First you must ensure you have the required modules installed through pip. You can do this by running:
 
 `pip install -r requirements.txt`
@@ -165,41 +170,9 @@ Once you've installed the requirements, you can serve the app.
 
 You may use gunicorn with a command such as `gunicorn --bind YOUR.SERVER.IP.ADDR app:app`. Alternatively, you can serve it using `serve_local.py` to serve it on localhost for debugging or personal use locally.
 
-# Future Goals
-
-## General
-
-- Add Support for Encryption
-- Security hardening
-- Add Note Sharing with public links
-- Automatic note saving (optional setting)
-- Add Word Count
-- Ability to add images
-
-## Theme-Specific
-
-### Paper Theme
-
-- Add Dark Mode Support
-- Add Font Selector
-- Add To Do's
-
-### Full Theme
-
-- Improving Markdown Support
-
-### Dash Theme
-
-- Improving Markdown Support
-- Add Support for Categories
-
-# Noted Issues
-
-- There may be issues in relation to categories - or category reassignment in general.
-
 # Compatibility
 
-Flasky Notes has been tested primarily on Ubuntu using a Firefox browser, but should be compatible with all devices and operating systems that can run a browser that is up-to-date. 
+Flasky Notes has been tested primarily on Ubuntu using a Firefox browser, but should be compatible with all devices and operating systems that can run a browser that is up-to-date.
 
 # License
 
