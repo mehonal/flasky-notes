@@ -1546,6 +1546,7 @@
         var autoSaveTimer = null;
         var editMode = {% if theme_settings and theme_settings.preview_mode %}false{% else %}true{% endif %};
         var isDirty = false;
+        var isSaving = false;
         var cmEditor = null;
         var currentFontSize = {{ font_size or 15 }};
         var searchTimer = null;
@@ -1564,13 +1565,22 @@
             });
         }
 
-        // On mobile, always collapse sidebar and right panel regardless of DB state
+        // On mobile, collapse sidebar and right panel unless sidebar was explicitly open (e.g. after drag-drop reload)
         if (isMobile) {
             (function() {
                 var sb = document.getElementById('sidebar');
                 var rp = document.getElementById('right-panel');
-                if (sb) sb.classList.add('collapsed');
+                var bd = document.getElementById('sidebar-backdrop');
                 if (rp) rp.classList.add('collapsed');
+                if (sb) {
+                    if (sessionStorage.getItem('obsidified-mobile-sidebar-open')) {
+                        sessionStorage.removeItem('obsidified-mobile-sidebar-open');
+                        sb.classList.remove('collapsed');
+                        if (bd) bd.classList.add('visible');
+                    } else {
+                        sb.classList.add('collapsed');
+                    }
+                }
             })();
         }
 
@@ -1591,6 +1601,12 @@
         function closeSidebar() {
             document.getElementById('sidebar').classList.add('collapsed');
             document.getElementById('sidebar-backdrop').classList.remove('visible');
+        }
+
+        function persistMobileSidebarState() {
+            if (isMobile && !document.getElementById('sidebar').classList.contains('collapsed')) {
+                sessionStorage.setItem('obsidified-mobile-sidebar-open', '1');
+            }
         }
 
         function toggleFolder(folder) { folder.classList.toggle('collapsed'); }
@@ -1936,6 +1952,9 @@
         function saveNote(callback) {
             var title = document.getElementById('note-title');
             if (!title) { if (callback) callback(); return; }
+            if (isSaving) { if (callback) callback(); return; }
+            isSaving = true;
+            clearTimeout(autoSaveTimer);
             var content = getEditorContent();
 
             // Prepend frontmatter from properties panel
@@ -1953,6 +1972,7 @@
             })
             .then(function(r) { return r.json(); })
             .then(function(data) {
+                isSaving = false;
                 if (data.success) {
                     isDirty = false;
                     hasBeenSavedOnce = true;
@@ -1971,6 +1991,7 @@
                 if (callback) callback();
             })
             .catch(function() {
+                isSaving = false;
                 document.getElementById('save-status').textContent = 'Save failed';
                 document.getElementById('save-status').style.color = 'var(--red)';
                 updateMobileSaveBtn('unsaved');
@@ -2052,7 +2073,7 @@
             }
             fetch('/api/edit_note_category', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ noteId: noteId, category: parseInt(categoryId) }) })
             .then(function(r) { return r.json(); })
-            .then(function(data) { if (data.success) window.location.reload(); });
+            .then(function(data) { if (data.success) { persistMobileSidebarState(); window.location.reload(); } });
         }
 
         function createNewNoteInFolder(catId, catName) {
@@ -2070,7 +2091,7 @@
             fetch('/api/add_category', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ categoryName: fullPath }) })
             .then(function(r) { return r.json(); })
             .then(function(data) {
-                if (data.success) window.location.reload();
+                if (data.success) { persistMobileSidebarState(); window.location.reload(); }
             });
         }
 
@@ -2079,7 +2100,7 @@
             fetch('/api/delete_category', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ categoryId: catId }) })
             .then(function(r) { return r.json(); })
             .then(function(data) {
-                if (data.success) window.location.reload();
+                if (data.success) { persistMobileSidebarState(); window.location.reload(); }
             });
         }
 
@@ -2152,7 +2173,7 @@
                     body: JSON.stringify({ noteId: nid, category: targetCatId })
                 })
                 .then(function(r) { return r.json(); })
-                .then(function(data) { if (data.success) window.location.reload(); });
+                .then(function(data) { if (data.success) { persistMobileSidebarState(); window.location.reload(); } });
             } else if (dragType === 'folder') {
                 if (targetPath === dragFolderPath) return;
                 // Prevent dropping into own subtree
@@ -2166,7 +2187,7 @@
                 })
                 .then(function(r) { return r.json(); })
                 .then(function(data) {
-                    if (data.success) window.location.reload();
+                    if (data.success) { persistMobileSidebarState(); window.location.reload(); }
                     else if (data.reason) alert(data.reason);
                 });
             }
@@ -2196,7 +2217,7 @@
             })
             .then(function(r) { return r.json(); })
             .then(function(data) {
-                if (data.success) window.location.reload();
+                if (data.success) { persistMobileSidebarState(); window.location.reload(); }
                 else if (data.reason) alert(data.reason);
             });
         }
@@ -2230,7 +2251,7 @@
             })
             .then(function(r) { return r.json(); })
             .then(function(data) {
-                if (data.success) window.location.reload();
+                if (data.success) { persistMobileSidebarState(); window.location.reload(); }
                 else if (data.reason) alert(data.reason);
             });
         }
@@ -3240,7 +3261,12 @@
 
             renderSlashCommands();
             var coords = cm.cursorCoords(true, 'page');
-            slashPopup.style.left = coords.left + 'px';
+            var popupLeft = coords.left;
+            var popupWidth = slashPopup.offsetWidth || 220;
+            if (popupLeft + popupWidth > window.innerWidth) {
+                popupLeft = Math.max(4, window.innerWidth - popupWidth - 4);
+            }
+            slashPopup.style.left = popupLeft + 'px';
             slashPopup.style.top = (coords.bottom + 4) + 'px';
             slashPopup.style.display = 'block';
         }
@@ -3257,6 +3283,10 @@
             slashPopup.innerHTML = html;
             slashPopup.querySelectorAll('.slash-command-item').forEach(function(item) {
                 item.addEventListener('mousedown', function(e) {
+                    e.preventDefault();
+                    acceptSlashCommand(parseInt(item.getAttribute('data-index')));
+                });
+                item.addEventListener('touchend', function(e) {
                     e.preventDefault();
                     acceptSlashCommand(parseInt(item.getAttribute('data-index')));
                 });
@@ -3530,7 +3560,11 @@
                     initCodeMirror();
                     setTimeout(function() { if (cmEditor) cmEditor.refresh(); }, 20);
                 } else {
-                    renderPreview();
+                    if (window._wikiLinksReady) {
+                        renderPreview();
+                    } else {
+                        document.addEventListener('wikiLinksReady', function() { renderPreview(); }, { once: true });
+                    }
                 }
 
                 // New note with default template → populate

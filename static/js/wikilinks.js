@@ -88,5 +88,7 @@
             var html = orig(text);
             return resolveWikiLinks(html);
         };
+        window._wikiLinksReady = true;
+        document.dispatchEvent(new Event('wikiLinksReady'));
     });
 })();
