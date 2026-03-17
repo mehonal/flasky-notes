@@ -1756,6 +1756,7 @@
         history.replaceState({ noteId: noteId }, '', window.location.href);
 
         function openNote(id) {
+            if (isMobile) closeSidebar();
             if (isDirty) {
                 saveNote(function() { loadNote(id); });
             } else {
