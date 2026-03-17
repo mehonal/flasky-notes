@@ -244,6 +244,18 @@ def revert_note():
     else:
         return jsonify(success=False, reason="Not logged in.")
 
+@notes_api_bp.route("/note/<int:note_id>")
+def get_note(note_id):
+    if not g.user:
+        return jsonify(success=False, reason="Not logged in.")
+    note = UserNote.query.filter_by(id=note_id, userid=g.user.id).first()
+    if not note:
+        return jsonify(success=False, reason="Note does not exist.")
+    data = note.return_json()
+    data['category_id'] = note.category_id
+    return jsonify(success=True, note=data)
+
+
 @notes_api_bp.route("/load_notes", methods=['POST'])
 def load_notes():
     if g.user:

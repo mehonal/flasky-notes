@@ -81,6 +81,18 @@
         return resolveWikiLinks(html);
     };
 
+    // Allow external code to invalidate and re-fetch the note map
+    window._invalidateNoteMap = function() {
+        noteMap = null;
+        attachmentMap = null;
+        window._wikiLinksReady = false;
+        loadNoteMap(function() {
+            window._wikiLinksReady = true;
+            document.dispatchEvent(new Event('wikiLinksReady'));
+            document.dispatchEvent(new Event('noteMapUpdated'));
+        });
+    };
+
     // Replace global marked once note map is loaded
     loadNoteMap(function () {
         var orig = window.marked;
