@@ -6,3 +6,4 @@ applog.log
 /instance
 /migrations
 .env
+build/cm6-editor/node_modules/

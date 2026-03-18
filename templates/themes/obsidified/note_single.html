@@ -8,15 +8,8 @@
     <link rel="apple-touch-icon" href="/static/images/amazing_logo.png" sizes="180x180">
     <link rel="manifest" href="/manifest.json">
 
-    <!-- CodeMirror 5 -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/markdown/markdown.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/xml/xml.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/mode/overlay.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/gfm/gfm.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/edit/continuelist.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/edit/closebrackets.min.js"></script>
+    <!-- CodeMirror 6 (bundled) -->
+    <script src="{{ url_for('static', filename='script/themes/obsidified/codemirror6.bundle.js') }}"></script>
 
     <!-- Markdown preview -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/2.0.3/marked.min.js"></script>
@@ -393,63 +386,19 @@
         .cm-wrapper { width: 100%; display: none; }
         .cm-wrapper.active { display: block; }
 
-        .CodeMirror {
+        /* CodeMirror 6 overrides — base theme is in the bundle, these are layout tweaks */
+        .cm-editor {
             height: auto !important;
-            background: var(--bg-primary) !important;
-            color: var(--text-primary) !important;
             font-family: 'JetBrains Mono', 'Fira Code', 'SF Mono', 'Cascadia Code', 'Consolas', monospace !important;
             font-size: var(--font-size) !important;
             line-height: 1.8 !important;
-            padding: 0 !important;
-            border: none !important;
         }
-
-        .CodeMirror-gutters { display: none !important; }
-        .CodeMirror-scroll {
+        .cm-editor .cm-scroller {
             padding: 0 48px 80px !important;
             overflow: visible !important;
-            height: auto !important;
         }
-        .CodeMirror-sizer { min-height: 200px !important; }
-        .CodeMirror-vscrollbar { display: none !important; }
-        .CodeMirror-hscrollbar { display: none !important; }
-        .CodeMirror-cursor { border-left-color: var(--accent) !important; }
-        .CodeMirror-selected { background: var(--accent-dim) !important; }
-        .CodeMirror-focused .CodeMirror-selected { background: rgba(180,190,254,0.2) !important; }
-        .CodeMirror-activeline-background { background: var(--bg-hover) !important; }
-        .CodeMirror-matchingbracket { color: var(--accent) !important; border-bottom: 1px solid var(--accent); }
-
-        /* Live markdown rendering styles */
-        .cm-header { font-weight: 700; color: var(--text-primary) !important; }
-        .cm-header-1 { font-size: 1.6em; line-height: 1.4; }
-        .cm-header-2 { font-size: 1.35em; line-height: 1.4; }
-        .cm-header-3 { font-size: 1.15em; line-height: 1.5; }
-        .cm-header-4 { font-size: 1.05em; }
-        .cm-header-5, .cm-header-6 { font-size: 1em; }
-        .cm-strong { font-weight: 700 !important; color: var(--text-primary) !important; }
-        .cm-em { font-style: italic !important; }
-        .cm-strikethrough { text-decoration: line-through !important; color: var(--text-muted) !important; }
-        .cm-link { color: var(--accent) !important; text-decoration: none; }
-        .cm-url { color: var(--text-muted) !important; font-size: 0.9em; }
-        .cm-quote { color: var(--text-secondary) !important; font-style: italic !important; border-left: 3px solid var(--accent); padding-left: 8px; }
-        .cm-comment { color: var(--text-muted) !important; }
-        .cm-keyword { color: var(--accent-hover) !important; }
-        .cm-atom { color: var(--green) !important; }
-        .cm-number { color: var(--yellow) !important; }
-        .cm-string { color: var(--green) !important; }
-        .cm-variable-2 { color: var(--blue) !important; }
-        .cm-variable-3, .cm-type { color: var(--yellow) !important; }
-        .cm-def { color: var(--red) !important; }
-        .cm-tag { color: var(--red) !important; }
-        .cm-attribute { color: var(--yellow) !important; }
-        .cm-hr { color: var(--text-muted) !important; display: block; border-bottom: 1px solid var(--border-light); }
-        .cm-image-marker { color: var(--accent-hover) !important; }
-
-        /* Inline code in editor */
-        span.cm-comment.cm-formatting-code, span.cm-comment:not(.cm-formatting) {
-            background: var(--bg-hover); border-radius: 3px; padding: 1px 4px;
-            font-family: 'JetBrains Mono', 'Fira Code', monospace;
-        }
+        .cm-editor .cm-content { min-height: 200px; }
+        .cm-editor .cm-matchingBracket { color: var(--accent) !important; border-bottom: 1px solid var(--accent); }
 
         /* ============ Preview ============ */
         .editor-preview {
@@ -810,7 +759,7 @@
             .editor-title { padding: 16px 16px 4px; font-size: 22px; }
             .editor-properties { padding: 4px 16px 8px; }
             .editor-preview { padding: 0 16px 40px; }
-            .CodeMirror-scroll { padding: 0 16px 40px !important; }
+            .cm-editor .cm-scroller { padding: 0 16px 40px !important; }
 
             .font-size-controls { display: flex; }
             .toolbar-divider.desktop-only { display: none; }
@@ -839,7 +788,7 @@
             .editor-title { font-size: 20px; padding: 12px 12px 4px; }
             .editor-properties { padding: 2px 12px 8px; }
             .editor-preview { padding: 0 12px 40px; }
-            .CodeMirror-scroll { padding: 0 12px 40px !important; }
+            .cm-editor .cm-scroller { padding: 0 12px 40px !important; }
             .breadcrumb-item.active { max-width: 120px; }
         }
 
@@ -1887,97 +1836,78 @@
 
         function initCodeMirror() {
             var textarea = document.getElementById('note-content');
-            if (!textarea || cmEditor) return;
+            var wrapper = document.getElementById('cm-wrapper');
+            if (!wrapper || cmEditor) return;
 
-            cmEditor = CodeMirror.fromTextArea(textarea, {
-                mode: 'gfm',
-                theme: 'default',
-                lineNumbers: false,
-                lineWrapping: true,
-                autofocus: false,
-                styleActiveLine: true,
-                autoCloseBrackets: true,
-                viewportMargin: Infinity,
-                extraKeys: {
-                    'Enter': 'newlineAndIndentContinueMarkdownList',
-                    'Ctrl-S': function() { saveNote(); },
-                    'Cmd-S': function() { saveNote(); },
-                    'Ctrl-B': function() { wrapSelection('**'); },
-                    'Cmd-B': function() { wrapSelection('**'); },
-                    'Ctrl-I': function() { wrapSelection('*'); },
-                    'Cmd-I': function() { wrapSelection('*'); },
-                    'Ctrl-D': function() { wrapSelection('~~'); },
-                    'Cmd-D': function() { wrapSelection('~~'); },
+            cmEditor = ObsidifiedEditor.create(wrapper, {
+                initialContent: textarea ? textarea.value : '',
+                onChange: function() { markDirty(); },
+                onInputRead: function(cm) {
+                    showWikiAutocomplete(cm);
+                    showSlashCommands(cm);
+                },
+                onCursorActivity: function(cm) {
+                    if (isSlashCommandVisible()) {
+                        var cursor = cm.getCursor();
+                        var line = cm.getLine(cursor.line);
+                        var before = line.substring(0, cursor.ch);
+                        if (!before.match(/(^|\s)\/([\w\s]*)$/)) {
+                            hideSlashCommands();
+                        }
+                    }
+                    if (isWikiAutocompleteVisible()) {
+                        var cursor = cm.getCursor();
+                        var line = cm.getLine(cursor.line);
+                        var before = line.substring(0, cursor.ch);
+                        var openIdx = before.lastIndexOf('[[');
+                        if (openIdx === -1 || before.substring(openIdx + 2).indexOf(']]') > -1) {
+                            hideWikiAutocomplete();
+                        }
+                    }
+                },
+                onKeydown: function(cm, e) {
+                    if (isSlashCommandVisible()) {
+                        if (e.key === 'ArrowDown') {
+                            e.preventDefault();
+                            if (slashSelectedIndex < slashFilteredCommands.length - 1) { slashSelectedIndex++; renderSlashCommands(); }
+                        } else if (e.key === 'ArrowUp') {
+                            e.preventDefault();
+                            if (slashSelectedIndex > 0) { slashSelectedIndex--; renderSlashCommands(); }
+                        } else if (e.key === 'Enter' || e.key === 'Tab') {
+                            e.preventDefault();
+                            acceptSlashCommand(slashSelectedIndex);
+                        } else if (e.key === 'Escape') {
+                            e.preventDefault();
+                            hideSlashCommands();
+                        }
+                        return;
+                    }
+                    if (!isWikiAutocompleteVisible()) return;
+                    if (e.key === 'ArrowDown') {
+                        e.preventDefault();
+                        if (wikiSelectedIndex < wikiFilteredNotes.length - 1) { wikiSelectedIndex++; renderWikiAutocomplete(); }
+                    } else if (e.key === 'ArrowUp') {
+                        e.preventDefault();
+                        if (wikiSelectedIndex > 0) { wikiSelectedIndex--; renderWikiAutocomplete(); }
+                    } else if (e.key === 'Enter' || e.key === 'Tab') {
+                        e.preventDefault();
+                        acceptWikiAutocomplete(wikiSelectedIndex);
+                    } else if (e.key === 'Escape') {
+                        e.preventDefault();
+                        hideWikiAutocomplete();
+                    }
+                },
+                keybindings: {
+                    'Mod-s': function() { saveNote(); },
+                    'Mod-b': function() { wrapSelection('**'); },
+                    'Mod-i': function() { wrapSelection('*'); },
+                    'Mod-d': function() { wrapSelection('~~'); },
                     'Escape': function() { enterPreviewMode(); }
                 }
             });
 
-            cmEditor.on('change', function() { markDirty(); });
-
-            // Wikilink autocomplete on typing
-            cmEditor.on('inputRead', function(cm, change) {
-                if (change.origin === '+input' || change.origin === 'paste') {
-                    showWikiAutocomplete(cm);
-                    showSlashCommands(cm);
-                }
-            });
-
-            cmEditor.on('cursorActivity', function(cm) {
-                if (isSlashCommandVisible()) {
-                    var cursor = cm.getCursor();
-                    var line = cm.getLine(cursor.line);
-                    var before = line.substring(0, cursor.ch);
-                    if (!before.match(/(^|\s)\/([\w\s]*)$/)) {
-                        hideSlashCommands();
-                    }
-                }
-                if (isWikiAutocompleteVisible()) {
-                    // Check if still inside [[ ]]
-                    var cursor = cm.getCursor();
-                    var line = cm.getLine(cursor.line);
-                    var before = line.substring(0, cursor.ch);
-                    var openIdx = before.lastIndexOf('[[');
-                    if (openIdx === -1 || before.substring(openIdx + 2).indexOf(']]') > -1) {
-                        hideWikiAutocomplete();
-                    }
-                }
-            });
-
-            // Intercept keys for autocomplete navigation
-            cmEditor.on('keydown', function(cm, e) {
-                // Slash commands
-                if (isSlashCommandVisible()) {
-                    if (e.key === 'ArrowDown') {
-                        e.preventDefault();
-                        if (slashSelectedIndex < slashFilteredCommands.length - 1) { slashSelectedIndex++; renderSlashCommands(); }
-                    } else if (e.key === 'ArrowUp') {
-                        e.preventDefault();
-                        if (slashSelectedIndex > 0) { slashSelectedIndex--; renderSlashCommands(); }
-                    } else if (e.key === 'Enter' || e.key === 'Tab') {
-                        e.preventDefault();
-                        acceptSlashCommand(slashSelectedIndex);
-                    } else if (e.key === 'Escape') {
-                        e.preventDefault();
-                        hideSlashCommands();
-                    }
-                    return;
-                }
-                if (!isWikiAutocompleteVisible()) return;
-                if (e.key === 'ArrowDown') {
-                    e.preventDefault();
-                    if (wikiSelectedIndex < wikiFilteredNotes.length - 1) { wikiSelectedIndex++; renderWikiAutocomplete(); }
-                } else if (e.key === 'ArrowUp') {
-                    e.preventDefault();
-                    if (wikiSelectedIndex > 0) { wikiSelectedIndex--; renderWikiAutocomplete(); }
-                } else if (e.key === 'Enter' || e.key === 'Tab') {
-                    e.preventDefault();
-                    acceptWikiAutocomplete(wikiSelectedIndex);
-                } else if (e.key === 'Escape') {
-                    e.preventDefault();
-                    hideWikiAutocomplete();
-                }
-            });
-
+            // Hide the textarea since CM6 renders directly into the wrapper
+            if (textarea) textarea.style.display = 'none';
         }
 
         function wrapSelection(wrapper) {
@@ -3243,7 +3173,7 @@
             if (ctrl && e.key === 's') { e.preventDefault(); saveNote(); }
             if (ctrl && e.key === 'n') { e.preventDefault(); createNewNote(); }
             if (ctrl && e.key === 'e') { e.preventDefault(); if (editMode) enterPreviewMode(); else enterEditMode(); }
-            if (e.key === 'Escape' && editMode && !document.activeElement.closest('.CodeMirror')) { enterPreviewMode(); }
+            if (e.key === 'Escape' && editMode && !document.activeElement.closest('.cm-editor')) { enterPreviewMode(); }
             if (ctrl && e.key === 'k') { e.preventDefault(); openSearchModal(); }
             if (ctrl && e.key === 'p' && !editMode) {
                 e.preventDefault();
@@ -3369,7 +3299,9 @@
 
             var from = { line: cursor.line, ch: openIdx };
             var to = { line: cursor.line, ch: cursor.ch + extraClose };
-            cmEditor.replaceRange('[[' + selected.title + ']]', from, to);
+            var insertText = '[[' + selected.title + ']]';
+            cmEditor.replaceRange(insertText, from, to);
+            cmEditor.setCursor({ line: cursor.line, ch: openIdx + insertText.length });
             hideWikiAutocomplete();
             cmEditor.focus();
 
