@@ -1361,6 +1361,11 @@
                                         <input type="checkbox" id="qs-props-collapsed" onchange="togglePropsPanel()">
                                         <span class="qs-toggle-slider"></span>
                                     </label>
+                                    <label class="quick-setting-toggle">
+                                        <span>Auto-save</span>
+                                        <input type="checkbox" id="qs-auto-save" onchange="toggleAutoSave()">
+                                        <span class="qs-toggle-slider"></span>
+                                    </label>
                                 </div>
                             </div>
                         </div>
@@ -1504,6 +1509,7 @@
         var noteId = {{ note_id }};
         var currentCategory = "{% if note %}{{ note.get_category_name() }}{% elif category %}{{ category }}{% else %}Main{% endif %}";
         var autoSaveTimer = null;
+        var autoSaveEnabled = {% if theme_settings and theme_settings.auto_save %}true{% else %}false{% endif %};
         var editMode = {% if theme_settings and theme_settings.preview_mode %}false{% else %}true{% endif %};
         var isDirty = false;
         var isSaving = false;
@@ -1531,7 +1537,9 @@
                 var sb = document.getElementById('sidebar');
                 var rp = document.getElementById('right-panel');
                 var bd = document.getElementById('sidebar-backdrop');
+                var panelBtn = document.getElementById('panel-toggle');
                 if (rp) rp.classList.add('collapsed');
+                if (panelBtn) panelBtn.classList.remove('active');
                 if (sb) {
                     if (sessionStorage.getItem('obsidified-mobile-sidebar-open')) {
                         sessionStorage.removeItem('obsidified-mobile-sidebar-open');
@@ -1778,6 +1786,7 @@
         }
 
         function createNewNote() {
+            if (isMobile) closeSidebar();
             if (isDirty) {
                 saveNote(function() { loadNote(0); });
             } else {
@@ -2085,8 +2094,8 @@
             updateMobileSaveBtn('unsaved');
             updateCounts();
             clearTimeout(autoSaveTimer);
-            // Only autosave if this note has been saved at least once (not a brand new note)
-            if (hasBeenSavedOnce) {
+            // Only autosave if enabled and this note has been saved at least once (not a brand new note)
+            if (autoSaveEnabled && hasBeenSavedOnce) {
                 autoSaveTimer = setTimeout(function() { saveNote(); }, 3000);
             }
 
@@ -2887,10 +2896,22 @@
             var previewEl = document.getElementById('qs-preview-mode');
             var hideTitleEl = document.getElementById('qs-hide-title');
             var propsEl = document.getElementById('qs-props-collapsed');
+            var autoSaveEl = document.getElementById('qs-auto-save');
             if (darkEl) darkEl.checked = document.documentElement.getAttribute('data-theme') === 'dark';
             if (previewEl) previewEl.checked = !editMode;
             if (hideTitleEl) hideTitleEl.checked = document.getElementById('note-title') && document.getElementById('note-title').style.display === 'none';
             if (propsEl) propsEl.checked = document.getElementById('props-container') && document.getElementById('props-container').classList.contains('collapsed');
+            if (autoSaveEl) autoSaveEl.checked = autoSaveEnabled;
+        }
+
+        function toggleAutoSave() {
+            autoSaveEnabled = !autoSaveEnabled;
+            if (!autoSaveEnabled) clearTimeout(autoSaveTimer);
+            fetch('/api/save_auto_save', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ autoSave: autoSaveEnabled ? 1 : 0 })
+            });
         }
 
         function toggleHideTitle() {
