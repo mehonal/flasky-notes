@@ -134,6 +134,7 @@
         }
 
         .icon-btn:hover { background: var(--bg-hover); color: var(--text-primary); }
+        .icon-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
         .icon-btn svg {
             width: 16px; height: 16px; stroke: currentColor; fill: none;
@@ -263,7 +264,7 @@
         .toolbar .toggle-sidebar { margin-right: 4px; }
 
         .breadcrumb { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text-muted); min-width: 0; }
-        .breadcrumb-sep { color: var(--text-muted); opacity: 0.4; font-size: 11px; }
+        .breadcrumb-sep { color: var(--text-muted); opacity: 0.6; font-size: 11px; }
         .breadcrumb-item { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .breadcrumb-item.active { color: var(--text-primary); font-weight: 500; }
 
@@ -527,6 +528,7 @@
         .outline-list li { padding: 3px 0; }
         .outline-list a { color: var(--text-secondary); text-decoration: none; display: block; padding: 2px 6px; border-radius: 4px; transition: all 0.1s ease; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .outline-list a:hover { background: var(--bg-hover); color: var(--text-primary); }
+        .outline-list a.active { color: var(--accent); background: var(--accent-dim); }
         .outline-list .h2 { padding-left: 12px; }
         .outline-list .h3 { padding-left: 24px; }
         .outline-list .h4 { padding-left: 36px; }
@@ -778,10 +780,13 @@
         @media (max-width: 768px) {
             .sidebar {
                 position: fixed; top: 0; left: 0; bottom: 0;
-                width: 100vw; min-width: 100vw;
-                box-shadow: none;
+                width: 85vw; min-width: 85vw; max-width: 320px;
+                box-shadow: 4px 0 24px rgba(0,0,0,0.4);
             }
-            .sidebar.collapsed { width: 0; min-width: 0; box-shadow: none; }
+            .sidebar.collapsed { width: 0; min-width: 0; box-shadow: none; max-width: 0; }
+
+            /* Touch targets — sidebar & right-panel only, not toolbar */
+            .sidebar .icon-btn { padding: 6px; min-width: 36px; min-height: 36px; }
 
             /* Always show action icons on mobile for touch accessibility */
             .folder-delete-btn, .folder-add-btn, .folder-newnote-btn, .folder-move-btn { display: flex; }
@@ -794,10 +799,12 @@
 
             .right-panel {
                 position: fixed; top: 0; right: 0; bottom: 0; z-index: 200;
+                width: 240px; min-width: 240px;
                 box-shadow: -4px 0 24px rgba(0,0,0,0.4);
             }
             .right-panel.collapsed { width: 0; min-width: 0; box-shadow: none; }
             .right-panel-close { display: flex; }
+            .right-panel .icon-btn { padding: 4px; min-width: auto; min-height: auto; }
 
             .editor { max-width: 100%; }
             .editor-title { padding: 16px 16px 4px; font-size: 22px; }
@@ -805,23 +812,27 @@
             .editor-preview { padding: 0 16px 40px; }
             .CodeMirror-scroll { padding: 0 16px 40px !important; }
 
-            .font-size-controls { display: none; }
+            .font-size-controls { display: flex; }
             .toolbar-divider.desktop-only { display: none; }
             .toolbar .icon-btn.desktop-only { display: none; }
 
-            .toolbar { padding: 0 4px; gap: 2px; }
-            .toolbar-actions { gap: 1px; }
-            .toolbar-actions .icon-btn { padding: 8px; }
+            .toolbar { padding: 0 4px; gap: 1px; }
+            .toolbar-actions { gap: 0; }
+            .toolbar-actions .icon-btn { padding: 6px; min-width: auto; min-height: auto; }
+            .toolbar .toggle-sidebar { min-width: auto; min-height: auto; }
             .toolbar .toggle-sidebar .icon-btn-svg { width: 20px; height: 20px; }
+            .font-size-controls .icon-btn { padding: 4px; }
+            .font-size-label { min-width: 18px; font-size: 10px; }
 
-            .breadcrumb { font-size: 12px; gap: 4px; }
-            .breadcrumb-category-select { font-size: 12px; max-width: 80px; }
+            .breadcrumb { font-size: 11px; gap: 3px; min-width: 0; flex: 1; overflow: hidden; }
+            .breadcrumb-category-select { font-size: 11px; max-width: 70px; }
+            .breadcrumb-item.active { max-width: 100px; }
 
             .status-bar { padding: 0 8px; gap: 8px; }
 
             .shortcuts-grid { grid-template-columns: 1fr; }
             .search-modal { border-radius: 8px; }
-            .modal-overlay { padding-top: 10vh; }
+            .modal-overlay { padding-top: 5vh; }
         }
 
         @media (max-width: 480px) {
@@ -1035,13 +1046,13 @@
             <div class="sidebar-header">
                 <span class="sidebar-title">Notes</span>
                 <div class="sidebar-actions">
-                    <button class="icon-btn" onclick="promptNewFolder()" title="New folder">
+                    <button class="icon-btn" onclick="promptNewFolder()" title="New folder" aria-label="New folder">
                         <svg viewBox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/><line x1="12" y1="11" x2="12" y2="17"/><line x1="9" y1="14" x2="15" y2="14"/></svg>
                     </button>
-                    <button class="icon-btn" onclick="createNewNote()" title="New note">
+                    <button class="icon-btn" onclick="createNewNote()" title="New note" aria-label="New note">
                         <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
                     </button>
-                    <button class="icon-btn" onclick="closeSidebar()" title="Close sidebar">
+                    <button class="icon-btn" onclick="closeSidebar()" title="Close sidebar" aria-label="Close sidebar">
                         <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                     </button>
                 </div>
@@ -1080,7 +1091,7 @@
         <div class="main">
             <div class="toolbar">
                 <!-- Hamburger — always visible -->
-                <button class="icon-btn toggle-sidebar" onclick="toggleSidebar()" title="Toggle sidebar (Ctrl+B)">
+                <button class="icon-btn toggle-sidebar" onclick="toggleSidebar()" title="Toggle sidebar (Ctrl+B)" aria-label="Toggle sidebar" aria-expanded="{% if theme_settings and not theme_settings.sidebar_collapsed %}true{% else %}false{% endif %}">
                     <svg viewBox="0 0 24 24" class="icon-btn-svg"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
                 </button>
 
@@ -1101,22 +1112,22 @@
 
                 <div class="toolbar-actions">
                     <div class="font-size-controls">
-                        <button class="icon-btn" onclick="changeFontSize(-1)" title="Decrease font size">
+                        <button class="icon-btn" onclick="changeFontSize(-1)" title="Decrease font size" aria-label="Decrease font size">
                             <svg viewBox="0 0 24 24"><line x1="5" y1="12" x2="19" y2="12"/></svg>
                         </button>
                         <span class="font-size-label" id="font-size-label">{{ font_size or 15 }}</span>
-                        <button class="icon-btn" onclick="changeFontSize(1)" title="Increase font size">
+                        <button class="icon-btn" onclick="changeFontSize(1)" title="Increase font size" aria-label="Increase font size">
                             <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
                         </button>
                     </div>
 
-                    <button class="icon-btn mobile-save-btn" id="mobile-save-btn" onclick="saveNote()" title="Save note">
+                    <button class="icon-btn mobile-save-btn" id="mobile-save-btn" onclick="saveNote()" title="Save note" aria-label="Save note">
                         <svg viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
                     </button>
 
                     <div class="toolbar-divider desktop-only"></div>
 
-                    <button class="icon-btn {% if not theme_settings or not theme_settings.preview_mode %}active{% endif %}" id="mode-toggle" onclick="toggleMode()" title="Toggle edit/preview (Ctrl+E)">
+                    <button class="icon-btn {% if not theme_settings or not theme_settings.preview_mode %}active{% endif %}" id="mode-toggle" onclick="toggleMode()" title="Toggle edit/preview (Ctrl+E)" aria-label="Toggle edit/preview">
                         <svg viewBox="0 0 24 24" id="mode-toggle-icon">
                             {% if theme_settings and theme_settings.preview_mode %}
                             <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
@@ -1128,15 +1139,15 @@
 
                     <div class="toolbar-divider desktop-only"></div>
 
-                    <button class="icon-btn mobile-search-btn" onclick="openSearchModal()" title="Search (Ctrl+K)">
+                    <button class="icon-btn mobile-search-btn" onclick="openSearchModal()" title="Search (Ctrl+K)" aria-label="Search">
                         <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
                     </button>
 
-                    <button class="icon-btn {% if theme_settings and not theme_settings.right_panel_collapsed %}active{% endif %}" id="panel-toggle" onclick="toggleRightPanel()" title="Outline panel (Ctrl+Shift+O)">
+                    <button class="icon-btn {% if theme_settings and not theme_settings.right_panel_collapsed %}active{% endif %}" id="panel-toggle" onclick="toggleRightPanel()" title="Outline panel (Ctrl+Shift+O)" aria-label="Outline panel" aria-expanded="{% if theme_settings and not theme_settings.right_panel_collapsed %}true{% else %}false{% endif %}">
                         <svg viewBox="0 0 24 24"><line x1="3" y1="6" x2="13" y2="6"/><line x1="3" y1="10" x2="10" y2="10"/><line x1="3" y1="14" x2="13" y2="14"/><line x1="3" y1="18" x2="10" y2="18"/><rect x="17" y="4" width="4" height="16" rx="1"/></svg>
                     </button>
 
-                    <button class="icon-btn" id="theme-toggle" onclick="toggleDarkMode()" title="Toggle theme">
+                    <button class="icon-btn" id="theme-toggle" onclick="toggleDarkMode()" title="Toggle theme" aria-label="Toggle theme">
                         <svg viewBox="0 0 24 24" id="theme-icon">
                             {% if g.user.get_current_theme_dark_mode() %}
                             <circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
@@ -1146,13 +1157,13 @@
                         </svg>
                     </button>
 
-                    <button class="icon-btn desktop-only" onclick="toggleShortcutsModal()" title="Shortcuts (Ctrl+/)">
+                    <button class="icon-btn desktop-only" onclick="toggleShortcutsModal()" title="Shortcuts (Ctrl+/)" aria-label="Keyboard shortcuts">
                         <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
                     </button>
 
                     {% if note %}
                     <div class="toolbar-divider"></div>
-                    <button class="icon-btn danger" onclick="deleteCurrentNote()" title="Delete note">
+                    <button class="icon-btn danger" onclick="deleteCurrentNote()" title="Delete note" aria-label="Delete note">
                         <svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
                     </button>
                     {% endif %}
@@ -1544,6 +1555,8 @@
             } else {
                 closeSidebar();
             }
+            var toggleBtn = document.querySelector('.toggle-sidebar');
+            if (toggleBtn) toggleBtn.setAttribute('aria-expanded', !sb.classList.contains('collapsed'));
             if (!isMobile) saveUiState({ sidebar_collapsed: sb.classList.contains('collapsed') });
         }
 
@@ -1726,7 +1739,7 @@
                 if (catSelect && n.category_id) catSelect.value = n.category_id;
 
                 // Update status
-                document.getElementById('save-status').textContent = 'Saved';
+                document.getElementById('save-status').textContent = '\u2713 Saved';
                 document.getElementById('save-status').style.color = 'var(--green)';
                 updateMobileSaveBtn('saved');
 
@@ -1772,23 +1785,49 @@
             }
         }
 
+        var preFilterFolderStates = null;
+
         function filterNotes(query) {
             query = query.toLowerCase();
+
+            if (query && !preFilterFolderStates) {
+                // Save folder collapsed states before filtering
+                preFilterFolderStates = {};
+                document.querySelectorAll('#file-tree .folder[data-path]').forEach(function(f) {
+                    preFilterFolderStates[f.dataset.path] = f.classList.contains('collapsed');
+                });
+            }
+
             document.querySelectorAll('#file-tree .file-item').forEach(function(item) {
                 var name = item.querySelector('.file-name').textContent.toLowerCase();
                 item.style.display = name.includes(query) ? '' : 'none';
             });
             document.querySelectorAll('.folder').forEach(function(folder) {
                 var visibleItems = folder.querySelectorAll('.file-item:not([style*="display: none"])');
+                var count = folder.querySelector('.folder-count');
                 folder.style.display = (query && visibleItems.length === 0) ? 'none' : '';
                 if (query) {
-                    // Expand all folders when filtering
+                    // Show match count and expand matching folders
+                    if (count) count.textContent = visibleItems.length;
                     if (visibleItems.length > 0) folder.classList.remove('collapsed');
                 } else {
-                    // Re-collapse all folders when filter is cleared
-                    folder.classList.add('collapsed');
+                    // Restore pre-filter folder states
+                    if (preFilterFolderStates && folder.dataset.path) {
+                        if (preFilterFolderStates[folder.dataset.path]) {
+                            folder.classList.add('collapsed');
+                        } else {
+                            folder.classList.remove('collapsed');
+                        }
+                    }
+                    // Restore original count
+                    if (count) {
+                        var allItems = folder.querySelectorAll(':scope > .folder-items > .file-item');
+                        count.textContent = allItems.length;
+                    }
                 }
             });
+
+            if (!query) preFilterFolderStates = null;
         }
 
         // ============ Pinned Notes ============
@@ -1802,9 +1841,15 @@
             updatePinButtons();
         }
 
+        var _lastPinnedKey = null;
+
         function renderPinnedNotes() {
             var section = document.getElementById('pinned-section');
             var list = document.getElementById('pinned-list');
+            // Check if pinned list actually changed
+            var newKey = pinnedNotes.join(',') + ':' + noteId;
+            if (newKey === _lastPinnedKey) return;
+            _lastPinnedKey = newKey;
             list.innerHTML = '';
             if (pinnedNotes.length === 0) { section.classList.remove('has-pins'); return; }
             section.classList.add('has-pins');
@@ -2036,7 +2081,7 @@
         function markDirty() {
             isDirty = true;
             var s = document.getElementById('save-status');
-            if (s) { s.textContent = 'Unsaved'; s.style.color = 'var(--yellow)'; }
+            if (s) { s.textContent = '\u25CF Unsaved'; s.style.color = 'var(--yellow)'; }
             updateMobileSaveBtn('unsaved');
             updateCounts();
             clearTimeout(autoSaveTimer);
@@ -2116,7 +2161,7 @@
                 if (data.success) {
                     isDirty = false;
                     hasBeenSavedOnce = true;
-                    document.getElementById('save-status').textContent = 'Saved';
+                    document.getElementById('save-status').textContent = '\u2713 Saved';
                     document.getElementById('save-status').style.color = 'var(--green)';
                     updateMobileSaveBtn('saved');
                     var needsMapRefresh = false;
@@ -2143,7 +2188,7 @@
             })
             .catch(function() {
                 isSaving = false;
-                document.getElementById('save-status').textContent = 'Save failed';
+                document.getElementById('save-status').textContent = '\u26A0 Save failed';
                 document.getElementById('save-status').style.color = 'var(--red)';
                 updateMobileSaveBtn('unsaved');
                 if (callback) callback();
@@ -2895,13 +2940,16 @@
             var panel = document.getElementById('right-panel');
             var btn = document.getElementById('panel-toggle');
             panel.classList.toggle('collapsed');
-            if (!panel.classList.contains('collapsed')) {
+            var expanded = !panel.classList.contains('collapsed');
+            if (expanded) {
                 if (btn) btn.classList.add('active');
                 refreshAllVisibleWidgets();
             } else {
                 if (btn) btn.classList.remove('active');
             }
-            if (!isMobile) saveUiState({ right_panel_collapsed: panel.classList.contains('collapsed') });
+            if (btn) btn.setAttribute('aria-expanded', expanded);
+            panel.setAttribute('aria-hidden', !expanded);
+            if (!isMobile) saveUiState({ right_panel_collapsed: !expanded });
         }
 
         function updateRightPanelProps() {
@@ -2964,6 +3012,30 @@
             }
         }
 
+        // Active heading tracking on scroll
+        (function() {
+            var editorScroll = document.querySelector('.editor-scroll');
+            if (!editorScroll) return;
+            var scrollTrackTimer = null;
+            editorScroll.addEventListener('scroll', function() {
+                clearTimeout(scrollTrackTimer);
+                scrollTrackTimer = setTimeout(function() {
+                    var outlineLinks = document.querySelectorAll('#outline-list a');
+                    if (outlineLinks.length === 0) return;
+                    var preview = document.getElementById('note-preview');
+                    if (!preview || !preview.classList.contains('active')) return;
+                    var headings = preview.querySelectorAll('h1, h2, h3, h4, h5, h6');
+                    var activeIdx = -1;
+                    for (var i = 0; i < headings.length; i++) {
+                        var rect = headings[i].getBoundingClientRect();
+                        if (rect.top <= 120) activeIdx = i;
+                    }
+                    outlineLinks.forEach(function(a) { a.classList.remove('active'); });
+                    if (activeIdx >= 0 && outlineLinks[activeIdx]) outlineLinks[activeIdx].classList.add('active');
+                }, 100);
+            });
+        })();
+
         function loadBacklinks() {
             if (!noteId || noteId === 0) return;
             var list = document.getElementById('backlinks-list');
@@ -2999,10 +3071,12 @@
         function performSearch(query) {
             clearTimeout(searchTimer);
             if (!query || query.length < 2) { document.getElementById('search-results').innerHTML = ''; searchResults = []; searchSelectedIndex = -1; return; }
+            document.getElementById('search-results').innerHTML = '<div style="padding:16px;text-align:center;color:var(--text-muted);font-size:13px">Searching...</div>';
             searchTimer = setTimeout(function() {
                 fetch('/api/search_notes', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ query: query }) })
                 .then(function(r) { return r.json(); })
-                .then(function(data) { searchResults = data; searchSelectedIndex = data.length > 0 ? 0 : -1; renderSearchResults(); });
+                .then(function(data) { searchResults = data; searchSelectedIndex = data.length > 0 ? 0 : -1; renderSearchResults(); })
+                .catch(function() { document.getElementById('search-results').innerHTML = '<div style="padding:16px;text-align:center;color:var(--text-muted);font-size:13px">Search failed</div>'; });
             }, 200);
         }
 
@@ -3124,8 +3198,8 @@
             // Search modal
             if (document.getElementById('search-overlay').classList.contains('visible')) {
                 if (e.key === 'Escape') { e.preventDefault(); closeSearchModal(); return; }
-                if (e.key === 'ArrowDown') { e.preventDefault(); if (searchSelectedIndex < searchResults.length - 1) { searchSelectedIndex++; renderSearchResults(); } return; }
-                if (e.key === 'ArrowUp') { e.preventDefault(); if (searchSelectedIndex > 0) { searchSelectedIndex--; renderSearchResults(); } return; }
+                if (e.key === 'ArrowDown') { e.preventDefault(); searchSelectedIndex = (searchSelectedIndex + 1) % searchResults.length; renderSearchResults(); return; }
+                if (e.key === 'ArrowUp') { e.preventDefault(); searchSelectedIndex = (searchSelectedIndex - 1 + searchResults.length) % searchResults.length; renderSearchResults(); return; }
                 if (e.key === 'Enter' && searchSelectedIndex >= 0) { e.preventDefault(); closeSearchModal(); openNote(searchResults[searchSelectedIndex].id); return; }
                 return;
             }
@@ -3169,20 +3243,25 @@
         var wikiSelectedIndex = -1;
         var wikiFilteredNotes = [];
 
+        var _noteMapPromise = null;
+
         function loadWikiNoteList(callback) {
             if (wikiNoteList !== null) { if (callback) callback(); return; }
-            fetch('/api/note-map')
-            .then(function(r) { return r.json(); })
-            .then(function(data) {
-                var notes = data.notes || {};
-                wikiNoteList = [];
-                Object.keys(notes).forEach(function(key) {
-                    wikiNoteList.push({ title: notes[key].title || key, id: notes[key].id });
-                });
-                wikiNoteList.sort(function(a, b) { return a.title.localeCompare(b.title); });
-                if (callback) callback();
-            })
-            .catch(function() { wikiNoteList = []; if (callback) callback(); });
+            if (!_noteMapPromise) {
+                _noteMapPromise = fetch('/api/note-map')
+                .then(function(r) { return r.json(); })
+                .then(function(data) {
+                    var notes = data.notes || {};
+                    wikiNoteList = [];
+                    Object.keys(notes).forEach(function(key) {
+                        wikiNoteList.push({ title: notes[key].title || key, id: notes[key].id });
+                    });
+                    wikiNoteList.sort(function(a, b) { return a.title.localeCompare(b.title); });
+                    _noteMapPromise = null;
+                })
+                .catch(function() { wikiNoteList = []; _noteMapPromise = null; });
+            }
+            _noteMapPromise.then(function() { if (callback) callback(); });
         }
 
         function showWikiAutocomplete(cm) {
@@ -3201,7 +3280,7 @@
             loadWikiNoteList(function() {
                 wikiFilteredNotes = wikiNoteList.filter(function(n) {
                     return n.title.toLowerCase().indexOf(query) > -1;
-                }).slice(0, 12);
+                }).slice(0, 20);
 
                 if (wikiFilteredNotes.length === 0) { hideWikiAutocomplete(); return; }
 
@@ -3211,6 +3290,15 @@
                     wikiAutocomplete = document.createElement('div');
                     wikiAutocomplete.className = 'wikilink-autocomplete';
                     document.body.appendChild(wikiAutocomplete);
+                    // Delegated event handlers
+                    wikiAutocomplete.addEventListener('mousedown', function(e) {
+                        var item = e.target.closest('.wikilink-autocomplete-item');
+                        if (item) { e.preventDefault(); acceptWikiAutocomplete(parseInt(item.getAttribute('data-index'))); }
+                    });
+                    wikiAutocomplete.addEventListener('mouseover', function(e) {
+                        var item = e.target.closest('.wikilink-autocomplete-item');
+                        if (item) { wikiSelectedIndex = parseInt(item.getAttribute('data-index')); renderWikiAutocomplete(); }
+                    });
                 }
 
                 renderWikiAutocomplete();
@@ -3232,18 +3320,6 @@
             });
             wikiAutocomplete.innerHTML = html;
 
-            // Add click handlers
-            wikiAutocomplete.querySelectorAll('.wikilink-autocomplete-item').forEach(function(item) {
-                item.addEventListener('mousedown', function(e) {
-                    e.preventDefault();
-                    var idx = parseInt(item.getAttribute('data-index'));
-                    acceptWikiAutocomplete(idx);
-                });
-                item.addEventListener('mouseenter', function() {
-                    wikiSelectedIndex = parseInt(item.getAttribute('data-index'));
-                    renderWikiAutocomplete();
-                });
-            });
             var sel = wikiAutocomplete.querySelector('.wikilink-autocomplete-item.selected');
             if (sel) sel.scrollIntoView({ block: 'nearest' });
         }

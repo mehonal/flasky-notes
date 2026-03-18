@@ -25,17 +25,14 @@ def search_notes_api():
     if g.user:
         data = request.get_json()
         query = data.get('query')
-        seen = set()
-        notes = []
-        for note in UserNote.query.filter(UserNote.userid == g.user.id, UserNote.title.contains(query)).order_by(UserNote.date_added.desc()).all():
-            if note.id not in seen:
-                seen.add(note.id)
-                notes.append(note.return_json())
-        for note in UserNote.query.filter(UserNote.userid == g.user.id, UserNote.content.contains(query)).order_by(UserNote.date_added.desc()).all():
-            if note.id not in seen:
-                seen.add(note.id)
-                notes.append(note.return_json())
-        return jsonify(notes)
+        notes = UserNote.query.filter(
+            UserNote.userid == g.user.id,
+            db.or_(
+                UserNote.title.contains(query),
+                UserNote.content.contains(query)
+            )
+        ).order_by(UserNote.date_added.desc()).all()
+        return jsonify([note.return_json() for note in notes])
     else:
         return jsonify(success=False,reason="Not logged in.")
 
@@ -44,12 +41,13 @@ def backlinks_api(note_id):
     if g.user:
         note = UserNote.query.filter_by(id=note_id).first()
         if note and g.user == note.user and note.title:
-            pattern = "[[" + note.title.lower() + "]]"
-            linking_notes = []
-            for n in UserNote.query.filter_by(userid=g.user.id).all():
-                if n.id != note_id and n.content and pattern in n.content.lower():
-                    linking_notes.append({"id": n.id, "title": n.title or "Untitled"})
-            return jsonify(linking_notes)
+            pattern = "%[[" + note.title + "]]%"
+            linking_notes = UserNote.query.filter(
+                UserNote.userid == g.user.id,
+                UserNote.id != note_id,
+                UserNote.content.ilike(pattern)
+            ).all()
+            return jsonify([{"id": n.id, "title": n.title or "Untitled"} for n in linking_notes])
         return jsonify([])
     return jsonify(error="Not logged in"), 401
 
@@ -61,19 +59,28 @@ def outbound_links_api(note_id):
         if note and g.user == note.user and note.content:
             links = re.findall(r'\[\[([^\]|]+)(?:\|[^\]]+)?\]\]', note.content)
             seen = set()
-            result = []
+            unique_titles = []
             for title in links:
                 key = title.strip().lower()
-                if key in seen:
-                    continue
-                seen.add(key)
-                target = UserNote.query.filter_by(userid=g.user.id).filter(
-                    db.func.lower(UserNote.title) == key
-                ).first()
+                if key not in seen:
+                    seen.add(key)
+                    unique_titles.append(title.strip())
+            if not unique_titles:
+                return jsonify([])
+            # Batch query: find all matching notes in one query
+            lower_keys = [t.lower() for t in unique_titles]
+            matching_notes = UserNote.query.filter(
+                UserNote.userid == g.user.id,
+                db.func.lower(UserNote.title).in_(lower_keys)
+            ).all()
+            title_map = {n.title.lower(): n for n in matching_notes if n.title}
+            result = []
+            for title in unique_titles:
+                target = title_map.get(title.lower())
                 if target:
                     result.append({"id": target.id, "title": target.title or "Untitled"})
                 else:
-                    result.append({"id": None, "title": title.strip()})
+                    result.append({"id": None, "title": title})
             return jsonify(result)
         return jsonify([])
     return jsonify(error="Not logged in"), 401
