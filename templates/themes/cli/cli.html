@@ -162,7 +162,13 @@
     }
 </style>
 
-<body>
+{% if g.user and g.user.encryption_enabled %}
+<script src="{{ url_for('static', filename='js/crypto.js') }}"></script>
+<script src="{{ url_for('static', filename='js/e2ee.js') }}"></script>
+<script src="{{ url_for('static', filename='js/e2ee-search.js') }}"></script>
+{% endif %}
+
+<body{% if g.user and g.user.encryption_enabled %} data-encrypted="true"{% endif %}>
     <div id="terminal">
         <div id="log"><div id="log-inner"></div></div>
         <div id="command-line">
@@ -207,15 +213,26 @@
 
         // --- Data fetching ---
 
-        function fetchNotes(){
-            return fetch('/api/get_all_notes')
-                .then(r => r.json())
-                .then(data => {
-                    notes = data;
-                    categories = [...new Set(notes.map(n => n.category).filter(Boolean))];
-                });
+        async function fetchNotes(){
+            const data = await fetch('/api/get_all_notes').then(r => r.json());
+            notes = data;
+            if (typeof FlaskyE2EE !== 'undefined' && FlaskyE2EE.isEncrypted()) {
+                for (const n of notes) {
+                    try { n.title = await FlaskyE2EE.decryptField(n.title); } catch(e) {}
+                    try { n.content = await FlaskyE2EE.decryptField(n.content); } catch(e) {}
+                    try { if (n.category) n.category = await FlaskyE2EE.decryptField(n.category); } catch(e) {}
+                }
+            }
+            categories = [...new Set(notes.map(n => n.category).filter(Boolean))];
         }
-        fetchNotes();
+
+        (async function() {
+            if (typeof FlaskyE2EE !== 'undefined') {
+                var ok = await FlaskyE2EE.init();
+                if (!ok) return;
+            }
+            await fetchNotes();
+        })();
 
         // --- Output helpers ---
 
@@ -452,9 +469,14 @@
             print(note.content || '(empty)');
         }
 
-        function createNote(title){
+        async function createNote(title){
             if (!title){ print("Usage: new <title>", 'clr-red'); return; }
-            apiPost('/api/save_note', { noteId: 0, title: title, content: '', category: null })
+            var encTitle = title, encContent = '';
+            if (typeof FlaskyE2EE !== 'undefined' && FlaskyE2EE.isEncrypted()) {
+                encTitle = await FlaskyE2EE.encryptField(title);
+                encContent = await FlaskyE2EE.encryptField('');
+            }
+            apiPost('/api/save_note', { noteId: 0, title: encTitle, content: encContent, category: null })
             .then(data => {
                 if (data.success){
                     print(`Note created (id: ${data.note.id}). Use 'edit ${data.note.id}' to add content.`, 'clr-green');
@@ -479,18 +501,24 @@
             editTitle.focus();
         }
 
-        function saveEdit(){
+        async function saveEdit(){
             if (editingNoteId === null) return;
             const note = notes.find(n => n.id === editingNoteId);
+            var encTitle = editTitle.value, encContent = editContent.value;
+            if (typeof FlaskyE2EE !== 'undefined' && FlaskyE2EE.isEncrypted()) {
+                encTitle = await FlaskyE2EE.encryptField(editTitle.value);
+                encContent = await FlaskyE2EE.encryptField(editContent.value);
+            }
             apiPost('/api/save_note', {
                 noteId: editingNoteId,
-                title: editTitle.value,
-                content: editContent.value,
+                title: encTitle,
+                content: encContent,
                 category: note ? note.category : null
             }).then(data => {
                 closeEdit();
                 if (data.success){
                     print(`Note #${editingNoteId} saved.`, 'clr-green');
+                    if (typeof FlaskySearch !== 'undefined') FlaskySearch.invalidate();
                     fetchNotes();
                 } else {
                     print(`Error: ${data.reason}`, 'clr-red');
@@ -523,25 +551,39 @@
             };
         }
 
-        function searchNotes(query){
+        async function searchNotes(query){
             if (!query){ print("Usage: search <query>", 'clr-red'); return; }
-            apiPost('/api/search_notes', { query: query })
-            .then(results => {
-                if (results.length === 0){
-                    print(`No notes matching '${query}'.`, 'clr-dim');
-                    return;
-                }
-                print(`Found ${results.length} note(s):`, 'clr-cyan');
-                results.forEach(nt => {
-                    print(`  ${String(nt.id).padEnd(6)}${(nt.title || '(untitled)').substring(0, 50)}`);
-                });
+            var results;
+            if (typeof FlaskyE2EE !== 'undefined' && FlaskyE2EE.isEncrypted()) {
+                results = await FlaskySearch.search(query);
+            } else {
+                results = await apiPost('/api/search_notes', { query: query });
+            }
+            if (results.length === 0){
+                print(`No notes matching '${query}'.`, 'clr-dim');
+                return;
+            }
+            print(`Found ${results.length} note(s):`, 'clr-cyan');
+            results.forEach(nt => {
+                print(`  ${String(nt.id).padEnd(6)}${(nt.title || '(untitled)').substring(0, 50)}`);
             });
         }
 
-        function showBacklinks(idStr){
+        async function showBacklinks(idStr){
             if (!idStr){ print("Usage: backlinks <id>", 'clr-red'); return; }
             const id = parseInt(idStr);
             if (isNaN(id)){ print("Invalid note ID.", 'clr-red'); return; }
+            if (typeof FlaskyE2EE !== 'undefined' && FlaskyE2EE.isEncrypted()) {
+                const note = notes.find(n => n.id === id);
+                if (!note){ print(`Note ${id} not found.`, 'clr-red'); return; }
+                const results = await FlaskySearch.computeBacklinks(note.title);
+                if (results.length === 0){ print('No backlinks found.', 'clr-dim'); return; }
+                print(`Backlinks to note ${id}:`, 'clr-cyan');
+                results.forEach(bl => {
+                    print(`  ${String(bl.id).padEnd(6)}${(bl.title || '(untitled)').substring(0, 50)}`);
+                });
+                return;
+            }
             fetch('/api/backlinks/' + id)
             .then(r => r.json())
             .then(data => {
@@ -557,10 +599,21 @@
             .catch(() => print('Error fetching backlinks.', 'clr-red'));
         }
 
-        function showOutlinks(idStr){
+        async function showOutlinks(idStr){
             if (!idStr){ print("Usage: outlinks <id>", 'clr-red'); return; }
             const id = parseInt(idStr);
             if (isNaN(id)){ print("Invalid note ID.", 'clr-red'); return; }
+            if (typeof FlaskyE2EE !== 'undefined' && FlaskyE2EE.isEncrypted()) {
+                const note = notes.find(n => n.id === id);
+                if (!note){ print(`Note ${id} not found.`, 'clr-red'); return; }
+                const results = await FlaskySearch.computeOutboundLinks(note.content || '');
+                if (results.length === 0){ print('No outbound links found.', 'clr-dim'); return; }
+                print(`Outbound links from note ${id}:`, 'clr-cyan');
+                results.forEach(ol => {
+                    print(`  ${String(ol.id).padEnd(6)}${(ol.title || '(untitled)').substring(0, 50)}`);
+                });
+                return;
+            }
             fetch('/api/outbound-links/' + id)
             .then(r => r.json())
             .then(data => {
@@ -686,32 +739,41 @@
             }
         }
 
-        function fetchTodos(archived){
+        async function fetchTodos(archived){
             const url = archived ? '/api/get_todos?archived=true' : '/api/get_todos';
-            fetch(url).then(r => r.json()).then(todos => {
-                if (todos.length === 0){
-                    print(archived ? 'No archived todos.' : 'No active todos.', 'clr-dim');
-                    return;
+            const todos = await fetch(url).then(r => r.json());
+            if (typeof FlaskyE2EE !== 'undefined' && FlaskyE2EE.isEncrypted()) {
+                for (const t of todos) {
+                    try { t.title = await FlaskyE2EE.decryptField(t.title); } catch(e) {}
                 }
-                print(archived ? 'Archived todos:' : 'Active todos:', 'clr-cyan');
-                print(`  ID    Status  Due           Title`);
-                print(`  ----  ------  ------------  -------------------------`);
-                todos.forEach(t => {
-                    const id = String(t.id).padEnd(6);
-                    const status = t.completed ? '[x]   ' : '[ ]   ';
-                    const due = (t.time_until_due || '-').substring(0, 12).padEnd(14);
-                    const title = (t.title || '(untitled)').substring(0, 30);
-                    print(`  ${id}${status}${due}${title}`);
-                });
+            }
+            if (todos.length === 0){
+                print(archived ? 'No archived todos.' : 'No active todos.', 'clr-dim');
+                return;
+            }
+            print(archived ? 'Archived todos:' : 'Active todos:', 'clr-cyan');
+            print(`  ID    Status  Due           Title`);
+            print(`  ----  ------  ------------  -------------------------`);
+            todos.forEach(t => {
+                const id = String(t.id).padEnd(6);
+                const status = t.completed ? '[x]   ' : '[ ]   ';
+                const due = (t.time_until_due || '-').substring(0, 12).padEnd(14);
+                const title = (t.title || '(untitled)').substring(0, 30);
+                print(`  ${id}${status}${due}${title}`);
             });
         }
 
-        function addTodo(input){
+        async function addTodo(input){
             if (!input){ print("Usage: todo add <title> or todo add <title>|<YYYY-MM-DD>", 'clr-red'); return; }
             const parts = input.split('|');
             const title = parts[0].trim();
             const dateDue = parts[1] ? parts[1].trim() : '';
-            apiPost('/api/add_todo', { title, content: '', dateDue: dateDue })
+            var encTitle = title, encContent = '';
+            if (typeof FlaskyE2EE !== 'undefined' && FlaskyE2EE.isEncrypted()) {
+                encTitle = await FlaskyE2EE.encryptField(title);
+                encContent = await FlaskyE2EE.encryptField('');
+            }
+            apiPost('/api/add_todo', { title: encTitle, content: encContent, dateDue: dateDue })
             .then(data => {
                 if (data.success){
                     print(`Todo created (id: ${data.id}).`, 'clr-green');
@@ -775,20 +837,23 @@
             });
         }
 
-        function readTodo(idStr){
+        async function readTodo(idStr){
             const id = parseInt(idStr);
             if (isNaN(id)){ print("Usage: todo read <id>", 'clr-red'); return; }
-            fetch(`/api/get_todo/${id}`).then(r => r.json()).then(data => {
-                if (!data.success){ print(`Todo ${id} not found.`, 'clr-red'); return; }
-                const t = data.todo;
-                print(`--- ${t.title} ---`, 'clr-cyan');
-                print(`Status: ${t.completed ? 'Completed' : 'Pending'}${t.archived ? ' (archived)' : ''}`, 'clr-dim');
-                if (t.time_until_due) print(`Due: ${t.time_until_due}`, 'clr-dim');
-                if (t.content){
-                    printBlank();
-                    print(t.content);
-                }
-            });
+            const data = await fetch(`/api/get_todo/${id}`).then(r => r.json());
+            if (!data.success){ print(`Todo ${id} not found.`, 'clr-red'); return; }
+            const t = data.todo;
+            if (typeof FlaskyE2EE !== 'undefined' && FlaskyE2EE.isEncrypted()) {
+                try { t.title = await FlaskyE2EE.decryptField(t.title); } catch(e) {}
+                try { t.content = await FlaskyE2EE.decryptField(t.content); } catch(e) {}
+            }
+            print(`--- ${t.title} ---`, 'clr-cyan');
+            print(`Status: ${t.completed ? 'Completed' : 'Pending'}${t.archived ? ' (archived)' : ''}`, 'clr-dim');
+            if (t.time_until_due) print(`Due: ${t.time_until_due}`, 'clr-dim');
+            if (t.content){
+                printBlank();
+                print(t.content);
+            }
         }
 
         // --- Events ---
@@ -816,30 +881,39 @@
             }
         }
 
-        function fetchEvents(){
-            fetch('/api/get_events').then(r => r.json()).then(events => {
-                if (events.length === 0){
-                    print('No events.', 'clr-dim');
-                    return;
+        async function fetchEvents(){
+            const events = await fetch('/api/get_events').then(r => r.json());
+            if (typeof FlaskyE2EE !== 'undefined' && FlaskyE2EE.isEncrypted()) {
+                for (const ev of events) {
+                    try { ev.title = await FlaskyE2EE.decryptField(ev.title); } catch(e) {}
                 }
-                print('Events:', 'clr-cyan');
-                print(`  ID    When              Title`);
-                print(`  ----  ----------------  -------------------------`);
-                events.forEach(ev => {
-                    const id = String(ev.id).padEnd(6);
-                    const when = (ev.time_until_event || '-').substring(0, 16).padEnd(18);
-                    const title = (ev.title || '(untitled)').substring(0, 30);
-                    print(`  ${id}${when}${title}`);
-                });
+            }
+            if (events.length === 0){
+                print('No events.', 'clr-dim');
+                return;
+            }
+            print('Events:', 'clr-cyan');
+            print(`  ID    When              Title`);
+            print(`  ----  ----------------  -------------------------`);
+            events.forEach(ev => {
+                const id = String(ev.id).padEnd(6);
+                const when = (ev.time_until_event || '-').substring(0, 16).padEnd(18);
+                const title = (ev.title || '(untitled)').substring(0, 30);
+                print(`  ${id}${when}${title}`);
             });
         }
 
-        function addEvent(input){
+        async function addEvent(input){
             if (!input){ print("Usage: event add <title> or event add <title>|<YYYY-MM-DD>", 'clr-red'); return; }
             const parts = input.split('|');
             const title = parts[0].trim();
             const dateOfEvent = parts[1] ? parts[1].trim() : '';
-            apiPost('/api/add_event', { title, content: '', dateOfEvent: dateOfEvent })
+            var encTitle = title, encContent = '';
+            if (typeof FlaskyE2EE !== 'undefined' && FlaskyE2EE.isEncrypted()) {
+                encTitle = await FlaskyE2EE.encryptField(title);
+                encContent = await FlaskyE2EE.encryptField('');
+            }
+            apiPost('/api/add_event', { title: encTitle, content: encContent, dateOfEvent: dateOfEvent })
             .then(data => {
                 if (data.success){
                     print(`Event created (id: ${data.id}).`, 'clr-green');
@@ -865,19 +939,22 @@
             });
         }
 
-        function readEvent(idStr){
+        async function readEvent(idStr){
             const id = parseInt(idStr);
             if (isNaN(id)){ print("Usage: event read <id>", 'clr-red'); return; }
-            fetch(`/api/get_event/${id}`).then(r => r.json()).then(data => {
-                if (!data.success){ print(`Event ${id} not found.`, 'clr-red'); return; }
-                const ev = data.event;
-                print(`--- ${ev.title} ---`, 'clr-cyan');
-                if (ev.time_until_event) print(`When: ${ev.time_until_event}`, 'clr-dim');
-                if (ev.content){
-                    printBlank();
-                    print(ev.content);
-                }
-            });
+            const data = await fetch(`/api/get_event/${id}`).then(r => r.json());
+            if (!data.success){ print(`Event ${id} not found.`, 'clr-red'); return; }
+            const ev = data.event;
+            if (typeof FlaskyE2EE !== 'undefined' && FlaskyE2EE.isEncrypted()) {
+                try { ev.title = await FlaskyE2EE.decryptField(ev.title); } catch(e) {}
+                try { ev.content = await FlaskyE2EE.decryptField(ev.content); } catch(e) {}
+            }
+            print(`--- ${ev.title} ---`, 'clr-cyan');
+            if (ev.time_until_event) print(`When: ${ev.time_until_event}`, 'clr-dim');
+            if (ev.content){
+                printBlank();
+                print(ev.content);
+            }
         }
 
         // --- Command history (up/down arrows) ---

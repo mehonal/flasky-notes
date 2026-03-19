@@ -11,6 +11,13 @@
     <!-- CodeMirror 6 (bundled) -->
     <script src="{{ url_for('static', filename='script/themes/obsidified/codemirror6.bundle.js') }}"></script>
 
+    <!-- E2EE -->
+    {% if g.user.encryption_enabled %}
+    <script src="{{ url_for('static', filename='js/crypto.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/e2ee.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/e2ee-search.js') }}"></script>
+    {% endif %}
+
     <!-- Markdown preview -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/2.0.3/marked.min.js"></script>
     <script src="{{ url_for('static', filename='js/wikilinks.js') }}"></script>
@@ -983,9 +990,18 @@
         [data-theme="light"] .callout[data-callout="warning"], [data-theme="light"] .callout[data-callout="caution"], [data-theme="light"] .callout[data-callout="attention"] { background: rgba(223,142,29,0.06); }
         [data-theme="light"] .callout[data-callout="danger"], [data-theme="light"] .callout[data-callout="error"], [data-theme="light"] .callout[data-callout="failure"], [data-theme="light"] .callout[data-callout="fail"], [data-theme="light"] .callout[data-callout="missing"] { background: rgba(210,15,57,0.06); }
         [data-theme="light"] .callout[data-callout="success"], [data-theme="light"] .callout[data-callout="check"], [data-theme="light"] .callout[data-callout="done"] { background: rgba(64,160,43,0.06); }
+        /* E2EE: hide content until decrypted */
+        body[data-encrypted="true"] .editor-title,
+        body[data-encrypted="true"] #note-content,
+        body[data-encrypted="true"] .file-name,
+        body[data-encrypted="true"] .breadcrumb-item.active,
+        body[data-encrypted="true"] .prop-value-input { visibility: hidden; }
     </style>
 </head>
-<body>
+<body data-encrypted="{{ 'true' if g.user.encryption_enabled else 'false' }}">
+    {% if encrypted_note_data %}
+    <script type="application/json" id="encrypted-note-data">{{ encrypted_note_data|safe }}</script>
+    {% endif %}
     <div class="app">
         <!-- Mobile sidebar backdrop -->
         <div class="sidebar-backdrop" id="sidebar-backdrop" onclick="closeSidebar()"></div>
@@ -1541,15 +1557,112 @@
 
             fetch('/api/sidebar_tree?note_id=' + noteId)
             .then(function(r) { return r.json(); })
-            .then(function(data) {
+            .then(async function(data) {
                 if (!data.success) return;
 
-                // Replace file-tree contents (preserve root-drop-zone)
                 var fileTree = document.getElementById('file-tree');
                 var rootDrop = document.getElementById('root-drop-zone');
                 fileTree.innerHTML = '';
                 fileTree.appendChild(rootDrop);
-                fileTree.insertAdjacentHTML('beforeend', data.tree_html);
+
+                if (data.encrypted && typeof FlaskyE2EE !== 'undefined' && FlaskyE2EE.isEncrypted()) {
+                    // E2EE: build sidebar HTML client-side from decrypted data
+                    var cats = data.categories || [];
+                    var notes = data.notes || [];
+                    // Decrypt note titles
+                    for (var i = 0; i < notes.length; i++) {
+                        try { notes[i].title = await FlaskyE2EE.decryptField(notes[i].title); } catch(e) {}
+                    }
+                    // Group notes by category
+                    var catMap = {};
+                    cats.forEach(function(c) { catMap[c.id] = { cat: c, notes: [] }; });
+                    // Ensure a "Main" bucket for uncategorized
+                    var mainCat = cats.find(function(c) { return c.name === 'Main'; });
+                    if (!mainCat) { mainCat = { id: 0, name: 'Main' }; catMap[0] = { cat: mainCat, notes: [] }; }
+                    notes.forEach(function(n) {
+                        var cid = n.category_id || mainCat.id;
+                        if (!catMap[cid]) catMap[cid] = { cat: { id: cid, name: 'Unknown' }, notes: [] };
+                        catMap[cid].notes.push(n);
+                    });
+                    var esc = function(s) { return (s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); };
+
+                    // Build nested tree from path-based category names (e.g. "Work/Projects")
+                    function buildCategoryTree(cats, notes, mainCat) {
+                        var tree = {};
+                        cats.sort(function(a, b) { return a.name.localeCompare(b.name); });
+                        cats.forEach(function(cat) {
+                            var parts = cat.name.split('/');
+                            var node = tree;
+                            for (var i = 0; i < parts.length; i++) {
+                                if (!node[parts[i]]) node[parts[i]] = { _children: {}, _category: null, _notes: [] };
+                                if (i === parts.length - 1) node[parts[i]]._category = cat;
+                                node = node[parts[i]]._children;
+                            }
+                        });
+                        // Assign notes to their category leaf nodes
+                        notes.forEach(function(n) {
+                            var cid = n.category_id || mainCat.id;
+                            var cat = cats.find(function(c) { return c.id === cid; }) || mainCat;
+                            var parts = cat.name.split('/');
+                            var node = tree;
+                            for (var i = 0; i < parts.length; i++) {
+                                if (!node[parts[i]]) node[parts[i]] = { _children: {}, _category: cat, _notes: [] };
+                                if (i === parts.length - 1) node[parts[i]]._notes.push(n);
+                                node = node[parts[i]]._children;
+                            }
+                        });
+                        return tree;
+                    }
+
+                    function renderFolderTree(tree, pathPrefix) {
+                        var html = '';
+                        var names = Object.keys(tree).sort();
+                        names.forEach(function(name) {
+                            var data = tree[name];
+                            var fullPath = pathPrefix ? pathPrefix + '/' + name : name;
+                            var cat = data._category;
+                            var folderNotes = data._notes.slice().sort(function(a, b) {
+                                return (b.date_last_changed || '').localeCompare(a.date_last_changed || '');
+                            });
+                            var catId = cat ? cat.id : 'null';
+                            var childHtml = renderFolderTree(data._children, fullPath);
+                            var totalNotes = folderNotes.length;
+
+                            html += '<div class="folder collapsed"' + (cat ? ' data-category-id="' + catId + '"' : '') + ' data-path="' + esc(fullPath) + '">';
+                            html += '<div class="folder-header" onclick="toggleFolder(this.parentElement)"' + (cat ? ' draggable="true" ondragstart="onFolderDragStart(event,' + catId + ',\'' + esc(fullPath) + '\')"' : '') + ' ondragover="onItemDragOver(event)" ondragleave="onItemDragLeave(event)" ondrop="onItemDrop(event,\'' + esc(fullPath) + '\',' + catId + ')">';
+                            html += '<span class="folder-chevron"><svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg></span>';
+                            html += '<span class="folder-icon"><svg viewBox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg></span>';
+                            html += '<span class="folder-name">' + esc(name) + '</span>';
+                            html += '<span class="folder-count">' + totalNotes + '</span>';
+                            if (cat) {
+                                html += '<button class="icon-btn folder-newnote-btn" draggable="false" onclick="event.stopPropagation(); createNewNoteInFolder(' + catId + ',\'' + esc(fullPath) + '\')" title="New note in ' + esc(name) + '"><svg viewBox="0 0 24 24" width="12" height="12"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="11" x2="12" y2="17"/><line x1="9" y1="14" x2="15" y2="14"/></svg></button>';
+                            }
+                            html += '<button class="icon-btn folder-add-btn" draggable="false" onclick="event.stopPropagation(); promptNewFolder(\'' + esc(fullPath) + '\')" title="New subfolder"><svg viewBox="0 0 24 24" width="12" height="12"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/><line x1="12" y1="11" x2="12" y2="17"/><line x1="9" y1="14" x2="15" y2="14"/></svg></button>';
+                            html += '</div>';
+                            html += '<div class="folder-items" ondragover="onItemDragOver(event)" ondragleave="onItemDragLeave(event)" ondrop="onItemDrop(event,\'' + esc(fullPath) + '\',' + catId + ')">';
+                            html += childHtml;
+                            folderNotes.forEach(function(n) {
+                                var isActive = n.id === noteId ? ' active' : '';
+                                var title = n.title || 'Untitled';
+                                html += '<div class="file-item' + isActive + '" data-note-id="' + n.id + '" onclick="openNote(' + n.id + ')" draggable="true" ondragstart="onNoteDragStart(event,' + n.id + ')" ondragover="onItemDragOver(event)" ondragleave="onItemDragLeave(event)" ondrop="onItemDrop(event,\'' + esc(fullPath) + '\',' + catId + ')">';
+                                html += '<span class="file-icon"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></span>';
+                                html += '<span class="file-name">' + esc(title) + '</span>';
+                                html += '<button class="icon-btn delete-btn" draggable="false" onclick="event.stopPropagation(); deleteSidebarNote(' + n.id + ',\'' + esc(title) + '\')" title="Delete note"><svg viewBox="0 0 24 24" width="12" height="12"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>';
+                                html += '<button class="icon-btn pin-btn" draggable="false" data-note-id="' + n.id + '" onclick="event.stopPropagation(); togglePin(' + n.id + ')" title="Pin note"><svg viewBox="0 0 24 24" width="12" height="12"><path d="M12 2L15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26z"/></svg></button>';
+                                html += '</div>';
+                            });
+                            html += '</div></div>';
+                        });
+                        return html;
+                    }
+
+                    var categoryTree = buildCategoryTree(cats, notes, mainCat);
+                    var html = renderFolderTree(categoryTree, '');
+                    fileTree.insertAdjacentHTML('beforeend', html);
+                } else {
+                    // Non-encrypted: use server-rendered HTML
+                    fileTree.insertAdjacentHTML('beforeend', data.tree_html);
+                }
 
                 // Restore expanded folders
                 expandedPaths.forEach(function(path) {
@@ -1575,14 +1688,12 @@
                         opt.textContent = cat.name;
                         catSelect.appendChild(opt);
                     });
-                    // Re-select: prefer the active note's category from the tree
                     if (activeItem) {
                         var noteFolder = activeItem.closest('.folder[data-category-id]');
                         if (noteFolder) catSelect.value = noteFolder.dataset.categoryId;
                     } else {
                         catSelect.value = selectedCatId;
                     }
-                    // Update currentCategory from the new selection
                     if (catSelect.selectedOptions.length > 0) {
                         currentCategory = catSelect.selectedOptions[0].textContent;
                     }
@@ -1651,9 +1762,22 @@
 
             fetch('/api/note/' + id)
             .then(function(r) { return r.json(); })
-            .then(function(data) {
+            .then(async function(data) {
                 if (!data.success) { window.location.href = '/note/' + id; return; }
                 var n = data.note;
+
+                // E2EE: decrypt fields
+                if (typeof FlaskyE2EE !== 'undefined' && FlaskyE2EE.isEncrypted()) {
+                    n.title = await FlaskyE2EE.decryptField(n.title);
+                    n.content = await FlaskyE2EE.decryptField(n.content);
+                    if (n.properties && typeof n.properties === 'string') {
+                        try {
+                            var decProps = await FlaskyE2EE.decryptField(n.properties);
+                            n.properties = JSON.parse(decProps);
+                        } catch(e) { n.properties = {}; }
+                    }
+                }
+
                 noteId = n.id;
                 hasBeenSavedOnce = true;
                 isDirty = false;
@@ -1928,6 +2052,69 @@
             return ta ? ta.value : '';
         }
 
+        // ============ File Upload (E2EE-aware) ============
+
+        async function uploadFileToNote(file) {
+            if (!file || !noteId) return;
+            var formData = new FormData();
+            var filename = file.name;
+
+            if (typeof FlaskyE2EE !== 'undefined' && FlaskyE2EE.isEncrypted()) {
+                // Encrypt file data
+                var arrayBuf = await file.arrayBuffer();
+                var encryptedData = await FlaskyE2EE.encryptBlob(arrayBuf);
+                var encFilename = await FlaskyE2EE.encryptField(filename);
+                formData.append('file', new Blob([encryptedData]), 'encrypted');
+                formData.append('filename', encFilename);
+            } else {
+                formData.append('file', file);
+                formData.append('filename', filename);
+            }
+
+            try {
+                var resp = await fetch('/api/upload_attachment', { method: 'POST', body: formData });
+                var data = await resp.json();
+                if (data.id) {
+                    // Insert embed into editor
+                    var embedText = '![[' + filename + ']]';
+                    if (cmEditor) {
+                        var cursor = cmEditor.getCursor();
+                        cmEditor.replaceRange(embedText + '\n', cursor);
+                    }
+                    if (window._invalidateNoteMap) window._invalidateNoteMap();
+                }
+            } catch(e) {
+                console.error('Upload failed:', e);
+            }
+        }
+
+        // Wire paste/drop on editor wrapper
+        (function() {
+            var wrapper = document.getElementById('cm-wrapper');
+            if (!wrapper) return;
+            wrapper.addEventListener('paste', function(e) {
+                var items = (e.clipboardData || e.originalEvent.clipboardData).items;
+                for (var i = 0; i < items.length; i++) {
+                    if (items[i].type.indexOf('image') !== -1) {
+                        e.preventDefault();
+                        var file = items[i].getAsFile();
+                        if (file) uploadFileToNote(file);
+                        return;
+                    }
+                }
+            });
+            wrapper.addEventListener('dragover', function(e) { e.preventDefault(); });
+            wrapper.addEventListener('drop', function(e) {
+                var files = e.dataTransfer && e.dataTransfer.files;
+                if (files && files.length > 0) {
+                    e.preventDefault();
+                    for (var i = 0; i < files.length; i++) {
+                        uploadFileToNote(files[i]);
+                    }
+                }
+            });
+        })();
+
         // ============ Edit / Preview ============
 
         function renderPreview() {
@@ -1942,6 +2129,7 @@
                 var renderedHtml = marked(content);
                 preview.innerHTML = processCallouts(renderedHtml);
                 preview.querySelectorAll('pre code').forEach(function(block) { hljs.highlightElement(block); });
+                if (window._decryptAttachments) window._decryptAttachments(preview);
             } else {
                 preview.innerHTML = '';
             }
@@ -2039,10 +2227,23 @@
             }
         }
 
-        function updateOutboundLinksFromContent() {
+        async function updateOutboundLinksFromContent() {
             var content = getEditorContent();
             var list = document.getElementById('outbound-links-list');
             if (!list || !content) { if (list) list.innerHTML = '<li class="backlinks-empty">No outbound links</li>'; return; }
+
+            if (typeof FlaskyE2EE !== 'undefined' && FlaskyE2EE.isEncrypted()) {
+                try {
+                    var data = await FlaskySearch.computeOutboundLinks(content);
+                    if (data.length === 0) { list.innerHTML = '<li class="backlinks-empty">No outbound links</li>'; return; }
+                    var html = '';
+                    data.forEach(function(n) {
+                        html += '<li><a href="/note/' + n.id + '" onclick="event.preventDefault(); openNote(' + n.id + ')">' + (n.title || 'Untitled').replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</a></li>';
+                    });
+                    list.innerHTML = html;
+                } catch(e) { list.innerHTML = '<li class="backlinks-empty">No outbound links</li>'; }
+                return;
+            }
 
             var re = /\[\[([^\]|]+)(?:\|[^\]]+)?\]\]/g;
             var match;
@@ -2080,19 +2281,43 @@
             isSaving = true;
             clearTimeout(autoSaveTimer);
             var content = getEditorContent();
-
-            // Prepend frontmatter from properties panel
             var props = collectProperties();
-            var fm = buildFrontmatter(props);
-            if (fm) content = fm + content;
+
+            // Only prepend frontmatter for non-encrypted saves
+            if (!(typeof FlaskyE2EE !== 'undefined' && FlaskyE2EE.isEncrypted())) {
+                var fm = buildFrontmatter(props);
+                if (fm) content = fm + content;
+            }
 
             document.getElementById('save-status').textContent = 'Saving...';
             document.getElementById('save-status').style.color = 'var(--text-muted)';
 
+            _doSaveNote(title.value, content, props, callback);
+        }
+
+        async function _doSaveNote(titleVal, content, props, callback) {
+            try {
+                var payload = { noteId: noteId, title: titleVal, content: content, category: currentCategory };
+                if (typeof FlaskyE2EE !== 'undefined' && FlaskyE2EE.isEncrypted()) {
+                    payload.title = await FlaskyE2EE.encryptField(titleVal);
+                    payload.content = await FlaskyE2EE.encryptField(content);
+                    // Encrypt properties as JSON string
+                    if (props && Object.keys(props).length > 0) {
+                        payload.properties = await FlaskyE2EE.encryptField(JSON.stringify(props));
+                    }
+                }
+            } catch(e) {
+                isSaving = false;
+                document.getElementById('save-status').textContent = '\u26A0 Encrypt failed';
+                document.getElementById('save-status').style.color = 'var(--red)';
+                if (callback) callback();
+                return;
+            }
+
             fetch('/api/save_note', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ noteId: noteId, title: title.value, content: content, category: currentCategory })
+                body: JSON.stringify(payload)
             })
             .then(function(r) { return r.json(); })
             .then(function(data) {
@@ -2100,19 +2325,24 @@
                 if (data.success) {
                     isDirty = false;
                     hasBeenSavedOnce = true;
+                    if (typeof FlaskySearch !== 'undefined') FlaskySearch.invalidate();
                     document.getElementById('save-status').textContent = '\u2713 Saved';
                     document.getElementById('save-status').style.color = 'var(--green)';
                     updateMobileSaveBtn('saved');
+                    // For E2EE, server returns encrypted title — use plaintext from DOM
+                    var displayTitle = (typeof FlaskyE2EE !== 'undefined' && FlaskyE2EE.isEncrypted())
+                        ? (document.getElementById('note-title') ? document.getElementById('note-title').value : '')
+                        : (data.note ? data.note.title : '');
                     var needsMapRefresh = false;
                     if (noteId === 0 && data.note && data.note.id) {
                         noteId = data.note.id;
                         history.replaceState(null, '', '/note/' + noteId);
                         refreshSidebar();
                         var bc = document.querySelector('.breadcrumb-item.active');
-                        if (bc) bc.textContent = data.note.title || 'Untitled';
+                        if (bc) bc.textContent = displayTitle || 'Untitled';
                         needsMapRefresh = true;
                     } else if (data.note) {
-                        updateSidebarNoteTitle(noteId, data.note.title);
+                        updateSidebarNoteTitle(noteId, displayTitle);
                     }
                     if (needsMapRefresh && window._invalidateNoteMap) {
                         window._invalidateNoteMap();
@@ -2567,16 +2797,20 @@
             renderTodos();
         }
 
-        function loadTodosWidget() {
+        async function loadTodosWidget() {
             var container = document.getElementById('todos-widget-content');
             if (!container) return;
             var widget = document.getElementById('widget-todos');
             if (widget && widget.classList.contains('hidden-widget')) return;
 
             fetch('/api/get_todos').then(function(r) { return r.json(); })
-            .then(function(todos) {
-                // API returns bare array
+            .then(async function(todos) {
                 cachedTodos = Array.isArray(todos) ? todos : [];
+                if (typeof FlaskyE2EE !== 'undefined' && FlaskyE2EE.isEncrypted()) {
+                    for (var i = 0; i < cachedTodos.length; i++) {
+                        try { cachedTodos[i].title = await FlaskyE2EE.decryptField(cachedTodos[i].title); } catch(e) {}
+                    }
+                }
                 renderTodos();
             }).catch(function() {
                 container.innerHTML = '<div class="outline-empty">Failed to load</div>';
@@ -2635,15 +2869,20 @@
         // Events widget
         var cachedEvents = [];
 
-        function loadEventsWidget() {
+        async function loadEventsWidget() {
             var container = document.getElementById('events-widget-content');
             if (!container) return;
             var widget = document.getElementById('widget-events');
             if (widget && widget.classList.contains('hidden-widget')) return;
 
             fetch('/api/get_events').then(function(r) { return r.json(); })
-            .then(function(events) {
+            .then(async function(events) {
                 cachedEvents = Array.isArray(events) ? events : [];
+                if (typeof FlaskyE2EE !== 'undefined' && FlaskyE2EE.isEncrypted()) {
+                    for (var i = 0; i < cachedEvents.length; i++) {
+                        try { cachedEvents[i].title = await FlaskyE2EE.decryptField(cachedEvents[i].title); } catch(e) {}
+                    }
+                }
                 renderEvents();
             }).catch(function() {
                 container.innerHTML = '<div class="outline-empty">Failed to load</div>';
@@ -2684,11 +2923,14 @@
             currentModalTodoId = todoId;
             document.getElementById('todo-modal-title').textContent = 'Edit To-do';
             document.getElementById('todo-modal-delete-btn').style.display = '';
-            // Fetch full detail
             fetch('/api/get_todo/' + todoId).then(function(r) { return r.json(); })
-            .then(function(data) {
+            .then(async function(data) {
                 if (data.success) {
                     var t = data.todo;
+                    if (typeof FlaskyE2EE !== 'undefined' && FlaskyE2EE.isEncrypted()) {
+                        try { t.title = await FlaskyE2EE.decryptField(t.title); } catch(e) {}
+                        try { t.content = await FlaskyE2EE.decryptField(t.content); } catch(e) {}
+                    }
                     document.getElementById('todo-modal-input-title').value = t.title || '';
                     document.getElementById('todo-modal-input-date').value = t.date_due ? t.date_due.split('T')[0].split(' ')[0] : '';
                     document.getElementById('todo-modal-input-content').value = t.content || '';
@@ -2712,26 +2954,30 @@
             currentModalTodoId = null;
         }
 
-        function saveFromTodoModal() {
+        async function saveFromTodoModal() {
             var title = document.getElementById('todo-modal-input-title').value;
             var date = document.getElementById('todo-modal-input-date').value;
             var content = document.getElementById('todo-modal-input-content').value;
             if (!title || title.trim().length < 1) return;
 
+            var encTitle = title, encContent = content;
+            if (typeof FlaskyE2EE !== 'undefined' && FlaskyE2EE.isEncrypted()) {
+                encTitle = await FlaskyE2EE.encryptField(title);
+                encContent = await FlaskyE2EE.encryptField(content);
+            }
+
             if (currentModalTodoId) {
-                // Edit existing
                 fetch('/api/edit_todo', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ toDoId: currentModalTodoId, title: title, content: content, dateDue: date })
+                    body: JSON.stringify({ toDoId: currentModalTodoId, title: encTitle, content: encContent, dateDue: date })
                 }).then(function(r) { return r.json(); })
                 .then(function() { closeTodoDetailModal(); loadTodosWidget(); });
             } else {
-                // Add new
                 fetch('/api/add_todo', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ title: title, content: content, dateDue: date })
+                    body: JSON.stringify({ title: encTitle, content: encContent, dateDue: date })
                 }).then(function(r) { return r.json(); })
                 .then(function() { closeTodoDetailModal(); loadTodosWidget(); });
             }
@@ -2757,9 +3003,13 @@
             document.getElementById('event-modal-title').textContent = 'Edit Event';
             document.getElementById('event-modal-delete-btn').style.display = '';
             fetch('/api/get_event/' + eventId).then(function(r) { return r.json(); })
-            .then(function(data) {
+            .then(async function(data) {
                 if (data.success) {
                     var e = data.event;
+                    if (typeof FlaskyE2EE !== 'undefined' && FlaskyE2EE.isEncrypted()) {
+                        try { e.title = await FlaskyE2EE.decryptField(e.title); } catch(ex) {}
+                        try { e.content = await FlaskyE2EE.decryptField(e.content); } catch(ex) {}
+                    }
                     document.getElementById('event-modal-input-title').value = e.title || '';
                     document.getElementById('event-modal-input-date').value = e.date_of_event ? e.date_of_event.split('T')[0].split(' ')[0] : '';
                     document.getElementById('event-modal-input-content').value = e.content || '';
@@ -2783,24 +3033,30 @@
             currentModalEventId = null;
         }
 
-        function saveFromEventModal() {
+        async function saveFromEventModal() {
             var title = document.getElementById('event-modal-input-title').value;
             var date = document.getElementById('event-modal-input-date').value;
             var content = document.getElementById('event-modal-input-content').value;
             if (!title || title.trim().length < 1) return;
 
+            var encTitle = title, encContent = content;
+            if (typeof FlaskyE2EE !== 'undefined' && FlaskyE2EE.isEncrypted()) {
+                encTitle = await FlaskyE2EE.encryptField(title);
+                encContent = await FlaskyE2EE.encryptField(content);
+            }
+
             if (currentModalEventId) {
                 fetch('/api/edit_event', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ eventId: currentModalEventId, title: title, content: content, dateOfEvent: date })
+                    body: JSON.stringify({ eventId: currentModalEventId, title: encTitle, content: encContent, dateOfEvent: date })
                 }).then(function(r) { return r.json(); })
                 .then(function() { closeEventDetailModal(); loadEventsWidget(); });
             } else {
                 fetch('/api/add_event', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ title: title, content: content, dateOfEvent: date })
+                    body: JSON.stringify({ title: encTitle, content: encContent, dateOfEvent: date })
                 }).then(function(r) { return r.json(); })
                 .then(function() { closeEventDetailModal(); loadEventsWidget(); });
             }
@@ -2987,9 +3243,22 @@
             });
         })();
 
-        function loadBacklinks() {
+        async function loadBacklinks() {
             if (!noteId || noteId === 0) return;
             var list = document.getElementById('backlinks-list');
+            if (typeof FlaskyE2EE !== 'undefined' && FlaskyE2EE.isEncrypted()) {
+                try {
+                    var title = document.getElementById('note-title');
+                    var noteTitle = title ? title.value : '';
+                    if (!noteTitle) { list.innerHTML = '<li class="backlinks-empty">No backlinks</li>'; return; }
+                    var data = await FlaskySearch.computeBacklinks(noteTitle);
+                    if (data.length === 0) { list.innerHTML = '<li class="backlinks-empty">No backlinks</li>'; return; }
+                    var html = '';
+                    data.forEach(function(n) { html += '<li><a href="/note/' + n.id + '" onclick="event.preventDefault(); openNote(' + n.id + ')">' + (n.title || 'Untitled').replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</a></li>'; });
+                    list.innerHTML = html;
+                } catch(e) { list.innerHTML = '<li class="backlinks-empty">Failed to load</li>'; }
+                return;
+            }
             fetch('/api/backlinks/' + noteId)
             .then(function(r) { return r.json(); })
             .then(function(data) {
@@ -3023,11 +3292,24 @@
             clearTimeout(searchTimer);
             if (!query || query.length < 2) { document.getElementById('search-results').innerHTML = ''; searchResults = []; searchSelectedIndex = -1; return; }
             document.getElementById('search-results').innerHTML = '<div style="padding:16px;text-align:center;color:var(--text-muted);font-size:13px">Searching...</div>';
-            searchTimer = setTimeout(function() {
-                fetch('/api/search_notes', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ query: query }) })
-                .then(function(r) { return r.json(); })
-                .then(function(data) { searchResults = data; searchSelectedIndex = data.length > 0 ? 0 : -1; renderSearchResults(); })
-                .catch(function() { document.getElementById('search-results').innerHTML = '<div style="padding:16px;text-align:center;color:var(--text-muted);font-size:13px">Search failed</div>'; });
+            searchTimer = setTimeout(async function() {
+                if (typeof FlaskyE2EE !== 'undefined' && FlaskyE2EE.isEncrypted()) {
+                    try {
+                        var results = await FlaskySearch.search(query);
+                        searchResults = results.map(function(r) {
+                            return { id: r.id, title: r.title, category: '' };
+                        });
+                        searchSelectedIndex = searchResults.length > 0 ? 0 : -1;
+                        renderSearchResults();
+                    } catch(e) {
+                        document.getElementById('search-results').innerHTML = '<div style="padding:16px;text-align:center;color:var(--text-muted);font-size:13px">Search failed</div>';
+                    }
+                } else {
+                    fetch('/api/search_notes', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ query: query }) })
+                    .then(function(r) { return r.json(); })
+                    .then(function(data) { searchResults = data; searchSelectedIndex = data.length > 0 ? 0 : -1; renderSearchResults(); })
+                    .catch(function() { document.getElementById('search-results').innerHTML = '<div style="padding:16px;text-align:center;color:var(--text-muted);font-size:13px">Search failed</div>'; });
+                }
             }, 200);
         }
 
@@ -3815,6 +4097,73 @@
             var rp = document.getElementById('right-panel');
             if (rp && !rp.classList.contains('collapsed')) {
                 refreshAllVisibleWidgets();
+            }
+
+            // E2EE: init and decrypt page data
+            if (typeof FlaskyE2EE !== 'undefined') {
+                FlaskyE2EE.init().then(async function(ok) {
+                    if (!ok) return; // redirected to /unlock
+                    if (!FlaskyE2EE.isEncrypted()) return;
+                    var dataEl = document.getElementById('encrypted-note-data');
+                    if (dataEl) {
+                        try {
+                            var enc = JSON.parse(dataEl.textContent);
+                            var title = await FlaskyE2EE.decryptField(enc.title);
+                            var content = await FlaskyE2EE.decryptField(enc.content);
+                            var props = null;
+                            if (enc.properties) {
+                                try {
+                                    var decProps = await FlaskyE2EE.decryptField(enc.properties);
+                                    props = JSON.parse(decProps);
+                                } catch(e) { props = {}; }
+                            }
+                            // Populate DOM
+                            var titleEl = document.getElementById('note-title');
+                            if (titleEl) titleEl.value = title || '';
+                            if (cmEditor) cmEditor.setValue(content || '');
+                            else {
+                                var ta = document.getElementById('note-content');
+                                if (ta) ta.value = content || '';
+                            }
+                            // Update breadcrumb and page title
+                            var bc = document.querySelector('.breadcrumb-item.active');
+                            if (bc) bc.textContent = title || 'Untitled';
+                            document.title = (title || 'Untitled') + ' \u2014 Obsidified';
+                            // Populate properties
+                            if (props) {
+                                var propsBody = document.getElementById('props-body');
+                                if (propsBody) {
+                                    propsBody.querySelectorAll('.prop-row').forEach(function(r) { r.remove(); });
+                                    var addBtn = propsBody.querySelector('.prop-add-row');
+                                    Object.keys(props).forEach(function(key) {
+                                        var val = props[key];
+                                        if (Array.isArray(val)) val = val.join(', ');
+                                        var row = document.createElement('div');
+                                        row.className = 'prop-row';
+                                        row.setAttribute('data-prop-key', key);
+                                        row.innerHTML = '<div class="prop-key">' + key.replace(/</g, '&lt;') + '</div><div class="prop-value"><input type="text" class="prop-value-input" value="" onchange="onPropChanged()"></div><button class="prop-remove-btn" onclick="removeProp(this)" title="Remove property"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>';
+                                        row.querySelector('.prop-value-input').value = val || '';
+                                        if (addBtn) propsBody.insertBefore(row, addBtn);
+                                    });
+                                }
+                            }
+                            // Render preview if in preview mode
+                            if (!editMode && typeof renderPreview === 'function') renderPreview();
+                        } catch(e) {
+                            console.error('E2EE page decrypt failed:', e);
+                        }
+                    }
+                    // Decrypt sidebar items
+                    document.querySelectorAll('.file-name').forEach(async function(el) {
+                        var text = el.textContent.trim();
+                        if (!text) return;
+                        try {
+                            el.textContent = await FlaskyE2EE.decryptField(text) || 'Untitled';
+                        } catch(e) {}
+                    });
+                    // Reveal hidden content
+                    FlaskyE2EE.revealContent();
+                });
             }
         })();
     </script>

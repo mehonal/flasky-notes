@@ -1,0 +1,62 @@
+{% extends "template-loggedout.html" %}
+{% block body %}
+<div class="p-5" style="max-width:400px;margin:0 auto">
+<div class="text-center">
+    <img class="mb-4" src="/static/images/amazing_logo.png" alt="Flasky Notes" width="128" height="128">
+    <h4 class="mb-1">Vault Locked</h4>
+    <p class="text-muted small mb-3">Re-enter your password to decrypt your notes.</p>
+</div>
+<form id="unlock-form">
+    <input type="password" class="form-control mb-2" id="unlock-password" placeholder="Password..." autocomplete="current-password" autofocus required>
+
+    {% if password_hint %}
+    <p class="text-muted small">Hint: {{ password_hint }}</p>
+    {% endif %}
+
+    <div id="unlock-error" class="alert alert-danger mb-2" style="display:none"></div>
+    <div id="unlock-status" class="text-muted text-center mb-2" style="display:none">Deriving keys...</div>
+
+    <button class="w-100 btn btn-primary" type="submit" id="unlock-btn">Unlock</button>
+    <a href="/logout" class="d-block text-center mt-2 text-muted small">Log out instead</a>
+</form>
+</div>
+
+<script src="{{ url_for('static', filename='js/crypto.js') }}"></script>
+<script>
+(function() {
+    var form = document.getElementById('unlock-form');
+    var errorEl = document.getElementById('unlock-error');
+    var statusEl = document.getElementById('unlock-status');
+    var btn = document.getElementById('unlock-btn');
+    var encSymKey = {{ encrypted_sym_key|tojson }};
+    var username = {{ username|tojson }};
+
+    form.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        errorEl.style.display = 'none';
+        statusEl.style.display = 'block';
+        statusEl.textContent = 'Deriving keys...';
+        btn.disabled = true;
+
+        var password = document.getElementById('unlock-password').value;
+
+        try {
+            var keys = await FlaskyCrypto.deriveKeys(password, username);
+            statusEl.textContent = 'Unwrapping key...';
+            var symKey = await FlaskyCrypto.unwrapSymmetricKey(encSymKey, keys.kek);
+            await FlaskyCrypto.storeSymmetricKey(symKey);
+
+            // Redirect back to original page
+            var params = new URLSearchParams(window.location.search);
+            var next = params.get('next') || '/notes';
+            window.location.href = next;
+        } catch (err) {
+            errorEl.textContent = 'Incorrect password. Please try again.';
+            errorEl.style.display = 'block';
+            statusEl.style.display = 'none';
+            btn.disabled = false;
+        }
+    });
+})();
+</script>
+{% endblock %}

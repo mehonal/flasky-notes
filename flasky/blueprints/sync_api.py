@@ -14,17 +14,31 @@ sync_api_bp = Blueprint('sync_api', __name__, url_prefix='/api/sync')
 @require_sync_token
 def sync_manifest():
     notes = UserNote.query.filter_by(userid=g.sync_user.id).order_by(UserNote.date_last_changed.desc()).all()
+    encrypted = g.sync_user.encryption_enabled
     manifest = []
     for note in notes:
-        full = note.get_full_content()
-        manifest.append({
-            "id": note.id,
-            "title": note.title,
-            "category": note.get_category_name(),
-            "content_hash": content_hash(full),
-            "date_added_utc": format_utc_iso(note.date_added),
-            "date_last_changed_utc": format_utc_iso(note.date_last_changed)
-        })
+        if encrypted:
+            # E2EE: hash the ciphertext, return encrypted title/category
+            manifest.append({
+                "id": note.id,
+                "title": note.title,
+                "category": note.get_category_name(),
+                "content_hash": content_hash(note.content or ''),
+                "properties_hash": content_hash(note.properties or ''),
+                "date_added_utc": format_utc_iso(note.date_added),
+                "date_last_changed_utc": format_utc_iso(note.date_last_changed),
+                "encrypted": True
+            })
+        else:
+            full = note.get_full_content()
+            manifest.append({
+                "id": note.id,
+                "title": note.title,
+                "category": note.get_category_name(),
+                "content_hash": content_hash(full),
+                "date_added_utc": format_utc_iso(note.date_added),
+                "date_last_changed_utc": format_utc_iso(note.date_last_changed)
+            })
     return jsonify(manifest)
 
 @sync_api_bp.route("/note/<int:note_id>", methods=['GET'])
@@ -33,6 +47,20 @@ def sync_get_note(note_id):
     note = UserNote.query.filter_by(userid=g.sync_user.id, id=note_id).first()
     if note is None:
         return jsonify(error="Note not found"), 404
+    encrypted = g.sync_user.encryption_enabled
+    if encrypted:
+        # E2EE: return encrypted content as-is (no frontmatter reconstruction)
+        return jsonify({
+            "id": note.id,
+            "title": note.title,
+            "content": note.content,
+            "properties": note.properties,
+            "category": note.get_category_name(),
+            "content_hash": content_hash(note.content or ''),
+            "date_added_utc": format_utc_iso(note.date_added),
+            "date_last_changed_utc": format_utc_iso(note.date_last_changed),
+            "encrypted": True
+        })
     full = note.get_full_content()
     return jsonify({
         "id": note.id,
@@ -53,9 +81,25 @@ def sync_create_note():
     title = data.get('title', '')
     content = data.get('content', '')
     category = data.get('category', '')
-    note = g.sync_user.add_note(title, content, category)
+    encrypted = g.sync_user.encryption_enabled
+    note = g.sync_user.add_note(title, content, category, encrypted=encrypted)
     if not note:
         return jsonify(error="Could not create note"), 500
+    if encrypted:
+        if data.get('properties'):
+            note.properties = data['properties']
+            db.session.commit()
+        return jsonify({
+            "id": note.id,
+            "title": note.title,
+            "content": note.content,
+            "properties": note.properties,
+            "category": note.get_category_name(),
+            "content_hash": content_hash(note.content or ''),
+            "date_added_utc": format_utc_iso(note.date_added),
+            "date_last_changed_utc": format_utc_iso(note.date_last_changed),
+            "encrypted": True
+        }), 201
     full = note.get_full_content()
     return jsonify({
         "id": note.id,
@@ -76,12 +120,28 @@ def sync_update_note(note_id):
     data = request.get_json()
     if data is None:
         return jsonify(error="Request body must be JSON"), 400
+    encrypted = g.sync_user.encryption_enabled
     if 'title' in data:
         note.change_title(data['title'])
     if 'content' in data:
-        note.change_content(data['content'])
+        note.change_content(data['content'], encrypted=encrypted)
     if 'category' in data:
         note.change_category(data['category'])
+    if encrypted:
+        if 'properties' in data:
+            note.properties = data['properties']
+            db.session.commit()
+        return jsonify({
+            "id": note.id,
+            "title": note.title,
+            "content": note.content,
+            "properties": note.properties,
+            "category": note.get_category_name(),
+            "content_hash": content_hash(note.content or ''),
+            "date_added_utc": format_utc_iso(note.date_added),
+            "date_last_changed_utc": format_utc_iso(note.date_last_changed),
+            "encrypted": True
+        })
     full = note.get_full_content()
     return jsonify({
         "id": note.id,
@@ -198,6 +258,17 @@ def sync_upload_attachment():
     with open(disk, 'wb') as out:
         out.write(data)
     return jsonify({"id": attachment.id, "filename": attachment.filename, "file_hash": attachment.file_hash, "file_size": attachment.file_size}), 201
+
+@sync_api_bp.route("/encryption_info", methods=['GET'])
+@require_sync_token
+def sync_encryption_info():
+    """Return encryption status and wrapped key for sync client."""
+    return jsonify({
+        "encryption_enabled": g.sync_user.encryption_enabled,
+        "encrypted_sym_key": g.sync_user.encrypted_symmetric_key,
+        "encryption_version": g.sync_user.encryption_version
+    })
+
 
 @sync_api_bp.route("/resolve-link", methods=['GET'])
 @require_sync_token

@@ -1,20 +1,138 @@
 
 {% extends "template-loggedout.html" %}
 {% block body %}
-<div class="p-5">
+<div class="p-5" style="max-width:400px;margin:0 auto">
 <div class="text-center"><img class="mb-4" src="/static/images/amazing_logo.png" alt="Flasky Notes" width="128" height="128">
 </div>
-<form method="POST">
-<input type="text" class="form-control mb-2" name="username" placeholder="Username...">
+<form id="register-form">
+<input type="text" class="form-control mb-2" id="reg-username" placeholder="Username..." autocomplete="username" required>
 
-<input type="email" class="form-control mb-2" name="email" placeholder="Email Address...">
+<input type="email" class="form-control mb-2" id="reg-email" placeholder="Email Address..." autocomplete="email" required>
 
-<input type="password" class="form-control mb-2" name="password" placeholder="Password...">
+<input type="password" class="form-control mb-2" id="reg-password" placeholder="Password (min 8 chars)..." autocomplete="new-password" required>
+
+<input type="password" class="form-control mb-2" id="reg-password-confirm" placeholder="Confirm password..." autocomplete="new-password" required>
+
+<input type="text" class="form-control mb-2" id="reg-hint" placeholder="Password hint (optional)..." maxlength="200">
+
+<div id="reg-error" class="alert alert-danger mb-2" style="display:none"></div>
+<div id="reg-status" class="text-muted text-center mb-2" style="display:none"></div>
 
 <p class="text-center">Already got an account? <a href="/login">Log in!</a></p>
 
-<button class="w-100 btn btn-primary" type="submit">Sign in</button>
+<button class="w-100 btn btn-primary" type="submit" id="reg-btn">Create Account</button>
 </form>
 
+<!-- Recovery key display (shown after registration) -->
+<div id="recovery-display" style="display:none" class="mt-4 p-3 border rounded">
+    <h5 class="text-danger">Save Your Recovery Key</h5>
+    <p class="small">If you lose your password, this is the <strong>only way</strong> to recover your data. Save it somewhere safe. It will not be shown again.</p>
+    <textarea class="form-control mb-2" id="recovery-key-text" rows="3" readonly style="font-family:monospace;font-size:0.85rem"></textarea>
+    <button class="btn btn-outline-primary btn-sm mb-2" onclick="navigator.clipboard.writeText(document.getElementById('recovery-key-text').value)">Copy to clipboard</button>
+    <br>
+    <label class="form-check-label">
+        <input type="checkbox" id="recovery-confirm" class="form-check-input"> I have saved my recovery key
+    </label>
+    <br>
+    <button class="btn btn-success w-100 mt-2" id="continue-btn" disabled onclick="window.location.href='/login'">Continue to Login</button>
 </div>
+</div>
+
+<script src="{{ url_for('static', filename='js/crypto.js') }}"></script>
+<script>
+(function() {
+    var form = document.getElementById('register-form');
+    var errorEl = document.getElementById('reg-error');
+    var statusEl = document.getElementById('reg-status');
+    var btn = document.getElementById('reg-btn');
+
+    document.getElementById('recovery-confirm').addEventListener('change', function() {
+        document.getElementById('continue-btn').disabled = !this.checked;
+    });
+
+    form.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        errorEl.style.display = 'none';
+        statusEl.style.display = 'block';
+
+        var username = document.getElementById('reg-username').value.trim().toLowerCase();
+        var email = document.getElementById('reg-email').value.trim().toLowerCase();
+        var password = document.getElementById('reg-password').value;
+        var passwordConfirm = document.getElementById('reg-password-confirm').value;
+        var hint = document.getElementById('reg-hint').value.trim();
+
+        if (password !== passwordConfirm) {
+            errorEl.textContent = 'Passwords do not match.';
+            errorEl.style.display = 'block';
+            statusEl.style.display = 'none';
+            return;
+        }
+        if (password.length < 8) {
+            errorEl.textContent = 'Password must be at least 8 characters.';
+            errorEl.style.display = 'block';
+            statusEl.style.display = 'none';
+            return;
+        }
+        if (password.length > 100) {
+            errorEl.textContent = 'Password must be at most 100 characters.';
+            errorEl.style.display = 'block';
+            statusEl.style.display = 'none';
+            return;
+        }
+
+        btn.disabled = true;
+
+        try {
+            statusEl.textContent = 'Generating encryption keys...';
+
+            // 1. Derive keys from password
+            var keys = await FlaskyCrypto.deriveKeys(password, username);
+
+            // 2. Generate random symmetric key
+            var symKey = await FlaskyCrypto.generateSymmetricKey();
+
+            // 3. Wrap symmetric key with KEK
+            var wrappedSymKey = await FlaskyCrypto.wrapSymmetricKey(symKey, keys.kek);
+
+            // 4. Generate recovery key and wrap symmetric key with it
+            statusEl.textContent = 'Generating recovery key...';
+            var recovery = await FlaskyCrypto.generateRecoveryKey();
+            var recoveryWrapped = await FlaskyCrypto.wrapSymmetricKey(symKey, recovery.cryptoKey);
+
+            // 5. Register with server
+            statusEl.textContent = 'Creating account...';
+            var resp = await fetch('/api/auth/register', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    username: username,
+                    email: email,
+                    auth_key: keys.authKeyHex,
+                    encrypted_sym_key: wrappedSymKey,
+                    recovery_encrypted_key: recoveryWrapped,
+                    password_hint: hint
+                })
+            });
+            var data = await resp.json();
+
+            if (data.success) {
+                // Show recovery key
+                statusEl.style.display = 'none';
+                form.style.display = 'none';
+                document.getElementById('recovery-key-text').value = recovery.displayString;
+                document.getElementById('recovery-display').style.display = 'block';
+            } else {
+                errorEl.textContent = data.reason || 'Registration failed.';
+                errorEl.style.display = 'block';
+                btn.disabled = false;
+            }
+        } catch (err) {
+            errorEl.textContent = 'Error: ' + err.message;
+            errorEl.style.display = 'block';
+            btn.disabled = false;
+        }
+        statusEl.style.display = 'none';
+    });
+})();
+</script>
 {% endblock %}

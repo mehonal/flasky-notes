@@ -1,11 +1,14 @@
-from flask import Blueprint, request, g, jsonify
+from flask import Blueprint, request, g, jsonify, current_app
 from datetime import datetime
 import re
+import os
+import hashlib
 
 from flasky import db
 from flasky.models import (
     UserNote, UserNoteCategory, UserTodo, UserEvent, Attachment, NoteTemplate
 )
+from werkzeug.utils import secure_filename
 
 notes_api_bp = Blueprint('notes_api', __name__, url_prefix='/api')
 
@@ -23,6 +26,9 @@ def get_all_notes_api():
 @notes_api_bp.route("/search_notes", methods=['POST'])
 def search_notes_api():
     if g.user:
+        # E2EE: server can't search encrypted content — client does it
+        if g.user.encryption_enabled:
+            return jsonify(results=[], client_side=True)
         data = request.get_json()
         query = data.get('query')
         notes = UserNote.query.filter(
@@ -39,6 +45,9 @@ def search_notes_api():
 @notes_api_bp.route("/backlinks/<int:note_id>")
 def backlinks_api(note_id):
     if g.user:
+        # E2EE: computed client-side
+        if g.user.encryption_enabled:
+            return jsonify([])
         note = UserNote.query.filter_by(id=note_id).first()
         if note and g.user == note.user and note.title:
             pattern = "%[[" + note.title + "]]%"
@@ -55,6 +64,9 @@ def backlinks_api(note_id):
 @notes_api_bp.route("/outbound-links/<int:note_id>")
 def outbound_links_api(note_id):
     if g.user:
+        # E2EE: computed client-side
+        if g.user.encryption_enabled:
+            return jsonify([])
         note = UserNote.query.filter_by(id=note_id).first()
         if note and g.user == note.user and note.content:
             links = re.findall(r'\[\[([^\]|]+)(?:\|[^\]]+)?\]\]', note.content)
@@ -215,24 +227,32 @@ def save_note():
         title = data.get('title')
         content = data.get('content')
         category = data.get('category')
+        encrypted = g.user.encryption_enabled
+        properties = data.get('properties')  # E2EE: encrypted properties sent separately
         try:
             category = int(category)
         except:
             pass
         if note_id == 0:
-            note = g.user.add_note(title,content,category)
-            return jsonify(success=True,note=note.return_json())
+            note = g.user.add_note(title, content, category, encrypted=encrypted)
+            if encrypted and properties:
+                note.properties = properties
+                db.session.commit()
+            return jsonify(success=True, note=note.return_json())
         else:
             note = UserNote.query.filter_by(id=note_id).first()
             if note and g.user == note.user:
                 note.change_title(title)
-                note.change_content(content)
+                note.change_content(content, encrypted=encrypted)
+                if encrypted and properties is not None:
+                    note.properties = properties
+                    db.session.commit()
                 note.change_category(category)
-                return jsonify(success=True,note=note.return_json())
+                return jsonify(success=True, note=note.return_json())
             else:
-                return jsonify(success=False,reason="Note does not exist.")
+                return jsonify(success=False, reason="Note does not exist.")
     else:
-        return jsonify(success=False,reason="Not logged in.")
+        return jsonify(success=False, reason="Not logged in.")
 
 @notes_api_bp.route("/revert_note", methods=['POST'])
 def revert_note():
@@ -379,6 +399,18 @@ def delete_category():
 def sidebar_tree():
     if not g.user:
         return jsonify(success=False, reason="Not logged in.")
+    # E2EE: return raw JSON data for client-side rendering
+    if g.user.encryption_enabled:
+        categories = [
+            {'id': cat.id, 'name': cat.name}
+            for cat in sorted(g.user.categories, key=lambda c: c.id)
+        ]
+        notes = [
+            {'id': n.id, 'title': n.title, 'category_id': n.category_id,
+             'date_last_changed': n.date_last_changed.isoformat() if n.date_last_changed else None}
+            for n in UserNote.query.filter_by(userid=g.user.id).order_by(UserNote.date_last_changed.desc()).all()
+        ]
+        return jsonify(success=True, encrypted=True, categories=categories, notes=notes)
     from flask import render_template
     category_tree = g.user.get_category_tree()
     note_id = request.args.get('note_id', 0, type=int)
@@ -627,15 +659,40 @@ def save_agenda_notes():
     if g.user:
         data = request.get_json()
         content = data.get('content')
+        # E2EE: content is already encrypted, just store it
         g.user.edit_agenda_notes(content)
         return jsonify(success=True)
     else:
         return jsonify(success=False,reason="Not logged in.")
 
+
+@notes_api_bp.route("/sidebar_tree_data")
+def sidebar_tree_data():
+    """JSON-only sidebar data for E2EE client-side rendering."""
+    if not g.user:
+        return jsonify(success=False, reason="Not logged in.")
+    categories = [
+        {'id': cat.id, 'name': cat.name}
+        for cat in sorted(g.user.categories, key=lambda c: c.id)
+    ]
+    notes = [
+        {'id': n.id, 'title': n.title, 'category_id': n.category_id,
+         'date_last_changed': n.date_last_changed.isoformat() if n.date_last_changed else None}
+        for n in UserNote.query.filter_by(userid=g.user.id).order_by(UserNote.date_last_changed.desc()).all()
+    ]
+    return jsonify(success=True, categories=categories, notes=notes)
+
 @notes_api_bp.route("/note-map")
 def note_map():
     if not g.user:
         return jsonify(error="Unauthorized"), 401
+    # E2EE: return arrays of encrypted blobs instead of title-keyed dict
+    if g.user.encryption_enabled:
+        notes = UserNote.query.filter_by(userid=g.user.id).all()
+        note_list = [{"id": n.id, "title": n.title} for n in notes]
+        attachments = Attachment.query.filter_by(user_id=g.user.id).all()
+        att_list = [{"id": a.id, "filename": a.filename} for a in attachments]
+        return jsonify({"notes": note_list, "attachments": att_list, "encrypted": True})
     notes = UserNote.query.filter_by(userid=g.user.id).all()
     result = {}
     for note in notes:
@@ -731,3 +788,50 @@ def set_folder_template():
         cat.default_template_id = None
     db.session.commit()
     return jsonify(success=True)
+
+
+@notes_api_bp.route("/upload_attachment", methods=['POST'])
+def upload_attachment():
+    """Upload an attachment. For E2EE users, file data and filename are already encrypted client-side."""
+    if not g.user:
+        return jsonify(error="Not logged in"), 401
+    if 'file' not in request.files:
+        return jsonify(error="No file part"), 400
+    f = request.files['file']
+    if not f.filename:
+        return jsonify(error="No filename"), 400
+    data = f.read()
+    file_hash = hashlib.sha256(data).hexdigest()
+
+    # Get the display filename (may be encrypted for E2EE users)
+    display_filename = request.form.get('filename', f.filename)
+
+    # For E2EE users, store as opaque blob
+    if g.user.encryption_enabled:
+        content_type = 'application/octet-stream'
+    else:
+        import mimetypes
+        content_type = f.content_type or mimetypes.guess_type(f.filename)[0] or 'application/octet-stream'
+
+    # Deduplicate
+    existing = Attachment.query.filter_by(user_id=g.user.id, file_hash=file_hash).first()
+    if existing:
+        return jsonify({"id": existing.id, "filename": existing.filename, "file_hash": existing.file_hash, "file_size": existing.file_size}), 200
+
+    attachment = Attachment(
+        user_id=g.user.id,
+        filename=display_filename,
+        content_type=content_type,
+        file_hash=file_hash,
+        file_size=len(data),
+    )
+    db.session.add(attachment)
+    db.session.commit()
+
+    attachment_dir = current_app.config['ATTACHMENT_DIR']
+    user_dir = os.path.join(attachment_dir, str(g.user.id))
+    os.makedirs(user_dir, exist_ok=True)
+    disk = attachment.disk_path()
+    with open(disk, 'wb') as out:
+        out.write(data)
+    return jsonify({"id": attachment.id, "filename": attachment.filename, "file_hash": attachment.file_hash, "file_size": attachment.file_size}), 201

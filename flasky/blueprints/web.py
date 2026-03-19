@@ -7,12 +7,317 @@ import config as CONFIG
 from flasky import db
 from flasky.models import (
     User, UserNote, UserNoteCategory, UserTodo, UserEvent,
-    Theme, UserTheme, UserSettings, ApiToken, SyncConflict, Attachment, NoteTemplate
+    Theme, UserTheme, UserSettings, ApiToken, SyncConflict, Attachment, NoteTemplate,
+    UserAgendaNotes
 )
 from flasky.utils import has_banned_chars, valid_email, generate_api_token
 from zoneinfo import available_timezones
 
 web_bp = Blueprint('web', __name__)
+
+
+# ============ E2EE Auth API ============
+
+@web_bp.route("/api/auth/register", methods=['POST'])
+def api_auth_register():
+    """E2EE registration: accepts auth_key (derived hash) instead of raw password."""
+    data = request.get_json()
+    if not data:
+        return jsonify(success=False, reason="Missing request body."), 400
+    username = (data.get('username') or '').lower().strip()
+    email = (data.get('email') or '').lower().strip()
+    auth_key = data.get('auth_key')
+    encrypted_sym_key = data.get('encrypted_sym_key')
+    recovery_encrypted_key = data.get('recovery_encrypted_key')
+
+    if not username or not email or not auth_key or not encrypted_sym_key:
+        return jsonify(success=False, reason="Missing required fields."), 400
+    if has_banned_chars(username) or " " in username:
+        return jsonify(success=False, reason="Illegal username."), 400
+    if not valid_email(email):
+        return jsonify(success=False, reason="Illegal email."), 400
+    if len(username) < 4:
+        return jsonify(success=False, reason="Username must be at least 4 characters."), 400
+    if len(username) > 30:
+        return jsonify(success=False, reason="Username must be at most 30 characters."), 400
+    if User.query.filter_by(username=username).first():
+        return jsonify(success=False, reason="Username already taken."), 400
+    if User.query.filter_by(email=email).first():
+        return jsonify(success=False, reason="Email already in use."), 400
+
+    # Create user with auth_key as the "password" (it gets bcrypt-hashed in __init__)
+    new_user = User(username, auth_key, email)
+    new_user.encryption_enabled = True
+    new_user.encrypted_symmetric_key = encrypted_sym_key
+    new_user.recovery_encrypted_key = recovery_encrypted_key
+    new_user.encryption_version = 1
+    new_user.password_hint = data.get('password_hint', '')
+    db.session.commit()
+
+    return jsonify(success=True)
+
+
+@web_bp.route("/api/auth/login", methods=['POST'])
+def api_auth_login():
+    """E2EE login: accepts auth_key (derived hash)."""
+    data = request.get_json()
+    if not data:
+        return jsonify(success=False, reason="Missing request body."), 400
+    username = (data.get('username') or '').lower().strip()
+    auth_key = data.get('auth_key')
+    if not username or not auth_key:
+        return jsonify(success=False, reason="Missing username or auth_key."), 400
+
+    user = User.query.filter_by(username=username).first()
+    if not user:
+        return jsonify(success=False, reason="Invalid credentials."), 401
+    if not bcrypt.checkpw(auth_key.encode('utf-8'), user.password):
+        return jsonify(success=False, reason="Invalid credentials."), 401
+
+    session['user_id'] = user.id
+    session.permanent = True
+
+    return jsonify(
+        success=True,
+        encrypted_sym_key=user.encrypted_symmetric_key,
+        encryption_enabled=user.encryption_enabled
+    )
+
+
+@web_bp.route("/api/auth/change_password", methods=['POST'])
+def api_auth_change_password():
+    """Change password for E2EE user. Client re-wraps symmetric key with new KEK."""
+    if not g.user:
+        return jsonify(success=False, reason="Not logged in."), 401
+    data = request.get_json()
+    if not data:
+        return jsonify(success=False, reason="Missing request body."), 400
+    new_auth_key = data.get('new_auth_key')
+    new_encrypted_sym_key = data.get('new_encrypted_sym_key')
+    if not new_auth_key or not new_encrypted_sym_key:
+        return jsonify(success=False, reason="Missing required fields."), 400
+
+    g.user.password = bcrypt.hashpw(new_auth_key.encode('utf-8'), bcrypt.gensalt())
+    g.user.encrypted_symmetric_key = new_encrypted_sym_key
+    if data.get('new_recovery_encrypted_key'):
+        g.user.recovery_encrypted_key = data['new_recovery_encrypted_key']
+    db.session.commit()
+
+    return jsonify(success=True)
+
+
+@web_bp.route("/api/auth/update_recovery_key", methods=['POST'])
+def api_auth_update_recovery_key():
+    """Update the recovery-encrypted symmetric key."""
+    if not g.user:
+        return jsonify(success=False, reason="Not logged in."), 401
+    data = request.get_json()
+    if not data or not data.get('recovery_encrypted_key'):
+        return jsonify(success=False, reason="Missing recovery_encrypted_key."), 400
+    g.user.recovery_encrypted_key = data['recovery_encrypted_key']
+    db.session.commit()
+    return jsonify(success=True)
+
+
+@web_bp.route("/api/auth/recover", methods=['POST'])
+def api_auth_recover():
+    """Account recovery using recovery key. Client unwraps with recovery key, sets new password."""
+    data = request.get_json()
+    if not data:
+        return jsonify(success=False, reason="Missing request body."), 400
+    username = (data.get('username') or '').lower().strip()
+    new_auth_key = data.get('new_auth_key')
+    new_encrypted_sym_key = data.get('new_encrypted_sym_key')
+    new_recovery_encrypted_key = data.get('new_recovery_encrypted_key')
+
+    if not username or not new_auth_key or not new_encrypted_sym_key:
+        return jsonify(success=False, reason="Missing required fields."), 400
+
+    user = User.query.filter_by(username=username).first()
+    if not user:
+        return jsonify(success=False, reason="User not found."), 404
+
+    user.password = bcrypt.hashpw(new_auth_key.encode('utf-8'), bcrypt.gensalt())
+    user.encrypted_symmetric_key = new_encrypted_sym_key
+    if new_recovery_encrypted_key:
+        user.recovery_encrypted_key = new_recovery_encrypted_key
+    db.session.commit()
+
+    session['user_id'] = user.id
+    session.permanent = True
+
+    return jsonify(success=True)
+
+
+@web_bp.route("/api/auth/enable_encryption", methods=['POST'])
+def api_auth_enable_encryption():
+    """Enable E2EE for a legacy user (migration step 1: switch auth)."""
+    if not g.user:
+        return jsonify(success=False, reason="Not logged in."), 401
+    data = request.get_json()
+    if not data:
+        return jsonify(success=False, reason="Missing request body."), 400
+    new_auth_key = data.get('auth_key')
+    encrypted_sym_key = data.get('encrypted_sym_key')
+    recovery_encrypted_key = data.get('recovery_encrypted_key')
+
+    if not new_auth_key or not encrypted_sym_key:
+        return jsonify(success=False, reason="Missing required fields."), 400
+
+    g.user.password = bcrypt.hashpw(new_auth_key.encode('utf-8'), bcrypt.gensalt())
+    g.user.encryption_enabled = True
+    g.user.encrypted_symmetric_key = encrypted_sym_key
+    g.user.recovery_encrypted_key = recovery_encrypted_key
+    g.user.encryption_version = 1
+    g.user.password_hint = data.get('password_hint', '')
+    db.session.commit()
+
+    return jsonify(success=True)
+
+
+@web_bp.route("/api/migrate/encrypt_data", methods=['POST'])
+def api_migrate_encrypt_data():
+    """Batch update: replace plaintext data with encrypted ciphertext (migration step 2)."""
+    if not g.user:
+        return jsonify(success=False, reason="Not logged in."), 401
+    if not g.user.encryption_enabled:
+        return jsonify(success=False, reason="Encryption not enabled."), 400
+    data = request.get_json()
+    if not data:
+        return jsonify(success=False, reason="Missing request body."), 400
+
+    # Process notes batch
+    notes = data.get('notes', [])
+    for item in notes:
+        note = UserNote.query.filter_by(id=item['id'], userid=g.user.id).first()
+        if note:
+            note.title = item.get('title', note.title)
+            note.content = item.get('content', note.content)
+            note.properties = item.get('properties', note.properties)
+            note.previous_content = item.get('previous_content', note.previous_content)
+
+    # Process categories batch
+    categories = data.get('categories', [])
+    for item in categories:
+        cat = UserNoteCategory.query.filter_by(id=item['id'], user_id=g.user.id).first()
+        if cat:
+            cat.name = item.get('name', cat.name)
+
+    # Process todos batch
+    todos = data.get('todos', [])
+    for item in todos:
+        todo = UserTodo.query.filter_by(id=item['id'], userid=g.user.id).first()
+        if todo:
+            todo.title = item.get('title', todo.title)
+            todo.content = item.get('content', todo.content)
+
+    # Process events batch
+    events = data.get('events', [])
+    for item in events:
+        event = UserEvent.query.filter_by(id=item['id'], userid=g.user.id).first()
+        if event:
+            event.title = item.get('title', event.title)
+            event.content = item.get('content', event.content)
+
+    # Process templates batch
+    templates = data.get('templates', [])
+    for item in templates:
+        tmpl = NoteTemplate.query.filter_by(id=item['id'], user_id=g.user.id).first()
+        if tmpl:
+            tmpl.name = item.get('name', tmpl.name)
+            tmpl.content = item.get('content', tmpl.content)
+            tmpl.properties = item.get('properties', tmpl.properties)
+
+    # Process agenda notes
+    agenda = data.get('agenda_notes')
+    if agenda and g.user.agenda_notes:
+        g.user.agenda_notes.content = agenda.get('content', g.user.agenda_notes.content)
+
+    db.session.commit()
+    return jsonify(success=True)
+
+
+@web_bp.route("/api/auth/recovery_info")
+def api_auth_recovery_info():
+    """Return recovery-wrapped key for account recovery (public, no auth needed)."""
+    username = (request.args.get('username') or '').lower().strip()
+    if not username:
+        return jsonify(recovery_encrypted_key=None)
+    user = User.query.filter_by(username=username).first()
+    if not user or not user.recovery_encrypted_key:
+        return jsonify(recovery_encrypted_key=None)
+    return jsonify(recovery_encrypted_key=user.recovery_encrypted_key)
+
+
+@web_bp.route("/unlock")
+def unlock_page():
+    """Password re-entry page for E2EE users whose sessionStorage key was lost."""
+    if not g.user:
+        return redirect(url_for('web.login_page'))
+    if not g.user.encryption_enabled:
+        return redirect(url_for('web.notes_page'))
+    return render_template("unlock.html",
+                           encrypted_sym_key=g.user.encrypted_symmetric_key,
+                           password_hint=g.user.password_hint or '',
+                           username=g.user.username)
+
+
+@web_bp.route("/migrate-encryption")
+def migrate_encryption_page():
+    """Force-migration page for legacy users who need to enable E2EE."""
+    if not g.user:
+        return redirect(url_for('web.login_page'))
+    if g.user.encryption_enabled:
+        return redirect(url_for('web.notes_page'))
+    return render_template("migrate_encryption.html", username=g.user.username)
+
+
+@web_bp.route("/api/migrate/get_all_data")
+def api_migrate_get_all_data():
+    """Return all plaintext data for a legacy user so the client can encrypt it."""
+    if not g.user:
+        return jsonify(success=False, reason="Not logged in."), 401
+    if g.user.encryption_enabled:
+        return jsonify(success=False, reason="Already encrypted."), 400
+
+    notes = []
+    for note in UserNote.query.filter_by(userid=g.user.id).all():
+        notes.append({
+            'id': note.id,
+            'title': note.title,
+            'content': note.content,
+            'properties': note.properties,
+            'previous_content': note.previous_content
+        })
+
+    categories = []
+    for cat in UserNoteCategory.query.filter_by(user_id=g.user.id).all():
+        categories.append({'id': cat.id, 'name': cat.name})
+
+    todos = []
+    for todo in UserTodo.query.filter_by(userid=g.user.id).all():
+        todos.append({'id': todo.id, 'title': todo.title, 'content': todo.content})
+
+    events = []
+    for event in UserEvent.query.filter_by(userid=g.user.id).all():
+        events.append({'id': event.id, 'title': event.title, 'content': event.content})
+
+    templates = []
+    for tmpl in NoteTemplate.query.filter_by(user_id=g.user.id).all():
+        templates.append({'id': tmpl.id, 'name': tmpl.name, 'content': tmpl.content, 'properties': tmpl.properties})
+
+    agenda = None
+    if g.user.agenda_notes:
+        agenda = {'content': g.user.agenda_notes.content}
+
+    return jsonify(
+        notes=notes,
+        categories=categories,
+        todos=todos,
+        events=events,
+        templates=templates,
+        agenda_notes=agenda
+    )
 
 
 @web_bp.before_app_request
@@ -192,7 +497,10 @@ def login_page():
         if user and bcrypt.checkpw(str(password).encode('utf-8'),user.password):
             session['user_id'] = user.id
             session.permanent = True
-            theme = user.return_settings().theme_preference
+            # Legacy user: redirect to migration page
+            if not user.encryption_enabled:
+                return redirect(url_for('web.migrate_encryption_page'))
+            # E2EE user logging in via form (shouldn't happen normally, but handle it)
             return redirect(url_for('web.notes_page'))
         else:
             return 'The username or password is not correct. You can try again via the <a href="/login">Login Page</a>.'
@@ -298,7 +606,18 @@ def note_single_page(note_id):
             if cat_obj and cat_obj.default_template_id:
                 default_template = NoteTemplate.query.get(cat_obj.default_template_id)
         panel_widgets = theme_settings.get_panel_widgets()
-        return render_template(f"themes/{theme_settings.theme.slug}/note_single.html", note = note, note_id = note_id, font_size = font_size, category = category, theme_settings = theme_settings, category_tree = category_tree, default_template = default_template, panel_widgets = panel_widgets)
+        # E2EE: embed encrypted note data as JSON for client-side decryption
+        encrypted_note_data = None
+        if g.user.encryption_enabled and note:
+            import json
+            encrypted_note_data = json.dumps({
+                'title': note.title,
+                'content': note.content,
+                'properties': note.properties,
+                'previous_content': note.previous_content,
+                'category_id': note.category_id
+            })
+        return render_template(f"themes/{theme_settings.theme.slug}/note_single.html", note = note, note_id = note_id, font_size = font_size, category = category, theme_settings = theme_settings, category_tree = category_tree, default_template = default_template, panel_widgets = panel_widgets, encrypted_note_data = encrypted_note_data)
     return "You must log in."
 
 @web_bp.route("/search")
@@ -344,7 +663,7 @@ def manifest_json():
 @web_bp.route("/attachment/<int:attachment_id>/<filename>")
 def serve_attachment(attachment_id, filename):
     import os
-    from flask import send_from_directory, current_app
+    from flask import send_from_directory, current_app, make_response
     if not g.user:
         return "Unauthorized", 401
     a = Attachment.query.filter_by(id=attachment_id, user_id=g.user.id).first()
@@ -353,4 +672,12 @@ def serve_attachment(attachment_id, filename):
     disk = a.disk_path()
     if not os.path.exists(disk):
         return "Not found", 404
+    # For E2EE users, serve raw encrypted bytes so client can decrypt
+    if g.user.encryption_enabled:
+        with open(disk, 'rb') as f:
+            data = f.read()
+        response = make_response(data)
+        response.headers['Content-Type'] = 'application/octet-stream'
+        response.headers['X-Encrypted'] = 'true'
+        return response
     return send_from_directory(os.path.dirname(disk), os.path.basename(disk), mimetype=a.content_type)

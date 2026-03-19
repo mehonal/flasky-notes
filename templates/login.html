@@ -1,17 +1,200 @@
 
 {% extends "template-loggedout.html" %}
 {% block body %}
-<div class="p-5">
+<div class="p-5" style="max-width:400px;margin:0 auto">
 <div class="text-center"><img class="mb-4" src="/static/images/amazing_logo.png" alt="Flasky Notes" width="128" height="128">
 </div>
-<form method="POST">
+<form id="login-form">
 
-  <input type="text" class="form-control mb-2" name="username" placeholder="Username...">
+  <input type="text" class="form-control mb-2" id="login-username" name="username" placeholder="Username..." autocomplete="username" required>
 
-<input type="password" class="form-control mb-2" name="password" placeholder="Password...">
+<input type="password" class="form-control mb-2" id="login-password" name="password" placeholder="Password..." autocomplete="current-password" required>
+
+<div id="login-error" class="alert alert-danger mb-2" style="display:none"></div>
+<div id="login-status" class="text-muted text-center mb-2" style="display:none">Deriving keys...</div>
+
 <p class="text-center">Need an account? <a href="/register">Register now!</a></p>
+<p class="text-center"><a href="#" id="show-recovery" style="font-size:0.85rem">Forgot password? Use recovery key</a></p>
 
-<button class="w-100 btn btn-primary" type="submit">Sign in</button>
+<button class="w-100 btn btn-primary" type="submit" id="login-btn">Sign in</button>
 </form>
+
+<!-- Recovery modal -->
+<div id="recovery-section" style="display:none" class="mt-4 p-3 border rounded">
+    <h5>Account Recovery</h5>
+    <input type="text" class="form-control mb-2" id="recovery-username" placeholder="Username..." autocomplete="username">
+    <textarea class="form-control mb-2" id="recovery-key-input" rows="3" placeholder="Paste your recovery key..."></textarea>
+    <input type="password" class="form-control mb-2" id="recovery-new-password" placeholder="New password (min 8 chars)..." autocomplete="new-password">
+    <div id="recovery-error" class="alert alert-danger mb-2" style="display:none"></div>
+    <div id="recovery-status" class="text-muted text-center mb-2" style="display:none"></div>
+    <button class="btn btn-warning w-100" id="recovery-btn" onclick="doRecovery()">Recover Account</button>
 </div>
+</div>
+
+<script src="{{ url_for('static', filename='js/crypto.js') }}"></script>
+<script>
+(function() {
+    var form = document.getElementById('login-form');
+    var errorEl = document.getElementById('login-error');
+    var statusEl = document.getElementById('login-status');
+    var btn = document.getElementById('login-btn');
+
+    form.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        errorEl.style.display = 'none';
+        statusEl.style.display = 'block';
+        statusEl.textContent = 'Deriving keys...';
+        btn.disabled = true;
+
+        var username = document.getElementById('login-username').value.trim().toLowerCase();
+        var password = document.getElementById('login-password').value;
+
+        if (!username || !password) {
+            errorEl.textContent = 'Please enter username and password.';
+            errorEl.style.display = 'block';
+            statusEl.style.display = 'none';
+            btn.disabled = false;
+            return;
+        }
+
+        try {
+            // Derive keys client-side
+            var keys = await FlaskyCrypto.deriveKeys(password, username);
+
+            statusEl.textContent = 'Authenticating...';
+
+            // Try E2EE login first
+            var resp = await fetch('/api/auth/login', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({username: username, auth_key: keys.authKeyHex})
+            });
+            var data = await resp.json();
+
+            if (data.success) {
+                if (data.encryption_enabled && data.encrypted_sym_key) {
+                    statusEl.textContent = 'Unlocking vault...';
+                    var symKey = await FlaskyCrypto.unwrapSymmetricKey(data.encrypted_sym_key, keys.kek);
+                    await FlaskyCrypto.storeSymmetricKey(symKey);
+                }
+                window.location.href = '/notes';
+                return;
+            }
+
+            // E2EE login failed — try legacy form login (raw password)
+            statusEl.textContent = 'Trying legacy login...';
+            var formData = new FormData();
+            formData.append('username', username);
+            formData.append('password', password);
+            var legacyResp = await fetch('/login', {
+                method: 'POST',
+                body: formData,
+                redirect: 'follow'
+            });
+            // If legacy login redirects, follow it
+            if (legacyResp.redirected) {
+                window.location.href = legacyResp.url;
+                return;
+            }
+            // If not redirected, it returned an error message
+            var text = await legacyResp.text();
+            errorEl.innerHTML = text;
+            errorEl.style.display = 'block';
+        } catch (err) {
+            errorEl.textContent = 'Login failed: ' + err.message;
+            errorEl.style.display = 'block';
+        }
+        statusEl.style.display = 'none';
+        btn.disabled = false;
+    });
+
+    // Recovery key toggle
+    document.getElementById('show-recovery').addEventListener('click', function(e) {
+        e.preventDefault();
+        var sec = document.getElementById('recovery-section');
+        sec.style.display = sec.style.display === 'none' ? 'block' : 'none';
+    });
+})();
+
+async function doRecovery() {
+    var errorEl = document.getElementById('recovery-error');
+    var statusEl = document.getElementById('recovery-status');
+    var btn = document.getElementById('recovery-btn');
+    errorEl.style.display = 'none';
+
+    var username = document.getElementById('recovery-username').value.trim().toLowerCase();
+    var recoveryKeyStr = document.getElementById('recovery-key-input').value.trim();
+    var newPassword = document.getElementById('recovery-new-password').value;
+
+    if (!username || !recoveryKeyStr || !newPassword) {
+        errorEl.textContent = 'All fields are required.';
+        errorEl.style.display = 'block';
+        return;
+    }
+    if (newPassword.length < 8) {
+        errorEl.textContent = 'Password must be at least 8 characters.';
+        errorEl.style.display = 'block';
+        return;
+    }
+
+    btn.disabled = true;
+    statusEl.style.display = 'block';
+
+    try {
+        // First, get the user's recovery-wrapped key by logging in via legacy or fetching
+        statusEl.textContent = 'Fetching encrypted key...';
+
+        // We need the recovery_encrypted_key. Fetch via a temporary login-like endpoint.
+        // The /api/auth/login returns encrypted_sym_key, but for recovery we need recovery_encrypted_key.
+        // We'll add a simple endpoint for this, or use the unlock page data.
+        // For now, try to get it via a special recovery endpoint.
+        var infoResp = await fetch('/api/auth/recovery_info?username=' + encodeURIComponent(username));
+        var info = await infoResp.json();
+        if (!info.recovery_encrypted_key) {
+            errorEl.textContent = 'No recovery key set for this account.';
+            errorEl.style.display = 'block';
+            btn.disabled = false;
+            statusEl.style.display = 'none';
+            return;
+        }
+
+        statusEl.textContent = 'Recovering symmetric key...';
+        var recoveryKey = await FlaskyCrypto.parseRecoveryKey(recoveryKeyStr);
+        var symKey = await FlaskyCrypto.unwrapSymmetricKey(info.recovery_encrypted_key, recoveryKey);
+
+        statusEl.textContent = 'Setting new password...';
+        var keys = await FlaskyCrypto.deriveKeys(newPassword, username);
+        var newWrapped = await FlaskyCrypto.wrapSymmetricKey(symKey, keys.kek);
+
+        // Generate new recovery key
+        var newRecovery = await FlaskyCrypto.generateRecoveryKey();
+        var newRecoveryWrapped = await FlaskyCrypto.wrapSymmetricKey(symKey, newRecovery.cryptoKey);
+
+        var resp = await fetch('/api/auth/recover', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                username: username,
+                new_auth_key: keys.authKeyHex,
+                new_encrypted_sym_key: newWrapped,
+                new_recovery_encrypted_key: newRecoveryWrapped
+            })
+        });
+        var result = await resp.json();
+        if (result.success) {
+            await FlaskyCrypto.storeSymmetricKey(symKey);
+            alert('Account recovered! Your new recovery key is:\n\n' + newRecovery.displayString + '\n\nSave this somewhere safe!');
+            window.location.href = '/notes';
+        } else {
+            errorEl.textContent = result.reason || 'Recovery failed.';
+            errorEl.style.display = 'block';
+        }
+    } catch (err) {
+        errorEl.textContent = 'Recovery failed: ' + err.message;
+        errorEl.style.display = 'block';
+    }
+    btn.disabled = false;
+    statusEl.style.display = 'none';
+}
+</script>
 {% endblock %}

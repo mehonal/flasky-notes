@@ -12,6 +12,11 @@
 
   <link rel="manifest" href="/manifest.json">
 
+    {% if g.user.encryption_enabled %}
+    <script src="{{ url_for('static', filename='js/crypto.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/e2ee.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/e2ee-search.js') }}"></script>
+    {% endif %}
     <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/2.0.3/marked.min.js"></script>
     <script src="{{ url_for('static', filename='js/wikilinks.js') }}"></script>
     <script src="{{ url_for('static', filename='js/markdown-extras.js') }}"></script>
@@ -687,9 +692,16 @@
             opacity: 1;
         }
 
+        /* E2EE: hide content until decrypted */
+        body[data-encrypted="true"] #note-title,
+        body[data-encrypted="true"] #note-content,
+        body[data-encrypted="true"] .note-item { visibility: hidden; }
     </style>
 </head>
-<body>
+<body data-encrypted="{{ 'true' if g.user.encryption_enabled else 'false' }}">
+    {% if encrypted_note_data %}
+    <script type="application/json" id="encrypted-note-data">{{ encrypted_note_data|safe }}</script>
+    {% endif %}
     <div id="search-popup">
         <input type="text" id="search-input" placeholder="Search notes...">
         <div id="search-results">
@@ -1067,6 +1079,7 @@
             if (markdownContent.style.display === 'block') {
                 markdownContent.innerHTML = FlaskyMarkdown.processCallouts(marked(noteContent.value));
                 hljs.highlightAll();
+                if (window._decryptAttachments) window._decryptAttachments(markdownContent);
             }
         });
 
@@ -1221,23 +1234,37 @@
         });
 
         // Save note
-        document.getElementById('save-note').addEventListener('click', () => {
+        document.getElementById('save-note').addEventListener('click', async () => {
             const icon = document.getElementById('save-icon');
-            const noteTitle = document.getElementById('note-title').value;
-            const rawContent = document.getElementById('note-content').value;
-            const noteContent = rawContent;
+            var noteTitle = document.getElementById('note-title').value;
+            var noteContent = document.getElementById('note-content').value;
             icon.innerHTML = '⌛';
+
+            // E2EE: encrypt before sending
+            var payload = { noteId: noteId, title: noteTitle, content: noteContent, category: currentCategory };
+            if (typeof FlaskyE2EE !== 'undefined' && FlaskyE2EE.isEncrypted()) {
+                try {
+                    payload.title = await FlaskyE2EE.encryptField(noteTitle);
+                    payload.content = await FlaskyE2EE.encryptField(noteContent);
+                } catch(e) {
+                    icon.innerHTML = '❌';
+                    setTimeout(() => { icon.innerHTML = '💾'; }, 3000);
+                    return;
+                }
+            }
+
             fetch('/api/save_note', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({ noteId: noteId, title: noteTitle, content: noteContent, category: currentCategory })
+                body: JSON.stringify(payload)
             })
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
                     markClean();
+                    if (typeof FlaskySearch !== 'undefined') FlaskySearch.invalidate();
                     // checkmark
                     icon.innerHTML = '✅';
                     if (noteId === 0) {
@@ -1359,15 +1386,18 @@
             }
 
             try {
-                const response = await fetch('/api/search_notes', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ query })
-                });
+                let notes;
+                if (typeof FlaskyE2EE !== 'undefined' && FlaskyE2EE.isEncrypted()) {
+                    notes = await FlaskySearch.search(query);
+                } else {
+                    const response = await fetch('/api/search_notes', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ query })
+                    });
+                    notes = await response.json();
+                }
 
-                const notes = await response.json();
                 searchResults.innerHTML = '';
                 selectedIndex = -1;
 
@@ -1414,9 +1444,95 @@
         });
         updateWordCount();
 
+        // File upload (E2EE-aware)
+        async function uploadFileToNote(file) {
+            if (!file) return;
+            var formData = new FormData();
+            var filename = file.name;
+            if (typeof FlaskyE2EE !== 'undefined' && FlaskyE2EE.isEncrypted()) {
+                var arrayBuf = await file.arrayBuffer();
+                var encryptedData = await FlaskyE2EE.encryptBlob(arrayBuf);
+                var encFilename = await FlaskyE2EE.encryptField(filename);
+                formData.append('file', new Blob([encryptedData]), 'encrypted');
+                formData.append('filename', encFilename);
+            } else {
+                formData.append('file', file);
+                formData.append('filename', filename);
+            }
+            try {
+                var resp = await fetch('/api/upload_attachment', { method: 'POST', body: formData });
+                var data = await resp.json();
+                if (data.id) {
+                    var ta = document.getElementById('note-content');
+                    var embedText = '![[' + filename + ']]';
+                    ta.value = ta.value.substring(0, ta.selectionStart) + embedText + '\n' + ta.value.substring(ta.selectionEnd);
+                    markDirty();
+                }
+            } catch(e) { console.error('Upload failed:', e); }
+        }
+        (function() {
+            var ta = document.getElementById('note-content');
+            if (!ta) return;
+            ta.addEventListener('paste', function(e) {
+                var items = (e.clipboardData || e.originalEvent.clipboardData).items;
+                for (var i = 0; i < items.length; i++) {
+                    if (items[i].type.indexOf('image') !== -1) {
+                        e.preventDefault();
+                        var file = items[i].getAsFile();
+                        if (file) uploadFileToNote(file);
+                        return;
+                    }
+                }
+            });
+            ta.addEventListener('dragover', function(e) { e.preventDefault(); });
+            ta.addEventListener('drop', function(e) {
+                var files = e.dataTransfer && e.dataTransfer.files;
+                if (files && files.length > 0) {
+                    e.preventDefault();
+                    for (var i = 0; i < files.length; i++) uploadFileToNote(files[i]);
+                }
+            });
+        })();
+
         // Add keyboard shortcut hints to button tooltips
         document.getElementById('save-note').title = 'Save Note (Ctrl+S)';
         document.getElementById('search-notes').title = 'Search (Ctrl+K)';
+
+        // E2EE: init and decrypt page data on load
+        if (typeof FlaskyE2EE !== 'undefined') {
+            FlaskyE2EE.init().then(async function(ok) {
+                if (!ok) return;
+                if (!FlaskyE2EE.isEncrypted()) return;
+                var dataEl = document.getElementById('encrypted-note-data');
+                if (dataEl) {
+                    try {
+                        var enc = JSON.parse(dataEl.textContent);
+                        var title = await FlaskyE2EE.decryptField(enc.title);
+                        var content = await FlaskyE2EE.decryptField(enc.content);
+                        var titleEl = document.getElementById('note-title');
+                        if (titleEl) titleEl.value = title || '';
+                        var contentEl = document.getElementById('note-content');
+                        if (contentEl) contentEl.value = content || '';
+                        document.title = (title || 'Untitled') + ' — Cozy Notes';
+                        // Update markdown preview if visible
+                        var mdDiv = document.getElementById('markdown-note-content');
+                        if (mdDiv && mdDiv.style.display !== 'none' && typeof marked !== 'undefined') {
+                            mdDiv.innerHTML = marked(content || '');
+                        }
+                        updateWordCount();
+                    } catch(e) {
+                        console.error('E2EE page decrypt failed:', e);
+                    }
+                }
+                // Decrypt sidebar note titles
+                document.querySelectorAll('.note-item').forEach(async function(el) {
+                    var text = el.textContent.trim();
+                    if (!text) return;
+                    try { el.textContent = await FlaskyE2EE.decryptField(text) || 'Untitled'; } catch(e) {}
+                });
+                FlaskyE2EE.revealContent();
+            });
+        }
 
     </script>
 </body>

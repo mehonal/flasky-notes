@@ -5,6 +5,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Flasky Agenda</title>
 
+    {% if g.user.encryption_enabled %}
+    <script src="{{ url_for('static', filename='js/crypto.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/e2ee.js') }}"></script>
+    {% endif %}
+
     <!-- Favicons -->
     <link rel="icon" type="image/x-icon" href="/static/images/amazing_logo.png">
     <link rel="apple-touch-icon" href="/static/images/amazing_logo.png" sizes="180x180">
@@ -292,6 +297,13 @@
         white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     }
 
+    body[data-encrypted="true"] .todo-label,
+    body[data-encrypted="true"] .event-label,
+    body[data-encrypted="true"] .archived-item-title { visibility: hidden; }
+    body.e2ee-decrypted .todo-label,
+    body.e2ee-decrypted .event-label,
+    body.e2ee-decrypted .archived-item-title { visibility: visible; }
+
     .badge {
         display: inline-block; font-size: 10px; font-weight: 600;
         padding: 2px 7px; border-radius: 10px; white-space: nowrap;
@@ -545,7 +557,7 @@
     }
   </style>
 </head>
-<body>
+<body{% if g.user.encryption_enabled %} data-encrypted="true"{% endif %}>
   <!-- Toast container -->
   <div class="toast-container" id="toast-container"></div>
 
@@ -877,6 +889,37 @@
   </div>
 
   <script>
+    // ============ E2EE init ============
+    (async function() {
+        if (typeof FlaskyE2EE !== 'undefined') {
+            var ok = await FlaskyE2EE.init();
+            if (!ok) return;
+            // Decrypt server-rendered todo titles
+            var todoPromises = [];
+            document.querySelectorAll('.todo-label').forEach(function(el) {
+                todoPromises.push((async function() {
+                    try { el.childNodes[0].textContent = await FlaskyE2EE.decryptField(el.childNodes[0].textContent.trim()); } catch(e) {}
+                })());
+            });
+            // Decrypt server-rendered event titles
+            var eventPromises = [];
+            document.querySelectorAll('.event-label').forEach(function(el) {
+                eventPromises.push((async function() {
+                    try { el.childNodes[0].textContent = await FlaskyE2EE.decryptField(el.childNodes[0].textContent.trim()); } catch(e) {}
+                })());
+            });
+            // Decrypt archived item titles
+            var archivedPromises = [];
+            document.querySelectorAll('.archived-item-title').forEach(function(el) {
+                archivedPromises.push((async function() {
+                    try { el.textContent = await FlaskyE2EE.decryptField(el.textContent.trim()); } catch(e) {}
+                })());
+            });
+            await Promise.all(todoPromises.concat(eventPromises).concat(archivedPromises));
+            document.body.classList.add('e2ee-decrypted');
+        }
+    })();
+
     // ============ Modal system ============
     function showModal(id) {
         document.getElementById(id).classList.add('visible');
@@ -1069,14 +1112,19 @@
     }
 
     // ============ Archived todos ============
-    function showArchivedTodosModal() {
+    async function showArchivedTodosModal() {
         showModal('archivedTodosOverlay');
         document.getElementById('archivedTodosLoading').style.display = '';
         document.getElementById('archivedTodosEmpty').style.display = 'none';
         document.getElementById('archivedTodosList').innerHTML = '';
         fetch('/api/get_todos?archived=true')
         .then(response => response.json())
-        .then(data => {
+        .then(async data => {
+            if (typeof FlaskyE2EE !== 'undefined' && FlaskyE2EE.isEncrypted()) {
+                for (const t of data) {
+                    try { t.title = await FlaskyE2EE.decryptField(t.title); } catch(e) {}
+                }
+            }
             document.getElementById('archivedTodosLoading').style.display = 'none';
             if (data.length === 0) {
                 document.getElementById('archivedTodosEmpty').style.display = '';
@@ -1110,13 +1158,16 @@
     function showAddTodoModal() { showModal('addTodoOverlay'); }
     function showAddEventModal() { showModal('addEventOverlay'); }
 
-    function showTodoDetailsModal(id) {
+    async function showTodoDetailsModal(id) {
         showModal('todoDetailsOverlay');
         document.getElementById('todoDetailsLoading').style.display = '';
         document.getElementById('todoDetailsFields').style.display = 'none';
-        fetch('/api/get_todo/' + id)
-        .then(response => response.json())
-        .then(data => {
+        try {
+            const data = await fetch('/api/get_todo/' + id).then(r => r.json());
+            if (typeof FlaskyE2EE !== 'undefined' && FlaskyE2EE.isEncrypted()) {
+                try { data.todo.title = await FlaskyE2EE.decryptField(data.todo.title); } catch(e) {}
+                try { data.todo.content = await FlaskyE2EE.decryptField(data.todo.content); } catch(e) {}
+            }
             document.getElementById('todoDetailsLoading').style.display = 'none';
             document.getElementById('todoDetailsFields').style.display = '';
             document.getElementById('todoDetailsModalLabel').innerText = data.todo.title;
@@ -1125,20 +1176,22 @@
             document.querySelector('#todoDetailsFields input[type="text"]').value = data.todo.title;
             document.querySelector('#todoDetailsFields input[type="date"]').value = data.todo.date_due ? new Date(data.todo.date_due).toISOString().split('T')[0] : '';
             document.querySelector('#todoDetailsFields textarea').value = data.todo.content;
-        })
-        .catch(() => {
+        } catch(e) {
             document.getElementById('todoDetailsLoading').style.display = 'none';
             showToast('Failed to load to-do details.', 'danger');
-        });
+        }
     }
 
-    function showEventDetailsModal(id) {
+    async function showEventDetailsModal(id) {
         showModal('eventDetailsOverlay');
         document.getElementById('eventDetailsLoading').style.display = '';
         document.getElementById('eventDetailsFields').style.display = 'none';
-        fetch('/api/get_event/' + id)
-        .then(response => response.json())
-        .then(data => {
+        try {
+            const data = await fetch('/api/get_event/' + id).then(r => r.json());
+            if (typeof FlaskyE2EE !== 'undefined' && FlaskyE2EE.isEncrypted()) {
+                try { data.event.title = await FlaskyE2EE.decryptField(data.event.title); } catch(e) {}
+                try { data.event.content = await FlaskyE2EE.decryptField(data.event.content); } catch(e) {}
+            }
             document.getElementById('eventDetailsLoading').style.display = 'none';
             document.getElementById('eventDetailsFields').style.display = '';
             document.getElementById('eventDetailsModalLabel').innerText = data.event.title;
@@ -1146,11 +1199,10 @@
             document.querySelector('#eventDetailsFields input[type="text"]').value = data.event.title;
             document.querySelector('#eventDetailsFields input[type="date"]').value = data.event.date_of_event ? new Date(data.event.date_of_event).toISOString().split('T')[0] : '';
             document.querySelector('#eventDetailsFields textarea').value = data.event.content;
-        })
-        .catch(() => {
+        } catch(e) {
             document.getElementById('eventDetailsLoading').style.display = 'none';
             showToast('Failed to load event details.', 'danger');
-        });
+        }
     }
 
     // ============ CRUD operations ============
@@ -1219,15 +1271,20 @@
         btn.closest('.list-item').remove();
     }
 
-    function saveTodoFromModal() {
+    async function saveTodoFromModal() {
         const todoId = document.getElementById('todoDetailsModalLabel').dataset.todoId;
         const todoTitle = document.querySelector('#todoDetailsFields input[type="text"]').value;
         const todoDate = document.querySelector('#todoDetailsFields input[type="date"]').value;
         const todoContent = document.querySelector('#todoDetailsFields textarea').value;
+        var encTitle = todoTitle, encContent = todoContent;
+        if (typeof FlaskyE2EE !== 'undefined' && FlaskyE2EE.isEncrypted()) {
+            encTitle = await FlaskyE2EE.encryptField(todoTitle);
+            encContent = await FlaskyE2EE.encryptField(todoContent);
+        }
         fetch('/api/edit_todo', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ toDoId: todoId, title: todoTitle, content: todoContent, dateDue: todoDate })
+            body: JSON.stringify({ toDoId: todoId, title: encTitle, content: encContent, dateDue: todoDate })
         })
         .then(response => response.json())
         .then(data => {
@@ -1244,15 +1301,20 @@
         .catch(() => showToast('Failed to save to-do.', 'danger'));
     }
 
-    function saveEventFromModal() {
+    async function saveEventFromModal() {
         const eventId = document.getElementById('eventDetailsModalLabel').dataset.eventId;
         const eventTitle = document.querySelector('#eventDetailsFields input[type="text"]').value;
         const eventDate = document.querySelector('#eventDetailsFields input[type="date"]').value;
         const eventContent = document.querySelector('#eventDetailsFields textarea').value;
+        var encTitle = eventTitle, encContent = eventContent;
+        if (typeof FlaskyE2EE !== 'undefined' && FlaskyE2EE.isEncrypted()) {
+            encTitle = await FlaskyE2EE.encryptField(eventTitle);
+            encContent = await FlaskyE2EE.encryptField(eventContent);
+        }
         fetch('/api/edit_event', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ eventId: eventId, title: eventTitle, content: eventContent, dateOfEvent: eventDate })
+            body: JSON.stringify({ eventId: eventId, title: encTitle, content: encContent, dateOfEvent: eventDate })
         })
         .then(response => response.json())
         .then(data => {
@@ -1322,7 +1384,7 @@
     }
 
     // ============ Add from modal ============
-    function addTodoFromModal() {
+    async function addTodoFromModal() {
         const title = document.querySelector('#addTodoOverlay input[type="text"]').value;
         const date = document.querySelector('#addTodoOverlay input[type="date"]').value;
         const content = document.querySelector('#addTodoOverlay textarea').value;
@@ -1330,13 +1392,22 @@
             showToast('Please enter a valid to-do title.', 'warning');
             return;
         }
+        var encTitle = title, encContent = content;
+        if (typeof FlaskyE2EE !== 'undefined' && FlaskyE2EE.isEncrypted()) {
+            encTitle = await FlaskyE2EE.encryptField(title);
+            encContent = await FlaskyE2EE.encryptField(content);
+        }
         fetch('/api/add_todo', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ title: title, content: content, dateDue: date })
+            body: JSON.stringify({ title: encTitle, content: encContent, dateDue: date })
         })
         .then(response => response.json())
         .then(data => {
+            // For E2EE, override the encrypted title in the response with plaintext for DOM
+            if (typeof FlaskyE2EE !== 'undefined' && FlaskyE2EE.isEncrypted()) {
+                data.todo.title = title;
+            }
             const todoDOM = bakeTodoDOM(data.todo);
             document.getElementById('todo-list').appendChild(todoDOM);
             const emptyState = document.querySelector('#todo-list .todo-empty-state');
@@ -1347,7 +1418,7 @@
         hideModal('addTodoOverlay');
     }
 
-    function addEventFromModal() {
+    async function addEventFromModal() {
         const title = document.querySelector('#addEventOverlay input[type="text"]').value;
         const date = document.querySelector('#addEventOverlay input[type="date"]').value;
         const content = document.querySelector('#addEventOverlay textarea').value;
@@ -1355,13 +1426,21 @@
             showToast('Please enter a valid event title.', 'warning');
             return;
         }
+        var encTitle = title, encContent = content;
+        if (typeof FlaskyE2EE !== 'undefined' && FlaskyE2EE.isEncrypted()) {
+            encTitle = await FlaskyE2EE.encryptField(title);
+            encContent = await FlaskyE2EE.encryptField(content);
+        }
         fetch('/api/add_event', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ title: title, content: content, dateOfEvent: date })
+            body: JSON.stringify({ title: encTitle, content: encContent, dateOfEvent: date })
         })
         .then(response => response.json())
         .then(data => {
+            if (typeof FlaskyE2EE !== 'undefined' && FlaskyE2EE.isEncrypted()) {
+                data.event.title = title;
+            }
             const eventDOM = bakeEventDOM(data.event);
             document.getElementById('event-list').appendChild(eventDOM);
             const emptyState = document.querySelector('#event-list .event-empty-state');
@@ -1373,20 +1452,28 @@
     }
 
     // ============ Quick add ============
-    function quickAddTodo() {
+    async function quickAddTodo() {
         const input = document.getElementById('new-todo');
         const title = input.value;
         if (!title || title.trim() === '' || title.length < 2) {
             showToast('Please enter a valid to-do item.', 'warning');
             return;
         }
+        var encTitle = title, encContent = '';
+        if (typeof FlaskyE2EE !== 'undefined' && FlaskyE2EE.isEncrypted()) {
+            encTitle = await FlaskyE2EE.encryptField(title);
+            encContent = await FlaskyE2EE.encryptField('');
+        }
         fetch('/api/add_todo', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ title: title, content: '', dateDue: '' })
+            body: JSON.stringify({ title: encTitle, content: encContent, dateDue: '' })
         })
         .then(response => response.json())
         .then(data => {
+            if (typeof FlaskyE2EE !== 'undefined' && FlaskyE2EE.isEncrypted()) {
+                data.todo.title = title;
+            }
             const todoDOM = bakeTodoDOM(data.todo);
             document.getElementById('todo-list').appendChild(todoDOM);
             input.value = '';
@@ -1396,20 +1483,28 @@
         .catch(() => showToast('Failed to add to-do.', 'danger'));
     }
 
-    function quickAddEvent() {
+    async function quickAddEvent() {
         const input = document.getElementById('new-event');
         const title = input.value;
         if (!title || title.trim() === '' || title.length < 2) {
             showToast('Please enter a valid event.', 'warning');
             return;
         }
+        var encTitle = title, encContent = '';
+        if (typeof FlaskyE2EE !== 'undefined' && FlaskyE2EE.isEncrypted()) {
+            encTitle = await FlaskyE2EE.encryptField(title);
+            encContent = await FlaskyE2EE.encryptField('');
+        }
         fetch('/api/add_event', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ title: title, content: '', dateOfEvent: '' })
+            body: JSON.stringify({ title: encTitle, content: encContent, dateOfEvent: '' })
         })
         .then(response => response.json())
         .then(data => {
+            if (typeof FlaskyE2EE !== 'undefined' && FlaskyE2EE.isEncrypted()) {
+                data.event.title = title;
+            }
             const eventDOM = bakeEventDOM(data.event);
             document.getElementById('event-list').appendChild(eventDOM);
             input.value = '';

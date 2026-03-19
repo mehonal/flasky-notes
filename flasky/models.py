@@ -94,11 +94,11 @@ class SyncConflict(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.ForeignKey('user.id'), nullable=False)
     note_id = db.Column(db.Integer, nullable=True)
-    local_title = db.Column(db.String(1_000))
-    local_content = db.Column(db.String(1_000_000))
-    server_title = db.Column(db.String(1_000))
-    server_content = db.Column(db.String(1_000_000))
-    category = db.Column(db.String(100))
+    local_title = db.Column(db.Text)
+    local_content = db.Column(db.Text)
+    server_title = db.Column(db.Text)
+    server_content = db.Column(db.Text)
+    category = db.Column(db.Text)
     conflict_date = db.Column(db.DateTime, default=datetime.utcnow)
     resolved = db.Column(db.Boolean, default=False)
     user = db.relationship('User', backref="sync_conflicts")
@@ -107,7 +107,7 @@ class Attachment(db.Model):
     __tablename__ = "attachment"
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.ForeignKey('user.id'), nullable=False)
-    filename = db.Column(db.String(500), nullable=False)
+    filename = db.Column(db.Text, nullable=False)
     content_type = db.Column(db.String(200))
     file_hash = db.Column(db.String(64), nullable=False)
     file_size = db.Column(db.Integer)
@@ -129,6 +129,12 @@ class User(db.Model):
     email = db.Column(db.String(300), unique = True)
     plan = db.Column(db.Integer, default = 0)
     user_type = db.Column(db.Integer, default = 0)
+    # E2EE columns
+    encryption_enabled = db.Column(db.Boolean, default=False)
+    encrypted_symmetric_key = db.Column(db.Text)         # base64 AES-GCM wrapped key
+    recovery_encrypted_key = db.Column(db.Text)           # base64 recovery-key wrapped key
+    encryption_version = db.Column(db.Integer, default=0) # 0=none, 1=AES-256-GCM
+    password_hint = db.Column(db.String(200))
     settings = db.relationship('UserSettings', uselist = False, backref= "user")
 
     def get_timezone(self, as_str = False):
@@ -410,10 +416,20 @@ class User(db.Model):
         except:
             return False
 
-    def add_note(self,title,content,category):
+    def add_note(self, title, content, category, encrypted=False):
         try:
-            category = self.get_category(category,create=True)
-            note = UserNote(userid=self.id,title=title,content=content,category_id=category.id)
+            if encrypted:
+                # For encrypted notes, category is an ID (not a name to look up)
+                if isinstance(category, int):
+                    cat_id = category
+                else:
+                    cat_obj = self.get_category(category, create=True)
+                    cat_id = cat_obj.id
+            else:
+                cat_obj = self.get_category(category, create=True)
+                cat_id = cat_obj.id
+            note = UserNote(userid=self.id, title=title, content=content,
+                           category_id=cat_id, encrypted=encrypted)
             return note
         except:
             print("Could not add note.")
@@ -450,10 +466,10 @@ class UserNote(db.Model):
     id = db.Column(db.Integer, primary_key = True, autoincrement = True)
     userid = db.Column(db.ForeignKey('user.id'))
     category_id = db.Column(db.ForeignKey('user_note_category.id'))
-    title = db.Column(db.String(1_000))
-    content = db.Column(db.String(1_000_000))
+    title = db.Column(db.Text)
+    content = db.Column(db.Text)
     properties = db.Column(db.Text)  # JSON string of frontmatter key-value pairs
-    previous_content = db.Column(db.String(1_000_000))
+    previous_content = db.Column(db.Text)
     date_added = db.Column(db.DateTime)
     date_last_changed = db.Column(db.DateTime)
     user = db.relationship('User', backref="notes")
@@ -495,14 +511,18 @@ class UserNote(db.Model):
         else:
             return ""
 
-    def change_content(self,new_content):
+    def change_content(self, new_content, encrypted=False):
         self.previous_content = self.content
-        props, body = parse_note_frontmatter(new_content)
-        if props:
-            self.properties = json.dumps(props)
-            self.content = body
-        else:
+        if encrypted:
+            # Content is already encrypted — store as-is, skip frontmatter parsing
             self.content = new_content
+        else:
+            props, body = parse_note_frontmatter(new_content)
+            if props:
+                self.properties = json.dumps(props)
+                self.content = body
+            else:
+                self.content = new_content
         self.date_last_changed = datetime.utcnow()
         db.session.commit()
 
@@ -558,18 +578,22 @@ class UserNote(db.Model):
             "date_last_changed": self.date_last_changed
         }
 
-    def __init__(self,userid,title,content,category_id):
+    def __init__(self, userid, title, content, category_id, encrypted=False):
         self.userid = userid
         self.title = title
         self.category_id = category_id
         self.date_added = datetime.utcnow()
         self.date_last_changed = datetime.utcnow()
-        props, body = parse_note_frontmatter(content)
-        if props:
-            self.properties = json.dumps(props)
-            self.content = body
-        else:
+        if encrypted:
+            # Content is already encrypted — store as-is
             self.content = content
+        else:
+            props, body = parse_note_frontmatter(content)
+            if props:
+                self.properties = json.dumps(props)
+                self.content = body
+            else:
+                self.content = content
         db.session.add(self)
         db.session.commit()
 
@@ -592,8 +616,8 @@ class NoteTemplate(db.Model):
     __tablename__ = "note_template"
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.ForeignKey('user.id'), nullable=False)
-    name = db.Column(db.String(500), nullable=False)
-    content = db.Column(db.String(1_000_000))
+    name = db.Column(db.Text, nullable=False)
+    content = db.Column(db.Text)
     properties = db.Column(db.Text)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     user = db.relationship('User', backref="templates")
@@ -627,8 +651,8 @@ class UserTodo(db.Model):
     __tablename__ = "user_todo"
     id = db.Column(db.Integer, primary_key = True)
     userid = db.Column(db.ForeignKey('user.id'))
-    title = db.Column(db.String(100))
-    content = db.Column(db.String(100_000))
+    title = db.Column(db.Text)
+    content = db.Column(db.Text)
     date_due = db.Column(db.DateTime)
     date_added = db.Column(db.DateTime)
     date_completed = db.Column(db.DateTime)
@@ -709,8 +733,8 @@ class UserEvent(db.Model):
     __tablename__ = "user_event"
     id = db.Column(db.Integer, primary_key = True)
     userid = db.Column(db.ForeignKey('user.id'))
-    title = db.Column(db.String(100))
-    content = db.Column(db.String(100_000))
+    title = db.Column(db.Text)
+    content = db.Column(db.Text)
     date_of_event = db.Column(db.DateTime)
     date_added = db.Column(db.DateTime)
     date_last_changed = db.Column(db.DateTime)
@@ -785,7 +809,7 @@ class UserEvent(db.Model):
 class UserAgendaNotes(db.Model):
     __tablename__ = "user_agenda_notes"
     id = db.Column(db.Integer, primary_key = True)
-    content = db.Column(db.String(1_000_000))
+    content = db.Column(db.Text)
     userid = db.Column(db.ForeignKey('user.id'))
     date_last_changed = db.Column(db.DateTime)
     user = db.relationship('User', backref=db.backref('agenda_notes', uselist=False))

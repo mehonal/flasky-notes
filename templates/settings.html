@@ -1,5 +1,9 @@
 {% extends "template-loggedout.html" %}
 {% block body %}
+{% if g.user.encryption_enabled %}
+<script src="{{ url_for('static', filename='js/crypto.js') }}"></script>
+<script src="{{ url_for('static', filename='js/e2ee.js') }}"></script>
+{% endif %}
 <style>
     .settings-page {
         max-width: 1100px;
@@ -389,6 +393,41 @@
             </form>
         </div>
 
+        <!-- Encryption -->
+        {% if g.user.encryption_enabled %}
+        <div class="settings-card">
+            <h2>Encryption</h2>
+            <div class="mb-3">
+                <span class="badge bg-success">E2EE Enabled</span>
+                <small class="text-muted ms-2">Version {{ g.user.encryption_version }}</small>
+            </div>
+
+            <h5>Change Password</h5>
+            <div id="change-pw-form">
+                <input type="password" id="current-password" class="form-control mb-2" placeholder="Current password">
+                <input type="password" id="new-password" class="form-control mb-2" placeholder="New password">
+                <input type="password" id="confirm-password" class="form-control mb-2" placeholder="Confirm new password">
+                <button class="btn btn-primary" onclick="changeEncryptionPassword()">Change Password</button>
+                <div id="change-pw-status" class="mt-2"></div>
+            </div>
+
+            <h5 class="mt-4">Recovery Key</h5>
+            <p class="text-muted small">Generate a new recovery key. This replaces your existing one.</p>
+            <button class="btn btn-outline-warning" onclick="regenerateRecoveryKey()">Regenerate Recovery Key</button>
+            <div id="recovery-key-display" style="display:none" class="mt-2">
+                <div class="alert alert-warning">
+                    <strong>Save this recovery key now:</strong><br>
+                    <code id="new-recovery-key" style="word-break:break-all"></code>
+                </div>
+            </div>
+
+            {% if g.user.password_hint %}
+            <h5 class="mt-4">Password Hint</h5>
+            <p>{{ g.user.password_hint }}</p>
+            {% endif %}
+        </div>
+        {% endif %}
+
         <!-- API Tokens -->
         <div class="settings-card settings-card-wide">
             <h2>API Tokens</h2>
@@ -709,4 +748,90 @@
     });
 })();
 </script>
+{% if g.user.encryption_enabled %}
+<script>
+async function changeEncryptionPassword() {
+    var statusEl = document.getElementById('change-pw-status');
+    var currentPw = document.getElementById('current-password').value;
+    var newPw = document.getElementById('new-password').value;
+    var confirmPw = document.getElementById('confirm-password').value;
+    if (!currentPw || !newPw || !confirmPw) {
+        statusEl.innerHTML = '<span class="text-danger">All fields are required.</span>';
+        return;
+    }
+    if (newPw !== confirmPw) {
+        statusEl.innerHTML = '<span class="text-danger">New passwords do not match.</span>';
+        return;
+    }
+    if (newPw.length < 8) {
+        statusEl.innerHTML = '<span class="text-danger">Password must be at least 8 characters.</span>';
+        return;
+    }
+    statusEl.innerHTML = '<span class="text-muted">Deriving keys...</span>';
+    try {
+        var username = '{{ g.user.username }}';
+        var oldKeys = await FlaskyCrypto.deriveKeys(currentPw, username);
+        // Verify old password works by unwrapping the symmetric key
+        var encSymKey = '{{ g.user.encrypted_symmetric_key }}';
+        var symKey;
+        try {
+            symKey = await FlaskyCrypto.unwrapSymmetricKey(encSymKey, oldKeys.kek);
+        } catch(e) {
+            statusEl.innerHTML = '<span class="text-danger">Current password is incorrect.</span>';
+            return;
+        }
+        statusEl.innerHTML = '<span class="text-muted">Encrypting with new password...</span>';
+        var newKeys = await FlaskyCrypto.deriveKeys(newPw, username);
+        var newWrappedKey = await FlaskyCrypto.wrapSymmetricKey(symKey, newKeys.kek);
+        var resp = await fetch('/api/auth/change_password', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                new_auth_key: newKeys.authKeyHex,
+                new_encrypted_sym_key: newWrappedKey
+            })
+        });
+        var data = await resp.json();
+        if (data.success) {
+            // Update sessionStorage with same symmetric key (it doesn't change)
+            await FlaskyCrypto.storeSymmetricKey(symKey);
+            statusEl.innerHTML = '<span class="text-success">Password changed successfully.</span>';
+            document.getElementById('current-password').value = '';
+            document.getElementById('new-password').value = '';
+            document.getElementById('confirm-password').value = '';
+        } else {
+            statusEl.innerHTML = '<span class="text-danger">Error: ' + (data.reason || 'Unknown error') + '</span>';
+        }
+    } catch(e) {
+        statusEl.innerHTML = '<span class="text-danger">Error: ' + e.message + '</span>';
+    }
+}
+
+async function regenerateRecoveryKey() {
+    try {
+        var symKey = await FlaskyCrypto.loadSymmetricKey();
+        if (!symKey) {
+            alert('Encryption key not loaded. Please unlock first.');
+            return;
+        }
+        var recovery = await FlaskyCrypto.generateRecoveryKey();
+        var wrappedKey = await FlaskyCrypto.wrapSymmetricKey(symKey, recovery.cryptoKey);
+        var resp = await fetch('/api/auth/update_recovery_key', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ recovery_encrypted_key: wrappedKey })
+        });
+        var data = await resp.json();
+        if (data.success) {
+            document.getElementById('new-recovery-key').textContent = recovery.displayString;
+            document.getElementById('recovery-key-display').style.display = '';
+        } else {
+            alert('Error: ' + (data.reason || 'Unknown error'));
+        }
+    } catch(e) {
+        alert('Error: ' + e.message);
+    }
+}
+</script>
+{% endif %}
 {% endblock %}

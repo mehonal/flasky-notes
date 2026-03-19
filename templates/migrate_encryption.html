@@ -1,0 +1,263 @@
+{% extends "template-loggedout.html" %}
+{% block body %}
+<style>
+    .migrate-page { max-width: 500px; margin: 0 auto; padding: 2rem 1rem; }
+    .progress-bar-container { background: #e9ecef; border-radius: 4px; overflow: hidden; height: 24px; margin: 1rem 0; }
+    .progress-bar-fill { background: #0d6efd; height: 100%; width: 0%; transition: width 0.3s ease; display: flex; align-items: center; justify-content: center; color: white; font-size: 0.8rem; font-weight: 600; }
+</style>
+
+<div class="migrate-page">
+    <div class="text-center">
+        <img class="mb-3" src="/static/images/amazing_logo.png" alt="Flasky Notes" width="96" height="96">
+        <h4>Enable End-to-End Encryption</h4>
+        <p class="text-muted small">Your notes will be encrypted so that only you can read them. This is a one-time migration.</p>
+    </div>
+
+    <!-- Step 1: Enter password to derive keys -->
+    <div id="step-password">
+        <input type="password" class="form-control mb-2" id="migrate-password" placeholder="Enter your current password..." autocomplete="current-password" autofocus required>
+        <input type="text" class="form-control mb-2" id="migrate-hint" placeholder="Password hint (optional)..." maxlength="200">
+        <div id="migrate-error" class="alert alert-danger mb-2" style="display:none"></div>
+        <div id="migrate-status" class="text-muted text-center mb-2" style="display:none"></div>
+        <button class="btn btn-primary w-100" id="migrate-btn" onclick="startMigration()">Enable Encryption</button>
+    </div>
+
+    <!-- Step 2: Progress bar -->
+    <div id="step-progress" style="display:none">
+        <div class="progress-bar-container">
+            <div class="progress-bar-fill" id="progress-fill">0%</div>
+        </div>
+        <p class="text-muted text-center small" id="progress-text">Starting...</p>
+    </div>
+
+    <!-- Step 3: Recovery key display -->
+    <div id="step-recovery" style="display:none">
+        <div class="alert alert-warning">
+            <h5 class="alert-heading">Save Your Recovery Key</h5>
+            <p class="small mb-2">If you ever forget your password, this key is the <strong>only way</strong> to recover your data. It will <strong>never</strong> be shown again.</p>
+            <textarea class="form-control mb-2" id="recovery-key-display" rows="3" readonly style="font-family:monospace;font-size:0.85rem"></textarea>
+            <button class="btn btn-outline-primary btn-sm" onclick="navigator.clipboard.writeText(document.getElementById('recovery-key-display').value)">Copy to clipboard</button>
+        </div>
+        <label class="form-check-label d-block mb-2">
+            <input type="checkbox" id="recovery-saved-check" class="form-check-input" onchange="document.getElementById('finish-btn').disabled = !this.checked"> I have saved my recovery key
+        </label>
+        <button class="btn btn-success w-100" id="finish-btn" disabled onclick="window.location.href='/notes'">Continue to Notes</button>
+    </div>
+</div>
+
+<script src="{{ url_for('static', filename='js/crypto.js') }}"></script>
+<script>
+var username = {{ username|tojson }};
+var BATCH_SIZE = 50;
+
+function setProgress(pct, text) {
+    var fill = document.getElementById('progress-fill');
+    fill.style.width = pct + '%';
+    fill.textContent = Math.round(pct) + '%';
+    if (text) document.getElementById('progress-text').textContent = text;
+}
+
+async function encryptValue(val, symKey) {
+    if (val === null || val === undefined || val === '') return val;
+    return FlaskyCrypto.encrypt(val, symKey);
+}
+
+async function startMigration() {
+    var errorEl = document.getElementById('migrate-error');
+    var statusEl = document.getElementById('migrate-status');
+    var password = document.getElementById('migrate-password').value;
+    var hint = document.getElementById('migrate-hint').value.trim();
+
+    errorEl.style.display = 'none';
+    if (!password) {
+        errorEl.textContent = 'Please enter your password.';
+        errorEl.style.display = 'block';
+        return;
+    }
+
+    document.getElementById('migrate-btn').disabled = true;
+    statusEl.style.display = 'block';
+    statusEl.textContent = 'Deriving encryption keys...';
+
+    try {
+        // 1. Derive keys
+        var keys = await FlaskyCrypto.deriveKeys(password, username);
+
+        // 2. Generate symmetric key + recovery key
+        statusEl.textContent = 'Generating encryption keys...';
+        var symKey = await FlaskyCrypto.generateSymmetricKey();
+        var wrappedSymKey = await FlaskyCrypto.wrapSymmetricKey(symKey, keys.kek);
+        var recovery = await FlaskyCrypto.generateRecoveryKey();
+        var recoveryWrapped = await FlaskyCrypto.wrapSymmetricKey(symKey, recovery.cryptoKey);
+
+        // 3. Enable encryption on server (switch auth)
+        statusEl.textContent = 'Enabling encryption...';
+        var authResp = await fetch('/api/auth/enable_encryption', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                auth_key: keys.authKeyHex,
+                encrypted_sym_key: wrappedSymKey,
+                recovery_encrypted_key: recoveryWrapped,
+                password_hint: hint
+            })
+        });
+        var authData = await authResp.json();
+        if (!authData.success) {
+            throw new Error(authData.reason || 'Failed to enable encryption.');
+        }
+
+        // Store key in session for immediate use
+        await FlaskyCrypto.storeSymmetricKey(symKey);
+
+        // 4. Fetch all plaintext data
+        document.getElementById('step-password').style.display = 'none';
+        document.getElementById('step-progress').style.display = 'block';
+        setProgress(5, 'Fetching data...');
+
+        var dataResp = await fetch('/api/migrate/get_all_data');
+        var allData = await dataResp.json();
+
+        // 5. Encrypt everything and send in batches
+        var totalItems = (allData.notes || []).length + (allData.categories || []).length +
+                         (allData.todos || []).length + (allData.events || []).length +
+                         (allData.templates || []).length + (allData.agenda_notes ? 1 : 0);
+        var processed = 0;
+
+        // Encrypt notes in batches
+        var notes = allData.notes || [];
+        for (var i = 0; i < notes.length; i += BATCH_SIZE) {
+            var batch = notes.slice(i, i + BATCH_SIZE);
+            var encBatch = [];
+            for (var j = 0; j < batch.length; j++) {
+                var n = batch[j];
+                encBatch.push({
+                    id: n.id,
+                    title: await encryptValue(n.title, symKey),
+                    content: await encryptValue(n.content, symKey),
+                    properties: await encryptValue(n.properties, symKey),
+                    previous_content: await encryptValue(n.previous_content, symKey)
+                });
+                processed++;
+                setProgress(10 + (processed / totalItems) * 80, 'Encrypting data... (' + processed + '/' + totalItems + ')');
+            }
+            await fetch('/api/migrate/encrypt_data', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({notes: encBatch})
+            });
+        }
+
+        // Encrypt categories
+        var cats = allData.categories || [];
+        if (cats.length > 0) {
+            var encCats = [];
+            for (var k = 0; k < cats.length; k++) {
+                encCats.push({
+                    id: cats[k].id,
+                    name: await encryptValue(cats[k].name, symKey)
+                });
+                processed++;
+                setProgress(10 + (processed / totalItems) * 80, 'Encrypting data... (' + processed + '/' + totalItems + ')');
+            }
+            await fetch('/api/migrate/encrypt_data', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({categories: encCats})
+            });
+        }
+
+        // Encrypt todos
+        var todos = allData.todos || [];
+        if (todos.length > 0) {
+            var encTodos = [];
+            for (var m = 0; m < todos.length; m++) {
+                encTodos.push({
+                    id: todos[m].id,
+                    title: await encryptValue(todos[m].title, symKey),
+                    content: await encryptValue(todos[m].content, symKey)
+                });
+                processed++;
+                setProgress(10 + (processed / totalItems) * 80, 'Encrypting data... (' + processed + '/' + totalItems + ')');
+            }
+            await fetch('/api/migrate/encrypt_data', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({todos: encTodos})
+            });
+        }
+
+        // Encrypt events
+        var events = allData.events || [];
+        if (events.length > 0) {
+            var encEvents = [];
+            for (var p = 0; p < events.length; p++) {
+                encEvents.push({
+                    id: events[p].id,
+                    title: await encryptValue(events[p].title, symKey),
+                    content: await encryptValue(events[p].content, symKey)
+                });
+                processed++;
+                setProgress(10 + (processed / totalItems) * 80, 'Encrypting data... (' + processed + '/' + totalItems + ')');
+            }
+            await fetch('/api/migrate/encrypt_data', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({events: encEvents})
+            });
+        }
+
+        // Encrypt templates
+        var templates = allData.templates || [];
+        if (templates.length > 0) {
+            var encTemplates = [];
+            for (var q = 0; q < templates.length; q++) {
+                encTemplates.push({
+                    id: templates[q].id,
+                    name: await encryptValue(templates[q].name, symKey),
+                    content: await encryptValue(templates[q].content, symKey),
+                    properties: await encryptValue(templates[q].properties, symKey)
+                });
+                processed++;
+                setProgress(10 + (processed / totalItems) * 80, 'Encrypting data... (' + processed + '/' + totalItems + ')');
+            }
+            await fetch('/api/migrate/encrypt_data', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({templates: encTemplates})
+            });
+        }
+
+        // Encrypt agenda notes
+        if (allData.agenda_notes && allData.agenda_notes.content) {
+            var encAgenda = {content: await encryptValue(allData.agenda_notes.content, symKey)};
+            processed++;
+            setProgress(10 + (processed / totalItems) * 80, 'Encrypting data... (' + processed + '/' + totalItems + ')');
+            await fetch('/api/migrate/encrypt_data', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({agenda_notes: encAgenda})
+            });
+        }
+
+        setProgress(100, 'Encryption complete!');
+
+        // 6. Show recovery key
+        setTimeout(function() {
+            document.getElementById('step-progress').style.display = 'none';
+            document.getElementById('recovery-key-display').value = recovery.displayString;
+            document.getElementById('step-recovery').style.display = 'block';
+        }, 500);
+
+    } catch (err) {
+        errorEl.textContent = 'Migration failed: ' + err.message;
+        errorEl.style.display = 'block';
+        statusEl.style.display = 'none';
+        document.getElementById('migrate-btn').disabled = false;
+        // Show step-password again if we were in progress
+        document.getElementById('step-password').style.display = 'block';
+        document.getElementById('step-progress').style.display = 'none';
+    }
+}
+</script>
+{% endblock %}
