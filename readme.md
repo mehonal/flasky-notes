@@ -1,4 +1,4 @@
-Status: Good to go for personal use
+Status: Undergoing major refactor to support E2EE 
 
 # About
 
@@ -16,11 +16,6 @@ Flasky Notes ships with 9 themes. Each offers a different layout and feature set
 |-------|-------|-----------|----------|------------|--------|------|------------|-----------|---------|-----------|-------|--------|------------|-----------------|---------|-----------|
 | Obsidified | File explorer | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | - | - | Yes | Yes |
 | Cozy | Modern sidebar | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | - | - | - | - | - | - |
-| Sage | Card feed | Yes | Yes | Yes | Yes | Yes | Yes | Yes | - | Yes | - | - | - | - | - | - |
-| Segment | Three-panel | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | - | - | - | - | - | - | - |
-| Tahta | Kanban board | Yes | Yes | Yes | Yes | Yes | Yes | - | - | Yes | - | - | - | - | - | - |
-| Paper | Traditional | Yes | Yes | Yes | Yes | Yes | - | - | - | - | - | - | Yes | Yes | - | - |
-| Full | Extra Fullscreen | Yes | Yes | Yes | Yes | Yes | - | - | - | - | - | - | Yes | Yes | - | - |
 | Dash | Minimal toolbar | Yes | Yes | Yes | Yes | Yes | - | - | Yes | - | - | - | - | - | - | - |
 | CLI | Terminal | Yes | - | - | - | - | - | - | - | - | Yes | Yes | - | - | - | - |
 
@@ -39,57 +34,6 @@ Modern sidebar theme with folder tree navigation and note cards. Features drag-d
 ### Shortcuts
 - Ctrl + s: Save Note
 - Ctrl + k: Search Notes
-
-## Sage
-
-![Sage Theme - Note Single](https://raw.githubusercontent.com/mehonal/flasky-notes/master/static/images/themes/sage/note_single.png)
-
-A card feed theme with a top navigation bar. Editor at the top, existing notes rendered as cards below. Features auto-save, category filtering, and drag-drop.
-
-## Segment
-
-A three-panel layout inspired by Discord: category rail on the left, notes list in the middle, editor on the right. Features auto-save, markdown preview toggle, and a search modal.
-
-## Tahta
-
-A kanban board theme for organizing notes visually across columns. Supports drag-drop and markdown rendering.
-
-## Paper
-
-![Paper Theme - Note Single](https://raw.githubusercontent.com/mehonal/flasky-notes/master/static/images/themes/paper/note_single.png)
-
-The Paper theme has options provided via GUI and does not rely on keyboard shortcuts. It aims to be easy to use for the average user. Has dedicated notes and categories listing pages.
-
-## Full
-
-![Full Theme - Note Single](https://raw.githubusercontent.com/mehonal/flasky-notes/master/static/images/themes/full/note_single.png)
-
-The Full theme features a fullscreen keyboard-shortcut intensive approach to noting. It's aimed to provide a swift and content-focused experience. Has dedicated notes and categories listing pages.
-
-### Keyboard Shortcuts
-
-#### Note Single
-
-- Ctrl + ArrowUp: Increase Font Size
-- Ctrl + ArrowDown: Decrease Font Size
-- Ctrl + m: Toggle Menu
-- Ctrl + s: Save Note
-- Ctrl + d: Delete Note
-- Ctrl + l: Toggle Title
-- Ctrl + e: Navigate to Notes
-- Ctrl + y: Navigate to Settings
-- Ctrl + ,: Toggle Markdown
-- Ctrl + Space: Toggle Dark Mode
-- Ctrl + Enter: Add New Note
-- Ctrl + Delete: Revert Note to Last Version
-
-#### Notes
-
-- Ctrl + ArrowUp: Increase Height of Note
-- Ctrl + ArrowDown: Decrease Height of Note
-- Ctrl + ArrowRight: Increase Notes per Row
-- Ctrl + ArrowLeft: Decrease Notes per Row
-- Ctrl + e: Add New Note
 
 ## Dash
 
