@@ -1622,7 +1622,7 @@
                             var fullPath = pathPrefix ? pathPrefix + '/' + name : name;
                             var cat = data._category;
                             var folderNotes = data._notes.slice().sort(function(a, b) {
-                                return (b.date_last_changed || '').localeCompare(a.date_last_changed || '');
+                                return (a.title || '').toLowerCase().localeCompare((b.title || '').toLowerCase());
                             });
                             var catId = cat ? cat.id : 'null';
                             var childHtml = renderFolderTree(data._children, fullPath);
@@ -4153,16 +4153,10 @@
                             console.error('E2EE page decrypt failed:', e);
                         }
                     }
-                    // Decrypt sidebar items
-                    document.querySelectorAll('.file-name').forEach(async function(el) {
-                        var text = el.textContent.trim();
-                        if (!text) return;
-                        try {
-                            el.textContent = await FlaskyE2EE.decryptField(text) || 'Untitled';
-                        } catch(e) {}
+                    // Rebuild sidebar client-side (decrypts titles, builds subfolder tree, sorts alphabetically)
+                    refreshSidebar(function() {
+                        FlaskyE2EE.revealContent();
                     });
-                    // Reveal hidden content
-                    FlaskyE2EE.revealContent();
                 });
             }
         })();

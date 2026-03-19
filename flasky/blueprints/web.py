@@ -10,11 +10,13 @@ from flasky.models import (
     Theme, UserTheme, UserSettings, ApiToken, SyncConflict, Attachment, NoteTemplate,
     UserAgendaNotes
 )
-from flasky.utils import has_banned_chars, valid_email, generate_api_token
+from flasky.utils import has_banned_chars, valid_email, generate_api_token, recovery_limiter, login_limiter
 from zoneinfo import available_timezones
 
 web_bp = Blueprint('web', __name__)
 
+# Pre-computed dummy hash for constant-time login response when user not found
+_DUMMY_BCRYPT_HASH = bcrypt.hashpw(b'dummy', bcrypt.gensalt())
 
 # ============ E2EE Auth API ============
 
@@ -68,10 +70,16 @@ def api_auth_login():
     if not username or not auth_key:
         return jsonify(success=False, reason="Missing username or auth_key."), 400
 
+    if login_limiter.is_limited():
+        return jsonify(success=False, reason="Too many login attempts. Try again later."), 429
+
     user = User.query.filter_by(username=username).first()
     if not user:
+        bcrypt.checkpw(auth_key.encode('utf-8'), _DUMMY_BCRYPT_HASH)
+        login_limiter.record()
         return jsonify(success=False, reason="Invalid credentials."), 401
     if not bcrypt.checkpw(auth_key.encode('utf-8'), user.password):
+        login_limiter.record()
         return jsonify(success=False, reason="Invalid credentials."), 401
 
     session['user_id'] = user.id
@@ -122,6 +130,10 @@ def api_auth_update_recovery_key():
 @web_bp.route("/api/auth/recover", methods=['POST'])
 def api_auth_recover():
     """Account recovery using recovery key. Client unwraps with recovery key, sets new password."""
+    if recovery_limiter.is_limited():
+        return jsonify(success=False, reason="Too many recovery attempts. Try again later."), 429
+    recovery_limiter.record()
+
     data = request.get_json()
     if not data:
         return jsonify(success=False, reason="Missing request body."), 400
@@ -135,7 +147,8 @@ def api_auth_recover():
 
     user = User.query.filter_by(username=username).first()
     if not user:
-        return jsonify(success=False, reason="User not found."), 404
+        # Generic message to prevent username enumeration
+        return jsonify(success=False, reason="Recovery failed."), 400
 
     user.password = bcrypt.hashpw(new_auth_key.encode('utf-8'), bcrypt.gensalt())
     user.encrypted_symmetric_key = new_encrypted_sym_key
@@ -239,11 +252,15 @@ def api_migrate_encrypt_data():
 
 @web_bp.route("/api/auth/recovery_info")
 def api_auth_recovery_info():
-    """Return recovery-wrapped key for account recovery (public, no auth needed)."""
+    """Return recovery-wrapped key for account recovery. Rate-limited."""
+    if recovery_limiter.is_limited():
+        return jsonify(recovery_encrypted_key=None, reason="Too many attempts. Try again later."), 429
+    recovery_limiter.record()
     username = (request.args.get('username') or '').lower().strip()
     if not username:
         return jsonify(recovery_encrypted_key=None)
     user = User.query.filter_by(username=username).first()
+    # Always return same shape response to prevent username enumeration
     if not user or not user.recovery_encrypted_key:
         return jsonify(recovery_encrypted_key=None)
     return jsonify(recovery_encrypted_key=user.recovery_encrypted_key)
@@ -441,10 +458,10 @@ def settings_page():
                         if note:
                             if resolution == 'local':
                                 note.change_title(conflict.local_title)
-                                note.change_content(conflict.local_content)
+                                note.change_content(conflict.local_content, encrypted=True)
                             else:
                                 note.change_title(conflict.server_title)
-                                note.change_content(conflict.server_content)
+                                note.change_content(conflict.server_content, encrypted=True)
                     conflict.resolved = True
                     db.session.commit()
             return redirect(url_for('web.settings_page'))

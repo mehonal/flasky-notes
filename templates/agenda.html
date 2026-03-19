@@ -299,10 +299,12 @@
 
     body[data-encrypted="true"] .todo-label,
     body[data-encrypted="true"] .event-label,
-    body[data-encrypted="true"] .archived-item-title { visibility: hidden; }
+    body[data-encrypted="true"] .archived-item-title,
+    body[data-encrypted="true"] .sidebar-nav .nav-item.e2ee-note { visibility: hidden; }
     body.e2ee-decrypted .todo-label,
     body.e2ee-decrypted .event-label,
-    body.e2ee-decrypted .archived-item-title { visibility: visible; }
+    body.e2ee-decrypted .archived-item-title,
+    body.e2ee-decrypted .sidebar-nav .nav-item.e2ee-note { visibility: visible; }
 
     .badge {
         display: inline-block; font-size: 10px; font-weight: 600;
@@ -605,9 +607,9 @@
         <div class="sidebar-divider"></div>
         <div class="sidebar-section-label">Recent Notes</div>
         {% for note in g.user.return_notes(15) %}
-        <a href="/note/{{ note.id }}" class="nav-item">
+        <a href="/note/{{ note.id }}" class="nav-item e2ee-note">
           <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
-          {{ note.title }}
+          <span class="nav-item-title">{{ note.title }}</span>
         </a>
         {% endfor %}
       </div>
@@ -915,7 +917,14 @@
                     try { el.textContent = await FlaskyE2EE.decryptField(el.textContent.trim()); } catch(e) {}
                 })());
             });
-            await Promise.all(todoPromises.concat(eventPromises).concat(archivedPromises));
+            // Decrypt sidebar recent note titles
+            var notePromises = [];
+            document.querySelectorAll('.sidebar-nav .nav-item-title').forEach(function(el) {
+                notePromises.push((async function() {
+                    try { el.textContent = await FlaskyE2EE.decryptField(el.textContent.trim()); } catch(e) {}
+                })());
+            });
+            await Promise.all(todoPromises.concat(eventPromises).concat(archivedPromises).concat(notePromises));
             document.body.classList.add('e2ee-decrypted');
         }
     })();

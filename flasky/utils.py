@@ -2,11 +2,49 @@ import re
 import secrets
 import hashlib
 import json
+import time
+import threading
 import datetime as dt
 from functools import wraps
 
 import yaml
 from flask import request, jsonify, g
+
+
+# ============ In-memory rate limiter ============
+
+class RateLimiter:
+    """Simple in-memory rate limiter keyed by IP address."""
+
+    def __init__(self, max_attempts, window_seconds):
+        self.max_attempts = max_attempts
+        self.window = window_seconds
+        self._attempts = {}  # ip -> [timestamp, ...]
+        self._lock = threading.Lock()
+
+    def _cleanup(self, key):
+        cutoff = time.monotonic() - self.window
+        self._attempts[key] = [t for t in self._attempts.get(key, []) if t > cutoff]
+
+    def is_limited(self, key=None):
+        if key is None:
+            key = request.remote_addr or '0.0.0.0'
+        with self._lock:
+            self._cleanup(key)
+            return len(self._attempts.get(key, [])) >= self.max_attempts
+
+    def record(self, key=None):
+        if key is None:
+            key = request.remote_addr or '0.0.0.0'
+        with self._lock:
+            self._cleanup(key)
+            self._attempts.setdefault(key, []).append(time.monotonic())
+
+
+# 5 attempts per 15 minutes for recovery endpoints
+recovery_limiter = RateLimiter(max_attempts=5, window_seconds=900)
+# 10 attempts per 5 minutes for login
+login_limiter = RateLimiter(max_attempts=10, window_seconds=300)
 
 
 _FRONTMATTER_RE = re.compile(r'^---\n(.*?)\n---\n', re.DOTALL)
