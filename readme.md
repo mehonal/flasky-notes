@@ -10,7 +10,7 @@ The noting app aims to provide simple, fast and bloat-free noting with clean int
 
 # Themes
 
-Flasky Notes ships with 9 themes. Each offers a different layout and feature set. Users pick their theme in `/settings`, where a full comparison table is also available.
+Flasky Notes ships with 4 themes. Each offers a different layout and feature set. Users pick their theme in `/settings`, where a full comparison table is also available.
 
 | Theme | Style | Dark mode | Markdown | Wiki-links | Search | Font | Properties | Auto-save | Sidebar | Drag-drop | Todos | Events | Notes page | Categories page | Outline | Backlinks |
 |-------|-------|-----------|----------|------------|--------|------|------------|-----------|---------|-----------|-------|--------|------------|-----------------|---------|-----------|
