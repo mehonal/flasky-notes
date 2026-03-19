@@ -58,12 +58,23 @@ def create_app():
     app.register_blueprint(external_api_bp)
     app.register_blueprint(sync_api_bp)
 
-    # Disable caching if configured
-    if CONFIG.DISABLE_CACHING:
-        @app.after_request
-        def after_request(response):
+    # Set CSRF cookie on responses so client JS can read it
+    @app.after_request
+    def set_csrf_cookie(response):
+        from flask import session
+        csrf_token = session.get('csrf_token')
+        if csrf_token:
+            response.set_cookie(
+                'X-CSRF-Token',
+                csrf_token,
+                httponly=False,
+                secure=CONFIG.ENFORCE_SSL,
+                samesite='Strict',
+                max_age=24 * 3600
+            )
+        if CONFIG.DISABLE_CACHING:
             response.headers["Cache-Control"] = " no-store,  max-age=0"
-            return response
+        return response
 
     # SSL validation route
     if CONFIG.ENFORCE_SSL:

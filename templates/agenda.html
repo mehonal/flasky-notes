@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Flasky Agenda</title>
 
+    <script src="{{ url_for('static', filename='js/csrf.js') }}"></script>
     {% if g.user.encryption_enabled %}
     <script src="{{ url_for('static', filename='js/crypto.js') }}"></script>
     <script src="{{ url_for('static', filename='js/e2ee.js') }}"></script>

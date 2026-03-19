@@ -11,6 +11,7 @@
     <!-- CodeMirror 6 (bundled) -->
     <script src="{{ url_for('static', filename='script/themes/obsidified/codemirror6.bundle.js') }}"></script>
 
+    <script src="{{ url_for('static', filename='js/csrf.js') }}"></script>
     <!-- E2EE -->
     {% if g.user.encryption_enabled %}
     <script src="{{ url_for('static', filename='js/crypto.js') }}"></script>

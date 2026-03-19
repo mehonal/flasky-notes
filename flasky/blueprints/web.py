@@ -11,7 +11,19 @@ from flasky.models import (
     UserAgendaNotes
 )
 import os
+import secrets
 from flasky.utils import has_banned_chars, valid_email, generate_api_token, recovery_limiter, login_limiter
+
+# Paths exempt from CSRF validation (pre-auth or token-auth endpoints)
+_CSRF_EXEMPT = (
+    '/api/auth/login',
+    '/api/auth/register',
+    '/api/auth/salt',
+    '/api/auth/recovery_info',
+    '/api/auth/recover',
+    '/api/sync/',
+    '/api/external/',
+)
 from zoneinfo import available_timezones
 
 web_bp = Blueprint('web', __name__)
@@ -336,6 +348,19 @@ def before_request():
         if user is not None:
             if user.id == session['user_id']:
                 g.user = user
+
+    # CSRF validation for state-changing requests
+    from flask import current_app
+    if request.method in ('POST', 'PUT', 'DELETE', 'PATCH') and not current_app.config.get('TESTING'):
+        if not any(request.path.startswith(p) for p in _CSRF_EXEMPT):
+            csrf_token = session.get('csrf_token')
+            header_token = request.headers.get('X-CSRFToken') or request.form.get('csrf_token', '')
+            if not csrf_token or not header_token or not secrets.compare_digest(csrf_token, header_token):
+                return jsonify(error="CSRF token missing or invalid."), 403
+
+    # Ensure CSRF token exists in session
+    if 'csrf_token' not in session:
+        session['csrf_token'] = secrets.token_hex(32)
 
 
 @web_bp.route("/")
