@@ -1,6 +1,7 @@
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
+from flask_talisman import Talisman
 from sqlalchemy import MetaData
 from datetime import timedelta
 import os
@@ -48,6 +49,26 @@ def create_app():
 
     db.init_app(app)
     migrate.init_app(app, db, render_as_batch=True)
+
+    # Security headers via Talisman
+    csp = {
+        'default-src': "'self'",
+        'script-src': ["'self'", "'unsafe-inline'", "https://cdnjs.cloudflare.com"],
+        'style-src': ["'self'", "'unsafe-inline'", "https://cdnjs.cloudflare.com"],
+        'img-src': ["'self'", "data:"],
+        'font-src': "'self'",
+        'connect-src': "'self'",
+        'frame-src': "'none'",
+        'object-src': "'none'",
+        'base-uri': "'self'",
+        'form-action': "'self'",
+    }
+    Talisman(
+        app,
+        force_https=CONFIG.ENFORCE_SSL,
+        content_security_policy=csp,
+        session_cookie_secure=CONFIG.ENFORCE_SSL,
+    )
 
     logging.basicConfig(filename='applog.log', level=logging.WARNING,
                         format=f'%(asctime)s %(levelname)s %(name)s %(threadName)s : %(message)s')

@@ -5,4 +5,5 @@ bcrypt
 flask_migrate
 python-dotenv
 gunicorn
+flask-talisman
 PyYAML
