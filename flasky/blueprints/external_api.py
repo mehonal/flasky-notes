@@ -2,12 +2,18 @@ from flask import Blueprint, request, jsonify
 import bcrypt
 
 from flasky.models import User, UserNote
+from flasky.utils import login_limiter
 
 external_api_bp = Blueprint('external_api', __name__, url_prefix='/api/external')
+
+# Pre-computed dummy hash for constant-time response when user not found
+_DUMMY_BCRYPT_HASH = bcrypt.hashpw(b'dummy', bcrypt.gensalt())
 
 
 def _authenticate_user(data):
     """Authenticate user via auth_key (E2EE) or legacy password."""
+    if login_limiter.is_limited():
+        return None, "Too many login attempts. Try again later."
     username = (data.get('username') or '').lower().strip()
     # Support both auth_key (E2EE) and password (legacy)
     auth_key = data.get('auth_key') or data.get('password')
@@ -15,9 +21,12 @@ def _authenticate_user(data):
         return None, "Missing username or credentials."
     user = User.query.filter_by(username=username).first()
     if not user:
-        return None, "User does not exist."
+        bcrypt.checkpw(b'dummy', _DUMMY_BCRYPT_HASH)
+        login_limiter.record()
+        return None, "Invalid credentials."
     if not bcrypt.checkpw(str(auth_key).encode('utf-8'), user.password):
-        return None, "Incorrect credentials."
+        login_limiter.record()
+        return None, "Invalid credentials."
     return user, None
 
 

@@ -32,6 +32,11 @@ def create_app():
     app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URI')
     app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY')
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+    app.config['MAX_CONTENT_LENGTH'] = CONFIG.MAX_UPLOAD_SIZE_MB * 1024 * 1024
+    app.config['SESSION_COOKIE_HTTPONLY'] = True
+    app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+    if CONFIG.ENFORCE_SSL:
+        app.config['SESSION_COOKIE_SECURE'] = True
 
     app.permanent_session_lifetime = timedelta(days=CONFIG.SESSION_LIFETIME)
 

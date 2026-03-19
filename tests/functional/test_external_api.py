@@ -100,14 +100,14 @@ def test_external_wrong_password(app_context, client):
     r = client.post('/api/external/get-notes',
                     json={'username': USERNAME, 'password': 'wrongpassword'})
     assert r.json['success'] is False
-    assert 'password' in r.json['reason'].lower()
+    assert 'invalid credentials' in r.json['reason'].lower()
 
 
 def test_external_nonexistent_user(client):
     r = client.post('/api/external/get-notes',
                     json={'username': 'nobody', 'password': 'whatever'})
     assert r.json['success'] is False
-    assert 'not exist' in r.json['reason'].lower()
+    assert 'invalid credentials' in r.json['reason'].lower()
 
 
 def test_external_get_nonexistent_note(app_context, client):

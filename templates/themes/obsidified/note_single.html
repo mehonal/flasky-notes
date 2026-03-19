@@ -21,6 +21,8 @@
 
     <!-- Markdown preview -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/2.0.3/marked.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.6/purify.min.js"></script>
+    <script src="{{ url_for('static', filename='js/sanitize.js') }}"></script>
     <script src="{{ url_for('static', filename='js/wikilinks.js') }}"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css" id="hljs-dark">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css" id="hljs-light" disabled>
@@ -1803,7 +1805,7 @@
                         var row = document.createElement('div');
                         row.className = 'prop-row';
                         row.setAttribute('data-prop-key', key);
-                        row.innerHTML = '<div class="prop-key">' + key.replace(/</g, '&lt;') + '</div>' +
+                        row.innerHTML = '<div class="prop-key">' + escapeHtml(key) + '</div>' +
                             '<div class="prop-value"><input type="text" class="prop-value-input" value="" onchange="onPropChanged()"></div>' +
                             '<button class="prop-remove-btn" onclick="removeProp(this)" title="Remove property"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>';
                         row.querySelector('.prop-value-input').value = val || '';
@@ -1944,7 +1946,7 @@
                     div.className = 'file-item' + (id === noteId ? ' active' : '');
                     div.style.paddingLeft = '8px';
                     div.onclick = function() { openNote(id); };
-                    div.innerHTML = '<span class="file-icon"><svg viewBox="0 0 24 24" width="14" height="14"><path d="M12 2L15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26z" fill="currentColor" stroke="none"/></svg></span><span class="file-name">' + name + '</span>';
+                    div.innerHTML = '<span class="file-icon"><svg viewBox="0 0 24 24" width="14" height="14"><path d="M12 2L15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26z" fill="currentColor" stroke="none"/></svg></span><span class="file-name">' + escapeHtml(name) + '</span>';
                     list.appendChild(div);
                 }
             });
@@ -2128,7 +2130,7 @@
             var content = getEditorContent();
             if (content && content.trim()) {
                 var renderedHtml = marked(content);
-                preview.innerHTML = processCallouts(renderedHtml);
+                preview.innerHTML = sanitizeMarkdown(processCallouts(renderedHtml));
                 preview.querySelectorAll('pre code').forEach(function(block) { hljs.highlightElement(block); });
                 if (window._decryptAttachments) window._decryptAttachments(preview);
             } else {
@@ -2239,7 +2241,7 @@
                     if (data.length === 0) { list.innerHTML = '<li class="backlinks-empty">No outbound links</li>'; return; }
                     var html = '';
                     data.forEach(function(n) {
-                        html += '<li><a href="/note/' + n.id + '" onclick="event.preventDefault(); openNote(' + n.id + ')">' + (n.title || 'Untitled').replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</a></li>';
+                        html += '<li><a href="/note/' + n.id + '" onclick="event.preventDefault(); openNote(' + n.id + ')">' + escapeHtml(n.title || 'Untitled') + '</a></li>';
                     });
                     list.innerHTML = html;
                 } catch(e) { list.innerHTML = '<li class="backlinks-empty">No outbound links</li>'; }
@@ -2266,9 +2268,9 @@
                     var key = title.toLowerCase();
                     var found = wikiNoteList.find(function(n) { return n.title.toLowerCase() === key; });
                     if (found) {
-                        html += '<li><a href="/note/' + found.id + '" onclick="event.preventDefault(); openNote(' + found.id + ')">' + (found.title || 'Untitled').replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</a></li>';
+                        html += '<li><a href="/note/' + found.id + '" onclick="event.preventDefault(); openNote(' + found.id + ')">' + escapeHtml(found.title || 'Untitled') + '</a></li>';
                     } else {
-                        html += '<li><span class="backlinks-empty outbound-missing">' + title.replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</span></li>';
+                        html += '<li><span class="backlinks-empty outbound-missing">' + escapeHtml(title) + '</span></li>';
                     }
                 });
                 list.innerHTML = html;
@@ -2384,7 +2386,7 @@
                 div.className = 'file-item active';
                 div.setAttribute('data-note-id', note.id);
                 div.setAttribute('onclick', 'openNote(' + note.id + ')');
-                div.innerHTML = '<span class="file-icon"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></span><span class="file-name">' + (note.title || 'Untitled') + '</span>';
+                div.innerHTML = '<span class="file-icon"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></span><span class="file-name">' + escapeHtml(note.title || 'Untitled') + '</span>';
                 items.appendChild(div);
                 targetFolder.classList.remove('collapsed');
                 var count = targetFolder.querySelector('.folder-count');
@@ -2675,7 +2677,7 @@
                 item.setAttribute('data-widget-idx', idx);
                 item.innerHTML =
                     '<span class="widget-config-drag-handle"><svg viewBox="0 0 24 24"><line x1="8" y1="6" x2="8" y2="6.01"/><line x1="16" y1="6" x2="16" y2="6.01"/><line x1="8" y1="12" x2="8" y2="12.01"/><line x1="16" y1="12" x2="16" y2="12.01"/><line x1="8" y1="18" x2="8" y2="18.01"/><line x1="16" y1="18" x2="16" y2="18.01"/></svg></span>' +
-                    '<span class="widget-config-label">' + w.label + '</span>' +
+                    '<span class="widget-config-label">' + escapeHtml(w.label) + '</span>' +
                     '<label class="widget-config-toggle"><input type="checkbox" ' + (w.visible ? 'checked' : '') + ' onchange="toggleWidgetVisibility(' + idx + ', this.checked)"><span class="wc-slider"></span></label>';
 
                 // Drag events
@@ -2843,8 +2845,8 @@
                 html += '<div class="agenda-widget-item' + itemClass + '" onclick="openTodoDetail(' + t.id + ')">' +
                     '<button class="agenda-todo-check' + checkedClass + '" onclick="event.stopPropagation(); completeTodoWidget(' + t.id + ')" title="' + (t.completed ? 'Completed' : 'Complete') + '">' +
                     '<svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></button>' +
-                    '<span class="agenda-item-title">' + (t.title || 'Untitled').replace(/</g, '&lt;') + '</span>' +
-                    '<span class="agenda-item-date">' + dateStr + '</span></div>';
+                    '<span class="agenda-item-title">' + escapeHtml(t.title || 'Untitled') + '</span>' +
+                    '<span class="agenda-item-date">' + escapeHtml(dateStr) + '</span></div>';
             });
             container.innerHTML = html;
         }
@@ -2901,8 +2903,8 @@
             cachedEvents.forEach(function(e) {
                 html += '<div class="agenda-widget-item" onclick="openEventDetail(' + e.id + ')">' +
                     '<span class="agenda-dot event-dot"></span>' +
-                    '<span class="agenda-item-title">' + (e.title || 'Untitled').replace(/</g, '&lt;') + '</span>' +
-                    '<span class="agenda-item-date">' + (e.time_until_event || '') + '</span></div>';
+                    '<span class="agenda-item-title">' + escapeHtml(e.title || 'Untitled') + '</span>' +
+                    '<span class="agenda-item-date">' + escapeHtml(e.time_until_event || '') + '</span></div>';
             });
             container.innerHTML = html;
         }
@@ -3174,8 +3176,8 @@
                 var val = props[key];
                 if (Array.isArray(val)) val = val.join(', ');
                 html += '<div class="right-panel-prop"><span class="right-panel-prop-key">' +
-                    key.replace(/</g, '&lt;') + '</span><span class="right-panel-prop-val">' +
-                    String(val).replace(/</g, '&lt;') + '</span></div>';
+                    escapeHtml(key) + '</span><span class="right-panel-prop-val">' +
+                    escapeHtml(String(val)) + '</span></div>';
             });
             container.innerHTML = html;
         }
@@ -3196,7 +3198,7 @@
 
             var html = '';
             headings.forEach(function(h, i) {
-                html += '<li class="h' + h.level + '"><a href="#" onclick="scrollToHeading(' + i + '); return false;">' + h.text.replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</a></li>';
+                html += '<li class="h' + h.level + '"><a href="#" onclick="scrollToHeading(' + i + '); return false;">' + escapeHtml(h.text) + '</a></li>';
             });
             list.innerHTML = html;
         }
@@ -3255,7 +3257,7 @@
                     var data = await FlaskySearch.computeBacklinks(noteTitle);
                     if (data.length === 0) { list.innerHTML = '<li class="backlinks-empty">No backlinks</li>'; return; }
                     var html = '';
-                    data.forEach(function(n) { html += '<li><a href="/note/' + n.id + '" onclick="event.preventDefault(); openNote(' + n.id + ')">' + (n.title || 'Untitled').replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</a></li>'; });
+                    data.forEach(function(n) { html += '<li><a href="/note/' + n.id + '" onclick="event.preventDefault(); openNote(' + n.id + ')">' + escapeHtml(n.title || 'Untitled') + '</a></li>'; });
                     list.innerHTML = html;
                 } catch(e) { list.innerHTML = '<li class="backlinks-empty">Failed to load</li>'; }
                 return;
@@ -3265,7 +3267,7 @@
             .then(function(data) {
                 if (data.length === 0) { list.innerHTML = '<li class="backlinks-empty">No backlinks</li>'; return; }
                 var html = '';
-                data.forEach(function(n) { html += '<li><a href="/note/' + n.id + '" onclick="event.preventDefault(); openNote(' + n.id + ')">' + (n.title || 'Untitled').replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</a></li>'; });
+                data.forEach(function(n) { html += '<li><a href="/note/' + n.id + '" onclick="event.preventDefault(); openNote(' + n.id + ')">' + escapeHtml(n.title || 'Untitled') + '</a></li>'; });
                 list.innerHTML = html;
             })
             .catch(function() { list.innerHTML = '<li class="backlinks-empty">Failed to load</li>'; });
@@ -3320,8 +3322,8 @@
             var html = '';
             searchResults.forEach(function(note, i) {
                 html += '<div class="search-result-item' + (i === searchSelectedIndex ? ' selected' : '') + '" onclick="closeSearchModal(); openNote(' + note.id + ')" onmouseenter="searchSelectedIndex=' + i + ';renderSearchResults()">';
-                html += '<div class="search-result-title">' + (note.title || 'Untitled').replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</div>';
-                html += '<div class="search-result-category">' + (note.category || 'Main') + '</div></div>';
+                html += '<div class="search-result-title">' + escapeHtml(note.title || 'Untitled') + '</div>';
+                html += '<div class="search-result-category">' + escapeHtml(note.category || 'Main') + '</div></div>';
             });
             container.innerHTML = html;
         }
@@ -3657,7 +3659,7 @@
 
                 var titleDiv = document.createElement('div');
                 titleDiv.className = 'callout-title';
-                titleDiv.innerHTML = getCalloutIcon(calloutType) + '<span>' + titleText + '</span>';
+                titleDiv.innerHTML = getCalloutIcon(calloutType) + '<span>' + escapeHtml(titleText) + '</span>';
                 callout.appendChild(titleDiv);
 
                 // Remaining content: everything after the first line in the first <p>, plus other children

@@ -99,6 +99,7 @@
             statusEl.textContent = 'Generating recovery key...';
             var recovery = await FlaskyCrypto.generateRecoveryKey();
             var recoveryWrapped = await FlaskyCrypto.wrapSymmetricKey(symKey, recovery.cryptoKey);
+            var recoveryHash = await FlaskyCrypto.recoveryKeyHash(recovery.keyBytes);
 
             // 5. Register with server
             statusEl.textContent = 'Creating account...';
@@ -111,6 +112,7 @@
                     auth_key: keys.authKeyHex,
                     encrypted_sym_key: wrappedSymKey,
                     recovery_encrypted_key: recoveryWrapped,
+                    recovery_key_hash: recoveryHash,
                     key_salt: keySalt,
                     password_hint: hint
                 })

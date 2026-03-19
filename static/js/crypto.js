@@ -283,6 +283,15 @@
         );
     }
 
+    /**
+     * Compute SHA-256 hash of recovery key bytes (for server-side verification).
+     * Returns hex string.
+     */
+    async function recoveryKeyHash(keyBytes) {
+        var hash = await crypto.subtle.digest('SHA-256', keyBytes);
+        return bufToHex(hash);
+    }
+
     // ======== Session Storage (per-tab symmetric key) ========
 
     async function storeSymmetricKey(symKey) {
@@ -346,6 +355,7 @@
         decryptBlob: decryptBlob,
         generateRecoveryKey: generateRecoveryKey,
         parseRecoveryKey: parseRecoveryKey,
+        recoveryKeyHash: recoveryKeyHash,
         storeSymmetricKey: storeSymmetricKey,
         loadSymmetricKey: loadSymmetricKey,
         clearSymmetricKey: clearSymmetricKey,

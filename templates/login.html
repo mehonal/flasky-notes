@@ -100,7 +100,7 @@
             }
             // If not redirected, it returned an error message
             var text = await legacyResp.text();
-            errorEl.innerHTML = text;
+            errorEl.textContent = text;
             errorEl.style.display = 'block';
         } catch (err) {
             errorEl.textContent = 'Login failed: ' + err.message;
@@ -162,6 +162,9 @@ async function doRecovery() {
 
         statusEl.textContent = 'Recovering symmetric key...';
         var recoveryKey = await FlaskyCrypto.parseRecoveryKey(recoveryKeyStr);
+        // Compute hash of the recovery key to prove possession to the server
+        var recoveryKeyBytes = new Uint8Array(FlaskyCrypto.base64ToBuf(recoveryKeyStr.replace(/-/g, '')));
+        var oldRecoveryHash = await FlaskyCrypto.recoveryKeyHash(recoveryKeyBytes);
         var symKey = await FlaskyCrypto.unwrapSymmetricKey(info.recovery_encrypted_key, recoveryKey);
 
         statusEl.textContent = 'Setting new password...';
@@ -172,15 +175,18 @@ async function doRecovery() {
         // Generate new recovery key
         var newRecovery = await FlaskyCrypto.generateRecoveryKey();
         var newRecoveryWrapped = await FlaskyCrypto.wrapSymmetricKey(symKey, newRecovery.cryptoKey);
+        var newRecoveryHash = await FlaskyCrypto.recoveryKeyHash(newRecovery.keyBytes);
 
         var resp = await fetch('/api/auth/recover', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({
                 username: username,
+                recovery_key_hash: oldRecoveryHash,
                 new_auth_key: keys.authKeyHex,
                 new_encrypted_sym_key: newWrapped,
                 new_recovery_encrypted_key: newRecoveryWrapped,
+                new_recovery_key_hash: newRecoveryHash,
                 new_key_salt: newKeySalt
             })
         });

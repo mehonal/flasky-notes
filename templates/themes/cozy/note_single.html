@@ -19,6 +19,8 @@
     <script src="{{ url_for('static', filename='js/e2ee-search.js') }}"></script>
     {% endif %}
     <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/2.0.3/marked.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.6/purify.min.js"></script>
+    <script src="{{ url_for('static', filename='js/sanitize.js') }}"></script>
     <script src="{{ url_for('static', filename='js/wikilinks.js') }}"></script>
     <script src="{{ url_for('static', filename='js/markdown-extras.js') }}"></script>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/callouts.css') }}">
@@ -1078,7 +1080,7 @@
             markdownContent.style.display = markdownContent.style.display === 'none' ? 'block' : 'none';
             noteContent.style.display = noteContent.style.display === 'none' ? 'block' : 'none';
             if (markdownContent.style.display === 'block') {
-                markdownContent.innerHTML = FlaskyMarkdown.processCallouts(marked(noteContent.value));
+                markdownContent.innerHTML = sanitizeMarkdown(FlaskyMarkdown.processCallouts(marked(noteContent.value)));
                 hljs.highlightAll();
                 if (window._decryptAttachments) window._decryptAttachments(markdownContent);
             }
@@ -1518,7 +1520,7 @@
                         // Update markdown preview if visible
                         var mdDiv = document.getElementById('markdown-note-content');
                         if (mdDiv && mdDiv.style.display !== 'none' && typeof marked !== 'undefined') {
-                            mdDiv.innerHTML = marked(content || '');
+                            mdDiv.innerHTML = sanitizeMarkdown(marked(content || ''));
                         }
                         updateWordCount();
                     } catch(e) {

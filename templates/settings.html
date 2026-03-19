@@ -4,6 +4,7 @@
 <script src="{{ url_for('static', filename='js/crypto.js') }}"></script>
 <script src="{{ url_for('static', filename='js/e2ee.js') }}"></script>
 {% endif %}
+<script src="{{ url_for('static', filename='js/sanitize.js') }}"></script>
 <style>
     .settings-page {
         max-width: 1100px;
@@ -692,10 +693,10 @@ async function changeEncryptionPassword() {
             document.getElementById('new-password').value = '';
             document.getElementById('confirm-password').value = '';
         } else {
-            statusEl.innerHTML = '<span class="text-danger">Error: ' + (data.reason || 'Unknown error') + '</span>';
+            statusEl.innerHTML = '<span class="text-danger">Error: ' + escapeHtml(data.reason || 'Unknown error') + '</span>';
         }
     } catch(e) {
-        statusEl.innerHTML = '<span class="text-danger">Error: ' + e.message + '</span>';
+        statusEl.innerHTML = '<span class="text-danger">Error: ' + escapeHtml(e.message) + '</span>';
     }
 }
 
@@ -708,10 +709,11 @@ async function regenerateRecoveryKey() {
         }
         var recovery = await FlaskyCrypto.generateRecoveryKey();
         var wrappedKey = await FlaskyCrypto.wrapSymmetricKey(symKey, recovery.cryptoKey);
+        var recoveryHash = await FlaskyCrypto.recoveryKeyHash(recovery.keyBytes);
         var resp = await fetch('/api/auth/update_recovery_key', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ recovery_encrypted_key: wrappedKey })
+            body: JSON.stringify({ recovery_encrypted_key: wrappedKey, recovery_key_hash: recoveryHash })
         });
         var data = await resp.json();
         if (data.success) {

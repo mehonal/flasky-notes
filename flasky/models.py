@@ -133,6 +133,7 @@ class User(db.Model):
     encryption_enabled = db.Column(db.Boolean, default=False)
     encrypted_symmetric_key = db.Column(db.Text)         # base64 AES-GCM wrapped key
     recovery_encrypted_key = db.Column(db.Text)           # base64 recovery-key wrapped key
+    recovery_key_hash = db.Column(db.String(64))            # SHA-256 hash of raw recovery key bytes
     encryption_version = db.Column(db.Integer, default=0) # 0=none, 1=AES-256-GCM
     key_salt = db.Column(db.String(64))                   # hex-encoded random PBKDF2 salt
     password_hint = db.Column(db.Text)                    # encrypted by client

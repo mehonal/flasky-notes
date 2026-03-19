@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Flasky Agenda</title>
 
+    <script src="{{ url_for('static', filename='js/sanitize.js') }}"></script>
     <script src="{{ url_for('static', filename='js/csrf.js') }}"></script>
     {% if g.user.encryption_enabled %}
     <script src="{{ url_for('static', filename='js/crypto.js') }}"></script>
@@ -989,7 +990,7 @@
         const toast = document.createElement('div');
         toast.className = `toast ${type}`;
         toast.innerHTML = `
-            <span>${message}</span>
+            <span>${escapeHtml(message)}</span>
             <button class="toast-close" onclick="this.parentElement.remove()">
                 <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
             </button>
@@ -1145,7 +1146,7 @@
                 const item = document.createElement('div');
                 item.className = 'archived-item';
                 item.innerHTML = `
-                    <span class="archived-item-title">${todo.title}</span>
+                    <span class="archived-item-title">${escapeHtml(todo.title)}</span>
                     <div class="archived-item-actions">
                         <button class="action-btn" onclick="unarchiveTodo(${todo.id})" title="Restore">
                             <svg viewBox="0 0 24 24"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
@@ -1300,9 +1301,9 @@
         .then(data => {
             const todoItem = document.querySelector(`span[data-todo-id="${todoId}"]`);
             if (todoItem) {
-                let text = todoTitle;
+                let text = escapeHtml(todoTitle);
                 if (todoContent) text += ' <span style="opacity:0.5">...</span>';
-                if (todoDate) text += ` <span class="badge badge-${data.todo.due_css_class}">${data.todo.time_until_due}</span>`;
+                if (todoDate) text += ` <span class="badge badge-${escapeHtml(data.todo.due_css_class)}">${escapeHtml(data.todo.time_until_due)}</span>`;
                 todoItem.innerHTML = text;
             }
             hideModal('todoDetailsOverlay');
@@ -1330,9 +1331,9 @@
         .then(data => {
             const eventItem = document.querySelector(`span[data-event-id="${eventId}"]`);
             if (eventItem) {
-                let text = eventTitle;
+                let text = escapeHtml(eventTitle);
                 if (eventContent) text += ' <span style="opacity:0.5">...</span>';
-                if (eventDate) text += ` <span class="badge badge-${data.event.event_css_class}">${data.event.time_until_event}</span>`;
+                if (eventDate) text += ` <span class="badge badge-${escapeHtml(data.event.event_css_class)}">${escapeHtml(data.event.time_until_event)}</span>`;
                 eventItem.innerHTML = text;
             }
             hideModal('eventDetailsOverlay');
@@ -1349,14 +1350,14 @@
 
         let badgeHtml = '';
         if (todo.time_until_due) {
-            badgeHtml = ` <span class="badge badge-${todo.due_css_class}">${todo.time_until_due}</span>`;
+            badgeHtml = ` <span class="badge badge-${escapeHtml(todo.due_css_class)}">${escapeHtml(todo.time_until_due)}</span>`;
         }
         let contentHint = todo.has_content ? ' <span style="opacity:0.5">...</span>' : '';
 
         item.innerHTML = `
             <div class="list-item-left">
                 <input type="checkbox" class="todo-checkbox" ${todo.completed ? 'checked' : ''} onclick="toggleTodoItem(event)" />
-                <span data-todo-id="${todo.id}" class="todo-label${todo.completed ? ' completed' : ''}" onclick="showTodoDetailsModal(${todo.id})">${todo.title}${contentHint}${badgeHtml}</span>
+                <span data-todo-id="${todo.id}" class="todo-label${todo.completed ? ' completed' : ''}" onclick="showTodoDetailsModal(${todo.id})">${escapeHtml(todo.title)}${contentHint}${badgeHtml}</span>
             </div>
             <div class="list-item-right">
                 <button class="action-btn warning" data-todo-id="${todo.id}" onclick="archiveTodo(event)" title="Archive">
@@ -1376,13 +1377,13 @@
 
         let badgeHtml = '';
         if (event.time_until_event) {
-            badgeHtml = ` <span class="badge badge-${event.event_css_class}">${event.time_until_event}</span>`;
+            badgeHtml = ` <span class="badge badge-${escapeHtml(event.event_css_class)}">${escapeHtml(event.time_until_event)}</span>`;
         }
         let contentHint = event.has_content ? ' <span style="opacity:0.5">...</span>' : '';
 
         item.innerHTML = `
             <div class="list-item-left">
-                <span data-event-id="${event.id}" class="event-label" onclick="showEventDetailsModal(${event.id})">${event.title}${contentHint}${badgeHtml}</span>
+                <span data-event-id="${event.id}" class="event-label" onclick="showEventDetailsModal(${event.id})">${escapeHtml(event.title)}${contentHint}${badgeHtml}</span>
             </div>
             <div class="list-item-right">
                 <button class="action-btn danger" data-event-id="${event.id}" onclick="confirmDeleteEvent(event)" title="Delete">

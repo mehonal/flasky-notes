@@ -47,6 +47,8 @@ def api_auth_register():
 
     if not username or not email or not auth_key or not encrypted_sym_key:
         return jsonify(success=False, reason="Missing required fields."), 400
+    if len(auth_key) < 16:
+        return jsonify(success=False, reason="Auth key too short."), 400
     if has_banned_chars(username) or " " in username:
         return jsonify(success=False, reason="Illegal username."), 400
     if not valid_email(email):
@@ -65,6 +67,7 @@ def api_auth_register():
     new_user.encryption_enabled = True
     new_user.encrypted_symmetric_key = encrypted_sym_key
     new_user.recovery_encrypted_key = recovery_encrypted_key
+    new_user.recovery_key_hash = data.get('recovery_key_hash')
     new_user.encryption_version = 1
     new_user.key_salt = data.get('key_salt') or os.urandom(32).hex()
     new_user.password_hint = data.get('password_hint', '')
@@ -113,6 +116,7 @@ def api_auth_login():
         login_limiter.record()
         return jsonify(success=False, reason="Invalid credentials."), 401
 
+    session.clear()
     session['user_id'] = user.id
     session.permanent = True
 
@@ -140,6 +144,8 @@ def api_auth_change_password():
     g.user.encrypted_symmetric_key = new_encrypted_sym_key
     if data.get('new_recovery_encrypted_key'):
         g.user.recovery_encrypted_key = data['new_recovery_encrypted_key']
+    if data.get('new_recovery_key_hash'):
+        g.user.recovery_key_hash = data['new_recovery_key_hash']
     if data.get('new_key_salt'):
         g.user.key_salt = data['new_key_salt']
     db.session.commit()
@@ -156,6 +162,8 @@ def api_auth_update_recovery_key():
     if not data or not data.get('recovery_encrypted_key'):
         return jsonify(success=False, reason="Missing recovery_encrypted_key."), 400
     g.user.recovery_encrypted_key = data['recovery_encrypted_key']
+    if data.get('recovery_key_hash'):
+        g.user.recovery_key_hash = data['recovery_key_hash']
     db.session.commit()
     return jsonify(success=True)
 
@@ -175,7 +183,8 @@ def api_auth_recover():
     new_encrypted_sym_key = data.get('new_encrypted_sym_key')
     new_recovery_encrypted_key = data.get('new_recovery_encrypted_key')
 
-    if not username or not new_auth_key or not new_encrypted_sym_key:
+    recovery_key_hash = data.get('recovery_key_hash')
+    if not username or not new_auth_key or not new_encrypted_sym_key or not recovery_key_hash:
         return jsonify(success=False, reason="Missing required fields."), 400
 
     user = User.query.filter_by(username=username).first()
@@ -183,14 +192,21 @@ def api_auth_recover():
         # Generic message to prevent username enumeration
         return jsonify(success=False, reason="Recovery failed."), 400
 
+    # Verify the caller possesses the recovery key
+    if not user.recovery_key_hash or not secrets.compare_digest(user.recovery_key_hash, recovery_key_hash):
+        return jsonify(success=False, reason="Recovery failed."), 400
+
     user.password = bcrypt.hashpw(new_auth_key.encode('utf-8'), bcrypt.gensalt())
     user.encrypted_symmetric_key = new_encrypted_sym_key
     if new_recovery_encrypted_key:
         user.recovery_encrypted_key = new_recovery_encrypted_key
+    if data.get('new_recovery_key_hash'):
+        user.recovery_key_hash = data['new_recovery_key_hash']
     if data.get('new_key_salt'):
         user.key_salt = data['new_key_salt']
     db.session.commit()
 
+    session.clear()
     session['user_id'] = user.id
     session.permanent = True
 
@@ -216,6 +232,7 @@ def api_auth_enable_encryption():
     g.user.encryption_enabled = True
     g.user.encrypted_symmetric_key = encrypted_sym_key
     g.user.recovery_encrypted_key = recovery_encrypted_key
+    g.user.recovery_key_hash = data.get('recovery_key_hash')
     g.user.encryption_version = 1
     g.user.key_salt = data.get('key_salt') or os.urandom(32).hex()
     g.user.password_hint = data.get('password_hint', '')
@@ -296,9 +313,13 @@ def api_auth_recovery_info():
     if not username:
         return jsonify(recovery_encrypted_key=None)
     user = User.query.filter_by(username=username).first()
-    # Always return same shape response to prevent username enumeration
     if not user or not user.recovery_encrypted_key:
-        return jsonify(recovery_encrypted_key=None)
+        # Return a fake key that looks like a real wrapped key to prevent enumeration.
+        # The client will fail to unwrap it (AES-GCM auth tag check), giving a generic error.
+        import hashlib, base64
+        fake_bytes = hashlib.sha256(('flasky-recovery-' + username).encode()).digest()
+        fake_bytes += hashlib.sha256(fake_bytes).digest()  # 64 bytes total (12 IV + wrapped + tag)
+        return jsonify(recovery_encrypted_key=base64.b64encode(fake_bytes).decode())
     return jsonify(recovery_encrypted_key=user.recovery_encrypted_key)
 
 
@@ -515,11 +536,18 @@ def register_page():
 @web_bp.route("/login", methods = ['GET','POST'])
 def login_page():
     if request.method == 'POST':
-        session.pop('user_id', None)
+        if login_limiter.is_limited():
+            return 'Too many login attempts. Try again later.', 429
+        session.clear()
         the_username = request.form['username'].lower()
         password = request.form['password']
         user = User.query.filter_by(username=the_username).first()
-        if user and bcrypt.checkpw(str(password).encode('utf-8'),user.password):
+        if not user:
+            bcrypt.checkpw(b'dummy', _DUMMY_BCRYPT_HASH)
+            login_limiter.record()
+            return 'The username or password is not correct. You can try again via the <a href="/login">Login Page</a>.'
+        if bcrypt.checkpw(str(password).encode('utf-8'),user.password):
+            session.clear()
             session['user_id'] = user.id
             session.permanent = True
             # Legacy user: redirect to migration page
@@ -528,6 +556,7 @@ def login_page():
             # E2EE user logging in via form (shouldn't happen normally, but handle it)
             return redirect(url_for('web.notes_page'))
         else:
+            login_limiter.record()
             return 'The username or password is not correct. You can try again via the <a href="/login">Login Page</a>.'
     return render_template("login.html")
 
