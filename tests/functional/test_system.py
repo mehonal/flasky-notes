@@ -75,7 +75,7 @@ def run_registration_flow(client, username, password):
     # Change theme
     theme_response = client.post('/settings', data={
         'update-theme': True,
-        'theme': 'paper'
+        'theme': 'cozy'
     }, follow_redirects=True)
     assert theme_response.status_code == 200
 

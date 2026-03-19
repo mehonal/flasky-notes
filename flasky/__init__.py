@@ -95,14 +95,10 @@ def create_app():
 def _seed_themes():
     from flasky.models import Theme
     themes = [
-        ("Paper", "paper", True, True),
-        ("Full", "full", True, True),
         ("Dash", "dash", False, False),
         ("Cozy", "cozy", False, False),
-        ("Sage", "sage", False, False),
-        ("Segment", "segment", False, False),
-        ("Tahta", "tahta", False, False),
         ("Obsidified", "obsidified", False, False),
+        ("CLI", "cli", False, False)
     ]
     for name, slug, has_categories, has_notes in themes:
         if Theme.query.filter_by(slug=slug).first() is None:

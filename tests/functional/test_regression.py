@@ -56,10 +56,10 @@ def test_theme_persistence_bug(client):
         'password': 'testpassword'
     })
 
-    # Change theme to paper (which has notes_page)
+    # Change theme to cozy
     theme_response = client.post('/settings', data={
         'update-theme': True,
-        'theme': 'paper'
+        'theme': 'cozy'
     }, follow_redirects=True)
     assert theme_response.status_code == 200
 

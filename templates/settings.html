@@ -252,16 +252,16 @@
                         <input name="font-size" id="font-size" class="form-control" type="number" min="10" max="32" value="{{ theme_settings.font_size }}" style="max-width:80px">
                     </div>
 
-                    <!-- Mobile font size: cozy, sage, segment -->
-                    {% if slug in ('cozy', 'sage', 'segment') %}
+                    <!-- Mobile font size: cozy -->
+                    {% if slug in ('cozy') %}
                     <div class="settings-row">
                         <label for="mobile-font-size">Mobile font size</label>
                         <input name="mobile-font-size" id="mobile-font-size" class="form-control" type="number" min="10" max="32" value="{{ theme_settings.mobile_font_size }}" style="max-width:80px">
                     </div>
                     {% endif %}
 
-                    <!-- Font family: cozy, sage, segment, full, dash -->
-                    {% if slug in ('cozy', 'sage', 'segment', 'full', 'dash') %}
+                    <!-- Font family: cozy, dash -->
+                    {% if slug in ('cozy', 'dash') %}
                     <div class="settings-row">
                         <label for="font-family">Font family</label>
                         <input name="font-family" id="font-family" class="form-control" type="text" value="{{ theme_settings.font }}" placeholder="e.g. Inter, serif">
@@ -278,8 +278,8 @@
                     </div>
                     {% endif %}
 
-                    <!-- Auto-save: obsidified, cozy, sage, segment -->
-                    {% if slug in ('obsidified', 'cozy', 'sage', 'segment') %}
+                    <!-- Auto-save: obsidified, cozy -->
+                    {% if slug in ('obsidified', 'cozy') %}
                     <div class="settings-row">
                         <label class="form-check-label" for="auto-save">Auto-save</label>
                         <div class="form-check form-switch ms-auto">
@@ -333,18 +333,6 @@
                             </div>
                         </div>
                         {% endfor %}
-                    </div>
-                    {% endif %}
-
-                    <!-- Notes row count & height: full -->
-                    {% if slug == 'full' %}
-                    <div class="settings-row">
-                        <label for="notes-row-count">Notes per row</label>
-                        <input name="notes-row-count" id="notes-row-count" class="form-control" type="number" min="1" max="8" value="{{ theme_settings.notes_row_count }}" style="max-width:80px">
-                    </div>
-                    <div class="settings-row">
-                        <label for="notes-height">Note card height</label>
-                        <input name="notes-height" id="notes-height" class="form-control" type="number" min="50" max="500" value="{{ theme_settings.notes_height }}" style="max-width:80px">
                     </div>
                     {% endif %}
 
@@ -525,11 +513,6 @@
                             <th>Feature</th>
                             <th>Obsidified</th>
                             <th>Cozy</th>
-                            <th>Sage</th>
-                            <th>Segment</th>
-                            <th>Tahta</th>
-                            <th>Paper</th>
-                            <th>Full</th>
                             <th>Dash</th>
                             <th>CLI</th>
                         </tr>
@@ -553,19 +536,9 @@
                             <td class="yes">&#10003;</td>
                             <td class="yes">&#10003;</td>
                             <td class="yes">&#10003;</td>
-                            <td class="yes">&#10003;</td>
-                            <td class="yes">&#10003;</td>
-                            <td class="yes">&#10003;</td>
-                            <td class="yes">&#10003;</td>
-                            <td class="yes">&#10003;</td>
                         </tr>
                         <tr>
                             <td>Markdown</td>
-                            <td class="yes">&#10003;</td>
-                            <td class="yes">&#10003;</td>
-                            <td class="yes">&#10003;</td>
-                            <td class="yes">&#10003;</td>
-                            <td class="yes">&#10003;</td>
                             <td class="yes">&#10003;</td>
                             <td class="yes">&#10003;</td>
                             <td class="yes">&#10003;</td>
@@ -576,20 +549,10 @@
                             <td class="yes">&#10003;</td>
                             <td class="yes">&#10003;</td>
                             <td class="yes">&#10003;</td>
-                            <td class="yes">&#10003;</td>
-                            <td class="yes">&#10003;</td>
-                            <td class="yes">&#10003;</td>
-                            <td class="yes">&#10003;</td>
-                            <td class="yes">&#10003;</td>
                             <td class="no">&mdash;</td>
                         </tr>
                         <tr>
                             <td>Search</td>
-                            <td class="yes">&#10003;</td>
-                            <td class="yes">&#10003;</td>
-                            <td class="yes">&#10003;</td>
-                            <td class="yes">&#10003;</td>
-                            <td class="yes">&#10003;</td>
                             <td class="yes">&#10003;</td>
                             <td class="yes">&#10003;</td>
                             <td class="yes">&#10003;</td>
@@ -600,22 +563,12 @@
                             <td class="yes">&#10003;</td>
                             <td class="yes">&#10003;</td>
                             <td class="yes">&#10003;</td>
-                            <td class="yes">&#10003;</td>
-                            <td class="yes">&#10003;</td>
-                            <td class="yes">&#10003;</td>
-                            <td class="yes">&#10003;</td>
-                            <td class="yes">&#10003;</td>
                             <td class="no">&mdash;</td>
                         </tr>
                         <tr>
                             <td>Properties</td>
                             <td class="yes">&#10003;</td>
                             <td class="yes">&#10003;</td>
-                            <td class="yes">&#10003;</td>
-                            <td class="yes">&#10003;</td>
-                            <td class="yes">&#10003;</td>
-                            <td class="no">&mdash;</td>
-                            <td class="no">&mdash;</td>
                             <td class="no">&mdash;</td>
                             <td class="no">&mdash;</td>
                         </tr>
@@ -623,11 +576,6 @@
                             <td>Auto-save</td>
                             <td class="yes">&#10003;</td>
                             <td class="yes">&#10003;</td>
-                            <td class="yes">&#10003;</td>
-                            <td class="yes">&#10003;</td>
-                            <td class="no">&mdash;</td>
-                            <td class="no">&mdash;</td>
-                            <td class="no">&mdash;</td>
                             <td class="no">&mdash;</td>
                             <td class="no">&mdash;</td>
                         </tr>
@@ -635,11 +583,6 @@
                             <td>Sidebar</td>
                             <td class="yes">&#10003;</td>
                             <td class="yes">&#10003;</td>
-                            <td class="no">&mdash;</td>
-                            <td class="yes">&#10003;</td>
-                            <td class="no">&mdash;</td>
-                            <td class="no">&mdash;</td>
-                            <td class="no">&mdash;</td>
                             <td class="yes">&#10003;</td>
                             <td class="no">&mdash;</td>
                         </tr>
@@ -647,22 +590,12 @@
                             <td>Drag-drop</td>
                             <td class="yes">&#10003;</td>
                             <td class="yes">&#10003;</td>
-                            <td class="yes">&#10003;</td>
-                            <td class="no">&mdash;</td>
-                            <td class="yes">&#10003;</td>
-                            <td class="no">&mdash;</td>
-                            <td class="no">&mdash;</td>
                             <td class="no">&mdash;</td>
                             <td class="no">&mdash;</td>
                         </tr>
                         <tr>
                             <td>Todos</td>
                             <td class="yes">&#10003;</td>
-                            <td class="no">&mdash;</td>
-                            <td class="no">&mdash;</td>
-                            <td class="no">&mdash;</td>
-                            <td class="no">&mdash;</td>
-                            <td class="no">&mdash;</td>
                             <td class="no">&mdash;</td>
                             <td class="no">&mdash;</td>
                             <td class="yes">&#10003;</td>
@@ -672,36 +605,7 @@
                             <td class="yes">&#10003;</td>
                             <td class="no">&mdash;</td>
                             <td class="no">&mdash;</td>
-                            <td class="no">&mdash;</td>
-                            <td class="no">&mdash;</td>
-                            <td class="no">&mdash;</td>
-                            <td class="no">&mdash;</td>
-                            <td class="no">&mdash;</td>
                             <td class="yes">&#10003;</td>
-                        </tr>
-                        <tr>
-                            <td>Notes page</td>
-                            <td class="no">&mdash;</td>
-                            <td class="no">&mdash;</td>
-                            <td class="no">&mdash;</td>
-                            <td class="no">&mdash;</td>
-                            <td class="no">&mdash;</td>
-                            <td class="yes">&#10003;</td>
-                            <td class="yes">&#10003;</td>
-                            <td class="no">&mdash;</td>
-                            <td class="no">&mdash;</td>
-                        </tr>
-                        <tr>
-                            <td>Categories page</td>
-                            <td class="no">&mdash;</td>
-                            <td class="no">&mdash;</td>
-                            <td class="no">&mdash;</td>
-                            <td class="no">&mdash;</td>
-                            <td class="no">&mdash;</td>
-                            <td class="yes">&#10003;</td>
-                            <td class="yes">&#10003;</td>
-                            <td class="no">&mdash;</td>
-                            <td class="no">&mdash;</td>
                         </tr>
                         <tr>
                             <td>Outline panel</td>
@@ -709,20 +613,10 @@
                             <td class="no">&mdash;</td>
                             <td class="no">&mdash;</td>
                             <td class="no">&mdash;</td>
-                            <td class="no">&mdash;</td>
-                            <td class="no">&mdash;</td>
-                            <td class="no">&mdash;</td>
-                            <td class="no">&mdash;</td>
-                            <td class="no">&mdash;</td>
                         </tr>
                         <tr>
                             <td>Backlinks</td>
                             <td class="yes">&#10003;</td>
-                            <td class="no">&mdash;</td>
-                            <td class="no">&mdash;</td>
-                            <td class="no">&mdash;</td>
-                            <td class="no">&mdash;</td>
-                            <td class="no">&mdash;</td>
                             <td class="no">&mdash;</td>
                             <td class="no">&mdash;</td>
                             <td class="no">&mdash;</td>
