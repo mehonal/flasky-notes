@@ -29,7 +29,7 @@
     var statusEl = document.getElementById('unlock-status');
     var btn = document.getElementById('unlock-btn');
     var encSymKey = {{ encrypted_sym_key|tojson }};
-    var username = {{ username|tojson }};
+    var keySalt = {{ key_salt|tojson }};
 
     form.addEventListener('submit', async function(e) {
         e.preventDefault();
@@ -41,7 +41,7 @@
         var password = document.getElementById('unlock-password').value;
 
         try {
-            var keys = await FlaskyCrypto.deriveKeys(password, username);
+            var keys = await FlaskyCrypto.deriveKeys(password, keySalt);
             statusEl.textContent = 'Unwrapping key...';
             var symKey = await FlaskyCrypto.unwrapSymmetricKey(encSymKey, keys.kek);
             await FlaskyCrypto.storeSymmetricKey(symKey);

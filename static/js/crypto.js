@@ -62,11 +62,31 @@
     // ======== Key Derivation ========
 
     /**
-     * Derive Auth Key and KEK from password + username.
+     * Generate a random 32-byte salt as hex string (for new registrations).
+     */
+    function generateSalt() {
+        var buf = crypto.getRandomValues(new Uint8Array(32));
+        return bufToHex(buf);
+    }
+
+    /**
+     * Fetch the PBKDF2 salt for a username from the server.
+     */
+    async function fetchSalt(username) {
+        var resp = await fetch('/api/auth/salt?username=' + encodeURIComponent(username));
+        var data = await resp.json();
+        return data.key_salt || null;
+    }
+
+    /**
+     * Derive Auth Key and KEK from password + salt.
+     * @param {string} password
+     * @param {string} saltHex - hex-encoded 32-byte salt (from server or generateSalt)
      * Returns { authKeyHex: string, kek: CryptoKey }
      */
-    async function deriveKeys(password, username) {
-        var salt = strToUtf8(username.toLowerCase());
+    async function deriveKeys(password, saltHex) {
+        var salt = saltHex ? hexToBuf(saltHex) : strToUtf8('');
+        salt = new Uint8Array(salt);
 
         // Import password as raw key material for PBKDF2
         var passwordKey = await crypto.subtle.importKey(
@@ -315,6 +335,8 @@
 
     window.FlaskyCrypto = {
         deriveKeys: deriveKeys,
+        generateSalt: generateSalt,
+        fetchSalt: fetchSalt,
         generateSymmetricKey: generateSymmetricKey,
         wrapSymmetricKey: wrapSymmetricKey,
         unwrapSymmetricKey: unwrapSymmetricKey,

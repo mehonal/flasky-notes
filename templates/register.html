@@ -85,8 +85,9 @@
         try {
             statusEl.textContent = 'Generating encryption keys...';
 
-            // 1. Derive keys from password
-            var keys = await FlaskyCrypto.deriveKeys(password, username);
+            // 1. Generate random salt and derive keys
+            var keySalt = FlaskyCrypto.generateSalt();
+            var keys = await FlaskyCrypto.deriveKeys(password, keySalt);
 
             // 2. Generate random symmetric key
             var symKey = await FlaskyCrypto.generateSymmetricKey();
@@ -110,6 +111,7 @@
                     auth_key: keys.authKeyHex,
                     encrypted_sym_key: wrappedSymKey,
                     recovery_encrypted_key: recoveryWrapped,
+                    key_salt: keySalt,
                     password_hint: hint
                 })
             });

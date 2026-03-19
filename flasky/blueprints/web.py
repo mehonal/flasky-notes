@@ -10,6 +10,7 @@ from flasky.models import (
     Theme, UserTheme, UserSettings, ApiToken, SyncConflict, Attachment, NoteTemplate,
     UserAgendaNotes
 )
+import os
 from flasky.utils import has_banned_chars, valid_email, generate_api_token, recovery_limiter, login_limiter
 from zoneinfo import available_timezones
 
@@ -53,10 +54,28 @@ def api_auth_register():
     new_user.encrypted_symmetric_key = encrypted_sym_key
     new_user.recovery_encrypted_key = recovery_encrypted_key
     new_user.encryption_version = 1
+    new_user.key_salt = data.get('key_salt') or os.urandom(32).hex()
     new_user.password_hint = data.get('password_hint', '')
     db.session.commit()
 
     return jsonify(success=True)
+
+
+@web_bp.route("/api/auth/salt")
+def api_auth_salt():
+    """Return the PBKDF2 salt for a user (needed before key derivation). Rate-limited."""
+    if login_limiter.is_limited():
+        return jsonify(key_salt=None, reason="Too many attempts."), 429
+    username = (request.args.get('username') or '').lower().strip()
+    if not username:
+        return jsonify(key_salt=None)
+    user = User.query.filter_by(username=username).first()
+    # Always return a deterministic fake salt for unknown users to prevent enumeration
+    if not user or not user.key_salt:
+        import hashlib
+        fake = hashlib.sha256(('flasky-salt-' + username).encode()).hexdigest()
+        return jsonify(key_salt=fake)
+    return jsonify(key_salt=user.key_salt)
 
 
 @web_bp.route("/api/auth/login", methods=['POST'])
@@ -109,6 +128,8 @@ def api_auth_change_password():
     g.user.encrypted_symmetric_key = new_encrypted_sym_key
     if data.get('new_recovery_encrypted_key'):
         g.user.recovery_encrypted_key = data['new_recovery_encrypted_key']
+    if data.get('new_key_salt'):
+        g.user.key_salt = data['new_key_salt']
     db.session.commit()
 
     return jsonify(success=True)
@@ -154,6 +175,8 @@ def api_auth_recover():
     user.encrypted_symmetric_key = new_encrypted_sym_key
     if new_recovery_encrypted_key:
         user.recovery_encrypted_key = new_recovery_encrypted_key
+    if data.get('new_key_salt'):
+        user.key_salt = data['new_key_salt']
     db.session.commit()
 
     session['user_id'] = user.id
@@ -182,6 +205,7 @@ def api_auth_enable_encryption():
     g.user.encrypted_symmetric_key = encrypted_sym_key
     g.user.recovery_encrypted_key = recovery_encrypted_key
     g.user.encryption_version = 1
+    g.user.key_salt = data.get('key_salt') or os.urandom(32).hex()
     g.user.password_hint = data.get('password_hint', '')
     db.session.commit()
 
@@ -276,7 +300,8 @@ def unlock_page():
     return render_template("unlock.html",
                            encrypted_sym_key=g.user.encrypted_symmetric_key,
                            password_hint=g.user.password_hint or '',
-                           username=g.user.username)
+                           username=g.user.username,
+                           key_salt=g.user.key_salt or '')
 
 
 @web_bp.route("/migrate-encryption")
@@ -291,50 +316,8 @@ def migrate_encryption_page():
 
 @web_bp.route("/api/migrate/get_all_data")
 def api_migrate_get_all_data():
-    """Return all plaintext data for a legacy user so the client can encrypt it."""
-    if not g.user:
-        return jsonify(success=False, reason="Not logged in."), 401
-    if g.user.encryption_enabled:
-        return jsonify(success=False, reason="Already encrypted."), 400
-
-    notes = []
-    for note in UserNote.query.filter_by(userid=g.user.id).all():
-        notes.append({
-            'id': note.id,
-            'title': note.title,
-            'content': note.content,
-            'properties': note.properties,
-            'previous_content': note.previous_content
-        })
-
-    categories = []
-    for cat in UserNoteCategory.query.filter_by(user_id=g.user.id).all():
-        categories.append({'id': cat.id, 'name': cat.name})
-
-    todos = []
-    for todo in UserTodo.query.filter_by(userid=g.user.id).all():
-        todos.append({'id': todo.id, 'title': todo.title, 'content': todo.content})
-
-    events = []
-    for event in UserEvent.query.filter_by(userid=g.user.id).all():
-        events.append({'id': event.id, 'title': event.title, 'content': event.content})
-
-    templates = []
-    for tmpl in NoteTemplate.query.filter_by(user_id=g.user.id).all():
-        templates.append({'id': tmpl.id, 'name': tmpl.name, 'content': tmpl.content, 'properties': tmpl.properties})
-
-    agenda = None
-    if g.user.agenda_notes:
-        agenda = {'content': g.user.agenda_notes.content}
-
-    return jsonify(
-        notes=notes,
-        categories=categories,
-        todos=todos,
-        events=events,
-        templates=templates,
-        agenda_notes=agenda
-    )
+    """Disabled — encryption-only design, no plaintext data export."""
+    return jsonify(success=False, reason="This endpoint has been disabled."), 410
 
 
 @web_bp.before_app_request

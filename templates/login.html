@@ -58,8 +58,10 @@
         }
 
         try {
-            // Derive keys client-side
-            var keys = await FlaskyCrypto.deriveKeys(password, username);
+            // Fetch salt and derive keys client-side
+            statusEl.textContent = 'Preparing...';
+            var salt = await FlaskyCrypto.fetchSalt(username);
+            var keys = await FlaskyCrypto.deriveKeys(password, salt);
 
             statusEl.textContent = 'Authenticating...';
 
@@ -163,7 +165,8 @@ async function doRecovery() {
         var symKey = await FlaskyCrypto.unwrapSymmetricKey(info.recovery_encrypted_key, recoveryKey);
 
         statusEl.textContent = 'Setting new password...';
-        var keys = await FlaskyCrypto.deriveKeys(newPassword, username);
+        var newKeySalt = FlaskyCrypto.generateSalt();
+        var keys = await FlaskyCrypto.deriveKeys(newPassword, newKeySalt);
         var newWrapped = await FlaskyCrypto.wrapSymmetricKey(symKey, keys.kek);
 
         // Generate new recovery key
@@ -177,7 +180,8 @@ async function doRecovery() {
                 username: username,
                 new_auth_key: keys.authKeyHex,
                 new_encrypted_sym_key: newWrapped,
-                new_recovery_encrypted_key: newRecoveryWrapped
+                new_recovery_encrypted_key: newRecoveryWrapped,
+                new_key_salt: newKeySalt
             })
         });
         var result = await resp.json();

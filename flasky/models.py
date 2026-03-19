@@ -134,7 +134,8 @@ class User(db.Model):
     encrypted_symmetric_key = db.Column(db.Text)         # base64 AES-GCM wrapped key
     recovery_encrypted_key = db.Column(db.Text)           # base64 recovery-key wrapped key
     encryption_version = db.Column(db.Integer, default=0) # 0=none, 1=AES-256-GCM
-    password_hint = db.Column(db.String(200))
+    key_salt = db.Column(db.String(64))                   # hex-encoded random PBKDF2 salt
+    password_hint = db.Column(db.Text)                    # encrypted by client
     settings = db.relationship('UserSettings', uselist = False, backref= "user")
 
     def get_timezone(self, as_str = False):
@@ -631,11 +632,15 @@ class NoteTemplate(db.Model):
         return {}
 
     def return_json(self):
+        # For E2EE users, properties is encrypted ciphertext — return raw string
+        props = self.get_properties()
+        if not props and self.properties:
+            props = self.properties  # encrypted ciphertext, couldn't parse as JSON
         return {
             "id": self.id,
             "name": self.name,
             "content": self.content or "",
-            "properties": self.get_properties(),
+            "properties": props,
         }
 
     def __init__(self, user_id, name, content="", properties=None):

@@ -770,7 +770,8 @@ async function changeEncryptionPassword() {
     statusEl.innerHTML = '<span class="text-muted">Deriving keys...</span>';
     try {
         var username = '{{ g.user.username }}';
-        var oldKeys = await FlaskyCrypto.deriveKeys(currentPw, username);
+        var oldSalt = await FlaskyCrypto.fetchSalt(username);
+        var oldKeys = await FlaskyCrypto.deriveKeys(currentPw, oldSalt);
         // Verify old password works by unwrapping the symmetric key
         var encSymKey = '{{ g.user.encrypted_symmetric_key }}';
         var symKey;
@@ -781,14 +782,16 @@ async function changeEncryptionPassword() {
             return;
         }
         statusEl.innerHTML = '<span class="text-muted">Encrypting with new password...</span>';
-        var newKeys = await FlaskyCrypto.deriveKeys(newPw, username);
+        var newKeySalt = FlaskyCrypto.generateSalt();
+        var newKeys = await FlaskyCrypto.deriveKeys(newPw, newKeySalt);
         var newWrappedKey = await FlaskyCrypto.wrapSymmetricKey(symKey, newKeys.kek);
         var resp = await fetch('/api/auth/change_password', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 new_auth_key: newKeys.authKeyHex,
-                new_encrypted_sym_key: newWrappedKey
+                new_encrypted_sym_key: newWrappedKey,
+                new_key_salt: newKeySalt
             })
         });
         var data = await resp.json();

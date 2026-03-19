@@ -80,8 +80,9 @@ async function startMigration() {
     statusEl.textContent = 'Deriving encryption keys...';
 
     try {
-        // 1. Derive keys
-        var keys = await FlaskyCrypto.deriveKeys(password, username);
+        // 1. Derive keys with random salt
+        var keySalt = FlaskyCrypto.generateSalt();
+        var keys = await FlaskyCrypto.deriveKeys(password, keySalt);
 
         // 2. Generate symmetric key + recovery key
         statusEl.textContent = 'Generating encryption keys...';
@@ -99,6 +100,7 @@ async function startMigration() {
                 auth_key: keys.authKeyHex,
                 encrypted_sym_key: wrappedSymKey,
                 recovery_encrypted_key: recoveryWrapped,
+                key_salt: keySalt,
                 password_hint: hint
             })
         });
