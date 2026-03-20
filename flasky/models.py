@@ -486,6 +486,8 @@ class UserNote(db.Model):
     previous_content = db.Column(db.Text)
     date_added = db.Column(db.DateTime)
     date_last_changed = db.Column(db.DateTime)
+    icon = db.Column(db.String(100), nullable=True)
+    icon_color = db.Column(db.String(20), nullable=True)
     user = db.relationship('User', backref="notes")
     category = db.relationship('UserNoteCategory', backref="notes")
 
@@ -581,6 +583,21 @@ class UserNote(db.Model):
         """Return content with frontmatter prepended (for sync/export)."""
         return content_with_frontmatter(self.content, self.properties)
 
+    def get_resolved_icon(self):
+        """note.icon -> category.icon -> None"""
+        if self.icon:
+            return self.icon
+        if self.category and self.category.icon:
+            return self.category.icon
+        return None
+
+    def get_resolved_icon_color(self):
+        if self.icon and self.icon_color:
+            return self.icon_color
+        if not self.icon and self.category and self.category.icon:
+            return self.category.icon_color
+        return self.icon_color
+
     def return_json(self):
         return {
             "id": self.id,
@@ -589,6 +606,10 @@ class UserNote(db.Model):
             "properties": self.get_properties(),
             "category": self.get_category_name(),
             "category_id": self.category_id,
+            "icon": self.icon,
+            "icon_color": self.icon_color,
+            "resolved_icon": self.get_resolved_icon(),
+            "resolved_icon_color": self.get_resolved_icon_color(),
             "date_added": self.date_added,
             "date_last_changed": self.date_last_changed
         }
@@ -617,6 +638,8 @@ class UserNoteCategory(db.Model):
     id = db.Column(db.Integer, primary_key = True)
     user_id = db.Column(db.ForeignKey('user.id'))
     name = db.Column(db.String(500))
+    icon = db.Column(db.String(100), nullable=True)
+    icon_color = db.Column(db.String(20), nullable=True)
     default_template_id = db.Column(db.ForeignKey('note_template.id'), nullable=True)
     user = db.relationship('User', backref="categories")
     default_template = db.relationship('NoteTemplate')

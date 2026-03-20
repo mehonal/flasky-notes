@@ -25,6 +25,8 @@ def sync_manifest():
                 "category": note.get_category_name(),
                 "content_hash": content_hash(note.content or ''),
                 "properties_hash": content_hash(note.properties or ''),
+                "icon": note.icon,
+                "icon_color": note.icon_color,
                 "date_added_utc": format_utc_iso(note.date_added),
                 "date_last_changed_utc": format_utc_iso(note.date_last_changed),
                 "encrypted": True
@@ -36,6 +38,8 @@ def sync_manifest():
                 "title": note.title,
                 "category": note.get_category_name(),
                 "content_hash": content_hash(full),
+                "icon": note.icon,
+                "icon_color": note.icon_color,
                 "date_added_utc": format_utc_iso(note.date_added),
                 "date_last_changed_utc": format_utc_iso(note.date_last_changed)
             })
@@ -57,6 +61,8 @@ def sync_get_note(note_id):
             "properties": note.properties,
             "category": note.get_category_name(),
             "content_hash": content_hash(note.content or ''),
+            "icon": note.icon,
+            "icon_color": note.icon_color,
             "date_added_utc": format_utc_iso(note.date_added),
             "date_last_changed_utc": format_utc_iso(note.date_last_changed),
             "encrypted": True
@@ -68,6 +74,8 @@ def sync_get_note(note_id):
         "content": full,
         "category": note.get_category_name(),
         "content_hash": content_hash(full),
+        "icon": note.icon,
+        "icon_color": note.icon_color,
         "date_added_utc": format_utc_iso(note.date_added),
         "date_last_changed_utc": format_utc_iso(note.date_last_changed)
     })
@@ -85,10 +93,14 @@ def sync_create_note():
     note = g.sync_user.add_note(title, content, category, encrypted=encrypted)
     if not note:
         return jsonify(error="Could not create note"), 500
+    if data.get('icon'):
+        note.icon = data['icon']
+    if data.get('icon_color'):
+        note.icon_color = data['icon_color']
     if encrypted:
         if data.get('properties'):
             note.properties = data['properties']
-            db.session.commit()
+        db.session.commit()
         return jsonify({
             "id": note.id,
             "title": note.title,
@@ -96,10 +108,13 @@ def sync_create_note():
             "properties": note.properties,
             "category": note.get_category_name(),
             "content_hash": content_hash(note.content or ''),
+            "icon": note.icon,
+            "icon_color": note.icon_color,
             "date_added_utc": format_utc_iso(note.date_added),
             "date_last_changed_utc": format_utc_iso(note.date_last_changed),
             "encrypted": True
         }), 201
+    db.session.commit()
     full = note.get_full_content()
     return jsonify({
         "id": note.id,
@@ -107,6 +122,8 @@ def sync_create_note():
         "content": full,
         "category": note.get_category_name(),
         "content_hash": content_hash(full),
+        "icon": note.icon,
+        "icon_color": note.icon_color,
         "date_added_utc": format_utc_iso(note.date_added),
         "date_last_changed_utc": format_utc_iso(note.date_last_changed)
     }), 201
@@ -127,10 +144,14 @@ def sync_update_note(note_id):
         note.change_content(data['content'], encrypted=encrypted)
     if 'category' in data:
         note.change_category(data['category'])
+    if 'icon' in data:
+        note.icon = data['icon']
+    if 'icon_color' in data:
+        note.icon_color = data['icon_color']
     if encrypted:
         if 'properties' in data:
             note.properties = data['properties']
-            db.session.commit()
+        db.session.commit()
         return jsonify({
             "id": note.id,
             "title": note.title,
@@ -138,10 +159,13 @@ def sync_update_note(note_id):
             "properties": note.properties,
             "category": note.get_category_name(),
             "content_hash": content_hash(note.content or ''),
+            "icon": note.icon,
+            "icon_color": note.icon_color,
             "date_added_utc": format_utc_iso(note.date_added),
             "date_last_changed_utc": format_utc_iso(note.date_last_changed),
             "encrypted": True
         })
+    db.session.commit()
     full = note.get_full_content()
     return jsonify({
         "id": note.id,
@@ -149,6 +173,8 @@ def sync_update_note(note_id):
         "content": full,
         "category": note.get_category_name(),
         "content_hash": content_hash(full),
+        "icon": note.icon,
+        "icon_color": note.icon_color,
         "date_added_utc": format_utc_iso(note.date_added),
         "date_last_changed_utc": format_utc_iso(note.date_last_changed)
     })

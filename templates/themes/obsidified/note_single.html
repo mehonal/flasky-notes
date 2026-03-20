@@ -24,6 +24,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.6/purify.min.js"></script>
     <script src="{{ url_for('static', filename='js/sanitize.js') }}"></script>
     <script src="{{ url_for('static', filename='js/wikilinks.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/icon-picker.js') }}"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css" id="hljs-dark">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css" id="hljs-light" disabled>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
@@ -195,8 +196,9 @@
 
         .folder-chevron svg { width: 12px; height: 12px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
         .folder.collapsed .folder-chevron { transform: rotate(-90deg); }
+        .lucide-icon { display: inline-flex; align-items: center; }
         .folder-icon { flex-shrink: 0; display: flex; align-items: center; color: var(--text-muted); }
-        .folder-icon svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+        .folder-icon svg { width: 18px; height: 18px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
         .folder-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
         .folder-delete-btn, .folder-add-btn, .folder-newnote-btn { display: none; padding: 2px !important; }
@@ -233,8 +235,9 @@
         .file-item:hover .pin-btn { display: flex; }
         .file-item .pin-btn.pinned { display: flex; color: var(--yellow); }
 
-        .file-icon { flex-shrink: 0; color: inherit; opacity: 0.6; display: flex; }
-        .file-icon svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+        .file-icon { flex-shrink: 0; color: inherit; opacity: 0.6; display: flex; align-items: center; }
+        .file-icon:has(.lucide-icon) { opacity: 1; }
+        .file-icon svg { width: 18px; height: 18px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
         .file-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
         .sidebar-footer {
@@ -1012,6 +1015,36 @@
         .context-menu-item.danger:hover { background: rgba(243,139,168,0.1); }
         .context-menu-sep { height: 1px; background: var(--border); margin: 4px 0; }
 
+        /* Icon picker overlay */
+        .icon-picker-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:9999; align-items:center; justify-content:center; }
+        .icon-picker-overlay.visible { display:flex; }
+        .icon-picker-modal { background:var(--bg-primary); border:1px solid var(--border); border-radius:12px; width:480px; max-width:92vw; max-height:80vh; display:flex; flex-direction:column; box-shadow:0 8px 32px rgba(0,0,0,0.3); }
+        .icon-picker-header { display:flex; gap:8px; padding:12px; border-bottom:1px solid var(--border); }
+        .icon-picker-search { flex:1; background:var(--bg-secondary); border:1px solid var(--border); border-radius:6px; padding:8px 12px; color:var(--text-primary); font-size:14px; outline:none; }
+        .icon-picker-search:focus { border-color:var(--accent); }
+        .icon-picker-close { background:none; border:none; color:var(--text-muted); font-size:20px; cursor:pointer; padding:0 4px; }
+        .icon-picker-close:hover { color:var(--text-primary); }
+        .icon-picker-colors { display:flex; gap:6px; padding:10px 12px; border-bottom:1px solid var(--border); align-items:center; flex-wrap:wrap; }
+        .icon-color-swatch { width:22px; height:22px; border-radius:50%; border:2px solid transparent; cursor:pointer; flex-shrink:0; }
+        .icon-color-swatch:hover { border-color:var(--text-muted); }
+        .icon-color-swatch.active { border-color:var(--text-primary); box-shadow:0 0 0 1px var(--text-primary); }
+        .icon-color-swatch.swatch-default { background:var(--text-primary, #ccc) !important; position:relative; }
+        .icon-color-swatch.swatch-default::after { content:''; position:absolute; inset:3px; border-radius:50%; border:2px solid var(--bg-primary); }
+        .icon-hex-input { background:var(--bg-secondary); border:1px solid var(--border); border-radius:4px; padding:4px 8px; color:var(--text-primary); font-size:12px; width:70px; font-family:monospace; }
+        .icon-picker-grid { flex:1; overflow-y:auto; padding:8px; display:grid; grid-template-columns:repeat(auto-fill, minmax(72px, 1fr)); gap:4px; min-height:200px; max-height:50vh; }
+        .icon-cell { display:flex; flex-direction:column; align-items:center; gap:2px; padding:8px 4px; border-radius:6px; cursor:pointer; }
+        .icon-cell:hover { background:var(--bg-hover); }
+        .icon-cell svg { flex-shrink:0; }
+        .icon-cell-name { font-size:9px; color:var(--text-muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:100%; text-align:center; }
+        .icon-picker-footer { padding:8px 12px; border-top:1px solid var(--border); display:flex; justify-content:flex-end; }
+        .icon-picker-remove-btn { background:none; border:1px solid var(--border); border-radius:6px; padding:6px 12px; color:var(--text-muted); cursor:pointer; font-size:12px; }
+        .icon-picker-remove-btn:hover { color:var(--red); border-color:var(--red); }
+
+        /* Note title icon button */
+        .note-icon-btn { background:none; border:none; cursor:pointer; padding:4px; border-radius:4px; display:flex; align-items:center; color:var(--text-muted); flex-shrink:0; }
+        .note-icon-btn:hover { background:var(--bg-hover); color:var(--text-primary); }
+        .note-icon-btn svg { width:28px; height:28px; stroke:currentColor; fill:none; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
+
         /* E2EE: hide content until decrypted */
         body[data-encrypted="true"] .editor-title,
         body[data-encrypted="true"] #note-content,
@@ -1163,7 +1196,12 @@
             <div class="editor-area">
                 {% if note or note_id == 0 %}
                 <div class="editor" id="editor">
-                    <input type="text" class="editor-title" id="note-title" placeholder="Untitled" value="{% if note %}{{ note.title }}{% endif %}">
+                    <div style="display:flex; align-items:center; padding:24px 48px 0; gap:4px;">
+                        <button class="note-icon-btn" id="note-icon-btn" onclick="openNoteIconPicker()" title="Set icon">
+                            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+                        </button>
+                        <input type="text" class="editor-title" id="note-title" placeholder="Untitled" value="{% if note %}{{ note.title }}{% endif %}" style="padding:0; flex:1;">
+                    </div>
 
                     <div class="editor-scroll">
                         <div class="editor-properties" id="editor-properties">
@@ -1512,6 +1550,8 @@
         var isMobile = window.innerWidth <= 768;
         var defaultTemplateContent = {% if default_template %}{{ default_template.content | tojson }}{% else %}null{% endif %};
         var defaultTemplateProps = {% if default_template %}{{ default_template.properties | default('{}', true) }}{% else %}null{% endif %};
+        var currentNoteIcon = {% if note and note.icon %}"{{ note.icon }}"{% else %}null{% endif %};
+        var currentNoteIconColor = {% if note and note.icon_color %}"{{ note.icon_color }}"{% else %}null{% endif %};
 
         function saveUiState(updates) {
             fetch('/api/save_ui_state', {
@@ -1660,7 +1700,12 @@
                             html += '<div class="folder collapsed"' + (cat ? ' data-category-id="' + catId + '"' : '') + ' data-path="' + esc(fullPath) + '">';
                             html += '<div class="folder-header" onclick="toggleFolder(this.parentElement)"' + (cat ? ' draggable="true" ondragstart="onFolderDragStart(event,' + catId + ',\'' + esc(fullPath) + '\')"' : '') + ' ondragover="onItemDragOver(event)" ondragleave="onItemDragLeave(event)" ondrop="onItemDrop(event,\'' + esc(fullPath) + '\',' + catId + ')">';
                             html += '<span class="folder-chevron"><svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg></span>';
-                            html += '<span class="folder-icon"><svg viewBox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg></span>';
+                            if (cat && cat.icon) {
+                                var fColor = cat.icon_color ? ' data-icon-color="' + esc(cat.icon_color) + '" style="color:' + esc(cat.icon_color) + '"' : '';
+                                html += '<span class="folder-icon"><span class="lucide-icon" data-icon="' + esc(cat.icon) + '"' + fColor + '></span></span>';
+                            } else {
+                                html += '<span class="folder-icon"><svg viewBox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg></span>';
+                            }
                             html += '<span class="folder-name">' + esc(name) + '</span>';
                             html += '<span class="folder-count">' + totalNotes + '</span>';
                             if (cat) {
@@ -1674,7 +1719,14 @@
                                 var isActive = n.id === noteId ? ' active' : '';
                                 var title = n.title || 'Untitled';
                                 html += '<div class="file-item' + isActive + '" data-note-id="' + n.id + '" onclick="openNote(' + n.id + ')" draggable="true" ondragstart="onNoteDragStart(event,' + n.id + ')" ondragover="onItemDragOver(event)" ondragleave="onItemDragLeave(event)" ondrop="onItemDrop(event,\'' + esc(fullPath) + '\',' + catId + ')">';
-                                html += '<span class="file-icon"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></span>';
+                                var noteIcon = n.icon || (cat ? cat.icon : null);
+                                var noteIconColor = n.icon ? n.icon_color : (cat ? cat.icon_color : null);
+                                if (noteIcon) {
+                                    var nColor = noteIconColor ? ' data-icon-color="' + esc(noteIconColor) + '" style="color:' + esc(noteIconColor) + '"' : '';
+                                    html += '<span class="file-icon"><span class="lucide-icon" data-icon="' + esc(noteIcon) + '"' + nColor + '></span></span>';
+                                } else {
+                                    html += '<span class="file-icon"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></span>';
+                                }
                                 html += '<span class="file-name">' + esc(title) + '</span>';
                                 html += '<button class="icon-btn delete-btn" draggable="false" onclick="event.stopPropagation(); deleteSidebarNote(' + n.id + ',\'' + esc(title) + '\')" title="Delete note"><svg viewBox="0 0 24 24" width="12" height="12"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>';
                                 html += '<button class="icon-btn pin-btn" draggable="false" data-note-id="' + n.id + '" onclick="event.stopPropagation(); togglePin(' + n.id + ')" title="Pin note"><svg viewBox="0 0 24 24" width="12" height="12"><path d="M12 2L15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26z"/></svg></button>';
@@ -1728,6 +1780,9 @@
                     }
                 }
 
+                // Render Lucide icons in sidebar
+                renderSidebarIcons();
+
                 // Re-apply pinned notes and search filter
                 renderPinnedNotes();
                 updatePinButtons();
@@ -1756,6 +1811,9 @@
                 hasBeenSavedOnce = false;
                 isDirty = false;
                 isSaving = false;
+                currentNoteIcon = null;
+                currentNoteIconColor = null;
+                updateNoteIconPreview(null, null);
                 document.getElementById('note-title').value = '';
                 if (cmEditor) cmEditor.setValue('');
                 else document.getElementById('note-content').value = '';
@@ -1869,6 +1927,11 @@
                 // Update URL and breadcrumb
                 history.pushState({ noteId: n.id }, '', '/note/' + n.id);
                 document.querySelector('.breadcrumb-item.active').textContent = n.title || 'Untitled';
+
+                // Update icon
+                currentNoteIcon = n.icon || null;
+                currentNoteIconColor = n.icon_color || null;
+                updateNoteIconPreview(n.resolved_icon || n.icon, n.resolved_icon_color || n.icon_color);
 
                 // Update category
                 currentCategory = n.category || 'Main';
@@ -2730,6 +2793,127 @@
             });
         }
 
+        // ============ Icon Picker Helpers ============
+
+        function updateNoteIconPreview(icon, color) {
+            var btn = document.getElementById('note-icon-btn');
+            if (!btn) return;
+            if (!icon) {
+                btn.innerHTML = '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>';
+                return;
+            }
+            if (typeof ensureLucideLoaded === 'function') {
+                ensureLucideLoaded(function() {
+                    btn.innerHTML = renderLucideIcon(icon, color, 28);
+                });
+            }
+        }
+
+        function openNoteIconPicker() {
+            if (noteId === 0) return;  // no note yet
+            openIconPicker({
+                icon: currentNoteIcon,
+                color: currentNoteIconColor,
+                onSelect: function(icon, color) {
+                    currentNoteIcon = icon;
+                    currentNoteIconColor = color;
+                    updateNoteIconPreview(icon, color);
+                    fetch('/api/set_note_icon', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ noteId: noteId, icon: icon, iconColor: color })
+                    }).then(function() { refreshSidebar(); });
+                },
+                onRemove: function() {
+                    currentNoteIcon = null;
+                    currentNoteIconColor = null;
+                    updateNoteIconPreview(null, null);
+                    fetch('/api/set_note_icon', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ noteId: noteId, icon: null, iconColor: null })
+                    }).then(function() { refreshSidebar(); });
+                }
+            });
+        }
+
+        function ctxSetNoteIcon() {
+            if (!ctxTarget || !ctxTarget.id) return;
+            var targetNoteId = ctxTarget.id;
+            hideContextMenu();
+            openIconPicker({
+                icon: null,
+                color: null,
+                onSelect: function(icon, color) {
+                    fetch('/api/set_note_icon', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ noteId: targetNoteId, icon: icon, iconColor: color })
+                    }).then(function() {
+                        refreshSidebar();
+                        if (targetNoteId === noteId) {
+                            currentNoteIcon = icon;
+                            currentNoteIconColor = color;
+                            updateNoteIconPreview(icon, color);
+                        }
+                    });
+                },
+                onRemove: function() {
+                    fetch('/api/set_note_icon', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ noteId: targetNoteId, icon: null, iconColor: null })
+                    }).then(function() {
+                        refreshSidebar();
+                        if (targetNoteId === noteId) {
+                            currentNoteIcon = null;
+                            currentNoteIconColor = null;
+                            updateNoteIconPreview(null, null);
+                        }
+                    });
+                }
+            });
+        }
+
+        function ctxSetFolderIcon() {
+            if (!ctxTarget || !ctxTarget.catId) return;
+            var catId = ctxTarget.catId;
+            hideContextMenu();
+            openIconPicker({
+                icon: null,
+                color: null,
+                onSelect: function(icon, color) {
+                    fetch('/api/set_folder_icon', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ categoryId: catId, icon: icon, iconColor: color })
+                    }).then(function() { refreshSidebar(); });
+                },
+                onRemove: function() {
+                    fetch('/api/set_folder_icon', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ categoryId: catId, icon: null, iconColor: null })
+                    }).then(function() { refreshSidebar(); });
+                }
+            });
+        }
+
+        // Render lucide icons in sidebar after it loads
+        function renderSidebarIcons() {
+            var els = document.querySelectorAll('.lucide-icon[data-icon]');
+            if (els.length === 0) return;
+            if (typeof ensureLucideLoaded === 'function') {
+                ensureLucideLoaded(function() {
+                    els.forEach(function(el) {
+                        var icon = el.dataset.icon;
+                        var color = el.dataset.iconColor || null;
+                        el.innerHTML = renderLucideIcon(icon, color, 18);
+                    });
+                });
+            }
+        }
+
         // ============ Context Menu (right-click / long-press) ============
 
         var ctxMenu = document.getElementById('context-menu');
@@ -2744,6 +2928,7 @@
                 html += '<div class="context-menu-item" onclick="ctxRenameNote()"><svg viewBox="0 0 24 24"><path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>Rename</div>';
                 html += '<div class="context-menu-item" onclick="ctxMoveNote()"><svg viewBox="0 0 24 24"><polyline points="5 9 2 12 5 15"/><polyline points="19 9 22 12 19 15"/><line x1="2" y1="12" x2="22" y2="12"/></svg>Move to folder</div>';
                 html += '<div class="context-menu-item" onclick="ctxPinNote()"><svg viewBox="0 0 24 24"><path d="M12 2L15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26z"/></svg>' + (pinnedNotes.indexOf(target.id) > -1 ? 'Unpin' : 'Pin') + '</div>';
+                html += '<div class="context-menu-item" onclick="ctxSetNoteIcon()"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>Set icon</div>';
                 html += '<div class="context-menu-item" onclick="ctxSaveAsTemplate()"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="11" x2="12" y2="17"/><line x1="9" y1="14" x2="15" y2="14"/></svg>Save as template</div>';
                 html += '<div class="context-menu-sep"></div>';
                 html += '<div class="context-menu-item danger" onclick="ctxDeleteNote()"><svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>Delete</div>';
@@ -2755,6 +2940,7 @@
                 html += '<div class="context-menu-sep"></div>';
                 html += '<div class="context-menu-item" onclick="ctxNewFromTemplate()"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="11" x2="12" y2="17"/><line x1="9" y1="14" x2="15" y2="14"/></svg>New from template</div>';
                 html += '<div class="context-menu-item" onclick="ctxSetDefaultTemplate()"><svg viewBox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/><path d="M12 11v6"/><path d="M9 14h6"/></svg>Set default template</div>';
+                html += '<div class="context-menu-item" onclick="ctxSetFolderIcon()"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>Set folder icon</div>';
                 html += '<div class="context-menu-sep"></div>';
                 html += '<div class="context-menu-item danger" onclick="ctxDeleteFolder()"><svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>Delete</div>';
             }
@@ -4620,6 +4806,12 @@
             updateCounts();
             renderPinnedNotes();
             updatePinButtons();
+            renderSidebarIcons();
+
+            // Also render the note title icon if present
+            if (currentNoteIcon && typeof renderLucideIcon === 'function') {
+                updateNoteIconPreview(currentNoteIcon, currentNoteIconColor);
+            }
 
             // Apply widget layout from saved config
             applyWidgetLayout();

@@ -233,10 +233,16 @@ def save_note():
             category = int(category)
         except (ValueError, TypeError):
             pass
+        icon = data.get('icon')
+        icon_color = data.get('iconColor')
         if note_id == 0:
             note = g.user.add_note(title, content, category, encrypted=encrypted)
             if encrypted and properties:
                 note.properties = properties
+                db.session.commit()
+            if icon is not None:
+                note.icon = icon
+                note.icon_color = icon_color
                 db.session.commit()
             return jsonify(success=True, note=note.return_json())
         else:
@@ -248,6 +254,10 @@ def save_note():
                     note.properties = properties
                     db.session.commit()
                 note.change_category(category)
+                if icon is not None:
+                    note.icon = icon
+                    note.icon_color = icon_color
+                    db.session.commit()
                 return jsonify(success=True, note=note.return_json())
             else:
                 return jsonify(success=False, reason="Note does not exist.")
@@ -383,6 +393,40 @@ def rename_category():
     db.session.commit()
     return jsonify(success=True)
 
+@notes_api_bp.route("/set_note_icon", methods=['POST'])
+def set_note_icon():
+    if not g.user:
+        return jsonify(success=False, reason="Not logged in.")
+    data = request.get_json()
+    note_id = int(data.get('noteId', 0))
+    icon = data.get('icon')  # string or null to clear
+    icon_color = data.get('iconColor')  # string or null
+    note = UserNote.query.filter_by(id=note_id, userid=g.user.id).first()
+    if not note:
+        return jsonify(success=False, reason="Note does not exist.")
+    note.icon = icon
+    note.icon_color = icon_color
+    db.session.commit()
+    return jsonify(success=True, icon=note.icon, icon_color=note.icon_color,
+                   resolved_icon=note.get_resolved_icon(),
+                   resolved_icon_color=note.get_resolved_icon_color())
+
+@notes_api_bp.route("/set_folder_icon", methods=['POST'])
+def set_folder_icon():
+    if not g.user:
+        return jsonify(success=False, reason="Not logged in.")
+    data = request.get_json()
+    category_id = int(data.get('categoryId', 0))
+    icon = data.get('icon')  # string or null to clear
+    icon_color = data.get('iconColor')  # string or null
+    category = UserNoteCategory.query.filter_by(id=category_id, user_id=g.user.id).first()
+    if not category:
+        return jsonify(success=False, reason="Category does not exist.")
+    category.icon = icon
+    category.icon_color = icon_color
+    db.session.commit()
+    return jsonify(success=True, icon=category.icon, icon_color=category.icon_color)
+
 @notes_api_bp.route("/move_category", methods=['POST'])
 def move_category():
     if g.user:
@@ -467,11 +511,12 @@ def sidebar_tree():
     # E2EE: return raw JSON data for client-side rendering
     if g.user.encryption_enabled:
         categories = [
-            {'id': cat.id, 'name': cat.name}
+            {'id': cat.id, 'name': cat.name, 'icon': cat.icon, 'icon_color': cat.icon_color}
             for cat in sorted(g.user.categories, key=lambda c: c.id)
         ]
         notes = [
             {'id': n.id, 'title': n.title, 'category_id': n.category_id,
+             'icon': n.icon, 'icon_color': n.icon_color,
              'date_last_changed': n.date_last_changed.isoformat() if n.date_last_changed else None}
             for n in UserNote.query.filter_by(userid=g.user.id).order_by(UserNote.date_last_changed.desc()).all()
         ]
@@ -485,7 +530,7 @@ def sidebar_tree():
         active_note_id=note_id
     )
     categories = [
-        {'id': cat.id, 'name': cat.name}
+        {'id': cat.id, 'name': cat.name, 'icon': cat.icon, 'icon_color': cat.icon_color}
         for cat in sorted(g.user.categories, key=lambda c: c.name)
     ]
     return jsonify(success=True, tree_html=tree_html, categories=categories)
@@ -745,11 +790,12 @@ def sidebar_tree_data():
     if not g.user:
         return jsonify(success=False, reason="Not logged in.")
     categories = [
-        {'id': cat.id, 'name': cat.name}
+        {'id': cat.id, 'name': cat.name, 'icon': cat.icon, 'icon_color': cat.icon_color}
         for cat in sorted(g.user.categories, key=lambda c: c.id)
     ]
     notes = [
         {'id': n.id, 'title': n.title, 'category_id': n.category_id,
+         'icon': n.icon, 'icon_color': n.icon_color,
          'date_last_changed': n.date_last_changed.isoformat() if n.date_last_changed else None}
         for n in UserNote.query.filter_by(userid=g.user.id).order_by(UserNote.date_last_changed.desc()).all()
     ]

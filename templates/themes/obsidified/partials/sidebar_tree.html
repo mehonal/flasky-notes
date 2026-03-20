@@ -9,7 +9,7 @@
 <div class="folder collapsed" {% if cat %}data-category-id="{{ cat.id }}"{% endif %} data-path="{{ full_path }}">
     <div class="folder-header" onclick="toggleFolder(this.parentElement)" {% if cat %}draggable="true" ondragstart="onFolderDragStart(event, {{ cat.id }}, '{{ full_path | e }}')"{% endif %} ondragover="onItemDragOver(event)" ondragleave="onItemDragLeave(event)" ondrop="onItemDrop(event, '{{ full_path | e }}', {% if cat %}{{ cat.id }}{% else %}null{% endif %})">
         <span class="folder-chevron"><svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg></span>
-        <span class="folder-icon"><svg viewBox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg></span>
+        <span class="folder-icon">{% if cat and cat.icon %}<span class="lucide-icon" data-icon="{{ cat.icon }}" {% if cat.icon_color %}data-icon-color="{{ cat.icon_color }}" style="color:{{ cat.icon_color }}"{% endif %}></span>{% else %}<svg viewBox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>{% endif %}</span>
         <span class="folder-name">{{ name }}</span>
         <span class="folder-count">{{ total_notes }}</span>
         {% if cat %}
@@ -38,7 +38,7 @@
         {{ render_folder_tree(children, full_path) }}
         {% for n in notes_list %}
         <div class="file-item {% if active_note_id and active_note_id == n.id %}active{% endif %}" data-note-id="{{ n.id }}" onclick="openNote({{ n.id }})" draggable="true" ondragstart="onNoteDragStart(event, {{ n.id }})" ondragover="onItemDragOver(event)" ondragleave="onItemDragLeave(event)" ondrop="onItemDrop(event, '{{ full_path | e }}', {% if cat %}{{ cat.id }}{% else %}null{% endif %})">
-            <span class="file-icon"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></span>
+            <span class="file-icon">{% if n.icon %}<span class="lucide-icon" data-icon="{{ n.icon }}" {% if n.icon_color %}data-icon-color="{{ n.icon_color }}" style="color:{{ n.icon_color }}"{% endif %}></span>{% elif cat and cat.icon %}<span class="lucide-icon" data-icon="{{ cat.icon }}" {% if cat.icon_color %}data-icon-color="{{ cat.icon_color }}" style="color:{{ cat.icon_color }}"{% endif %}></span>{% else %}<svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>{% endif %}</span>
             <span class="file-name">{{ n.title or 'Untitled' }}</span>
             <button class="icon-btn delete-btn" draggable="false" onclick="event.stopPropagation(); deleteSidebarNote({{ n.id }}, '{{ n.title | e }}')" title="Delete note">
                 <svg viewBox="0 0 24 24" width="12" height="12"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
