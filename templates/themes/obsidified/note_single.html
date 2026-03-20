@@ -3930,12 +3930,25 @@
             if (!_noteMapPromise) {
                 _noteMapPromise = fetch('/api/note-map')
                 .then(function(r) { return r.json(); })
-                .then(function(data) {
-                    var notes = data.notes || {};
+                .then(async function(data) {
                     wikiNoteList = [];
-                    Object.keys(notes).forEach(function(key) {
-                        wikiNoteList.push({ title: notes[key].title || key, id: notes[key].id });
-                    });
+                    if (data.encrypted && typeof FlaskyE2EE !== 'undefined' && FlaskyE2EE.isEncrypted()) {
+                        // E2EE: decrypt note titles
+                        var notesList = data.notes || [];
+                        for (var i = 0; i < notesList.length; i++) {
+                            try {
+                                var decTitle = await FlaskyE2EE.decryptField(notesList[i].title);
+                                if (decTitle) {
+                                    wikiNoteList.push({ title: decTitle, id: notesList[i].id });
+                                }
+                            } catch (e) {}
+                        }
+                    } else {
+                        var notes = data.notes || {};
+                        Object.keys(notes).forEach(function(key) {
+                            wikiNoteList.push({ title: notes[key].title || key, id: notes[key].id });
+                        });
+                    }
                     wikiNoteList.sort(function(a, b) { return a.title.localeCompare(b.title); });
                     _noteMapPromise = null;
                 })
