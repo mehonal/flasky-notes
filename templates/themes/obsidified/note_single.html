@@ -1176,7 +1176,7 @@
                                     {% if note and note.get_properties() %}
                                     {% for key, value in note.get_properties().items() %}
                                     <div class="prop-row" data-prop-key="{{ key }}">
-                                        <div class="prop-key">{{ key }}</div>
+                                        <div class="prop-key"><input type="text" class="prop-value-input" value="{{ key }}" style="font-size:12px;font-weight:500;color:var(--text-muted)" onchange="onPropChanged()"></div>
                                         <div class="prop-value">
                                             <input type="text" class="prop-value-input" value="{% if value is none %}{% elif value is iterable and value is not string %}{{ value | join(', ') }}{% else %}{{ value }}{% endif %}" onchange="onPropChanged()">
                                         </div>
@@ -1838,10 +1838,11 @@
                         var row = document.createElement('div');
                         row.className = 'prop-row';
                         row.setAttribute('data-prop-key', key);
-                        row.innerHTML = '<div class="prop-key">' + escapeHtml(key) + '</div>' +
+                        row.innerHTML = '<div class="prop-key"><input type="text" class="prop-value-input" value="" style="font-size:12px;font-weight:500;color:var(--text-muted)" onchange="onPropChanged()"></div>' +
                             '<div class="prop-value"><input type="text" class="prop-value-input" value="" onchange="onPropChanged()"></div>' +
                             '<button class="prop-remove-btn" onclick="removeProp(this)" title="Remove property"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>';
-                        row.querySelector('.prop-value-input').value = val || '';
+                        row.querySelector('.prop-key .prop-value-input').value = key;
+                        row.querySelector('.prop-value .prop-value-input').value = val || '';
                         propsBody.insertBefore(row, addBtn);
                     });
                 }
@@ -4448,8 +4449,9 @@
                                         var row = document.createElement('div');
                                         row.className = 'prop-row';
                                         row.setAttribute('data-prop-key', key);
-                                        row.innerHTML = '<div class="prop-key">' + key.replace(/</g, '&lt;') + '</div><div class="prop-value"><input type="text" class="prop-value-input" value="" onchange="onPropChanged()"></div><button class="prop-remove-btn" onclick="removeProp(this)" title="Remove property"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>';
-                                        row.querySelector('.prop-value-input').value = val || '';
+                                        row.innerHTML = '<div class="prop-key"><input type="text" class="prop-value-input" value="" style="font-size:12px;font-weight:500;color:var(--text-muted)" onchange="onPropChanged()"></div><div class="prop-value"><input type="text" class="prop-value-input" value="" onchange="onPropChanged()"></div><button class="prop-remove-btn" onclick="removeProp(this)" title="Remove property"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>';
+                                        row.querySelector('.prop-key .prop-value-input').value = key;
+                                        row.querySelector('.prop-value .prop-value-input').value = val || '';
                                         if (addBtn) propsBody.insertBefore(row, addBtn);
                                     });
                                 }
