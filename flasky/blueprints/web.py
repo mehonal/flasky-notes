@@ -192,8 +192,10 @@ def api_auth_recover():
         # Generic message to prevent username enumeration
         return jsonify(success=False, reason="Recovery failed."), 400
 
-    # Verify the caller possesses the recovery key
-    if not user.recovery_key_hash or not secrets.compare_digest(user.recovery_key_hash, recovery_key_hash):
+    # Verify the caller possesses the recovery key (constant-time even if no hash set)
+    expected = user.recovery_key_hash or ('0' * 64)
+    valid = secrets.compare_digest(expected, recovery_key_hash)
+    if not user.recovery_key_hash or not valid:
         return jsonify(success=False, reason="Recovery failed."), 400
 
     user.password = bcrypt.hashpw(new_auth_key.encode('utf-8'), bcrypt.gensalt())
