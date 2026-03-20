@@ -851,10 +851,7 @@ def get_note_content(note_id):
     note = UserNote.query.filter_by(id=note_id, user_id=g.user.id).first()
     if not note:
         return jsonify(success=False, reason="Note not found."), 404
-    props = note.get_properties()
-    if not props and note.properties:
-        props = note.properties  # E2EE: encrypted ciphertext, return raw
-    return jsonify(success=True, content=note.content or '', properties=props)
+    return jsonify(success=True, content=note.content or '', properties=note.get_properties())
 
 @notes_api_bp.route("/folder_default_template/<int:category_id>", methods=['GET'])
 def get_folder_default_template(category_id):

@@ -576,7 +576,8 @@ class UserNote(db.Model):
             try:
                 return json.loads(self.properties)
             except (json.JSONDecodeError, TypeError):
-                pass
+                # E2EE: properties is encrypted ciphertext — return raw string
+                return self.properties
         return {}
 
     def get_full_content(self):
@@ -669,19 +670,16 @@ class NoteTemplate(db.Model):
             try:
                 return json.loads(self.properties)
             except (json.JSONDecodeError, TypeError):
-                pass
+                # E2EE: properties is encrypted ciphertext — return raw string
+                return self.properties
         return {}
 
     def return_json(self):
-        # For E2EE users, properties is encrypted ciphertext — return raw string
-        props = self.get_properties()
-        if not props and self.properties:
-            props = self.properties  # encrypted ciphertext, couldn't parse as JSON
         return {
             "id": self.id,
             "name": self.name,
             "content": self.content or "",
-            "properties": props,
+            "properties": self.get_properties(),
             "icon": self.icon,
             "icon_color": self.icon_color,
         }
