@@ -10,7 +10,7 @@ The noting app aims to provide simple, fast and bloat-free noting with clean int
 
 # Themes
 
-Flasky Notes ships with 4 themes. Each offers a different layout and feature set. Users pick their theme in `/settings`, where a full comparison table is also available.
+Flasky Notes ships with 3 themes. Each offers a different layout and feature set. Users pick their theme in `/settings`, where a full comparison table is also available.
 
 | Theme | Style | Dark mode | Markdown | Wiki-links | Search | Font | Properties | Auto-save | Sidebar | Drag-drop | Todos | Events | Notes page | Categories page | Outline | Backlinks |
 |-------|-------|-----------|----------|------------|--------|------|------------|-----------|---------|-----------|-------|--------|------------|-----------------|---------|-----------|
@@ -40,7 +40,7 @@ A terminal-style interface for command-line note management. Supports todos and 
 
 # Obsidian Sync
 
-**Beta — not tested thoroughly.** Flasky Notes supports two-way syncing with an Obsidian vault via [flasky-notes-sync](https://github.com/mehonal/flasky-notes-sync), a standalone sync client that runs on the machine with your Obsidian vault. Enable sync in `/settings`, generate an API token, and follow the setup instructions in the sync repo. Folders map to categories, attachments sync alongside notes, and conflicts are flagged for web-based resolution.
+**Not supported in v2 yet:** Flasky Notes allows two-way syncing with an Obsidian vault via [flasky-notes-sync](https://github.com/mehonal/flasky-notes-sync), a standalone sync client that runs on the machine with your Obsidian vault. Enable sync in `/settings`, generate an API token, and follow the setup instructions in the sync repo. Folders map to categories, attachments sync alongside notes, and conflicts are flagged for web-based resolution.
 
 # How to deploy
 
