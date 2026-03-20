@@ -1,7 +1,10 @@
 from datetime import datetime, timezone
+import logging
 import math
 import json
 import os
+
+logger = logging.getLogger(__name__)
 
 import bcrypt
 from werkzeug.utils import secure_filename
@@ -157,33 +160,33 @@ class User(db.Model):
     def set_timezone(self, timezone):
         try:
             if timezone is None or timezone == "" or timezone not in available_timezones():
-                print("Invalid timezone. Using UTC.")
+                logger.warning("Invalid timezone. Using UTC.")
                 timezone = "UTC"
             settings = self.return_settings()
             settings.timezone = timezone
             db.session.commit()
             return True
         except Exception:
-            print("Could not set timezone.")
+            logger.warning("Could not set timezone.")
             return False
 
     def edit_agenda_notes(self, content):
-        print("Editing agenda")
+        logger.debug("Editing agenda")
         if not self.agenda_notes:
-            print("No agenda notes found. Creating new.")
+            logger.debug("No agenda notes found. Creating new.")
             UserAgendaNotes(userid=self.id,content=content)
             db.session.commit()
-            print("New agenda notes created.")
+            logger.debug("New agenda notes created.")
             return True
         try:
-            print("Editing existing agenda notes.")
+            logger.debug("Editing existing agenda notes.")
             self.agenda_notes.content = content
             self.agenda_notes.date_last_changed = datetime.utcnow()
             db.session.commit()
-            print("Agenda notes edited.")
+            logger.debug("Agenda notes edited.")
             return True
         except Exception:
-            print("Could not edit agenda notes.")
+            logger.warning("Could not edit agenda notes.")
             return False
 
     def get_main_category(self):
@@ -266,35 +269,35 @@ class User(db.Model):
         try:
             return self.get_theme_settings().font
         except Exception:
-            print("Could not retrieve font via User.get_current_theme_font. Using default (sans-serif)")
+            logger.warning("Could not retrieve font via User.get_current_theme_font. Using default (sans-serif)")
             return "sans-serif"
 
     def get_current_theme_notes_height(self):
         try:
             return self.get_theme_settings().notes_height
         except Exception:
-            print("Could not retrieve note height for notes via User.get_current_theme_notes_height. Using default (150)")
+            logger.warning("Could not retrieve note height for notes via User.get_current_theme_notes_height. Using default (150)")
             return 150
 
     def get_current_theme_notes_row_count(self):
         try:
             return self.get_theme_settings().notes_row_count
         except Exception:
-            print("Could not retrieve row count preference for notes via User.get_current_theme_notes_row_count. Using default (3)")
+            logger.warning("Could not retrieve row count preference for notes via User.get_current_theme_notes_row_count. Using default (3)")
             return 3
 
     def get_current_theme_dark_mode(self):
         try:
             return self.get_theme_settings().dark_mode
         except Exception:
-            print("Could not retrieve dark mode preference via User.get_current_theme_dark_mode. Using default (off)")
+            logger.warning("Could not retrieve dark mode preference via User.get_current_theme_dark_mode. Using default (off)")
             return False
 
     def get_current_theme_font_size(self):
         try:
             return self.get_theme_settings().font_size
         except Exception:
-            print("Could not retrieve font size via User.return_current_theme_font_size. Using default (16)")
+            logger.warning("Could not retrieve font size via User.return_current_theme_font_size. Using default (16)")
             return 16
 
     def update_theme_font(self, theme, new_font):
@@ -304,7 +307,7 @@ class User(db.Model):
             db.session.commit()
             return True
         except Exception:
-            print("Could not update font via User.update_theme_font.")
+            logger.warning("Could not update font via User.update_theme_font.")
             return False
 
     def update_theme_notes_height(self, theme, new_height):
@@ -314,7 +317,7 @@ class User(db.Model):
             db.session.commit()
             return True
         except Exception:
-            print("Could not update notes height via User.update_theme_notes_height.")
+            logger.warning("Could not update notes height via User.update_theme_notes_height.")
             return False
 
     def update_theme_notes_row_count(self, theme, new_row_count):
@@ -324,7 +327,7 @@ class User(db.Model):
             db.session.commit()
             return True
         except Exception:
-            print("Could not update notes row count via User.update_theme_notes_row_count.")
+            logger.warning("Could not update notes row count via User.update_theme_notes_row_count.")
             return False
 
     def update_theme_dark_mode(self, theme, dark_mode):
@@ -334,7 +337,7 @@ class User(db.Model):
             db.session.commit()
             return True
         except Exception:
-            print("Could not update dark mode via User.update_theme_dark_mode.")
+            logger.warning("Could not update dark mode via User.update_theme_dark_mode.")
             return False
 
     def update_theme_auto_save(self, theme, auto_save):
@@ -344,7 +347,7 @@ class User(db.Model):
             db.session.commit()
             return True
         except Exception:
-            print("Could not update auto save via User.update_theme_auto_save.")
+            logger.warning("Could not update auto save via User.update_theme_auto_save.")
             return False
 
     def update_theme_font_size(self, theme, new_font_size):
@@ -354,7 +357,7 @@ class User(db.Model):
             db.session.commit()
             return True
         except Exception:
-            print("Could not update font size via User.update_theme_font_size.")
+            logger.warning("Could not update font size via User.update_theme_font_size.")
             return False
 
     def update_theme_mobile_font_size(self, theme, new_font_size):
@@ -364,7 +367,7 @@ class User(db.Model):
             db.session.commit()
             return True
         except Exception:
-            print("Could not update mobile font size via User.update_theme_mobile_font_size.")
+            logger.warning("Could not update mobile font size via User.update_theme_mobile_font_size.")
             return False
 
     def update_theme_hide_title(self, theme, hide_title):
@@ -374,21 +377,20 @@ class User(db.Model):
             db.session.commit()
             return True
         except Exception:
-            print("Could not update hide title via User.update_theme_hide_title.")
+            logger.warning("Could not update hide title via User.update_theme_hide_title.")
             return False
 
     def return_settings(self):
         try:
             return self.settings
         except Exception:
-            print("Could not return settings via User.return_settings.")
-            print("Attempting to generate ")
+            logger.warning("Could not return settings via User.return_settings. Attempting to generate.")
             gen = self.generate_missing_settings()
-            print(f"Attempt Status: {gen}")
+            logger.warning("Settings generation attempt status: %s", gen)
             try:
                 return self.settings
             except Exception:
-                print(f"It appears the settings were not able to be generated for the user {self.username}.")
+                logger.warning("Settings could not be generated for user %s.", self.username)
                 return None
 
     def delete_note(self,note_id):
@@ -434,7 +436,7 @@ class User(db.Model):
                            category_id=cat_id, encrypted=encrypted)
             return note
         except Exception:
-            print("Could not add note.")
+            logger.warning("Could not add note.")
             return False
 
     def generate_missing_settings(self):
