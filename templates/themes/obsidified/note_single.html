@@ -2591,13 +2591,31 @@
             });
         }
 
-        function deleteFolder(catId, catName) {
+        async function deleteFolder(catId, catName) {
             if (!confirm('Delete folder "' + catName + '"?')) return;
-            fetch('/api/delete_category', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ categoryId: catId }) })
-            .then(function(r) { return r.json(); })
-            .then(function(data) {
-                if (data.success) { refreshSidebar(); }
-            });
+            // E2EE: server can't find children by path prefix, so delete them client-side
+            if (typeof FlaskyE2EE !== 'undefined' && FlaskyE2EE.isEncrypted()) {
+                var folder = document.querySelector('.folder[data-category-id="' + catId + '"]');
+                var folderPath = folder ? folder.dataset.path : '';
+                // Collect child category IDs (deepest first so children are deleted before parents)
+                var childIds = [];
+                if (folderPath) {
+                    document.querySelectorAll('.folder[data-path]').forEach(function(f) {
+                        var p = f.dataset.path;
+                        if (p.startsWith(folderPath + '/') && f.dataset.categoryId) {
+                            childIds.push(parseInt(f.dataset.categoryId));
+                        }
+                    });
+                    childIds.reverse();
+                }
+                // Delete children first, then the parent
+                for (var i = 0; i < childIds.length; i++) {
+                    await fetch('/api/delete_category', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ categoryId: childIds[i] }) });
+                }
+            }
+            var resp = await fetch('/api/delete_category', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ categoryId: catId }) });
+            var data = await resp.json();
+            if (data.success) { refreshSidebar(); }
         }
 
         // ============ Drag and drop notes & folders ============
