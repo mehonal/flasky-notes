@@ -38,7 +38,7 @@ def get_notes_external_api():
         return jsonify(success=False, reason=err)
     try:
         limit = int(data.get('limit'))
-    except:
+    except (ValueError, TypeError):
         limit = None
     notes = []
     notes_q = UserNote.query.filter_by(userid=user.id).order_by(UserNote.date_last_changed.desc())
@@ -56,7 +56,7 @@ def get_note_external_api():
         return jsonify(success=False, reason=err)
     try:
         note_id = int(data.get('note-id'))
-    except:
+    except (ValueError, TypeError):
         return jsonify(success=False, reason="Invalid or missing note id.")
     note = UserNote.query.filter_by(userid=user.id, id=note_id).first()
     if note:

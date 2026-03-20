@@ -149,7 +149,7 @@ class User(db.Model):
             if as_str:
                 return settings.timezone
             return ZoneInfo(settings.timezone)
-        except:
+        except Exception:
             if as_str:
                 return "UTC"
             return ZoneInfo("UTC")
@@ -163,7 +163,7 @@ class User(db.Model):
             settings.timezone = timezone
             db.session.commit()
             return True
-        except:
+        except Exception:
             print("Could not set timezone.")
             return False
 
@@ -182,7 +182,7 @@ class User(db.Model):
             db.session.commit()
             print("Agenda notes edited.")
             return True
-        except:
+        except Exception:
             print("Could not edit agenda notes.")
             return False
 
@@ -198,7 +198,7 @@ class User(db.Model):
                     db.session.add(category)
                     db.session.commit()
             return category
-        except:
+        except Exception:
             return None
 
     def get_category(self,category,create = False):
@@ -265,35 +265,35 @@ class User(db.Model):
     def get_current_theme_font(self):
         try:
             return self.get_theme_settings().font
-        except:
+        except Exception:
             print("Could not retrieve font via User.get_current_theme_font. Using default (sans-serif)")
             return "sans-serif"
 
     def get_current_theme_notes_height(self):
         try:
             return self.get_theme_settings().notes_height
-        except:
+        except Exception:
             print("Could not retrieve note height for notes via User.get_current_theme_notes_height. Using default (150)")
             return 150
 
     def get_current_theme_notes_row_count(self):
         try:
             return self.get_theme_settings().notes_row_count
-        except:
+        except Exception:
             print("Could not retrieve row count preference for notes via User.get_current_theme_notes_row_count. Using default (3)")
             return 3
 
     def get_current_theme_dark_mode(self):
         try:
             return self.get_theme_settings().dark_mode
-        except:
+        except Exception:
             print("Could not retrieve dark mode preference via User.get_current_theme_dark_mode. Using default (off)")
             return False
 
     def get_current_theme_font_size(self):
         try:
             return self.get_theme_settings().font_size
-        except:
+        except Exception:
             print("Could not retrieve font size via User.return_current_theme_font_size. Using default (16)")
             return 16
 
@@ -303,7 +303,7 @@ class User(db.Model):
             theme_settings.font = new_font
             db.session.commit()
             return True
-        except:
+        except Exception:
             print("Could not update font via User.update_theme_font.")
             return False
 
@@ -313,7 +313,7 @@ class User(db.Model):
             theme_settings.notes_height = new_height
             db.session.commit()
             return True
-        except:
+        except Exception:
             print("Could not update notes height via User.update_theme_notes_height.")
             return False
 
@@ -323,7 +323,7 @@ class User(db.Model):
             theme_settings.notes_row_count = new_row_count
             db.session.commit()
             return True
-        except:
+        except Exception:
             print("Could not update notes row count via User.update_theme_notes_row_count.")
             return False
 
@@ -333,7 +333,7 @@ class User(db.Model):
             theme_settings.dark_mode = dark_mode
             db.session.commit()
             return True
-        except:
+        except Exception:
             print("Could not update dark mode via User.update_theme_dark_mode.")
             return False
 
@@ -343,7 +343,7 @@ class User(db.Model):
             theme_settings.auto_save = auto_save
             db.session.commit()
             return True
-        except:
+        except Exception:
             print("Could not update auto save via User.update_theme_auto_save.")
             return False
 
@@ -353,7 +353,7 @@ class User(db.Model):
             theme_settings.font_size = new_font_size
             db.session.commit()
             return True
-        except:
+        except Exception:
             print("Could not update font size via User.update_theme_font_size.")
             return False
 
@@ -363,7 +363,7 @@ class User(db.Model):
             theme_settings.mobile_font_size = new_font_size
             db.session.commit()
             return True
-        except:
+        except Exception:
             print("Could not update mobile font size via User.update_theme_mobile_font_size.")
             return False
 
@@ -373,21 +373,21 @@ class User(db.Model):
             theme_settings.hide_title = hide_title
             db.session.commit()
             return True
-        except:
+        except Exception:
             print("Could not update hide title via User.update_theme_hide_title.")
             return False
 
     def return_settings(self):
         try:
             return self.settings
-        except:
+        except Exception:
             print("Could not return settings via User.return_settings.")
             print("Attempting to generate ")
             gen = self.generate_missing_settings()
             print(f"Attempt Status: {gen}")
             try:
                 return self.settings
-            except:
+            except Exception:
                 print(f"It appears the settings were not able to be generated for the user {self.username}.")
                 return None
 
@@ -401,7 +401,7 @@ class User(db.Model):
                 return True
             else:
                 return False
-        except:
+        except Exception:
             return False
 
     def return_notes(self, limit = None):
@@ -415,7 +415,7 @@ class User(db.Model):
                 return True
             else:
                 return False
-        except:
+        except Exception:
             return False
 
     def add_note(self, title, content, category, encrypted=False):
@@ -433,7 +433,7 @@ class User(db.Model):
             note = UserNote(userid=self.id, title=title, content=content,
                            category_id=cat_id, encrypted=encrypted)
             return note
-        except:
+        except Exception:
             print("Could not add note.")
             return False
 
@@ -441,7 +441,7 @@ class User(db.Model):
         try:
             self.settings
             return True
-        except:
+        except Exception:
             settings = UserSettings.query.filter_by(id=self.settingsid).first()
             if settings and settings is not None:
                 return True
@@ -480,7 +480,7 @@ class UserNote(db.Model):
     def get_category_name(self):
         try:
             return self.category.name
-        except:
+        except Exception:
             return "Main"
 
     def return_time_ago(self):
@@ -554,7 +554,7 @@ class UserNote(db.Model):
                 db.session.commit()
                 return True
             return False
-        except:
+        except Exception:
             return False
 
     def get_properties(self):

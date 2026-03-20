@@ -231,7 +231,7 @@ def save_note():
         properties = data.get('properties')  # E2EE: encrypted properties sent separately
         try:
             category = int(category)
-        except:
+        except (ValueError, TypeError):
             pass
         if note_id == 0:
             note = g.user.add_note(title, content, category, encrypted=encrypted)

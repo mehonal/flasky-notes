@@ -620,7 +620,7 @@ def note_single_page(note_id):
                     note_content = request.form['content']
                     try:
                         note_category = request.form['category']
-                    except:
+                    except KeyError:
                         note_category = ""
                     if len(note_title) < 1:
                         note_title = None
@@ -642,7 +642,7 @@ def note_single_page(note_id):
                     note_content = request.form['content']
                     try:
                         note_category = request.form['category']
-                    except:
+                    except KeyError:
                         note_category = ""
                     if len(note_title) < 1:
                         note_title = None
