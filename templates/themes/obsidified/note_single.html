@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>{% if note %}{{ note.title or 'Untitled' }} — {% endif %}Obsidified</title>
+    <title>{% if note %}{% if g.user.encryption_enabled %}Note{% else %}{{ note.title or 'Untitled' }}{% endif %} — {% endif %}Obsidified</title>
     <link rel="icon" type="image/x-icon" href="/static/images/amazing_logo.png">
     <link rel="apple-touch-icon" href="/static/images/amazing_logo.png" sizes="180x180">
     <link rel="manifest" href="/manifest.json">
