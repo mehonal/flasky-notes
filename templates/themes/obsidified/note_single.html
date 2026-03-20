@@ -1794,9 +1794,17 @@
                 if (categoryId) {
                     fetch('/api/folder_default_template/' + categoryId)
                     .then(function(r) { return r.json(); })
-                    .then(function(data) {
+                    .then(async function(data) {
                         if (data.success && data.template) {
-                            populateFromTemplate(data.template);
+                            var t = data.template;
+                            // E2EE: decrypt template content/properties
+                            if (typeof FlaskyE2EE !== 'undefined' && FlaskyE2EE.isEncrypted()) {
+                                try { t.content = await FlaskyE2EE.decryptField(t.content); } catch(e) {}
+                                if (t.properties && typeof t.properties === 'string') {
+                                    try { t.properties = JSON.parse(await FlaskyE2EE.decryptField(t.properties)); } catch(e) { t.properties = {}; }
+                                }
+                            }
+                            populateFromTemplate(t);
                         }
                     })
                     .catch(function() {});
@@ -2962,21 +2970,34 @@
             deleteFolder(id, path);
         }
 
-        function ctxSaveAsTemplate() {
+        async function ctxSaveAsTemplate() {
             if (!ctxTarget) return;
             var t = ctxTarget;
             hideContextMenu();
             var name = prompt('Template name:', t.title);
             if (!name || !name.trim()) return;
+            var isE2EE = typeof FlaskyE2EE !== 'undefined' && FlaskyE2EE.isEncrypted();
 
-            // If it's the currently open note, use editor content directly
             if (t.id === noteId && cmEditor) {
+                // Current note: read plaintext from DOM, encrypt if needed
                 var content = getEditorContent();
                 var props = collectProperties();
+                var payload = {
+                    name: name.trim(),
+                    content: content,
+                    properties: Object.keys(props).length > 0 ? props : null
+                };
+                if (isE2EE) {
+                    payload.name = await FlaskyE2EE.encryptField(payload.name);
+                    payload.content = await FlaskyE2EE.encryptField(payload.content);
+                    if (payload.properties) {
+                        payload.properties = await FlaskyE2EE.encryptField(JSON.stringify(payload.properties));
+                    }
+                }
                 fetch('/api/templates', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ name: name.trim(), content: content, properties: Object.keys(props).length > 0 ? props : null })
+                    body: JSON.stringify(payload)
                 })
                 .then(function(r) { return r.json(); })
                 .then(function(data) {
@@ -2984,16 +3005,23 @@
                     else { alert(data.reason || 'Failed to save template.'); }
                 });
             } else {
-                // Fetch the note content from the server
+                // Other note: fetch from server (already encrypted if E2EE), pass through
                 fetch('/api/note_content/' + t.id)
                 .then(function(r) { return r.json(); })
-                .then(function(data) {
+                .then(async function(data) {
+                    var content = data.content || '';
                     var props = data.properties || null;
-                    if (props && Object.keys(props).length === 0) props = null;
+                    // For non-E2EE: clean up empty props
+                    if (!isE2EE && props && typeof props === 'object' && Object.keys(props).length === 0) props = null;
+                    var encName = name.trim();
+                    if (isE2EE) {
+                        encName = await FlaskyE2EE.encryptField(encName);
+                        // content and props are already encrypted from the server
+                    }
                     return fetch('/api/templates', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ name: name.trim(), content: data.content || '', properties: props })
+                        body: JSON.stringify({ name: encName, content: content, properties: props })
                     });
                 })
                 .then(function(r) { return r.json(); })
@@ -3027,7 +3055,13 @@
             // Fetch templates and let user pick one
             fetch('/api/templates')
             .then(function(r) { return r.json(); })
-            .then(function(templates) {
+            .then(async function(templates) {
+                // E2EE: decrypt template names for display
+                if (typeof FlaskyE2EE !== 'undefined' && FlaskyE2EE.isEncrypted()) {
+                    for (var i = 0; i < templates.length; i++) {
+                        try { templates[i].name = await FlaskyE2EE.decryptField(templates[i].name); } catch(e) {}
+                    }
+                }
                 if (templates.length === 0) { alert('No templates yet. Save a note as a template first.'); return; }
                 var options = '0: (none — clear default)\n';
                 templates.forEach(function(t, i) { options += (i + 1) + ': ' + t.name + '\n'; });
@@ -4277,7 +4311,13 @@
             container.innerHTML = '<div class="template-empty">Loading...</div>';
             fetch('/api/templates')
             .then(function(r) { return r.json(); })
-            .then(function(data) {
+            .then(async function(data) {
+                // E2EE: decrypt template names
+                if (typeof FlaskyE2EE !== 'undefined' && FlaskyE2EE.isEncrypted()) {
+                    for (var i = 0; i < data.length; i++) {
+                        try { data[i].name = await FlaskyE2EE.decryptField(data[i].name); } catch(e) {}
+                    }
+                }
                 cachedTemplates = data;
                 if (data.length === 0) {
                     container.innerHTML = '<div class="template-empty">No templates yet. Save a note as a template to get started.</div>';
@@ -4299,7 +4339,14 @@
         function applyTemplate(templateId) {
             fetch('/api/templates/' + templateId)
             .then(function(r) { return r.json(); })
-            .then(function(t) {
+            .then(async function(t) {
+                // E2EE: decrypt template fields
+                if (typeof FlaskyE2EE !== 'undefined' && FlaskyE2EE.isEncrypted()) {
+                    try { t.content = await FlaskyE2EE.decryptField(t.content); } catch(e) {}
+                    if (t.properties && typeof t.properties === 'string') {
+                        try { t.properties = JSON.parse(await FlaskyE2EE.decryptField(t.properties)); } catch(e) { t.properties = {}; }
+                    }
+                }
                 if (templatePickerMode === 'insert') {
                     // Insert at cursor position
                     if (cmEditor) {
@@ -4360,15 +4407,27 @@
             markDirty();
         }
 
-        function saveCurrentAsTemplate() {
+        async function saveCurrentAsTemplate() {
             var name = prompt('Template name:');
             if (!name || !name.trim()) return;
             var content = getEditorContent();
             var props = collectProperties();
+            var payload = {
+                name: name.trim(),
+                content: content,
+                properties: Object.keys(props).length > 0 ? props : null
+            };
+            if (typeof FlaskyE2EE !== 'undefined' && FlaskyE2EE.isEncrypted()) {
+                payload.name = await FlaskyE2EE.encryptField(payload.name);
+                payload.content = await FlaskyE2EE.encryptField(payload.content);
+                if (payload.properties) {
+                    payload.properties = await FlaskyE2EE.encryptField(JSON.stringify(payload.properties));
+                }
+            }
             fetch('/api/templates', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name: name.trim(), content: content, properties: Object.keys(props).length > 0 ? props : null })
+                body: JSON.stringify(payload)
             })
             .then(function(r) { return r.json(); })
             .then(function(data) {
@@ -4398,7 +4457,13 @@
             container.innerHTML = '<div class="template-empty">Loading...</div>';
             fetch('/api/templates')
             .then(function(r) { return r.json(); })
-            .then(function(data) {
+            .then(async function(data) {
+                // E2EE: decrypt template names
+                if (typeof FlaskyE2EE !== 'undefined' && FlaskyE2EE.isEncrypted()) {
+                    for (var i = 0; i < data.length; i++) {
+                        try { data[i].name = await FlaskyE2EE.decryptField(data[i].name); } catch(e) {}
+                    }
+                }
                 if (data.length === 0) {
                     container.innerHTML = '<div class="template-empty">No templates yet.</div>';
                     return;
@@ -4506,10 +4571,18 @@
                     }
                 }
 
-                // New note with default template → populate
+                // New note with default template → populate (decrypt if E2EE)
                 if (noteId === 0 && defaultTemplateContent !== null) {
-                    setTimeout(function() {
-                        populateFromTemplate({ content: defaultTemplateContent, properties: defaultTemplateProps || {} });
+                    setTimeout(async function() {
+                        var tContent = defaultTemplateContent;
+                        var tProps = defaultTemplateProps || {};
+                        if (typeof FlaskyE2EE !== 'undefined' && FlaskyE2EE.isEncrypted()) {
+                            try { tContent = await FlaskyE2EE.decryptField(tContent); } catch(e) {}
+                            if (tProps && typeof tProps === 'string') {
+                                try { tProps = JSON.parse(await FlaskyE2EE.decryptField(tProps)); } catch(e) { tProps = {}; }
+                            }
+                        }
+                        populateFromTemplate({ content: tContent, properties: tProps });
                     }, 50);
                 }
 
