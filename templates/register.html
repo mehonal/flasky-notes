@@ -101,7 +101,10 @@
             var recoveryWrapped = await FlaskyCrypto.wrapSymmetricKey(symKey, recovery.cryptoKey);
             var recoveryHash = await FlaskyCrypto.recoveryKeyHash(recovery.keyBytes);
 
-            // 5. Register with server
+            // 5. Encrypt default category name
+            var encryptedMain = await FlaskyCrypto.encrypt('Main', symKey);
+
+            // 6. Register with server
             statusEl.textContent = 'Creating account...';
             var resp = await fetch('/api/auth/register', {
                 method: 'POST',
@@ -114,7 +117,8 @@
                     recovery_encrypted_key: recoveryWrapped,
                     recovery_key_hash: recoveryHash,
                     key_salt: keySalt,
-                    password_hint: hint
+                    password_hint: hint,
+                    encrypted_main_category: encryptedMain
                 })
             });
             var data = await resp.json();

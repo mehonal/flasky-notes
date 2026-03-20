@@ -73,6 +73,13 @@ def api_auth_register():
     new_user.password_hint = data.get('password_hint', '')
     db.session.commit()
 
+    # Create default category (encrypted for E2EE users)
+    encrypted_main = data.get('encrypted_main_category')
+    cat_name = encrypted_main if encrypted_main else 'Main'
+    default_cat = UserNoteCategory(user_id=new_user.id, name=cat_name)
+    db.session.add(default_cat)
+    db.session.commit()
+
     return jsonify(success=True)
 
 
@@ -655,12 +662,18 @@ def note_single_page(note_id):
                     note.change_category(note_category)
                 return redirect(url_for('web.note_single_page', note_id = note.id))
         category = request.args.get('category')
+        category_id = request.args.get('category_id', type=int)
         category_tree = g.user.get_category_tree()
         default_template = None
-        if note_id == 0 and category:
-            cat_obj = UserNoteCategory.query.filter_by(user_id=g.user.id, name=category).first()
-            if cat_obj and cat_obj.default_template_id:
-                default_template = NoteTemplate.query.get(cat_obj.default_template_id)
+        if note_id == 0 and (category or category_id):
+            if category_id:
+                cat_obj = UserNoteCategory.query.filter_by(user_id=g.user.id, id=category_id).first()
+            else:
+                cat_obj = UserNoteCategory.query.filter_by(user_id=g.user.id, name=category).first()
+            if cat_obj:
+                category = cat_obj.name
+                if cat_obj.default_template_id:
+                    default_template = NoteTemplate.query.get(cat_obj.default_template_id)
         panel_widgets = theme_settings.get_panel_widgets()
         # E2EE: embed encrypted note data as JSON for client-side decryption
         encrypted_note_data = None

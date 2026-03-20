@@ -191,6 +191,16 @@ class User(db.Model):
 
     def get_main_category(self):
         try:
+            # E2EE: can't look up by name (it's encrypted), use first category
+            if self.encryption_enabled:
+                category = UserNoteCategory.query.filter_by(user_id=self.id)\
+                    .order_by(UserNoteCategory.id).first()
+                if category is None:
+                    # Shouldn't happen — client creates the default category
+                    category = UserNoteCategory(user_id=self.id, name="Main")
+                    db.session.add(category)
+                    db.session.commit()
+                return category
             category = UserNoteCategory.query.filter_by(user_id=self.id,name="Main").first()
             if category:
                 return category
@@ -578,6 +588,7 @@ class UserNote(db.Model):
             "content": self.content,
             "properties": self.get_properties(),
             "category": self.get_category_name(),
+            "category_id": self.category_id,
             "date_added": self.date_added,
             "date_last_changed": self.date_last_changed
         }

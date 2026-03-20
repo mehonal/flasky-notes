@@ -223,6 +223,7 @@
                 for (const n of notes) {
                     try { n.title = await FlaskyE2EE.decryptField(n.title); } catch(e) {}
                     try { n.content = await FlaskyE2EE.decryptField(n.content); } catch(e) {}
+                    try { n.category = await FlaskyE2EE.decryptField(n.category); } catch(e) {}
                 }
             }
             categories = [...new Set(notes.map(n => n.category).filter(Boolean))];
@@ -548,7 +549,7 @@
                     noteId: editingNoteId,
                     title: encTitle,
                     content: encContent,
-                    category: note ? note.category : null
+                    category: note ? (note.category_id || note.category) : null
                 }).then(data => {
                     closeEdit();
                     if (data.success){
@@ -783,12 +784,27 @@
             print(`Now in '${match}'.`, 'clr-green');
         }
 
-        function moveNoteCategory(args){
+        async function moveNoteCategory(args){
             if (args.length < 2){ print("Usage: mv <note_id> <category_name>", 'clr-red'); return; }
             const id = parseInt(args[0]);
             const catName = args.slice(1).join(' ');
             if (isNaN(id)){ print("First argument must be a note ID.", 'clr-red'); return; }
-            apiPost('/api/edit_note_category', { noteId: id, category: catName })
+            // For E2EE, find the category by decrypted name and send its ID
+            var catValue = catName;
+            if (typeof FlaskyE2EE !== 'undefined' && FlaskyE2EE.isEncrypted()) {
+                var treeResp = await fetch('/api/sidebar_tree?note_id=0').then(r => r.json());
+                var cats = treeResp.categories || [];
+                var found = null;
+                for (var c of cats) {
+                    try {
+                        var dec = await FlaskyE2EE.decryptField(c.name);
+                        if (dec && dec.toLowerCase() === catName.toLowerCase()) { found = c.id; break; }
+                    } catch(e) {}
+                }
+                if (found === null) { print("Category not found: " + catName, 'clr-red'); return; }
+                catValue = found;
+            }
+            apiPost('/api/edit_note_category', { noteId: id, category: catValue })
             .then(data => {
                 if (data.success){
                     print(`Note #${id} moved to '${catName}'.`, 'clr-green');

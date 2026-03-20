@@ -1576,6 +1576,10 @@
                     for (var i = 0; i < notes.length; i++) {
                         try { notes[i].title = await FlaskyE2EE.decryptField(notes[i].title); } catch(e) {}
                     }
+                    // Decrypt category names
+                    for (var i = 0; i < cats.length; i++) {
+                        try { cats[i].name = await FlaskyE2EE.decryptField(cats[i].name); } catch(e) {}
+                    }
                     // Group notes by category
                     var catMap = {};
                     cats.forEach(function(c) { catMap[c.id] = { cat: c, notes: [] }; });
@@ -1722,7 +1726,7 @@
             }
         })();
 
-        function loadNote(id, category) {
+        function loadNote(id, category, categoryId) {
             clearTimeout(autoSaveTimer);
 
             if (id === 0) {
@@ -1742,14 +1746,18 @@
                 // Update category select
                 var catSelect = document.getElementById('category-select');
                 if (catSelect) {
-                    for (var i = 0; i < catSelect.options.length; i++) {
-                        if (catSelect.options[i].textContent === currentCategory) {
-                            catSelect.selectedIndex = i;
-                            break;
+                    if (categoryId) {
+                        catSelect.value = String(categoryId);
+                    } else {
+                        for (var i = 0; i < catSelect.options.length; i++) {
+                            if (catSelect.options[i].textContent === currentCategory) {
+                                catSelect.selectedIndex = i;
+                                break;
+                            }
                         }
                     }
                 }
-                history.pushState({ noteId: 0 }, '', '/note/0' + (category ? '?category=' + encodeURIComponent(category) : ''));
+                history.pushState({ noteId: 0 }, '', '/note/0');
                 document.querySelector('.breadcrumb-item.active').textContent = 'New note';
                 document.getElementById('save-status').textContent = '';
                 document.getElementById('save-status').style.color = '';
@@ -1773,6 +1781,9 @@
                 if (typeof FlaskyE2EE !== 'undefined' && FlaskyE2EE.isEncrypted()) {
                     n.title = await FlaskyE2EE.decryptField(n.title);
                     n.content = await FlaskyE2EE.decryptField(n.content);
+                    if (n.category) {
+                        try { n.category = await FlaskyE2EE.decryptField(n.category); } catch(e) {}
+                    }
                     if (n.properties && typeof n.properties === 'string') {
                         try {
                             var decProps = await FlaskyE2EE.decryptField(n.properties);
@@ -2300,7 +2311,13 @@
 
         async function _doSaveNote(titleVal, content, props, callback) {
             try {
-                var payload = { noteId: noteId, title: titleVal, content: content, category: currentCategory };
+                var catValue = currentCategory;
+                if (typeof FlaskyE2EE !== 'undefined' && FlaskyE2EE.isEncrypted()) {
+                    // Use category ID for E2EE to avoid creating plaintext categories
+                    var catSelect = document.getElementById('category-select');
+                    if (catSelect) catValue = parseInt(catSelect.value);
+                }
+                var payload = { noteId: noteId, title: titleVal, content: content, category: catValue };
                 if (typeof FlaskyE2EE !== 'undefined' && FlaskyE2EE.isEncrypted()) {
                     payload.title = await FlaskyE2EE.encryptField(titleVal);
                     payload.content = await FlaskyE2EE.encryptField(content);
@@ -2443,17 +2460,21 @@
 
         function createNewNoteInFolder(catId, catName) {
             if (isDirty) {
-                saveNote(function() { loadNote(0, catName); });
+                saveNote(function() { loadNote(0, catName, catId); });
             } else {
-                loadNote(0, catName);
+                loadNote(0, catName, catId);
             }
         }
 
-        function promptNewFolder(parentPath) {
+        async function promptNewFolder(parentPath) {
             var name = prompt(parentPath ? 'New subfolder in "' + parentPath + '":' : 'New folder name:');
             if (!name || !name.trim()) return;
             var fullPath = parentPath ? parentPath + '/' + name.trim() : name.trim();
-            fetch('/api/add_category', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ categoryName: fullPath }) })
+            var catName = fullPath;
+            if (typeof FlaskyE2EE !== 'undefined' && FlaskyE2EE.isEncrypted()) {
+                catName = await FlaskyE2EE.encryptField(fullPath);
+            }
+            fetch('/api/add_category', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ categoryName: catName }) })
             .then(function(r) { return r.json(); })
             .then(function(data) {
                 if (data.success) { refreshSidebar(); }
@@ -2539,6 +2560,44 @@
             clearTimeout(dragExpandTimer);
         }
 
+        async function moveCategoryRequest(categoryId, oldPath, targetPath) {
+            if (typeof FlaskyE2EE !== 'undefined' && FlaskyE2EE.isEncrypted()) {
+                // E2EE: compute renames client-side, encrypt new paths
+                var leafName = oldPath.split('/').pop();
+                var newPath = targetPath ? targetPath + '/' + leafName : leafName;
+                var renames = [{ id: categoryId, name: await FlaskyE2EE.encryptField(newPath) }];
+                // Find and rename children
+                document.querySelectorAll('.folder[data-path]').forEach(function(f) {
+                    var p = f.dataset.path;
+                    if (p.startsWith(oldPath + '/')) {
+                        var childNewPath = newPath + p.slice(oldPath.length);
+                        var childCatId = f.dataset.categoryId;
+                        if (childCatId) {
+                            renames.push({ id: parseInt(childCatId), _newPath: childNewPath });
+                        }
+                    }
+                });
+                // Encrypt child paths
+                for (var i = 1; i < renames.length; i++) {
+                    renames[i].name = await FlaskyE2EE.encryptField(renames[i]._newPath);
+                    delete renames[i]._newPath;
+                }
+                var resp = await fetch('/api/move_category', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ categoryId: categoryId, renames: renames })
+                });
+                return resp.json();
+            } else {
+                var resp = await fetch('/api/move_category', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ categoryId: categoryId, targetPath: targetPath })
+                });
+                return resp.json();
+            }
+        }
+
         function onItemDrop(e, targetPath, targetCatId) {
             e.currentTarget.classList.remove('drag-over');
             if (!dragType) return;
@@ -2565,13 +2624,9 @@
                 .then(function(data) { if (data.success) { refreshSidebar(); } });
             } else if (dragType === 'folder') {
                 var fid = dragFolderId;
+                var fpath = dragFolderPath;
                 dragType = null;
-                fetch('/api/move_category', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ categoryId: fid, targetPath: targetPath })
-                })
-                .then(function(r) { return r.json(); })
+                moveCategoryRequest(fid, fpath, targetPath)
                 .then(function(data) {
                     if (data.success) { refreshSidebar(); }
                     else if (data.reason) alert(data.reason);
@@ -2595,13 +2650,9 @@
             e.currentTarget.classList.remove('drag-over');
             if (dragType !== 'folder') return;
             var fid = dragFolderId;
+            var fpath = dragFolderPath;
             dragType = null;
-            fetch('/api/move_category', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ categoryId: fid, targetPath: '' })
-            })
-            .then(function(r) { return r.json(); })
+            moveCategoryRequest(fid, fpath, '')
             .then(function(data) {
                 if (data.success) { refreshSidebar(); }
                 else if (data.reason) alert(data.reason);
@@ -2630,12 +2681,7 @@
             } else {
                 return;
             }
-            fetch('/api/move_category', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ categoryId: catId, targetPath: targetPath })
-            })
-            .then(function(r) { return r.json(); })
+            moveCategoryRequest(catId, currentPath, targetPath)
             .then(function(data) {
                 if (data.success) { refreshSidebar(); }
                 else if (data.reason) alert(data.reason);
@@ -4154,6 +4200,14 @@
                             if (!editMode && typeof renderPreview === 'function') renderPreview();
                         } catch(e) {
                             console.error('E2EE page decrypt failed:', e);
+                        }
+                    }
+                    // Decrypt currentCategory variable and category select options
+                    try { currentCategory = await FlaskyE2EE.decryptField(currentCategory); } catch(e) {}
+                    var catSelect = document.getElementById('category-select');
+                    if (catSelect) {
+                        for (var i = 0; i < catSelect.options.length; i++) {
+                            try { catSelect.options[i].textContent = await FlaskyE2EE.decryptField(catSelect.options[i].textContent.trim()); } catch(e) {}
                         }
                     }
                     // Rebuild sidebar client-side (decrypts titles, builds subfolder tree, sorts alphabetically)

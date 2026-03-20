@@ -339,10 +339,22 @@ def move_category():
     if g.user:
         data = request.get_json()
         category_id = int(data.get('categoryId'))
-        target_path = data.get('targetPath', '').strip('/')
         category = UserNoteCategory.query.filter_by(id=category_id).first()
         if not category or g.user != category.user:
             return jsonify(success=False, reason="Category does not exist.")
+
+        # E2EE: client sends pre-computed renames (server can't parse encrypted paths)
+        renames = data.get('renames')
+        if renames:
+            for rename in renames:
+                cat = UserNoteCategory.query.filter_by(id=rename['id'], user_id=g.user.id).first()
+                if cat:
+                    cat.name = rename['name']
+            db.session.commit()
+            return jsonify(success=True)
+
+        # Non-E2EE: server computes new paths
+        target_path = data.get('targetPath', '').strip('/')
         old_path = category.name
         leaf_name = old_path.rsplit('/', 1)[-1]
         new_path = target_path + '/' + leaf_name if target_path else leaf_name
@@ -373,13 +385,17 @@ def delete_category():
         data = request.get_json()
         category_id = int(data.get('categoryId'))
         category = UserNoteCategory.query.filter_by(id=category_id).first()
-        if category and g.user == category.user and category.name != "Main" and category.name != "main":
-            main = g.user.get_main_category()
-            # Also delete child categories (subfolders)
-            children = UserNoteCategory.query.filter(
-                UserNoteCategory.user_id == g.user.id,
-                UserNoteCategory.name.startswith(category.name + "/")
-            ).all()
+        main = g.user.get_main_category() if category else None
+        is_main = category and main and category.id == main.id
+        if category and g.user == category.user and not is_main:
+            # For non-E2EE, also find children by path prefix
+            if g.user.encryption_enabled:
+                children = []  # E2EE: client sends separate delete for children
+            else:
+                children = UserNoteCategory.query.filter(
+                    UserNoteCategory.user_id == g.user.id,
+                    UserNoteCategory.name.startswith(category.name + "/")
+                ).all()
             for child in children:
                 for note in child.notes:
                     note.category_id = main.id
