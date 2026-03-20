@@ -196,8 +196,8 @@ class User(db.Model):
                 category = UserNoteCategory.query.filter_by(user_id=self.id)\
                     .order_by(UserNoteCategory.id).first()
                 if category is None:
-                    # Shouldn't happen — client creates the default category
-                    category = UserNoteCategory(user_id=self.id, name="Main")
+                    # Shouldn't happen — client creates the default category at registration
+                    category = UserNoteCategory(user_id=self.id, name="")
                     db.session.add(category)
                     db.session.commit()
                 return category
