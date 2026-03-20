@@ -334,6 +334,55 @@ def edit_note_category():
     else:
         return jsonify(success=False,reason="Not logged in.")
 
+@notes_api_bp.route("/rename_note", methods=['POST'])
+def rename_note():
+    if not g.user:
+        return jsonify(success=False, reason="Not logged in.")
+    data = request.get_json()
+    note_id = int(data.get('noteId', 0))
+    new_title = data.get('title', '').strip()
+    if not new_title:
+        return jsonify(success=False, reason="Title cannot be empty.")
+    note = UserNote.query.filter_by(id=note_id).first()
+    if note and g.user == note.user:
+        note.change_title(new_title)
+        return jsonify(success=True)
+    return jsonify(success=False, reason="Note does not exist.")
+
+@notes_api_bp.route("/rename_category", methods=['POST'])
+def rename_category():
+    if not g.user:
+        return jsonify(success=False, reason="Not logged in.")
+    data = request.get_json()
+    category_id = int(data.get('categoryId', 0))
+    new_name = data.get('name', '').strip()
+    if not new_name:
+        return jsonify(success=False, reason="Name cannot be empty.")
+    category = UserNoteCategory.query.filter_by(id=category_id, user_id=g.user.id).first()
+    if not category:
+        return jsonify(success=False, reason="Category does not exist.")
+    main = g.user.get_main_category()
+    if main and category.id == main.id:
+        return jsonify(success=False, reason="Cannot rename the Main folder.")
+    old_path = category.name
+    # Build new full path: replace just the leaf name
+    parts = old_path.rsplit('/', 1)
+    new_path = parts[0] + '/' + new_name if len(parts) > 1 else new_name
+    if new_path == old_path:
+        return jsonify(success=True)
+    if UserNoteCategory.query.filter_by(user_id=g.user.id, name=new_path).first():
+        return jsonify(success=False, reason="A folder with that name already exists.")
+    # Rename children paths too
+    children = UserNoteCategory.query.filter(
+        UserNoteCategory.user_id == g.user.id,
+        UserNoteCategory.name.startswith(old_path + '/')
+    ).all()
+    for child in children:
+        child.name = new_path + child.name[len(old_path):]
+    category.name = new_path
+    db.session.commit()
+    return jsonify(success=True)
+
 @notes_api_bp.route("/move_category", methods=['POST'])
 def move_category():
     if g.user:
