@@ -53,11 +53,11 @@ def create_app():
     # Security headers via Talisman
     csp = {
         'default-src': "'self'",
-        'script-src': ["'self'", "'unsafe-inline'", "https://cdnjs.cloudflare.com"],
-        'style-src': ["'self'", "'unsafe-inline'", "https://cdnjs.cloudflare.com"],
+        'script-src': ["'self'", "'unsafe-inline'", "https://cdnjs.cloudflare.com", "https://cdn.jsdelivr.net"],
+        'style-src': ["'self'", "'unsafe-inline'", "https://cdnjs.cloudflare.com", "https://cdn.jsdelivr.net"],
         'img-src': ["'self'", "data:"],
         'font-src': "'self'",
-        'connect-src': "'self'",
+        'connect-src': ["'self'", "https://cdn.jsdelivr.net", "https://cdnjs.cloudflare.com"],
         'frame-src': "'none'",
         'object-src': "'none'",
         'base-uri': "'self'",
@@ -67,6 +67,7 @@ def create_app():
         app,
         force_https=CONFIG.ENFORCE_SSL,
         content_security_policy=csp,
+        content_security_policy_nonce_in=[],
         session_cookie_secure=CONFIG.ENFORCE_SSL,
     )
 
