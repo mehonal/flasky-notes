@@ -605,6 +605,10 @@
           <svg viewBox="0 0 24 24"><path d="M21 8v13H3V8M1 3h22v5H1zM10 12h4"/></svg>
           Archived To-Dos
         </a>
+        <a href="javascript:void(0)" class="nav-item" onclick="showPastEventsModal()">
+          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          Past Events
+        </a>
 
         <div class="sidebar-divider"></div>
         <div class="sidebar-section-label">Recent Notes</div>
@@ -836,6 +840,28 @@
       </div>
       <div class="modal-footer">
         <button class="btn-modal" onclick="hideModal('archivedTodosOverlay')">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Past Events Modal -->
+  <div class="modal-overlay" id="pastEventsOverlay">
+    <div class="modal-box">
+      <div class="modal-header">
+        <span class="modal-title">Past Events</span>
+        <button class="modal-close" onclick="hideModal('pastEventsOverlay')">
+          <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div id="pastEventsLoading" class="loading-state" style="display:none;">
+          <span class="spinner"></span> Loading...
+        </div>
+        <div class="archived-list" id="pastEventsList"></div>
+        <p id="pastEventsEmpty" class="empty-state" style="display:none;">No past events.</p>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-modal" onclick="hideModal('pastEventsOverlay')">Close</button>
       </div>
     </div>
   </div>
@@ -1163,6 +1189,56 @@
             document.getElementById('archivedTodosLoading').style.display = 'none';
             showToast('Failed to load archived to-dos.', 'danger');
         });
+    }
+
+    // ============ Past events ============
+    async function showPastEventsModal() {
+        showModal('pastEventsOverlay');
+        document.getElementById('pastEventsLoading').style.display = '';
+        document.getElementById('pastEventsEmpty').style.display = 'none';
+        document.getElementById('pastEventsList').innerHTML = '';
+        fetch('/api/get_events?past=true')
+        .then(response => response.json())
+        .then(async data => {
+            if (typeof FlaskyE2EE !== 'undefined' && FlaskyE2EE.isEncrypted()) {
+                for (const e of data) {
+                    try { e.title = await FlaskyE2EE.decryptField(e.title); } catch(ex) {}
+                }
+            }
+            document.getElementById('pastEventsLoading').style.display = 'none';
+            if (data.length === 0) {
+                document.getElementById('pastEventsEmpty').style.display = '';
+                return;
+            }
+            const list = document.getElementById('pastEventsList');
+            data.forEach(ev => {
+                const item = document.createElement('div');
+                item.className = 'archived-item';
+                let dateStr = '';
+                if (ev.date_of_event) {
+                    dateStr = ' <span class="badge badge-secondary">' + escapeHtml(new Date(ev.date_of_event).toLocaleDateString()) + '</span>';
+                }
+                item.innerHTML = `
+                    <span class="archived-item-title">${escapeHtml(ev.title)}${dateStr}</span>
+                    <div class="archived-item-actions">
+                        <button class="action-btn danger" data-event-id="${ev.id}" onclick="deletePastEvent(event)" title="Delete">
+                            <svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                        </button>
+                    </div>
+                `;
+                list.appendChild(item);
+            });
+        })
+        .catch(() => {
+            document.getElementById('pastEventsLoading').style.display = 'none';
+            showToast('Failed to load past events.', 'danger');
+        });
+    }
+
+    function deletePastEvent(event) {
+        const btn = event.target.closest('.action-btn');
+        deleteEvent(btn.dataset.eventId);
+        btn.closest('.archived-item').remove();
     }
 
     // ============ Show modals ============

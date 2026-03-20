@@ -1,5 +1,5 @@
 from flask import Blueprint, request, g, jsonify, current_app
-from datetime import datetime
+from datetime import datetime, timedelta
 import re
 import os
 import hashlib
@@ -540,10 +540,18 @@ def get_event(event_id):
 def get_events():
     if g.user:
         events = []
-        for event in UserEvent.query.filter_by(userid=g.user.id).all():
+        if request.args.get('past') == "true":
+            query = UserEvent.query.filter_by(userid=g.user.id).filter(
+                UserEvent.date_of_event != None,
+                UserEvent.date_of_event <= (datetime.utcnow() - timedelta(days=1))
+            ).order_by(UserEvent.date_of_event.desc()).all()
+        else:
+            query = UserEvent.query.filter_by(userid=g.user.id).all()
+        for event in query:
             events.append({
                 "id": event.id,
                 "title": event.title,
+                "date_of_event": event.date_of_event,
                 "time_until_event": event.get_time_until_event(),
                 "event_css_class": event.get_event_css_class(),
                 "has_content": event.has_content()
