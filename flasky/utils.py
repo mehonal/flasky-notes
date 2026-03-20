@@ -45,6 +45,8 @@ class RateLimiter:
 recovery_limiter = RateLimiter(max_attempts=5, window_seconds=900)
 # 10 attempts per 5 minutes for login
 login_limiter = RateLimiter(max_attempts=10, window_seconds=300)
+# 20 failed attempts per 15 minutes for sync API token auth
+sync_token_limiter = RateLimiter(max_attempts=20, window_seconds=900)
 
 
 _FRONTMATTER_RE = re.compile(r'^---\n(.*?)\n---\n', re.DOTALL)
@@ -132,13 +134,17 @@ def require_sync_token(f):
     def decorated(*args, **kwargs):
         from flasky.models import ApiToken
         from flasky import db
+        if sync_token_limiter.is_limited():
+            return jsonify(error="Too many failed attempts. Try again later."), 429
         auth_header = request.headers.get('Authorization', '')
         if not auth_header.startswith('Bearer '):
+            sync_token_limiter.record()
             return jsonify(error="Missing or invalid Authorization header"), 401
         token = auth_header[7:]
         token_hash = hashlib.sha256(token.encode('utf-8')).hexdigest()
         api_token = ApiToken.query.filter_by(token_hash=token_hash).first()
         if api_token is None:
+            sync_token_limiter.record()
             return jsonify(error="Invalid token"), 401
         from datetime import datetime
         api_token.last_used_at = datetime.utcnow()
