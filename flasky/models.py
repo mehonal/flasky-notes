@@ -584,19 +584,19 @@ class UserNote(db.Model):
         return content_with_frontmatter(self.content, self.properties)
 
     def get_resolved_icon(self):
-        """note.icon -> category.icon -> None"""
+        """note.icon -> category.default_note_icon -> None"""
         if self.icon:
             return self.icon
-        if self.category and self.category.icon:
-            return self.category.icon
+        if self.category and self.category.default_note_icon:
+            return self.category.default_note_icon
         return None
 
     def get_resolved_icon_color(self):
-        if self.icon and self.icon_color:
+        if self.icon:
             return self.icon_color
-        if not self.icon and self.category and self.category.icon:
-            return self.category.icon_color
-        return self.icon_color
+        if self.category and self.category.default_note_icon:
+            return self.category.default_note_icon_color
+        return None
 
     def return_json(self):
         return {
@@ -640,6 +640,8 @@ class UserNoteCategory(db.Model):
     name = db.Column(db.String(500))
     icon = db.Column(db.String(100), nullable=True)
     icon_color = db.Column(db.String(20), nullable=True)
+    default_note_icon = db.Column(db.String(100), nullable=True)
+    default_note_icon_color = db.Column(db.String(20), nullable=True)
     default_template_id = db.Column(db.ForeignKey('note_template.id'), nullable=True)
     user = db.relationship('User', backref="categories")
     default_template = db.relationship('NoteTemplate')
@@ -657,6 +659,8 @@ class NoteTemplate(db.Model):
     name = db.Column(db.Text, nullable=False)
     content = db.Column(db.Text)
     properties = db.Column(db.Text)
+    icon = db.Column(db.String(100), nullable=True)
+    icon_color = db.Column(db.String(20), nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     user = db.relationship('User', backref="templates")
 
@@ -678,6 +682,8 @@ class NoteTemplate(db.Model):
             "name": self.name,
             "content": self.content or "",
             "properties": props,
+            "icon": self.icon,
+            "icon_color": self.icon_color,
         }
 
     def __init__(self, user_id, name, content="", properties=None):

@@ -427,6 +427,23 @@ def set_folder_icon():
     db.session.commit()
     return jsonify(success=True, icon=category.icon, icon_color=category.icon_color)
 
+@notes_api_bp.route("/set_default_note_icon", methods=['POST'])
+def set_default_note_icon():
+    if not g.user:
+        return jsonify(success=False, reason="Not logged in.")
+    data = request.get_json()
+    category_id = int(data.get('categoryId', 0))
+    icon = data.get('icon')
+    icon_color = data.get('iconColor')
+    category = UserNoteCategory.query.filter_by(id=category_id, user_id=g.user.id).first()
+    if not category:
+        return jsonify(success=False, reason="Category does not exist.")
+    category.default_note_icon = icon
+    category.default_note_icon_color = icon_color
+    db.session.commit()
+    return jsonify(success=True, default_note_icon=category.default_note_icon,
+                   default_note_icon_color=category.default_note_icon_color)
+
 @notes_api_bp.route("/move_category", methods=['POST'])
 def move_category():
     if g.user:
@@ -511,7 +528,8 @@ def sidebar_tree():
     # E2EE: return raw JSON data for client-side rendering
     if g.user.encryption_enabled:
         categories = [
-            {'id': cat.id, 'name': cat.name, 'icon': cat.icon, 'icon_color': cat.icon_color}
+            {'id': cat.id, 'name': cat.name, 'icon': cat.icon, 'icon_color': cat.icon_color,
+             'default_note_icon': cat.default_note_icon, 'default_note_icon_color': cat.default_note_icon_color}
             for cat in sorted(g.user.categories, key=lambda c: c.id)
         ]
         notes = [
@@ -530,7 +548,8 @@ def sidebar_tree():
         active_note_id=note_id
     )
     categories = [
-        {'id': cat.id, 'name': cat.name, 'icon': cat.icon, 'icon_color': cat.icon_color}
+        {'id': cat.id, 'name': cat.name, 'icon': cat.icon, 'icon_color': cat.icon_color,
+             'default_note_icon': cat.default_note_icon, 'default_note_icon_color': cat.default_note_icon_color}
         for cat in sorted(g.user.categories, key=lambda c: c.name)
     ]
     return jsonify(success=True, tree_html=tree_html, categories=categories)
@@ -790,7 +809,8 @@ def sidebar_tree_data():
     if not g.user:
         return jsonify(success=False, reason="Not logged in.")
     categories = [
-        {'id': cat.id, 'name': cat.name, 'icon': cat.icon, 'icon_color': cat.icon_color}
+        {'id': cat.id, 'name': cat.name, 'icon': cat.icon, 'icon_color': cat.icon_color,
+             'default_note_icon': cat.default_note_icon, 'default_note_icon_color': cat.default_note_icon_color}
         for cat in sorted(g.user.categories, key=lambda c: c.id)
     ]
     notes = [
@@ -879,6 +899,10 @@ def create_template():
     import json
     props_json = json.dumps(properties) if properties else None
     t = NoteTemplate(user_id=g.user.id, name=name, content=content, properties=props_json)
+    if data.get('icon'):
+        t.icon = data['icon']
+        t.icon_color = data.get('iconColor')
+        db.session.commit()
     return jsonify(success=True, template=t.return_json())
 
 @notes_api_bp.route("/templates/<int:template_id>", methods=['PUT'])
@@ -896,6 +920,9 @@ def update_template(template_id):
     if 'properties' in data:
         import json
         t.properties = json.dumps(data['properties']) if data['properties'] else None
+    if 'icon' in data:
+        t.icon = data['icon']
+        t.icon_color = data.get('iconColor')
     db.session.commit()
     return jsonify(success=True, template=t.return_json())
 

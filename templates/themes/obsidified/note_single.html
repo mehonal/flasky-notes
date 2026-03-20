@@ -1719,8 +1719,8 @@
                                 var isActive = n.id === noteId ? ' active' : '';
                                 var title = n.title || 'Untitled';
                                 html += '<div class="file-item' + isActive + '" data-note-id="' + n.id + '" onclick="openNote(' + n.id + ')" draggable="true" ondragstart="onNoteDragStart(event,' + n.id + ')" ondragover="onItemDragOver(event)" ondragleave="onItemDragLeave(event)" ondrop="onItemDrop(event,\'' + esc(fullPath) + '\',' + catId + ')">';
-                                var noteIcon = n.icon || (cat ? cat.icon : null);
-                                var noteIconColor = n.icon ? n.icon_color : (cat ? cat.icon_color : null);
+                                var noteIcon = n.icon || (cat ? cat.default_note_icon : null);
+                                var noteIconColor = n.icon ? n.icon_color : (cat ? cat.default_note_icon_color : null);
                                 if (noteIcon) {
                                     var nColor = noteIconColor ? ' data-icon-color="' + esc(noteIconColor) + '" style="color:' + esc(noteIconColor) + '"' : '';
                                     html += '<span class="file-icon"><span class="lucide-icon" data-icon="' + esc(noteIcon) + '"' + nColor + '></span></span>';
@@ -2423,6 +2423,10 @@
                     if (catSelect) catValue = parseInt(catSelect.value);
                 }
                 var payload = { noteId: noteId, title: titleVal, content: content, category: catValue };
+                if (currentNoteIcon) {
+                    payload.icon = currentNoteIcon;
+                    payload.iconColor = currentNoteIconColor;
+                }
                 if (typeof FlaskyE2EE !== 'undefined' && FlaskyE2EE.isEncrypted()) {
                     payload.title = await FlaskyE2EE.encryptField(titleVal);
                     payload.content = await FlaskyE2EE.encryptField(content);
@@ -2899,6 +2903,30 @@
             });
         }
 
+        function ctxSetDefaultNoteIcon() {
+            if (!ctxTarget || !ctxTarget.catId) return;
+            var catId = ctxTarget.catId;
+            hideContextMenu();
+            openIconPicker({
+                icon: null,
+                color: null,
+                onSelect: function(icon, color) {
+                    fetch('/api/set_default_note_icon', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ categoryId: catId, icon: icon, iconColor: color })
+                    }).then(function() { refreshSidebar(); });
+                },
+                onRemove: function() {
+                    fetch('/api/set_default_note_icon', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ categoryId: catId, icon: null, iconColor: null })
+                    }).then(function() { refreshSidebar(); });
+                }
+            });
+        }
+
         // Render lucide icons in sidebar after it loads
         function renderSidebarIcons() {
             var els = document.querySelectorAll('.lucide-icon[data-icon]');
@@ -2941,6 +2969,7 @@
                 html += '<div class="context-menu-item" onclick="ctxNewFromTemplate()"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="11" x2="12" y2="17"/><line x1="9" y1="14" x2="15" y2="14"/></svg>New from template</div>';
                 html += '<div class="context-menu-item" onclick="ctxSetDefaultTemplate()"><svg viewBox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/><path d="M12 11v6"/><path d="M9 14h6"/></svg>Set default template</div>';
                 html += '<div class="context-menu-item" onclick="ctxSetFolderIcon()"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>Set folder icon</div>';
+                html += '<div class="context-menu-item" onclick="ctxSetDefaultNoteIcon()"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><circle cx="12" cy="14" r="2"/></svg>Set default note icon</div>';
                 html += '<div class="context-menu-sep"></div>';
                 html += '<div class="context-menu-item danger" onclick="ctxDeleteFolder()"><svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>Delete</div>';
             }
@@ -3171,7 +3200,9 @@
                 var payload = {
                     name: name.trim(),
                     content: content,
-                    properties: Object.keys(props).length > 0 ? props : null
+                    properties: Object.keys(props).length > 0 ? props : null,
+                    icon: currentNoteIcon,
+                    iconColor: currentNoteIconColor
                 };
                 if (isE2EE) {
                     payload.name = await FlaskyE2EE.encryptField(payload.name);
@@ -3192,11 +3223,12 @@
                 });
             } else {
                 // Other note: fetch from server (already encrypted if E2EE), pass through
-                fetch('/api/note_content/' + t.id)
+                fetch('/api/note/' + t.id)
                 .then(function(r) { return r.json(); })
                 .then(async function(data) {
-                    var content = data.content || '';
-                    var props = data.properties || null;
+                    var n = data.note;
+                    var content = n.content || '';
+                    var props = n.properties || null;
                     // For non-E2EE: clean up empty props
                     if (!isE2EE && props && typeof props === 'object' && Object.keys(props).length === 0) props = null;
                     var encName = name.trim();
@@ -3207,7 +3239,7 @@
                     return fetch('/api/templates', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ name: encName, content: content, properties: props })
+                        body: JSON.stringify({ name: encName, content: content, properties: props, icon: n.icon, iconColor: n.icon_color })
                     });
                 })
                 .then(function(r) { return r.json(); })
@@ -4602,6 +4634,12 @@
                 // Expand props panel
                 var container = document.getElementById('props-container');
                 if (container) container.classList.remove('collapsed');
+            }
+            // Apply template icon
+            if (t.icon) {
+                currentNoteIcon = t.icon;
+                currentNoteIconColor = t.icon_color || null;
+                updateNoteIconPreview(t.icon, t.icon_color);
             }
             markDirty();
         }
