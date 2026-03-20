@@ -1790,6 +1790,17 @@
                 // Refresh right panel
                 var rp = document.getElementById('right-panel');
                 if (rp && !rp.classList.contains('collapsed')) refreshAllVisibleWidgets();
+                // Check for folder default template
+                if (categoryId) {
+                    fetch('/api/folder_default_template/' + categoryId)
+                    .then(function(r) { return r.json(); })
+                    .then(function(data) {
+                        if (data.success && data.template) {
+                            populateFromTemplate(data.template);
+                        }
+                    })
+                    .catch(function() {});
+                }
                 return;
             }
 
@@ -2725,6 +2736,7 @@
                 html += '<div class="context-menu-item" onclick="ctxRenameNote()"><svg viewBox="0 0 24 24"><path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>Rename</div>';
                 html += '<div class="context-menu-item" onclick="ctxMoveNote()"><svg viewBox="0 0 24 24"><polyline points="5 9 2 12 5 15"/><polyline points="19 9 22 12 19 15"/><line x1="2" y1="12" x2="22" y2="12"/></svg>Move to folder</div>';
                 html += '<div class="context-menu-item" onclick="ctxPinNote()"><svg viewBox="0 0 24 24"><path d="M12 2L15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26z"/></svg>' + (pinnedNotes.indexOf(target.id) > -1 ? 'Unpin' : 'Pin') + '</div>';
+                html += '<div class="context-menu-item" onclick="ctxSaveAsTemplate()"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="11" x2="12" y2="17"/><line x1="9" y1="14" x2="15" y2="14"/></svg>Save as template</div>';
                 html += '<div class="context-menu-sep"></div>';
                 html += '<div class="context-menu-item danger" onclick="ctxDeleteNote()"><svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>Delete</div>';
             } else {
@@ -2732,6 +2744,9 @@
                 html += '<div class="context-menu-item" onclick="ctxMoveFolder()"><svg viewBox="0 0 24 24"><polyline points="5 9 2 12 5 15"/><polyline points="19 9 22 12 19 15"/><line x1="2" y1="12" x2="22" y2="12"/></svg>Move</div>';
                 html += '<div class="context-menu-item" onclick="ctxNewNoteInFolder()"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="11" x2="12" y2="17"/><line x1="9" y1="14" x2="15" y2="14"/></svg>New note here</div>';
                 html += '<div class="context-menu-item" onclick="ctxNewSubfolder()"><svg viewBox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/><line x1="12" y1="11" x2="12" y2="17"/><line x1="9" y1="14" x2="15" y2="14"/></svg>New subfolder</div>';
+                html += '<div class="context-menu-sep"></div>';
+                html += '<div class="context-menu-item" onclick="ctxNewFromTemplate()"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="11" x2="12" y2="17"/><line x1="9" y1="14" x2="15" y2="14"/></svg>New from template</div>';
+                html += '<div class="context-menu-item" onclick="ctxSetDefaultTemplate()"><svg viewBox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/><path d="M12 11v6"/><path d="M9 14h6"/></svg>Set default template</div>';
                 html += '<div class="context-menu-sep"></div>';
                 html += '<div class="context-menu-item danger" onclick="ctxDeleteFolder()"><svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>Delete</div>';
             }
@@ -2945,6 +2960,96 @@
             var id = ctxTarget.id, path = ctxTarget.path;
             hideContextMenu();
             deleteFolder(id, path);
+        }
+
+        function ctxSaveAsTemplate() {
+            if (!ctxTarget) return;
+            var t = ctxTarget;
+            hideContextMenu();
+            var name = prompt('Template name:', t.title);
+            if (!name || !name.trim()) return;
+
+            // If it's the currently open note, use editor content directly
+            if (t.id === noteId && cmEditor) {
+                var content = getEditorContent();
+                var props = collectProperties();
+                fetch('/api/templates', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name: name.trim(), content: content, properties: Object.keys(props).length > 0 ? props : null })
+                })
+                .then(function(r) { return r.json(); })
+                .then(function(data) {
+                    if (data.success) { cachedTemplates = null; }
+                    else { alert(data.reason || 'Failed to save template.'); }
+                });
+            } else {
+                // Fetch the note content from the server
+                fetch('/api/note_content/' + t.id)
+                .then(function(r) { return r.json(); })
+                .then(function(data) {
+                    var props = data.properties || null;
+                    if (props && Object.keys(props).length === 0) props = null;
+                    return fetch('/api/templates', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ name: name.trim(), content: data.content || '', properties: props })
+                    });
+                })
+                .then(function(r) { return r.json(); })
+                .then(function(data) {
+                    if (data.success) { cachedTemplates = null; }
+                    else { alert(data.reason || 'Failed to save template.'); }
+                });
+            }
+        }
+
+        var templatePickerFolderId = null;
+
+        function ctxNewFromTemplate() {
+            if (!ctxTarget || !ctxTarget.id) return;
+            var catId = ctxTarget.id;
+            hideContextMenu();
+            // Open template picker; on selection, create a new note in this folder from the template
+            templatePickerMode = 'new_in_folder';
+            templatePickerFolderId = catId;
+            var title = document.getElementById('template-modal-title');
+            if (title) title.textContent = 'New Note from Template';
+            document.getElementById('template-overlay').classList.add('visible');
+            loadTemplateList();
+        }
+
+        function ctxSetDefaultTemplate() {
+            if (!ctxTarget || !ctxTarget.id) return;
+            var catId = ctxTarget.id;
+            var folderName = ctxTarget.title;
+            hideContextMenu();
+            // Fetch templates and let user pick one
+            fetch('/api/templates')
+            .then(function(r) { return r.json(); })
+            .then(function(templates) {
+                if (templates.length === 0) { alert('No templates yet. Save a note as a template first.'); return; }
+                var options = '0: (none — clear default)\n';
+                templates.forEach(function(t, i) { options += (i + 1) + ': ' + t.name + '\n'; });
+                var choice = prompt('Set default template for "' + folderName + '":\n\n' + options + '\nEnter number:');
+                if (choice === null) return;
+                choice = parseInt(choice);
+                var templateId = choice === 0 ? null : (choice > 0 && choice <= templates.length ? templates[choice - 1].id : undefined);
+                if (templateId === undefined) return;
+                fetch('/api/set_folder_template', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ categoryId: catId, templateId: templateId })
+                })
+                .then(function(r) { return r.json(); })
+                .then(function(data) {
+                    if (data.success) {
+                        refreshSidebar();
+                    } else {
+                        alert(data.reason || 'Failed to set default template.');
+                    }
+                });
+            });
         }
 
         // ============ Panel Widgets ============
@@ -4018,6 +4123,9 @@
             { label: 'Numbered list', icon: '1.', insert: '1. ' },
             { label: 'Date (today)', icon: 'D', insert: '__DATE__' },
             { label: 'Insert template', icon: 'T', action: 'template' },
+            { label: 'Save as template', icon: 'S', action: 'save_template' },
+            { label: 'New from template', icon: 'N', action: 'new_from_template' },
+            { label: 'Manage templates', icon: 'M', action: 'manage_templates' },
         ];
 
         function showSlashCommands(cm) {
@@ -4112,9 +4220,23 @@
             hideSlashCommands();
 
             if (cmd.action === 'template') {
-                // Remove the /command text first
                 cmEditor.replaceRange('', { line: cursor.line, ch: slashStart }, cursor);
                 openTemplatePicker('insert');
+                return;
+            }
+            if (cmd.action === 'save_template') {
+                cmEditor.replaceRange('', { line: cursor.line, ch: slashStart }, cursor);
+                saveCurrentAsTemplate();
+                return;
+            }
+            if (cmd.action === 'new_from_template') {
+                cmEditor.replaceRange('', { line: cursor.line, ch: slashStart }, cursor);
+                openTemplatePicker('new');
+                return;
+            }
+            if (cmd.action === 'manage_templates') {
+                cmEditor.replaceRange('', { line: cursor.line, ch: slashStart }, cursor);
+                openManageTemplates();
                 return;
             }
 
@@ -4184,6 +4306,22 @@
                         var content = t.content || '';
                         cmEditor.replaceRange(content, cmEditor.getCursor());
                         cmEditor.focus();
+                    }
+                } else if (templatePickerMode === 'new_in_folder' && templatePickerFolderId) {
+                    // Create a new note in the target folder, then populate from template
+                    var catId = templatePickerFolderId;
+                    var folderEl = document.querySelector('.folder[data-category-id="' + catId + '"]');
+                    var catName = folderEl ? folderEl.dataset.path : '';
+                    templatePickerFolderId = null;
+                    var pendingTemplate = t;
+                    if (isDirty) {
+                        saveNote(function() {
+                            loadNote(0, catName, catId);
+                            setTimeout(function() { populateFromTemplate(pendingTemplate); }, 100);
+                        });
+                    } else {
+                        loadNote(0, catName, catId);
+                        setTimeout(function() { populateFromTemplate(pendingTemplate); }, 100);
                     }
                 } else {
                     // 'new' mode: populate the full note

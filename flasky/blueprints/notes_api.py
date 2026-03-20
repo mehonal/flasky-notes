@@ -770,6 +770,27 @@ def note_map():
     return jsonify({"notes": result, "attachments": att_map})
 
 
+@notes_api_bp.route("/note_content/<int:note_id>", methods=['GET'])
+def get_note_content(note_id):
+    if not g.user:
+        return jsonify(success=False, reason="Not logged in."), 401
+    note = UserNote.query.filter_by(id=note_id, user_id=g.user.id).first()
+    if not note:
+        return jsonify(success=False, reason="Note not found."), 404
+    return jsonify(success=True, content=note.content or '', properties=note.get_properties())
+
+@notes_api_bp.route("/folder_default_template/<int:category_id>", methods=['GET'])
+def get_folder_default_template(category_id):
+    if not g.user:
+        return jsonify(success=False, reason="Not logged in."), 401
+    cat = UserNoteCategory.query.filter_by(id=category_id, user_id=g.user.id).first()
+    if not cat or not cat.default_template_id:
+        return jsonify(success=False, reason="No default template.")
+    t = NoteTemplate.query.filter_by(id=cat.default_template_id, user_id=g.user.id).first()
+    if not t:
+        return jsonify(success=False, reason="Template not found.")
+    return jsonify(success=True, template=t.return_json())
+
 # ============ Templates ============
 
 @notes_api_bp.route("/templates", methods=['GET'])
