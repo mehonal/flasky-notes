@@ -1654,6 +1654,7 @@
                         catMap[cid].notes.push(n);
                     });
                     var esc = function(s) { return (s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); };
+                    var jesc = function(s) { return (s || '').replace(/\\/g,'\\\\').replace(/'/g,"\\'"); };
 
                     // Build nested tree from path-based category names (e.g. "Work/Projects")
                     function buildCategoryTree(cats, notes, mainCat) {
@@ -1698,7 +1699,7 @@
                             var totalNotes = folderNotes.length;
 
                             html += '<div class="folder collapsed"' + (cat ? ' data-category-id="' + catId + '"' : '') + ' data-path="' + esc(fullPath) + '">';
-                            html += '<div class="folder-header" onclick="toggleFolder(this.parentElement)"' + (cat ? ' draggable="true" ondragstart="onFolderDragStart(event,' + catId + ',\'' + esc(fullPath) + '\')"' : '') + ' ondragover="onItemDragOver(event)" ondragleave="onItemDragLeave(event)" ondrop="onItemDrop(event,\'' + esc(fullPath) + '\',' + catId + ')">';
+                            html += '<div class="folder-header" onclick="toggleFolder(this.parentElement)"' + (cat ? ' draggable="true" ondragstart="onFolderDragStart(event,' + catId + ',\'' + esc(jesc(fullPath)) + '\')"' : '') + ' ondragover="onItemDragOver(event)" ondragleave="onItemDragLeave(event)" ondrop="onItemDrop(event,\'' + esc(jesc(fullPath)) + '\',' + catId + ')">';
                             html += '<span class="folder-chevron"><svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg></span>';
                             if (cat && cat.icon) {
                                 var fColor = cat.icon_color ? ' data-icon-color="' + esc(cat.icon_color) + '" style="color:' + esc(cat.icon_color) + '"' : '';
@@ -1709,16 +1710,16 @@
                             html += '<span class="folder-name">' + esc(name) + '</span>';
                             html += '<span class="folder-count">' + totalNotes + '</span>';
                             if (cat) {
-                                html += '<button class="icon-btn folder-newnote-btn" draggable="false" onclick="event.stopPropagation(); createNewNoteInFolder(' + catId + ',\'' + esc(fullPath) + '\')" title="New note in ' + esc(name) + '"><svg viewBox="0 0 24 24" width="12" height="12"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="11" x2="12" y2="17"/><line x1="9" y1="14" x2="15" y2="14"/></svg></button>';
+                                html += '<button class="icon-btn folder-newnote-btn" draggable="false" onclick="event.stopPropagation(); createNewNoteInFolder(' + catId + ',\'' + esc(jesc(fullPath)) + '\')" title="New note in ' + esc(name) + '"><svg viewBox="0 0 24 24" width="12" height="12"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="11" x2="12" y2="17"/><line x1="9" y1="14" x2="15" y2="14"/></svg></button>';
                             }
-                            html += '<button class="icon-btn folder-add-btn" draggable="false" onclick="event.stopPropagation(); promptNewFolder(\'' + esc(fullPath) + '\')" title="New subfolder"><svg viewBox="0 0 24 24" width="12" height="12"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/><line x1="12" y1="11" x2="12" y2="17"/><line x1="9" y1="14" x2="15" y2="14"/></svg></button>';
+                            html += '<button class="icon-btn folder-add-btn" draggable="false" onclick="event.stopPropagation(); promptNewFolder(\'' + esc(jesc(fullPath)) + '\')" title="New subfolder"><svg viewBox="0 0 24 24" width="12" height="12"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/><line x1="12" y1="11" x2="12" y2="17"/><line x1="9" y1="14" x2="15" y2="14"/></svg></button>';
                             html += '</div>';
-                            html += '<div class="folder-items" ondragover="onItemDragOver(event)" ondragleave="onItemDragLeave(event)" ondrop="onItemDrop(event,\'' + esc(fullPath) + '\',' + catId + ')">';
+                            html += '<div class="folder-items" ondragover="onItemDragOver(event)" ondragleave="onItemDragLeave(event)" ondrop="onItemDrop(event,\'' + esc(jesc(fullPath)) + '\',' + catId + ')">';
                             html += childHtml;
                             folderNotes.forEach(function(n) {
                                 var isActive = n.id === noteId ? ' active' : '';
                                 var title = n.title || 'Untitled';
-                                html += '<div class="file-item' + isActive + '" data-note-id="' + n.id + '" onclick="openNote(' + n.id + ')" draggable="true" ondragstart="onNoteDragStart(event,' + n.id + ')" ondragover="onItemDragOver(event)" ondragleave="onItemDragLeave(event)" ondrop="onItemDrop(event,\'' + esc(fullPath) + '\',' + catId + ')">';
+                                html += '<div class="file-item' + isActive + '" data-note-id="' + n.id + '" onclick="openNote(' + n.id + ')" draggable="true" ondragstart="onNoteDragStart(event,' + n.id + ')" ondragover="onItemDragOver(event)" ondragleave="onItemDragLeave(event)" ondrop="onItemDrop(event,\'' + esc(jesc(fullPath)) + '\',' + catId + ')">';
                                 var noteIcon = n.icon || (cat ? cat.default_note_icon : null);
                                 var noteIconColor = n.icon ? n.icon_color : (cat ? cat.default_note_icon_color : null);
                                 if (noteIcon) {
@@ -1728,7 +1729,7 @@
                                     html += '<span class="file-icon"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></span>';
                                 }
                                 html += '<span class="file-name">' + esc(title) + '</span>';
-                                html += '<button class="icon-btn delete-btn" draggable="false" onclick="event.stopPropagation(); deleteSidebarNote(' + n.id + ',\'' + esc(title) + '\')" title="Delete note"><svg viewBox="0 0 24 24" width="12" height="12"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>';
+                                html += '<button class="icon-btn delete-btn" draggable="false" onclick="event.stopPropagation(); deleteSidebarNote(' + n.id + ',\'' + esc(jesc(title)) + '\')" title="Delete note"><svg viewBox="0 0 24 24" width="12" height="12"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>';
                                 html += '<button class="icon-btn pin-btn" draggable="false" data-note-id="' + n.id + '" onclick="event.stopPropagation(); togglePin(' + n.id + ')" title="Pin note"><svg viewBox="0 0 24 24" width="12" height="12"><path d="M12 2L15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26z"/></svg></button>';
                                 html += '</div>';
                             });
