@@ -1,4 +1,4 @@
-{% if note and note.get_properties() %}
+{% if note and note.get_properties() is mapping %}
 <div class="note-properties" style="margin-bottom: 8px; padding: 6px 10px; background: rgba(128,128,128,0.1); border-radius: 6px; font-size: 0.85em;">
     {% for key, value in note.get_properties().items() %}
     <span class="note-prop" style="display: inline-block; margin: 2px 8px 2px 0;">

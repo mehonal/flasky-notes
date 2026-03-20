@@ -548,8 +548,15 @@ class UserNote(db.Model):
         elif isinstance(new_category, int):
             self.category_id = new_category
         elif isinstance(new_category, str):
-            new_category = self.user.get_category(new_category,create=True)
-            self.category_id = new_category.id
+            # E2EE: don't look up or create categories by name (names are encrypted)
+            if self.user.encryption_enabled:
+                try:
+                    self.category_id = int(new_category)
+                except (ValueError, TypeError):
+                    pass
+            else:
+                new_category = self.user.get_category(new_category,create=True)
+                self.category_id = new_category.id
         db.session.commit()
         return True
 

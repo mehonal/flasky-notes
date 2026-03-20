@@ -1211,7 +1211,7 @@
                                     <svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
                                 </div>
                                 <div class="props-body" id="props-body">
-                                    {% if note and note.get_properties() %}
+                                    {% if note and note.get_properties() is mapping %}
                                     {% for key, value in note.get_properties().items() %}
                                     <div class="prop-row" data-prop-key="{{ key }}">
                                         <div class="prop-key"><input type="text" class="prop-value-input" value="{{ key }}" style="font-size:12px;font-weight:500;color:var(--text-muted)" onchange="onPropChanged()"></div>
