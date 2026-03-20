@@ -54,11 +54,6 @@
     "description": "Noting app",
     "screenshots": [
       {
-        "src": "/static/images/themes/dash/note_single.png",
-        "type": "image/png",
-        "sizes": "1920x912"
-      },
-      {
         "src": "/static/images/themes/full/note_single.png",
         "type": "image/png",
         "sizes": "1920x912"

@@ -261,8 +261,8 @@
                     </div>
                     {% endif %}
 
-                    <!-- Font family: cozy, dash -->
-                    {% if slug in ('cozy', 'dash') %}
+                    <!-- Font family: cozy -->
+                    {% if slug in ('cozy',) %}
                     <div class="settings-row">
                         <label for="font-family">Font family</label>
                         <input name="font-family" id="font-family" class="form-control" type="text" value="{{ theme_settings.font }}" placeholder="e.g. Inter, serif">
@@ -514,7 +514,6 @@
                             <th>Feature</th>
                             <th>Obsidified</th>
                             <th>Cozy</th>
-                            <th>Dash</th>
                             <th>CLI</th>
                         </tr>
                     </thead>
@@ -523,12 +522,10 @@
                             <td>Style</td>
                             <td>File explorer</td>
                             <td>Modern sidebar</td>
-                            <td>Minimal toolbar</td>
                             <td>Terminal</td>
                         </tr>
                         <tr>
                             <td>Dark mode</td>
-                            <td class="yes">&#10003;</td>
                             <td class="yes">&#10003;</td>
                             <td class="yes">&#10003;</td>
                             <td class="yes">&#10003;</td>
@@ -537,12 +534,10 @@
                             <td>Markdown</td>
                             <td class="yes">&#10003;</td>
                             <td class="yes">&#10003;</td>
-                            <td class="yes">&#10003;</td>
                             <td class="no">&mdash;</td>
                         </tr>
                         <tr>
                             <td>Wiki-links</td>
-                            <td class="yes">&#10003;</td>
                             <td class="yes">&#10003;</td>
                             <td class="yes">&#10003;</td>
                             <td class="no">&mdash;</td>
@@ -551,12 +546,10 @@
                             <td>Search</td>
                             <td class="yes">&#10003;</td>
                             <td class="yes">&#10003;</td>
-                            <td class="yes">&#10003;</td>
                             <td class="no">&mdash;</td>
                         </tr>
                         <tr>
                             <td>Font settings</td>
-                            <td class="yes">&#10003;</td>
                             <td class="yes">&#10003;</td>
                             <td class="yes">&#10003;</td>
                             <td class="no">&mdash;</td>
@@ -566,18 +559,15 @@
                             <td class="yes">&#10003;</td>
                             <td class="yes">&#10003;</td>
                             <td class="no">&mdash;</td>
-                            <td class="no">&mdash;</td>
                         </tr>
                         <tr>
                             <td>Auto-save</td>
                             <td class="yes">&#10003;</td>
                             <td class="yes">&#10003;</td>
                             <td class="no">&mdash;</td>
-                            <td class="no">&mdash;</td>
                         </tr>
                         <tr>
                             <td>Sidebar</td>
-                            <td class="yes">&#10003;</td>
                             <td class="yes">&#10003;</td>
                             <td class="yes">&#10003;</td>
                             <td class="no">&mdash;</td>
@@ -587,19 +577,16 @@
                             <td class="yes">&#10003;</td>
                             <td class="yes">&#10003;</td>
                             <td class="no">&mdash;</td>
-                            <td class="no">&mdash;</td>
                         </tr>
                         <tr>
                             <td>Todos</td>
                             <td class="yes">&#10003;</td>
-                            <td class="no">&mdash;</td>
                             <td class="no">&mdash;</td>
                             <td class="yes">&#10003;</td>
                         </tr>
                         <tr>
                             <td>Events</td>
                             <td class="yes">&#10003;</td>
-                            <td class="no">&mdash;</td>
                             <td class="no">&mdash;</td>
                             <td class="yes">&#10003;</td>
                         </tr>
@@ -608,12 +595,10 @@
                             <td class="yes">&#10003;</td>
                             <td class="no">&mdash;</td>
                             <td class="no">&mdash;</td>
-                            <td class="no">&mdash;</td>
                         </tr>
                         <tr>
                             <td>Backlinks</td>
                             <td class="yes">&#10003;</td>
-                            <td class="no">&mdash;</td>
                             <td class="no">&mdash;</td>
                             <td class="no">&mdash;</td>
                         </tr>

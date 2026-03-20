@@ -27,7 +27,6 @@ def app_context():
         db.create_all()
         # Seed themes
         themes = [
-            ("Dash", "dash", False, False),
             ("Cozy", "cozy", False, False),
             ("Obsidified", "obsidified", False, False),
             ("CLI", "cli", False, False),

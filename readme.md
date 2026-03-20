@@ -16,7 +16,6 @@ Flasky Notes ships with 4 themes. Each offers a different layout and feature set
 |-------|-------|-----------|----------|------------|--------|------|------------|-----------|---------|-----------|-------|--------|------------|-----------------|---------|-----------|
 | Obsidified | File explorer | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | - | - | Yes | Yes |
 | Cozy | Modern sidebar | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | - | - | - | - | - | - |
-| Dash | Minimal toolbar | Yes | Yes | Yes | Yes | Yes | - | - | Yes | - | - | - | - | - | - | - |
 | CLI | Terminal | Yes | - | - | - | - | - | - | - | - | Yes | Yes | - | - | - | - |
 
 All themes except CLI render markdown client-side with `[[wiki-link]]` and `![[embed]]` support. All themes support dark mode.
@@ -34,24 +33,6 @@ Modern sidebar theme with folder tree navigation and note cards. Features drag-d
 ### Shortcuts
 - Ctrl + s: Save Note
 - Ctrl + k: Search Notes
-
-## Dash
-
-![Dash Theme - Note Single](https://raw.githubusercontent.com/mehonal/flasky-notes/master/static/images/themes/dash/note_single.png)
-
-Dash combines keyboard shortcuts with a minimal toolbar GUI. Everything lives on one page with a collapsible notes sidebar.
-
-### Keyboard Shortcuts
-
-- Ctrl + ArrowUp: Increase Font Size
-- Ctrl + ArrowDown: Decrease Font Size
-- Ctrl + s: Save Note
-- Ctrl + d: Delete Note
-- Ctrl + l: Toggle Title
-- Ctrl + e: Add New Note
-- Ctrl + y: Navigate to Settings
-- Ctrl + ,: Toggle Markdown
-- Ctrl + Space: Toggle Dark Mode
 
 ## CLI
 

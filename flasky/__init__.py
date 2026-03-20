@@ -121,7 +121,6 @@ def create_app():
 def _seed_themes():
     from flasky.models import Theme
     themes = [
-        ("Dash", "dash", False, False),
         ("Cozy", "cozy", False, False),
         ("Obsidified", "obsidified", False, False),
         ("CLI", "cli", False, False)
