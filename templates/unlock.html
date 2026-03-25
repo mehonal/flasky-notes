@@ -21,8 +21,8 @@
 </form>
 </div>
 
-<script src="{{ url_for('static', filename='js/crypto.js') }}"></script>
-<script>
+<script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='js/crypto.js') }}"></script>
+<script nonce="{{ csp_nonce() }}">
 (function() {
     var form = document.getElementById('unlock-form');
     var errorEl = document.getElementById('unlock-error');

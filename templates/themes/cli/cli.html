@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CLI</title>
-    <script src="/static/js/csrf.js"></script>
+    <script nonce="{{ csp_nonce() }}" src="/static/js/csrf.js"></script>
 </head>
 
 <style>
@@ -164,9 +164,9 @@
 </style>
 
 {% if g.user and g.user.encryption_enabled %}
-<script src="{{ url_for('static', filename='js/crypto.js') }}"></script>
-<script src="{{ url_for('static', filename='js/e2ee.js') }}"></script>
-<script src="{{ url_for('static', filename='js/e2ee-search.js') }}"></script>
+<script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='js/crypto.js') }}"></script>
+<script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='js/e2ee.js') }}"></script>
+<script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='js/e2ee-search.js') }}"></script>
 {% endif %}
 
 <body{% if g.user and g.user.encryption_enabled %} data-encrypted="true"{% endif %}>
@@ -174,7 +174,7 @@
         <div id="log"><div id="log-inner"></div></div>
         <div id="command-line">
             <span id="location">flasky/{{g.user.username}} $</span>
-            <form onsubmit="actionFormSubmitHandler(event)"><input id="command" type="text" autofocus></form>
+            <form id="command-form"><input id="command" type="text" autofocus></form>
         </div>
     </div>
 
@@ -183,13 +183,13 @@
         <input id="edit-title" type="text" placeholder="Title">
         <textarea id="edit-content" placeholder="Content"></textarea>
         <div id="edit-buttons">
-            <button id="btn-save" onclick="saveEdit()">[ Save ]</button>
-            <button id="btn-cancel" onclick="closeEdit()">[ Cancel ]</button>
+            <button id="btn-save">[ Save ]</button>
+            <button id="btn-cancel">[ Cancel ]</button>
         </div>
         <div id="edit-footer">Ctrl+S to save | Escape to cancel</div>
     </div>
 
-    <script>
+    <script nonce="{{ csp_nonce() }}">
         const terminal = document.getElementById('terminal');
         const commandInput = document.getElementById('command');
         const logInner = document.getElementById('log-inner');
@@ -198,6 +198,10 @@
         const editHeader = document.getElementById('edit-header');
         const editTitle = document.getElementById('edit-title');
         const editContent = document.getElementById('edit-content');
+
+        document.getElementById('command-form').addEventListener('submit', (e) => { e.preventDefault(); handleAction(); });
+        document.getElementById('btn-save').addEventListener('click', () => saveEdit());
+        document.getElementById('btn-cancel').addEventListener('click', () => closeEdit());
 
         document.addEventListener('DOMContentLoaded', () => commandInput.focus());
         document.addEventListener('click', (e) => {
@@ -287,11 +291,6 @@
         }
 
         // --- Command handling ---
-
-        function actionFormSubmitHandler(e){
-            e.preventDefault();
-            handleAction();
-        }
 
         function handleAction(){
             const raw = commandInput.value.trim();

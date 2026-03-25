@@ -27,12 +27,12 @@
     <input type="password" class="form-control mb-2" id="recovery-new-password" placeholder="New password (min 8 chars)..." autocomplete="new-password">
     <div id="recovery-error" class="alert alert-danger mb-2" style="display:none"></div>
     <div id="recovery-status" class="text-muted text-center mb-2" style="display:none"></div>
-    <button class="btn btn-warning w-100" id="recovery-btn" onclick="doRecovery()">Recover Account</button>
+    <button class="btn btn-warning w-100" id="recovery-btn">Recover Account</button>
 </div>
 </div>
 
-<script src="{{ url_for('static', filename='js/crypto.js') }}"></script>
-<script>
+<script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='js/crypto.js') }}"></script>
+<script nonce="{{ csp_nonce() }}">
 (function() {
     var form = document.getElementById('login-form');
     var errorEl = document.getElementById('login-error');
@@ -122,6 +122,8 @@
         sec.style.display = sec.style.display === 'none' ? 'block' : 'none';
     });
 })();
+
+document.getElementById('recovery-btn').addEventListener('click', doRecovery);
 
 async function doRecovery() {
     var errorEl = document.getElementById('recovery-error');

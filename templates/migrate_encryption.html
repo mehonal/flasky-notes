@@ -19,7 +19,7 @@
         <input type="text" class="form-control mb-2" id="migrate-hint" placeholder="Password hint (optional)..." maxlength="200">
         <div id="migrate-error" class="alert alert-danger mb-2" style="display:none"></div>
         <div id="migrate-status" class="text-muted text-center mb-2" style="display:none"></div>
-        <button class="btn btn-primary w-100" id="migrate-btn" onclick="startMigration()">Enable Encryption</button>
+        <button class="btn btn-primary w-100" id="migrate-btn">Enable Encryption</button>
     </div>
 
     <!-- Step 2: Progress bar -->
@@ -36,18 +36,29 @@
             <h5 class="alert-heading">Save Your Recovery Key</h5>
             <p class="small mb-2">If you ever forget your password, this key is the <strong>only way</strong> to recover your data. It will <strong>never</strong> be shown again.</p>
             <textarea class="form-control mb-2" id="recovery-key-display" rows="3" readonly style="font-family:monospace;font-size:0.85rem"></textarea>
-            <button class="btn btn-outline-primary btn-sm" onclick="navigator.clipboard.writeText(document.getElementById('recovery-key-display').value)">Copy to clipboard</button>
+            <button class="btn btn-outline-primary btn-sm" id="copy-recovery-btn">Copy to clipboard</button>
         </div>
         <label class="form-check-label d-block mb-2">
-            <input type="checkbox" id="recovery-saved-check" class="form-check-input" onchange="document.getElementById('finish-btn').disabled = !this.checked"> I have saved my recovery key
+            <input type="checkbox" id="recovery-saved-check" class="form-check-input"> I have saved my recovery key
         </label>
-        <button class="btn btn-success w-100" id="finish-btn" disabled onclick="window.location.href='/notes'">Continue to Notes</button>
+        <button class="btn btn-success w-100" id="finish-btn" disabled>Continue to Notes</button>
     </div>
 </div>
 
-<script src="{{ url_for('static', filename='js/crypto.js') }}"></script>
-<script>
+<script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='js/crypto.js') }}"></script>
+<script nonce="{{ csp_nonce() }}">
 var username = {{ username|tojson }};
+
+document.getElementById('migrate-btn').addEventListener('click', startMigration);
+document.getElementById('copy-recovery-btn').addEventListener('click', function() {
+    navigator.clipboard.writeText(document.getElementById('recovery-key-display').value);
+});
+document.getElementById('recovery-saved-check').addEventListener('change', function() {
+    document.getElementById('finish-btn').disabled = !this.checked;
+});
+document.getElementById('finish-btn').addEventListener('click', function() {
+    window.location.href = '/notes';
+});
 var BATCH_SIZE = 50;
 
 function setProgress(pct, text) {

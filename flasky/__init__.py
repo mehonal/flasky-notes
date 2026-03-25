@@ -53,7 +53,7 @@ def create_app():
     # Security headers via Talisman
     csp = {
         'default-src': "'none'",
-        'script-src': ["'self'", "'unsafe-inline'"],
+        'script-src': "'self'",
         'style-src': ["'self'", "'unsafe-inline'"],
         'img-src': ["'self'", "data:", "blob:"],
         'font-src': "'self'",
@@ -69,7 +69,7 @@ def create_app():
         app,
         force_https=CONFIG.ENFORCE_SSL,
         content_security_policy=csp,
-        content_security_policy_nonce_in=[],
+        content_security_policy_nonce_in=['script-src'],
         session_cookie_secure=CONFIG.ENFORCE_SSL,
     )
 

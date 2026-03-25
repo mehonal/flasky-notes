@@ -12,20 +12,20 @@
 
   <link rel="manifest" href="/manifest.json">
 
-    <script src="{{ url_for('static', filename='js/csrf.js') }}"></script>
+    <script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='js/csrf.js') }}"></script>
     {% if g.user.encryption_enabled %}
-    <script src="{{ url_for('static', filename='js/crypto.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/e2ee.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/e2ee-search.js') }}"></script>
+    <script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='js/crypto.js') }}"></script>
+    <script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='js/e2ee.js') }}"></script>
+    <script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='js/e2ee-search.js') }}"></script>
     {% endif %}
-    <script src="{{ url_for('static', filename='vendor/marked/marked.min.js') }}"></script>
-    <script src="{{ url_for('static', filename='vendor/dompurify/purify.min.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/sanitize.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/wikilinks.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/markdown-extras.js') }}"></script>
+    <script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='vendor/marked/marked.min.js') }}"></script>
+    <script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='vendor/dompurify/purify.min.js') }}"></script>
+    <script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='js/sanitize.js') }}"></script>
+    <script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='js/wikilinks.js') }}"></script>
+    <script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='js/markdown-extras.js') }}"></script>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/callouts.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='vendor/hljs/styles/default.min.css') }}">
-    <script src="{{ url_for('static', filename='vendor/hljs/highlight.min.js') }}"></script>
+    <script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='vendor/hljs/highlight.min.js') }}"></script>
     <style>
         :root {
             --bg-color: #f3d5c0;
@@ -706,7 +706,7 @@
 </head>
 <body data-encrypted="{{ 'true' if g.user.encryption_enabled else 'false' }}">
     {% if encrypted_note_data %}
-    <script type="application/json" id="encrypted-note-data">{{ encrypted_note_data|safe }}</script>
+    <script nonce="{{ csp_nonce() }}" type="application/json" id="encrypted-note-data">{{ encrypted_note_data|safe }}</script>
     {% endif %}
     <div id="search-popup">
         <input type="text" id="search-input" placeholder="Search notes...">
@@ -725,29 +725,27 @@
     {% set total_notes = notes_list | length %}
     <div class="folder collapsed" {% if cat %}data-category-id="{{ cat.id }}"{% endif %} data-path="{{ full_path }}">
         <div class="folder-header"
-             onclick="toggleFolder(this.parentElement)"
-             {% if cat %}draggable="true" ondragstart="onFolderDragStart(event, {{ cat.id }}, '{{ full_path | e }}')"{% endif %}
-             ondragover="onDragOver(event)" ondragleave="onDragLeave(event)"
-             ondrop="onDrop(event, '{{ full_path | e }}', {% if cat %}{{ cat.id }}{% else %}null{% endif %})">
+             data-action="toggle-folder"
+             {% if cat %}draggable="true" data-action-dragstart="folder" data-drag-cat-id="{{ cat.id }}"{% endif %}
+             data-drop-path="{{ full_path | e }}" data-drop-cat-id="{% if cat %}{{ cat.id }}{% else %}{% endif %}">
             <span class="folder-chevron">&#9660;</span>
             <span class="folder-icon">📂</span>
             <span class="folder-name">{{ name }}</span>
             <span class="folder-count">{{ total_notes }}</span>
             {% if cat %}
-            <span class="folder-action-btn" onclick="event.stopPropagation(); createNewNoteInFolder({% if cat %}{{ cat.id }}{% else %}null{% endif %})" title="New note">+</span>
+            <span class="folder-action-btn" data-action="new-note-in-folder" data-cat-id="{{ cat.id }}" title="New note">+</span>
             {% endif %}
-            <span class="folder-action-btn" onclick="event.stopPropagation(); promptNewFolder(this.closest('.folder'))" title="New subfolder">&#43;&#128193;</span>
+            <span class="folder-action-btn" data-action="new-subfolder" title="New subfolder">&#43;&#128193;</span>
             {% if cat and total_notes == 0 and children | length == 0 %}
-            <span class="folder-action-btn" onclick="event.stopPropagation(); deleteFolder({{ cat.id }}, '{{ full_path | e }}')" title="Delete folder">&times;</span>
+            <span class="folder-action-btn" data-action="delete-folder" data-cat-id="{{ cat.id }}" title="Delete folder">&times;</span>
             {% endif %}
         </div>
         <div class="folder-items">
             {{ render_folder_tree(children, full_path) }}
             {% for n in notes_list %}
             <a href="/note/{{ n.id }}"
-               draggable="true" ondragstart="onNoteDragStart(event, {{ n.id }})"
-               ondragover="onDragOver(event)" ondragleave="onDragLeave(event)"
-               ondrop="onDrop(event, '{{ full_path | e }}', {% if cat %}{{ cat.id }}{% else %}null{% endif %})">
+               draggable="true" data-action-dragstart="note" data-drag-note-id="{{ n.id }}"
+               data-drop-path="{{ full_path | e }}" data-drop-cat-id="{% if cat %}{{ cat.id }}{% else %}{% endif %}">
                 <div class="note-item {% if note_id == n.id %}active{% endif %}">{{ n.title or 'Untitled' }}</div>
             </a>
             {% endfor %}
@@ -760,7 +758,7 @@
         <button id="toggle-sidebar" title="Toggle Sidebar">☰</button>
         <div class="sidebar-category">
             <div class="sidebar-category-label">Note folder</div>
-            <select id="category-select" onchange="changeNoteCategory(this.value)" title="Move note to folder">
+            <select id="category-select" data-action="change-category" title="Move note to folder">
                 {% for cat in g.user.categories | sort(attribute='name') %}
                 <option value="{{ cat.id }}"
                     {% if note and note.category_id == cat.id %}selected{% endif %}
@@ -773,8 +771,7 @@
             <div class="sidebar-category-label" style="margin-bottom: 6px;">Folders</div>
             {{ render_folder_tree(category_tree) }}
             <div class="root-drop-zone" id="root-drop-zone"
-                 ondragover="onDragOver(event)" ondragleave="onDragLeave(event)"
-                 ondrop="onRootDrop(event)">Drop here to move to root</div>
+                 data-action="root-drop">Drop here to move to root</div>
         </div>
         <div class="sidebar-actions {% if theme_settings and not theme_settings.sidebar_collapsed %}expanded{% endif %}">
             <button id="new-note" title="Add New Note">+<span class="button-text">New Note</span></button>
@@ -799,10 +796,22 @@
         <div id="word-count-bar" style="font-size:11px;color:var(--text-color);opacity:0.6;padding:4px 10px;text-align:right;">0 words, 0 chars</div>
     </div>
 
-    <script>
-        var noteId = {{ note_id }};
+    <script nonce="{{ csp_nonce() }}" type="application/json" id="cozy-page-data">
+    {
+        "noteId": {{ note_id }},
+        "currentCategory": "{% if note %}{{ note.get_category_name() }}{% elif category %}{{ category }}{% else %}Main{% endif %}",
+        "darkMode": {% if g.user.get_theme_settings().dark_mode %}true{% else %}false{% endif %},
+        "hideTitle": {% if g.user.get_theme_settings().hide_title %}true{% else %}false{% endif %},
+        "autoSave": {% if g.user.get_theme_settings().auto_save %}true{% else %}false{% endif %},
+        "mobileFontSize": {{ g.user.get_theme_settings().mobile_font_size }},
+        "desktopFontSize": {{ g.user.get_theme_settings().font_size }}
+    }
+    </script>
+    <script nonce="{{ csp_nonce() }}">
+        var _pageData = JSON.parse(document.getElementById('cozy-page-data').textContent);
+        var noteId = _pageData.noteId;
         var autoSaveInterval;
-        var currentCategory = "{% if note %}{{ note.get_category_name() }}{% elif category %}{{ category }}{% else %}Main{% endif %}";
+        var currentCategory = _pageData.currentCategory;
 
         // Folder tree functions
         function toggleFolder(folderEl) {
@@ -1012,12 +1021,12 @@
         })();
 
         // Load Theme Settings
-        {% if g.user.get_theme_settings().dark_mode %}
-        document.body.classList.add('dark-mode');
-        {% endif %}
-        {% if g.user.get_theme_settings().hide_title %}
-        document.getElementById('note-title').style.display = 'none';
-        {% endif %}
+        if (_pageData.darkMode) {
+            document.body.classList.add('dark-mode');
+        }
+        if (_pageData.hideTitle) {
+            document.getElementById('note-title').style.display = 'none';
+        }
         var isDirty = false;
         var originalTitle = document.title;
 
@@ -1054,24 +1063,24 @@
             textarea.addEventListener('input', autoSaveHandler);
             titleInput.addEventListener('input', autoSaveHandler);
         }
-        {% if g.user.get_theme_settings().auto_save %}
-        document.getElementById('auto-save').classList.add('active');
-        setupAutoSaveDebounce();
-        document.getElementById('autosave-icon').innerHTML = '🔄';
-        {% endif %}
+        if (_pageData.autoSave) {
+            document.getElementById('auto-save').classList.add('active');
+            setupAutoSaveDebounce();
+            document.getElementById('autosave-icon').innerHTML = '🔄';
+        }
 
 
         // if on mobile, mobile font size
         var isMobile = window.innerWidth < 480;
         if (isMobile) {
-            document.getElementById('note-content').style.fontSize = '{{ g.user.get_theme_settings().mobile_font_size }}px';
+            document.getElementById('note-content').style.fontSize = _pageData.mobileFontSize + 'px';
             // Always start collapsed on mobile
             document.querySelector('.sidebar').classList.remove('expanded');
             document.querySelector('.main-content').classList.remove('expanded');
             document.querySelector('.sidebar-actions').classList.remove('expanded');
         }
         else {
-            document.getElementById('note-content').style.fontSize = '{{ g.user.get_theme_settings().font_size }}px';
+            document.getElementById('note-content').style.fontSize = _pageData.desktopFontSize + 'px';
         }
 
         // Toggle sidebar
@@ -1588,27 +1597,25 @@
                         var notesList = d._notes || [];
                         var childHtml = renderTree(d._children);
                         html += '<div class="folder collapsed"' + (cat ? ' data-category-id="' + cat.id + '"' : '') + ' data-path="' + esc(cat ? cat.decrypted : name) + '">';
-                        html += '<div class="folder-header" onclick="toggleFolder(this.parentElement)"';
-                        if (cat) html += ' draggable="true" ondragstart="onFolderDragStart(event, ' + cat.id + ', this.closest(\'.folder\').dataset.path)"';
-                        html += ' ondragover="onDragOver(event)" ondragleave="onDragLeave(event)"';
-                        html += ' ondrop="onDrop(event, this.closest(\'.folder\').dataset.path, ' + (cat ? cat.id : 'null') + ')">';
+                        html += '<div class="folder-header" data-action="toggle-folder"';
+                        if (cat) html += ' draggable="true" data-action-dragstart="folder" data-drag-cat-id="' + cat.id + '"';
+                        html += ' data-drop-path="' + esc(cat ? cat.decrypted : name) + '" data-drop-cat-id="' + (cat ? cat.id : '') + '">';
                         html += '<span class="folder-chevron">&#9660;</span>';
                         html += '<span class="folder-icon">📂</span>';
                         html += '<span class="folder-name">' + esc(name) + '</span>';
                         html += '<span class="folder-count">' + notesList.length + '</span>';
-                        if (cat) html += '<span class="folder-action-btn" onclick="event.stopPropagation(); createNewNoteInFolder(' + cat.id + ')" title="New note">+</span>';
-                        html += '<span class="folder-action-btn" onclick="event.stopPropagation(); promptNewFolder(this.closest(\'.folder\'))" title="New subfolder">&#43;&#128193;</span>';
+                        if (cat) html += '<span class="folder-action-btn" data-action="new-note-in-folder" data-cat-id="' + cat.id + '" title="New note">+</span>';
+                        html += '<span class="folder-action-btn" data-action="new-subfolder" title="New subfolder">&#43;&#128193;</span>';
                         if (cat && notesList.length === 0 && Object.keys(d._children).length === 0) {
-                            html += '<span class="folder-action-btn" onclick="event.stopPropagation(); deleteFolder(' + cat.id + ', this.closest(\'.folder\').dataset.path)" title="Delete folder">&times;</span>';
+                            html += '<span class="folder-action-btn" data-action="delete-folder" data-cat-id="' + cat.id + '" title="Delete folder">&times;</span>';
                         }
                         html += '</div>';
                         html += '<div class="folder-items">';
                         html += childHtml;
                         notesList.forEach(function(n) {
                             var active = n.id === noteId ? ' active' : '';
-                            html += '<a href="/note/' + n.id + '" draggable="true" ondragstart="onNoteDragStart(event, ' + n.id + ')"';
-                            html += ' ondragover="onDragOver(event)" ondragleave="onDragLeave(event)"';
-                            html += ' ondrop="onDrop(event, this.closest(\'.folder\').dataset.path, ' + (cat ? cat.id : 'null') + ')">';
+                            html += '<a href="/note/' + n.id + '" draggable="true" data-action-dragstart="note" data-drag-note-id="' + n.id + '"';
+                            html += ' data-drop-path="' + esc(cat ? cat.decrypted : name) + '" data-drop-cat-id="' + (cat ? cat.id : '') + '">';
                             html += '<div class="note-item' + active + '">' + esc(n.decrypted || 'Untitled') + '</div></a>';
                         });
                         html += '</div></div>';
@@ -1690,6 +1697,98 @@
                 FlaskyE2EE.revealContent();
             });
         }
+
+        // --- Event delegation ---
+        // Click delegation
+        document.addEventListener('click', function(e) {
+            var target = e.target;
+
+            // folder-header toggle
+            var folderHeader = target.closest('[data-action="toggle-folder"]');
+            if (folderHeader && !target.closest('.folder-action-btn')) {
+                toggleFolder(folderHeader.parentElement);
+                return;
+            }
+
+            // New note in folder
+            var newNoteBtn = target.closest('[data-action="new-note-in-folder"]');
+            if (newNoteBtn) {
+                e.stopPropagation();
+                createNewNoteInFolder(parseInt(newNoteBtn.dataset.catId));
+                return;
+            }
+
+            // New subfolder
+            var newSubfolderBtn = target.closest('[data-action="new-subfolder"]');
+            if (newSubfolderBtn) {
+                e.stopPropagation();
+                promptNewFolder(newSubfolderBtn.closest('.folder'));
+                return;
+            }
+
+            // Delete folder
+            var deleteFolderBtn = target.closest('[data-action="delete-folder"]');
+            if (deleteFolderBtn) {
+                e.stopPropagation();
+                var folderEl = deleteFolderBtn.closest('.folder');
+                deleteFolder(parseInt(deleteFolderBtn.dataset.catId), folderEl ? folderEl.dataset.path : '');
+                return;
+            }
+        });
+
+        // Change delegation for category select
+        document.addEventListener('change', function(e) {
+            var target = e.target;
+            if (target.matches('[data-action="change-category"]')) {
+                changeNoteCategory(target.value);
+            }
+        });
+
+        // Drag-and-drop delegation
+        document.addEventListener('dragstart', function(e) {
+            var target = e.target.closest ? e.target : e.target.parentElement;
+            var el = target.closest ? target.closest('[data-action-dragstart]') : null;
+            if (!el) return;
+            var action = el.dataset.actionDragstart;
+            if (action === 'note') {
+                var nid = parseInt(el.dataset.dragNoteId);
+                onNoteDragStart(e, nid);
+            } else if (action === 'folder') {
+                var catId = parseInt(el.dataset.dragCatId);
+                var folderEl = el.closest('.folder');
+                var path = folderEl ? folderEl.dataset.path : '';
+                onFolderDragStart(e, catId, path);
+            }
+        });
+
+        document.addEventListener('dragover', function(e) {
+            var target = e.target.closest ? e.target.closest('[data-drop-path], .root-drop-zone') : null;
+            if (target) {
+                onDragOver(e);
+            }
+        });
+
+        document.addEventListener('dragleave', function(e) {
+            var target = e.target.closest ? e.target.closest('[data-drop-path], .root-drop-zone') : null;
+            if (target) {
+                onDragLeave(e);
+            }
+        });
+
+        document.addEventListener('drop', function(e) {
+            var rootDrop = e.target.closest ? e.target.closest('[data-action="root-drop"]') : null;
+            if (rootDrop) {
+                onRootDrop(e);
+                return;
+            }
+            var dropTarget = e.target.closest ? e.target.closest('[data-drop-path]') : null;
+            if (dropTarget) {
+                var targetPath = dropTarget.dataset.dropPath;
+                var targetCatIdStr = dropTarget.dataset.dropCatId;
+                var targetCatId = targetCatIdStr ? parseInt(targetCatIdStr) : null;
+                onDrop(e, targetPath, targetCatId);
+            }
+        });
 
     </script>
 </body>

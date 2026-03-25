@@ -1,10 +1,10 @@
 {% extends "template-loggedout.html" %}
 {% block body %}
 {% if g.user.encryption_enabled %}
-<script src="{{ url_for('static', filename='js/crypto.js') }}"></script>
-<script src="{{ url_for('static', filename='js/e2ee.js') }}"></script>
+<script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='js/crypto.js') }}"></script>
+<script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='js/e2ee.js') }}"></script>
 {% endif %}
-<script src="{{ url_for('static', filename='js/sanitize.js') }}"></script>
+<script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='js/sanitize.js') }}"></script>
 <style>
     .settings-page {
         max-width: 1100px;
@@ -396,13 +396,13 @@
                 <input type="password" id="current-password" class="form-control mb-2" placeholder="Current password">
                 <input type="password" id="new-password" class="form-control mb-2" placeholder="New password">
                 <input type="password" id="confirm-password" class="form-control mb-2" placeholder="Confirm new password">
-                <button class="btn btn-primary" onclick="changeEncryptionPassword()">Change Password</button>
+                <button class="btn btn-primary" id="change-pw-btn">Change Password</button>
                 <div id="change-pw-status" class="mt-2"></div>
             </div>
 
             <h5 class="mt-4">Recovery Key</h5>
             <p class="text-muted small">Generate a new recovery key. This replaces your existing one.</p>
-            <button class="btn btn-outline-warning" onclick="regenerateRecoveryKey()">Regenerate Recovery Key</button>
+            <button class="btn btn-outline-warning" id="regen-recovery-btn">Regenerate Recovery Key</button>
             <div id="recovery-key-display" style="display:none" class="mt-2">
                 <div class="alert alert-warning">
                     <strong>Save this recovery key now:</strong><br>
@@ -430,7 +430,7 @@
             {% if new_token %}
             <div class="alert alert-warning token-alert">
                 <small class="fw-bold">Copy this token now — it won't be shown again:</small>
-                <input type="text" class="form-control form-control-sm mt-1" value="{{ new_token }}" readonly onclick="this.select()">
+                <input type="text" class="form-control form-control-sm mt-1" value="{{ new_token }}" readonly id="new-token-input">
             </div>
             {% endif %}
 
@@ -609,8 +609,11 @@
 
     </div>
 </div>
-<script>
+<script nonce="{{ csp_nonce() }}">
 (function() {
+    var tokenInput = document.getElementById('new-token-input');
+    if (tokenInput) tokenInput.addEventListener('click', function() { this.select(); });
+
     var themeSelect = document.querySelector('select[name="theme"]');
     var settingsArea = document.getElementById('theme-settings-area');
     var switchHint = document.getElementById('theme-switch-hint');
@@ -624,7 +627,18 @@
 })();
 </script>
 {% if g.user.encryption_enabled %}
-<script>
+<script type="application/json" id="settings-encryption-data">
+{
+    "username": {{ g.user.username|tojson }},
+    "encryptedSymKey": {{ g.user.encrypted_symmetric_key|tojson }}
+}
+</script>
+<script nonce="{{ csp_nonce() }}">
+(function() {
+    var settingsData = JSON.parse(document.getElementById('settings-encryption-data').textContent);
+    document.getElementById('change-pw-btn').addEventListener('click', changeEncryptionPassword);
+    document.getElementById('regen-recovery-btn').addEventListener('click', regenerateRecoveryKey);
+
 async function changeEncryptionPassword() {
     var statusEl = document.getElementById('change-pw-status');
     var currentPw = document.getElementById('current-password').value;
@@ -644,11 +658,10 @@ async function changeEncryptionPassword() {
     }
     statusEl.innerHTML = '<span class="text-muted">Deriving keys...</span>';
     try {
-        var username = '{{ g.user.username }}';
-        var oldSalt = await FlaskyCrypto.fetchSalt(username);
+        var oldSalt = await FlaskyCrypto.fetchSalt(settingsData.username);
         var oldKeys = await FlaskyCrypto.deriveKeys(currentPw, oldSalt);
         // Verify old password works by unwrapping the symmetric key
-        var encSymKey = '{{ g.user.encrypted_symmetric_key }}';
+        var encSymKey = settingsData.encryptedSymKey;
         var symKey;
         try {
             symKey = await FlaskyCrypto.unwrapSymmetricKey(encSymKey, oldKeys.kek);
@@ -711,6 +724,7 @@ async function regenerateRecoveryKey() {
         alert('Error: ' + e.message);
     }
 }
+})();
 </script>
 {% endif %}
 {% endblock %}

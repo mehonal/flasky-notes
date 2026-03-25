@@ -5,11 +5,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Flasky Agenda</title>
 
-    <script src="{{ url_for('static', filename='js/sanitize.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/csrf.js') }}"></script>
+    <script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='js/sanitize.js') }}"></script>
+    <script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='js/csrf.js') }}"></script>
     {% if g.user.encryption_enabled %}
-    <script src="{{ url_for('static', filename='js/crypto.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/e2ee.js') }}"></script>
+    <script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='js/crypto.js') }}"></script>
+    <script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='js/e2ee.js') }}"></script>
     {% endif %}
 
     <!-- Favicons -->
@@ -566,7 +566,7 @@
   <div class="toast-container" id="toast-container"></div>
 
   <!-- Sidebar backdrop (mobile) -->
-  <div class="sidebar-backdrop" id="sidebar-backdrop" onclick="toggleSidebar()"></div>
+  <div class="sidebar-backdrop" id="sidebar-backdrop" data-action="toggle-sidebar"></div>
 
   <div class="app">
     <!-- Sidebar -->
@@ -574,7 +574,7 @@
       <div class="sidebar-header">
         <span class="sidebar-title">Agenda</span>
         <div class="sidebar-actions">
-          <button class="icon-btn" onclick="toggleTheme()" title="Toggle theme">
+          <button class="icon-btn" data-action="toggle-theme" title="Toggle theme">
             <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
           </button>
         </div>
@@ -601,11 +601,11 @@
 
         <div class="sidebar-divider"></div>
         <div class="sidebar-section-label">Actions</div>
-        <a href="javascript:void(0)" class="nav-item" onclick="showArchivedTodosModal()">
+        <a href="#" class="nav-item" data-action="show-archived-todos">
           <svg viewBox="0 0 24 24"><path d="M21 8v13H3V8M1 3h22v5H1zM10 12h4"/></svg>
           Archived To-Dos
         </a>
-        <a href="javascript:void(0)" class="nav-item" onclick="showPastEventsModal()">
+        <a href="#" class="nav-item" data-action="show-past-events">
           <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
           Past Events
         </a>
@@ -628,7 +628,7 @@
     <!-- Main content -->
     <div class="main">
       <div class="toolbar">
-        <button class="icon-btn" onclick="toggleSidebar()" title="Toggle sidebar">
+        <button class="icon-btn" data-action="toggle-sidebar" title="Toggle sidebar">
           <svg viewBox="0 0 24 24"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
         </button>
         <span class="toolbar-title">Agenda</span>
@@ -646,11 +646,11 @@
               </div>
               <div class="panel-actions">
                 <div class="filter-group">
-                  <button class="filter-pill active" data-filter="all" onclick="filterTodos('all')">All</button>
-                  <button class="filter-pill" data-filter="pending" onclick="filterTodos('pending')">Pending</button>
-                  <button class="filter-pill" data-filter="done" onclick="filterTodos('done')">Done</button>
+                  <button class="filter-pill active" data-filter="all" data-action="filter-todos">All</button>
+                  <button class="filter-pill" data-filter="pending" data-action="filter-todos">Pending</button>
+                  <button class="filter-pill" data-filter="done" data-action="filter-todos">Done</button>
                 </div>
-                <button class="btn-sm primary" onclick="showAddTodoModal()">
+                <button class="btn-sm primary" data-action="show-add-todo-modal">
                   <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
                   Add
                 </button>
@@ -661,14 +661,14 @@
                 {% for todo in todos %}
                 <div class="list-item todo-item" data-completed="{{ 'true' if todo.completed else 'false' }}">
                   <div class="list-item-left">
-                    <input type="checkbox" class="todo-checkbox" {% if todo.completed %}checked{% endif %} onclick="toggleTodoItem(event)" />
-                    <span data-todo-id="{{ todo.id }}" class="todo-label{% if todo.completed %} completed{% endif %}" onclick="showTodoDetailsModal({{ todo.id }})">{{ todo.title }}{% if todo.has_content() %} <span style="opacity:0.5">...</span>{% endif %} {% if todo.date_due %}<span class="badge badge-{{ todo.get_due_css_class() }}">{{ todo.get_time_until_due() }}</span>{% endif %}</span>
+                    <input type="checkbox" class="todo-checkbox" {% if todo.completed %}checked{% endif %} />
+                    <span data-todo-id="{{ todo.id }}" class="todo-label{% if todo.completed %} completed{% endif %}" data-action="show-todo-details" data-id="{{ todo.id }}">{{ todo.title }}{% if todo.has_content() %} <span style="opacity:0.5">...</span>{% endif %} {% if todo.date_due %}<span class="badge badge-{{ todo.get_due_css_class() }}">{{ todo.get_time_until_due() }}</span>{% endif %}</span>
                   </div>
                   <div class="list-item-right">
-                    <button class="action-btn warning" data-todo-id="{{ todo.id }}" onclick="archiveTodo(event)" title="Archive">
+                    <button class="action-btn warning" data-todo-id="{{ todo.id }}" data-action="archive-todo" title="Archive">
                       <svg viewBox="0 0 24 24"><path d="M21 8v13H3V8M1 3h22v5H1zM10 12h4"/></svg>
                     </button>
-                    <button class="action-btn danger" data-todo-id="{{ todo.id }}" onclick="confirmDeleteTodo(event)" title="Delete">
+                    <button class="action-btn danger" data-todo-id="{{ todo.id }}" data-action="confirm-delete-todo" title="Delete">
                       <svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
                     </button>
                   </div>
@@ -680,8 +680,8 @@
                 {% endif %}
               </div>
               <div class="quick-add">
-                <input type="text" id="new-todo" placeholder="Add a to-do..." onkeydown="if(event.key==='Enter')quickAddTodo()">
-                <button class="btn-sm primary" onclick="quickAddTodo()">Add</button>
+                <input type="text" id="new-todo" placeholder="Add a to-do...">
+                <button class="btn-sm primary" data-action="quick-add-todo">Add</button>
               </div>
             </div>
           </div>
@@ -694,7 +694,7 @@
                 Upcoming Events
               </div>
               <div class="panel-actions">
-                <button class="btn-sm primary" onclick="showAddEventModal()">
+                <button class="btn-sm primary" data-action="show-add-event-modal">
                   <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
                   Add
                 </button>
@@ -705,10 +705,10 @@
                 {% for event in events %}
                 <div class="list-item event-item">
                   <div class="list-item-left">
-                    <span data-event-id="{{ event.id }}" class="event-label" onclick="showEventDetailsModal({{ event.id }})">{{ event.title }}{% if event.has_content() %} <span style="opacity:0.5">...</span>{% endif %} {% if event.date_of_event %}<span class="badge badge-{{ event.get_event_css_class() }}">{{ event.get_time_until_event() }}</span>{% endif %}</span>
+                    <span data-event-id="{{ event.id }}" class="event-label" data-action="show-event-details" data-id="{{ event.id }}">{{ event.title }}{% if event.has_content() %} <span style="opacity:0.5">...</span>{% endif %} {% if event.date_of_event %}<span class="badge badge-{{ event.get_event_css_class() }}">{{ event.get_time_until_event() }}</span>{% endif %}</span>
                   </div>
                   <div class="list-item-right">
-                    <button class="action-btn danger" data-event-id="{{ event.id }}" onclick="confirmDeleteEvent(event)" title="Delete">
+                    <button class="action-btn danger" data-event-id="{{ event.id }}" data-action="confirm-delete-event" title="Delete">
                       <svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
                     </button>
                   </div>
@@ -720,8 +720,8 @@
                 {% endif %}
               </div>
               <div class="quick-add">
-                <input type="text" id="new-event" placeholder="Add an event..." onkeydown="if(event.key==='Enter')quickAddEvent()">
-                <button class="btn-sm primary" onclick="quickAddEvent()">Add</button>
+                <input type="text" id="new-event" placeholder="Add an event...">
+                <button class="btn-sm primary" data-action="quick-add-event">Add</button>
               </div>
             </div>
           </div>
@@ -738,10 +738,10 @@
               <span id="autosave-status" class="save-status"></span>
             </div>
             <div style="padding: 16px;">
-              <textarea id="agenda-notes" class="notes-textarea" rows="16" placeholder="Write your notes here..." onkeydown="if(event.ctrlKey&&event.key==='s'){event.preventDefault();saveNotes()}">{{ g.user.agenda_notes.content if g.user.agenda_notes and g.user.agenda_notes.content }}</textarea>
+              <textarea id="agenda-notes" class="notes-textarea" rows="16" placeholder="Write your notes here...">{{ g.user.agenda_notes.content if g.user.agenda_notes and g.user.agenda_notes.content }}</textarea>
               <div class="save-bar">
                 <div></div>
-                <button id="save-notes-btn" class="btn-save" onclick="saveNotes()">Save Notes</button>
+                <button id="save-notes-btn" class="btn-save" data-action="save-notes">Save Notes</button>
               </div>
             </div>
           </div>
@@ -752,7 +752,7 @@
       <div class="status-bar">
         <span>Agenda</span>
         <div class="status-spacer"></div>
-        <span class="status-clickable" onclick="toggleTheme()">
+        <span class="status-clickable" data-action="toggle-theme">
           <span id="theme-label">{{ 'Dark' if g.user.get_theme_settings().dark_mode else 'Light' }}</span>
         </span>
       </div>
@@ -766,7 +766,7 @@
     <div class="modal-box modal-box-sm">
       <div class="modal-header">
         <span class="modal-title">Confirm Delete</span>
-        <button class="modal-close" onclick="hideModal('confirmDeleteOverlay')">
+        <button class="modal-close" data-action="hide-modal" data-modal="confirmDeleteOverlay">
           <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
         </button>
       </div>
@@ -774,7 +774,7 @@
         <p id="confirmDeleteMessage" style="font-size:13px;color:var(--text-secondary);">Are you sure you want to delete this item?</p>
       </div>
       <div class="modal-footer">
-        <button class="btn-modal" onclick="hideModal('confirmDeleteOverlay')">Cancel</button>
+        <button class="btn-modal" data-action="hide-modal" data-modal="confirmDeleteOverlay">Cancel</button>
         <button class="btn-modal danger" id="confirmDeleteBtn">Delete</button>
       </div>
     </div>
@@ -785,7 +785,7 @@
     <div class="modal-box">
       <div class="modal-header">
         <span class="modal-title">Add To-Do</span>
-        <button class="modal-close" onclick="hideModal('addTodoOverlay')">
+        <button class="modal-close" data-action="hide-modal" data-modal="addTodoOverlay">
           <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
         </button>
       </div>
@@ -795,8 +795,8 @@
         <textarea class="modal-input" rows="4" placeholder="Details (optional)..."></textarea>
       </div>
       <div class="modal-footer">
-        <button class="btn-modal" onclick="hideModal('addTodoOverlay')">Cancel</button>
-        <button class="btn-modal primary" onclick="addTodoFromModal()">Add To-Do</button>
+        <button class="btn-modal" data-action="hide-modal" data-modal="addTodoOverlay">Cancel</button>
+        <button class="btn-modal primary" data-action="add-todo-from-modal">Add To-Do</button>
       </div>
     </div>
   </div>
@@ -806,7 +806,7 @@
     <div class="modal-box">
       <div class="modal-header">
         <span class="modal-title">Add Event</span>
-        <button class="modal-close" onclick="hideModal('addEventOverlay')">
+        <button class="modal-close" data-action="hide-modal" data-modal="addEventOverlay">
           <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
         </button>
       </div>
@@ -816,8 +816,8 @@
         <textarea class="modal-input" rows="4" placeholder="Details (optional)..."></textarea>
       </div>
       <div class="modal-footer">
-        <button class="btn-modal" onclick="hideModal('addEventOverlay')">Cancel</button>
-        <button class="btn-modal primary" onclick="addEventFromModal()">Add Event</button>
+        <button class="btn-modal" data-action="hide-modal" data-modal="addEventOverlay">Cancel</button>
+        <button class="btn-modal primary" data-action="add-event-from-modal">Add Event</button>
       </div>
     </div>
   </div>
@@ -827,7 +827,7 @@
     <div class="modal-box">
       <div class="modal-header">
         <span class="modal-title">Archived To-Dos</span>
-        <button class="modal-close" onclick="hideModal('archivedTodosOverlay')">
+        <button class="modal-close" data-action="hide-modal" data-modal="archivedTodosOverlay">
           <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
         </button>
       </div>
@@ -839,7 +839,7 @@
         <p id="archivedTodosEmpty" class="empty-state" style="display:none;">No archived to-dos.</p>
       </div>
       <div class="modal-footer">
-        <button class="btn-modal" onclick="hideModal('archivedTodosOverlay')">Close</button>
+        <button class="btn-modal" data-action="hide-modal" data-modal="archivedTodosOverlay">Close</button>
       </div>
     </div>
   </div>
@@ -849,7 +849,7 @@
     <div class="modal-box">
       <div class="modal-header">
         <span class="modal-title">Past Events</span>
-        <button class="modal-close" onclick="hideModal('pastEventsOverlay')">
+        <button class="modal-close" data-action="hide-modal" data-modal="pastEventsOverlay">
           <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
         </button>
       </div>
@@ -861,7 +861,7 @@
         <p id="pastEventsEmpty" class="empty-state" style="display:none;">No past events.</p>
       </div>
       <div class="modal-footer">
-        <button class="btn-modal" onclick="hideModal('pastEventsOverlay')">Close</button>
+        <button class="btn-modal" data-action="hide-modal" data-modal="pastEventsOverlay">Close</button>
       </div>
     </div>
   </div>
@@ -871,7 +871,7 @@
     <div class="modal-box">
       <div class="modal-header">
         <span class="modal-title" id="todoDetailsModalLabel">To-Do Details</span>
-        <button class="modal-close" onclick="hideModal('todoDetailsOverlay')">
+        <button class="modal-close" data-action="hide-modal" data-modal="todoDetailsOverlay">
           <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
         </button>
       </div>
@@ -886,8 +886,8 @@
         </div>
       </div>
       <div class="modal-footer">
-        <button class="btn-modal" onclick="hideModal('todoDetailsOverlay')">Cancel</button>
-        <button class="btn-modal primary" onclick="saveTodoFromModal()">Save</button>
+        <button class="btn-modal" data-action="hide-modal" data-modal="todoDetailsOverlay">Cancel</button>
+        <button class="btn-modal primary" data-action="save-todo-from-modal">Save</button>
       </div>
     </div>
   </div>
@@ -897,7 +897,7 @@
     <div class="modal-box">
       <div class="modal-header">
         <span class="modal-title" id="eventDetailsModalLabel">Event Details</span>
-        <button class="modal-close" onclick="hideModal('eventDetailsOverlay')">
+        <button class="modal-close" data-action="hide-modal" data-modal="eventDetailsOverlay">
           <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
         </button>
       </div>
@@ -912,13 +912,13 @@
         </div>
       </div>
       <div class="modal-footer">
-        <button class="btn-modal" onclick="hideModal('eventDetailsOverlay')">Cancel</button>
-        <button class="btn-modal primary" onclick="saveEventFromModal()">Save</button>
+        <button class="btn-modal" data-action="hide-modal" data-modal="eventDetailsOverlay">Cancel</button>
+        <button class="btn-modal primary" data-action="save-event-from-modal">Save</button>
       </div>
     </div>
   </div>
 
-  <script>
+  <script nonce="{{ csp_nonce() }}">
     // ============ E2EE init ============
     (async function() {
         if (typeof FlaskyE2EE !== 'undefined') {
@@ -1017,7 +1017,7 @@
         toast.className = `toast ${type}`;
         toast.innerHTML = `
             <span>${escapeHtml(message)}</span>
-            <button class="toast-close" onclick="this.parentElement.remove()">
+            <button class="toast-close" data-action="dismiss-toast">
                 <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
             </button>
         `;
@@ -1174,10 +1174,10 @@
                 item.innerHTML = `
                     <span class="archived-item-title">${escapeHtml(todo.title)}</span>
                     <div class="archived-item-actions">
-                        <button class="action-btn" onclick="unarchiveTodo(${todo.id})" title="Restore">
+                        <button class="action-btn" data-action="unarchive-todo" data-id="${todo.id}" title="Restore">
                             <svg viewBox="0 0 24 24"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
                         </button>
-                        <button class="action-btn danger" data-todo-id="${todo.id}" onclick="deleteTodoFromEvent(event)" title="Delete">
+                        <button class="action-btn danger" data-todo-id="${todo.id}" data-action="delete-archived-todo" title="Delete">
                             <svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
                         </button>
                     </div>
@@ -1221,7 +1221,7 @@
                 item.innerHTML = `
                     <span class="archived-item-title">${escapeHtml(ev.title)}${dateStr}</span>
                     <div class="archived-item-actions">
-                        <button class="action-btn danger" data-event-id="${ev.id}" onclick="deletePastEvent(event)" title="Delete">
+                        <button class="action-btn danger" data-event-id="${ev.id}" data-action="delete-past-event" title="Delete">
                             <svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
                         </button>
                     </div>
@@ -1432,14 +1432,14 @@
 
         item.innerHTML = `
             <div class="list-item-left">
-                <input type="checkbox" class="todo-checkbox" ${todo.completed ? 'checked' : ''} onclick="toggleTodoItem(event)" />
-                <span data-todo-id="${todo.id}" class="todo-label${todo.completed ? ' completed' : ''}" onclick="showTodoDetailsModal(${todo.id})">${escapeHtml(todo.title)}${contentHint}${badgeHtml}</span>
+                <input type="checkbox" class="todo-checkbox" ${todo.completed ? 'checked' : ''} />
+                <span data-todo-id="${todo.id}" class="todo-label${todo.completed ? ' completed' : ''}" data-action="show-todo-details" data-id="${todo.id}">${escapeHtml(todo.title)}${contentHint}${badgeHtml}</span>
             </div>
             <div class="list-item-right">
-                <button class="action-btn warning" data-todo-id="${todo.id}" onclick="archiveTodo(event)" title="Archive">
+                <button class="action-btn warning" data-todo-id="${todo.id}" data-action="archive-todo" title="Archive">
                     <svg viewBox="0 0 24 24"><path d="M21 8v13H3V8M1 3h22v5H1zM10 12h4"/></svg>
                 </button>
-                <button class="action-btn danger" data-todo-id="${todo.id}" onclick="confirmDeleteTodo(event)" title="Delete">
+                <button class="action-btn danger" data-todo-id="${todo.id}" data-action="confirm-delete-todo" title="Delete">
                     <svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
                 </button>
             </div>
@@ -1459,10 +1459,10 @@
 
         item.innerHTML = `
             <div class="list-item-left">
-                <span data-event-id="${event.id}" class="event-label" onclick="showEventDetailsModal(${event.id})">${escapeHtml(event.title)}${contentHint}${badgeHtml}</span>
+                <span data-event-id="${event.id}" class="event-label" data-action="show-event-details" data-id="${event.id}">${escapeHtml(event.title)}${contentHint}${badgeHtml}</span>
             </div>
             <div class="list-item-right">
-                <button class="action-btn danger" data-event-id="${event.id}" onclick="confirmDeleteEvent(event)" title="Delete">
+                <button class="action-btn danger" data-event-id="${event.id}" data-action="confirm-delete-event" title="Delete">
                     <svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
                 </button>
             </div>
@@ -1635,6 +1635,59 @@
             showToast('Failed to save notes.', 'danger');
         });
     }
+    // ============ Event delegation ============
+    document.addEventListener('click', function(e) {
+        var el = e.target.closest('[data-action]');
+        if (!el) return;
+        var action = el.dataset.action;
+        switch (action) {
+            case 'toggle-sidebar': toggleSidebar(); break;
+            case 'toggle-theme': toggleTheme(); break;
+            case 'show-archived-todos': e.preventDefault(); showArchivedTodosModal(); break;
+            case 'show-past-events': e.preventDefault(); showPastEventsModal(); break;
+            case 'filter-todos': filterTodos(el.dataset.filter); break;
+            case 'show-add-todo-modal': showAddTodoModal(); break;
+            case 'show-add-event-modal': showAddEventModal(); break;
+            case 'show-todo-details': showTodoDetailsModal(parseInt(el.dataset.id)); break;
+            case 'show-event-details': showEventDetailsModal(parseInt(el.dataset.id)); break;
+            case 'archive-todo': archiveTodo(e); break;
+            case 'confirm-delete-todo': confirmDeleteTodo(e); break;
+            case 'confirm-delete-event': confirmDeleteEvent(e); break;
+            case 'quick-add-todo': quickAddTodo(); break;
+            case 'quick-add-event': quickAddEvent(); break;
+            case 'save-notes': saveNotes(); break;
+            case 'hide-modal': hideModal(el.dataset.modal); break;
+            case 'add-todo-from-modal': addTodoFromModal(); break;
+            case 'add-event-from-modal': addEventFromModal(); break;
+            case 'save-todo-from-modal': saveTodoFromModal(); break;
+            case 'save-event-from-modal': saveEventFromModal(); break;
+            case 'unarchive-todo': unarchiveTodo(parseInt(el.dataset.id)); break;
+            case 'delete-archived-todo': deleteTodoFromEvent(e); break;
+            case 'delete-past-event': deletePastEvent(e); break;
+            case 'dismiss-toast': el.closest('.toast').remove(); break;
+        }
+    });
+
+    document.addEventListener('change', function(e) {
+        if (e.target.classList.contains('todo-checkbox')) {
+            toggleTodoItem(e);
+        }
+    });
+
+    document.getElementById('new-todo').addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') quickAddTodo();
+    });
+
+    document.getElementById('new-event').addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') quickAddEvent();
+    });
+
+    document.getElementById('agenda-notes').addEventListener('keydown', function(e) {
+        if (e.ctrlKey && e.key === 's') {
+            e.preventDefault();
+            saveNotes();
+        }
+    });
   </script>
 </body>
 </html>

@@ -9,25 +9,25 @@
     <link rel="manifest" href="/manifest.json">
 
     <!-- CodeMirror 6 (bundled) -->
-    <script src="{{ url_for('static', filename='script/themes/obsidified/codemirror6.bundle.js') }}"></script>
+    <script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='script/themes/obsidified/codemirror6.bundle.js') }}"></script>
 
-    <script src="{{ url_for('static', filename='js/csrf.js') }}"></script>
+    <script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='js/csrf.js') }}"></script>
     <!-- E2EE -->
     {% if g.user.encryption_enabled %}
-    <script src="{{ url_for('static', filename='js/crypto.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/e2ee.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/e2ee-search.js') }}"></script>
+    <script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='js/crypto.js') }}"></script>
+    <script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='js/e2ee.js') }}"></script>
+    <script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='js/e2ee-search.js') }}"></script>
     {% endif %}
 
     <!-- Markdown preview -->
-    <script src="{{ url_for('static', filename='vendor/marked/marked.min.js') }}"></script>
-    <script src="{{ url_for('static', filename='vendor/dompurify/purify.min.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/sanitize.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/wikilinks.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/icon-picker.js') }}"></script>
+    <script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='vendor/marked/marked.min.js') }}"></script>
+    <script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='vendor/dompurify/purify.min.js') }}"></script>
+    <script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='js/sanitize.js') }}"></script>
+    <script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='js/wikilinks.js') }}"></script>
+    <script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='js/icon-picker.js') }}"></script>
     <link rel="stylesheet" href="{{ url_for('static', filename='vendor/hljs/styles/github-dark.min.css') }}" id="hljs-dark">
     <link rel="stylesheet" href="{{ url_for('static', filename='vendor/hljs/styles/github.min.css') }}" id="hljs-light" disabled>
-    <script src="{{ url_for('static', filename='vendor/hljs/highlight.min.js') }}"></script>
+    <script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='vendor/hljs/highlight.min.js') }}"></script>
 
     <style>
         /* ============ Variables ============ */
@@ -1062,27 +1062,27 @@
 
     <div class="app">
         <!-- Mobile sidebar backdrop -->
-        <div class="sidebar-backdrop" id="sidebar-backdrop" onclick="closeSidebar()"></div>
+        <div class="sidebar-backdrop" id="sidebar-backdrop" data-action="close-sidebar"></div>
 
         <!-- Sidebar -->
         <div class="sidebar {% if theme_settings and not theme_settings.sidebar_collapsed %}{% else %}collapsed{% endif %}" id="sidebar">
             <div class="sidebar-header">
                 <span class="sidebar-title">Notes</span>
                 <div class="sidebar-actions">
-                    <button class="icon-btn" onclick="promptNewFolder()" title="New folder" aria-label="New folder">
+                    <button class="icon-btn" data-action="new-folder" title="New folder" aria-label="New folder">
                         <svg viewBox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/><line x1="12" y1="11" x2="12" y2="17"/><line x1="9" y1="14" x2="15" y2="14"/></svg>
                     </button>
-                    <button class="icon-btn" onclick="createNewNote()" title="New note" aria-label="New note">
+                    <button class="icon-btn" data-action="create-new-note" title="New note" aria-label="New note">
                         <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
                     </button>
-                    <button class="icon-btn" onclick="closeSidebar()" title="Close sidebar" aria-label="Close sidebar">
+                    <button class="icon-btn" data-action="close-sidebar" title="Close sidebar" aria-label="Close sidebar">
                         <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                     </button>
                 </div>
             </div>
 
             <div class="sidebar-search">
-                <input type="text" id="search-input" placeholder="Filter..." oninput="filterNotes(this.value)">
+                <input type="text" id="search-input" placeholder="Filter..." data-action="filter-notes">
             </div>
 
             <div class="pinned-section" id="pinned-section">
@@ -1095,7 +1095,7 @@
             </div>
 
             <div class="file-tree" id="file-tree">
-                <div class="root-drop-zone" id="root-drop-zone" ondragover="onRootDragOver(event)" ondragleave="onRootDragLeave(event)" ondrop="onRootDrop(event)">
+                <div class="root-drop-zone" id="root-drop-zone" data-drop-target="root">
                     Drop here to move to root
                 </div>
                 {% with active_note_id = note.id if note else 0 %}
@@ -1114,12 +1114,12 @@
         <div class="main">
             <div class="toolbar">
                 <!-- Hamburger — always visible -->
-                <button class="icon-btn toggle-sidebar" onclick="toggleSidebar()" title="Toggle sidebar (Ctrl+B)" aria-label="Toggle sidebar" aria-expanded="{% if theme_settings and not theme_settings.sidebar_collapsed %}true{% else %}false{% endif %}">
+                <button class="icon-btn toggle-sidebar" data-action="toggle-sidebar" title="Toggle sidebar (Ctrl+B)" aria-label="Toggle sidebar" aria-expanded="{% if theme_settings and not theme_settings.sidebar_collapsed %}true{% else %}false{% endif %}">
                     <svg viewBox="0 0 24 24" class="icon-btn-svg"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
                 </button>
 
                 <div class="breadcrumb">
-                    <select class="breadcrumb-category-select" id="category-select" onchange="changeNoteCategory(this.value)" title="{% if note %}Move to category{% else %}Category for new note{% endif %}">
+                    <select class="breadcrumb-category-select" id="category-select" data-action="change-category" title="{% if note %}Move to category{% else %}Category for new note{% endif %}">
                         {% for cat in g.user.categories | sort(attribute='name') %}
                         <option value="{{ cat.id }}"
                             {% if note and note.category_id == cat.id %}selected{% endif %}
@@ -1135,22 +1135,22 @@
 
                 <div class="toolbar-actions">
                     <div class="font-size-controls">
-                        <button class="icon-btn" onclick="changeFontSize(-1)" title="Decrease font size" aria-label="Decrease font size">
+                        <button class="icon-btn" data-action="change-font-size" data-delta="-1" title="Decrease font size" aria-label="Decrease font size">
                             <svg viewBox="0 0 24 24"><line x1="5" y1="12" x2="19" y2="12"/></svg>
                         </button>
                         <span class="font-size-label" id="font-size-label">{{ font_size or 15 }}</span>
-                        <button class="icon-btn" onclick="changeFontSize(1)" title="Increase font size" aria-label="Increase font size">
+                        <button class="icon-btn" data-action="change-font-size" data-delta="1" title="Increase font size" aria-label="Increase font size">
                             <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
                         </button>
                     </div>
 
-                    <button class="icon-btn mobile-save-btn" id="mobile-save-btn" onclick="saveNote()" title="Save note" aria-label="Save note">
+                    <button class="icon-btn mobile-save-btn" id="mobile-save-btn" data-action="save-note" title="Save note" aria-label="Save note">
                         <svg viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
                     </button>
 
                     <div class="toolbar-divider desktop-only"></div>
 
-                    <button class="icon-btn {% if theme_settings and theme_settings.preview_mode %}active{% endif %}" id="mode-toggle" onclick="toggleMode()" title="Toggle edit/preview (Ctrl+E)" aria-label="Toggle edit/preview">
+                    <button class="icon-btn {% if theme_settings and theme_settings.preview_mode %}active{% endif %}" id="mode-toggle" data-action="toggle-mode" title="Toggle edit/preview (Ctrl+E)" aria-label="Toggle edit/preview">
                         <svg viewBox="0 0 24 24" id="mode-toggle-icon">
                             {% if theme_settings and theme_settings.preview_mode %}
                             <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
@@ -1162,15 +1162,15 @@
 
                     <div class="toolbar-divider desktop-only"></div>
 
-                    <button class="icon-btn mobile-search-btn" onclick="openSearchModal()" title="Search (Ctrl+K)" aria-label="Search">
+                    <button class="icon-btn mobile-search-btn" data-action="open-search" title="Search (Ctrl+K)" aria-label="Search">
                         <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
                     </button>
 
-                    <button class="icon-btn {% if theme_settings and not theme_settings.right_panel_collapsed %}active{% endif %}" id="panel-toggle" onclick="toggleRightPanel()" title="Outline panel (Ctrl+Shift+O)" aria-label="Outline panel" aria-expanded="{% if theme_settings and not theme_settings.right_panel_collapsed %}true{% else %}false{% endif %}">
+                    <button class="icon-btn {% if theme_settings and not theme_settings.right_panel_collapsed %}active{% endif %}" id="panel-toggle" data-action="toggle-right-panel" title="Outline panel (Ctrl+Shift+O)" aria-label="Outline panel" aria-expanded="{% if theme_settings and not theme_settings.right_panel_collapsed %}true{% else %}false{% endif %}">
                         <svg viewBox="0 0 24 24"><line x1="3" y1="6" x2="13" y2="6"/><line x1="3" y1="10" x2="10" y2="10"/><line x1="3" y1="14" x2="13" y2="14"/><line x1="3" y1="18" x2="10" y2="18"/><rect x="17" y="4" width="4" height="16" rx="1"/></svg>
                     </button>
 
-                    <button class="icon-btn" id="theme-toggle" onclick="toggleDarkMode()" title="Toggle theme" aria-label="Toggle theme">
+                    <button class="icon-btn" id="theme-toggle" data-action="toggle-dark-mode" title="Toggle theme" aria-label="Toggle theme">
                         <svg viewBox="0 0 24 24" id="theme-icon">
                             {% if g.user.get_current_theme_dark_mode() %}
                             <circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
@@ -1180,13 +1180,13 @@
                         </svg>
                     </button>
 
-                    <button class="icon-btn desktop-only" onclick="toggleShortcutsModal()" title="Shortcuts (Ctrl+/)" aria-label="Keyboard shortcuts">
+                    <button class="icon-btn desktop-only" data-action="toggle-shortcuts" title="Shortcuts (Ctrl+/)" aria-label="Keyboard shortcuts">
                         <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
                     </button>
 
                     {% if note %}
                     <div class="toolbar-divider"></div>
-                    <button class="icon-btn danger" onclick="deleteCurrentNote()" title="Delete note" aria-label="Delete note">
+                    <button class="icon-btn danger" data-action="delete-current-note" title="Delete note" aria-label="Delete note">
                         <svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
                     </button>
                     {% endif %}
@@ -1197,7 +1197,7 @@
                 {% if note or note_id == 0 %}
                 <div class="editor" id="editor">
                     <div style="display:flex; align-items:center; padding:24px 48px 0; gap:4px;">
-                        <button class="note-icon-btn" id="note-icon-btn" onclick="openNoteIconPicker()" title="Set icon">
+                        <button class="note-icon-btn" id="note-icon-btn" data-action="open-note-icon-picker" title="Set icon">
                             <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
                         </button>
                         <input type="text" class="editor-title" id="note-title" placeholder="Untitled" value="{% if note %}{{ note.title }}{% endif %}" style="padding:0; flex:1;">
@@ -1206,7 +1206,7 @@
                     <div class="editor-scroll">
                         <div class="editor-properties" id="editor-properties">
                             <div class="props-container {% if theme_settings and theme_settings.properties_collapsed %}collapsed{% endif %}" id="props-container">
-                                <div class="props-header" onclick="togglePropsPanel()">
+                                <div class="props-header" data-action="toggle-props-panel">
                                     <span>Properties</span>
                                     <svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
                                 </div>
@@ -1214,17 +1214,17 @@
                                     {% if note and note.get_properties() is mapping %}
                                     {% for key, value in note.get_properties().items() %}
                                     <div class="prop-row" data-prop-key="{{ key }}">
-                                        <div class="prop-key"><input type="text" class="prop-value-input" value="{{ key }}" style="font-size:12px;font-weight:500;color:var(--text-muted)" onchange="onPropChanged()"></div>
+                                        <div class="prop-key"><input type="text" class="prop-value-input" value="{{ key }}" style="font-size:12px;font-weight:500;color:var(--text-muted)" data-action="prop-changed"></div>
                                         <div class="prop-value">
-                                            <input type="text" class="prop-value-input" value="{% if value is none %}{% elif value is iterable and value is not string %}{{ value | join(', ') }}{% else %}{{ value }}{% endif %}" onchange="onPropChanged()">
+                                            <input type="text" class="prop-value-input" value="{% if value is none %}{% elif value is iterable and value is not string %}{{ value | join(', ') }}{% else %}{{ value }}{% endif %}" data-action="prop-changed">
                                         </div>
-                                        <button class="prop-remove-btn" onclick="removeProp(this)" title="Remove property">
+                                        <button class="prop-remove-btn" data-action="remove-prop" title="Remove property">
                                             <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                                         </button>
                                     </div>
                                     {% endfor %}
                                     {% endif %}
-                                    <div class="prop-add-row" onclick="addPropRow()">
+                                    <div class="prop-add-row" data-action="add-prop-row">
                                         <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
                                         Add property
                                     </div>
@@ -1249,11 +1249,11 @@
 
                 <div class="right-panel {% if theme_settings and not theme_settings.right_panel_collapsed %}{% else %}collapsed{% endif %}" id="right-panel">
                     <div class="right-panel-top-bar">
-                        <div class="right-panel-close" onclick="toggleRightPanel()">
+                        <div class="right-panel-close" data-action="toggle-right-panel">
                             <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                         </div>
                         <span class="right-panel-top-spacer"></span>
-                        <button class="icon-btn right-panel-config-btn" onclick="toggleWidgetConfig()" title="Configure widgets">
+                        <button class="icon-btn right-panel-config-btn" data-action="toggle-widget-config" title="Configure widgets">
                             <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
                         </button>
                     </div>
@@ -1267,7 +1267,7 @@
                     <div class="right-panel-section" id="right-panel-widgets">
                         <!-- Outline widget -->
                         <div class="panel-widget" data-widget-id="outline" id="widget-outline">
-                            <div class="right-panel-section-header widget-header" onclick="toggleWidgetCollapse('outline')">
+                            <div class="right-panel-section-header widget-header" data-action="toggle-widget-collapse" data-widget-id="outline">
                                 <svg viewBox="0 0 24 24"><line x1="3" y1="6" x2="13" y2="6"/><line x1="3" y1="10" x2="9" y2="10"/><line x1="3" y1="14" x2="13" y2="14"/><line x1="3" y1="18" x2="9" y2="18"/></svg>
                                 <span class="widget-label">Outline</span>
                                 <svg class="widget-chevron" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
@@ -1281,7 +1281,7 @@
 
                         <!-- Backlinks widget -->
                         <div class="panel-widget" data-widget-id="backlinks" id="widget-backlinks">
-                            <div class="right-panel-section-header widget-header" onclick="toggleWidgetCollapse('backlinks')">
+                            <div class="right-panel-section-header widget-header" data-action="toggle-widget-collapse" data-widget-id="backlinks">
                                 <svg viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
                                 <span class="widget-label">Backlinks</span>
                                 <svg class="widget-chevron" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
@@ -1295,7 +1295,7 @@
 
                         <!-- Outbound Links widget -->
                         <div class="panel-widget" data-widget-id="outbound_links" id="widget-outbound_links">
-                            <div class="right-panel-section-header widget-header" onclick="toggleWidgetCollapse('outbound_links')">
+                            <div class="right-panel-section-header widget-header" data-action="toggle-widget-collapse" data-widget-id="outbound_links">
                                 <svg viewBox="0 0 24 24"><line x1="7" y1="17" x2="17" y2="7"/><polyline points="7 7 17 7 17 17"/></svg>
                                 <span class="widget-label">Outbound Links</span>
                                 <svg class="widget-chevron" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
@@ -1309,7 +1309,7 @@
 
                         <!-- Properties widget -->
                         <div class="panel-widget" data-widget-id="properties" id="widget-properties">
-                            <div class="right-panel-section-header widget-header" onclick="toggleWidgetCollapse('properties')">
+                            <div class="right-panel-section-header widget-header" data-action="toggle-widget-collapse" data-widget-id="properties">
                                 <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="3" x2="9" y2="21"/></svg>
                                 <span class="widget-label">Properties</span>
                                 <svg class="widget-chevron" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
@@ -1323,19 +1323,19 @@
 
                         <!-- Todos widget -->
                         <div class="panel-widget" data-widget-id="todos" id="widget-todos">
-                            <div class="right-panel-section-header widget-header" onclick="toggleWidgetCollapse('todos')">
+                            <div class="right-panel-section-header widget-header" data-action="toggle-widget-collapse" data-widget-id="todos">
                                 <svg viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
                                 <span class="widget-label">To-dos</span>
-                                <button class="icon-btn widget-add-btn" onclick="event.stopPropagation(); openAddTodoModal()" title="Add to-do">
+                                <button class="icon-btn widget-add-btn" data-action="open-add-todo" title="Add to-do">
                                     <svg viewBox="0 0 24 24" width="12" height="12"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
                                 </button>
                                 <svg class="widget-chevron" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
                             </div>
                             <div class="widget-body">
                                 <div class="agenda-widget-filter" id="todos-filter">
-                                    <button class="agenda-filter-btn active" data-filter="remaining" onclick="setTodoFilter('remaining')">Remaining</button>
-                                    <button class="agenda-filter-btn" data-filter="all" onclick="setTodoFilter('all')">All</button>
-                                    <button class="agenda-filter-btn" data-filter="completed" onclick="setTodoFilter('completed')">Completed</button>
+                                    <button class="agenda-filter-btn active" data-filter="remaining" data-action="set-todo-filter">Remaining</button>
+                                    <button class="agenda-filter-btn" data-filter="all" data-action="set-todo-filter">All</button>
+                                    <button class="agenda-filter-btn" data-filter="completed" data-action="set-todo-filter">Completed</button>
                                 </div>
                                 <div class="agenda-widget-content" id="todos-widget-content">
                                     <div class="outline-empty">Loading...</div>
@@ -1345,10 +1345,10 @@
 
                         <!-- Events widget -->
                         <div class="panel-widget" data-widget-id="events" id="widget-events">
-                            <div class="right-panel-section-header widget-header" onclick="toggleWidgetCollapse('events')">
+                            <div class="right-panel-section-header widget-header" data-action="toggle-widget-collapse" data-widget-id="events">
                                 <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
                                 <span class="widget-label">Events</span>
-                                <button class="icon-btn widget-add-btn" onclick="event.stopPropagation(); openAddEventModal()" title="Add event">
+                                <button class="icon-btn widget-add-btn" data-action="open-add-event" title="Add event">
                                     <svg viewBox="0 0 24 24" width="12" height="12"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
                                 </button>
                                 <svg class="widget-chevron" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
@@ -1362,7 +1362,7 @@
 
                         <!-- Quick Settings widget -->
                         <div class="panel-widget" data-widget-id="quick_settings" id="widget-quick_settings">
-                            <div class="right-panel-section-header widget-header" onclick="toggleWidgetCollapse('quick_settings')">
+                            <div class="right-panel-section-header widget-header" data-action="toggle-widget-collapse" data-widget-id="quick_settings">
                                 <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
                                 <span class="widget-label">Quick Settings</span>
                                 <svg class="widget-chevron" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
@@ -1371,27 +1371,27 @@
                                 <div class="quick-settings-content" id="quick-settings-content">
                                     <label class="quick-setting-toggle">
                                         <span>Dark mode</span>
-                                        <input type="checkbox" id="qs-dark-mode" onchange="toggleDarkMode()">
+                                        <input type="checkbox" id="qs-dark-mode" data-action="qs-toggle-dark-mode">
                                         <span class="qs-toggle-slider"></span>
                                     </label>
                                     <label class="quick-setting-toggle">
                                         <span>Preview mode</span>
-                                        <input type="checkbox" id="qs-preview-mode" onchange="toggleMode()">
+                                        <input type="checkbox" id="qs-preview-mode" data-action="qs-toggle-mode">
                                         <span class="qs-toggle-slider"></span>
                                     </label>
                                     <label class="quick-setting-toggle">
                                         <span>Hide title</span>
-                                        <input type="checkbox" id="qs-hide-title" onchange="toggleHideTitle()">
+                                        <input type="checkbox" id="qs-hide-title" data-action="qs-toggle-hide-title">
                                         <span class="qs-toggle-slider"></span>
                                     </label>
                                     <label class="quick-setting-toggle">
                                         <span>Collapse properties</span>
-                                        <input type="checkbox" id="qs-props-collapsed" onchange="togglePropsPanel()">
+                                        <input type="checkbox" id="qs-props-collapsed" data-action="qs-toggle-props-collapsed">
                                         <span class="qs-toggle-slider"></span>
                                     </label>
                                     <label class="quick-setting-toggle">
                                         <span>Auto-save</span>
-                                        <input type="checkbox" id="qs-auto-save" onchange="toggleAutoSave()">
+                                        <input type="checkbox" id="qs-auto-save" data-action="qs-toggle-auto-save">
                                         <span class="qs-toggle-slider"></span>
                                     </label>
                                 </div>
@@ -1406,7 +1406,7 @@
                 <span class="status-item mode-indicator {% if theme_settings and theme_settings.preview_mode %}preview{% else %}editing{% endif %}" id="mode-indicator">{% if theme_settings and theme_settings.preview_mode %}Preview{% else %}Editing{% endif %}</span>
                 <span class="status-spacer"></span>
                 {% if note %}
-                <span class="status-item status-clickable desktop-only" onclick="toggleShortcutsModal()" title="Keyboard shortcuts">Ctrl+/</span>
+                <span class="status-item status-clickable desktop-only" data-action="toggle-shortcuts" title="Keyboard shortcuts">Ctrl+/</span>
                 <span class="status-item" id="word-count">0 words</span>
                 <span class="status-item" id="char-count">{{ (note.content or '') | length }} chars</span>
                 {% endif %}
@@ -1415,11 +1415,11 @@
     </div>
 
     <!-- Search Modal -->
-    <div class="modal-overlay" id="search-overlay" onclick="if(event.target===this)closeSearchModal()">
+    <div class="modal-overlay" id="search-overlay" data-action="close-modal-self" data-modal-close="closeSearchModal">
         <div class="search-modal">
             <div class="search-modal-input-wrapper">
                 <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-                <input type="text" class="search-modal-input" id="search-modal-input" placeholder="Search notes..." oninput="performSearch(this.value)">
+                <input type="text" class="search-modal-input" id="search-modal-input" placeholder="Search notes..." data-action="perform-search">
             </div>
             <div class="search-modal-results" id="search-results"></div>
             <div class="search-modal-footer">
@@ -1431,7 +1431,7 @@
     </div>
 
     <!-- Shortcuts Modal -->
-    <div class="modal-overlay" id="shortcuts-overlay" onclick="if(event.target===this)closeShortcutsModal()">
+    <div class="modal-overlay" id="shortcuts-overlay" data-action="close-modal-self" data-modal-close="closeShortcutsModal">
         <div class="shortcuts-modal">
             <h3>Keyboard Shortcuts</h3>
             <div class="shortcuts-grid">
@@ -1450,11 +1450,11 @@
     </div>
 
     <!-- Template Picker Modal -->
-    <div class="modal-overlay" id="template-overlay" onclick="if(event.target===this)closeTemplatePicker()">
+    <div class="modal-overlay" id="template-overlay" data-action="close-modal-self" data-modal-close="closeTemplatePicker">
         <div class="template-modal">
             <div class="template-modal-header">
                 <span id="template-modal-title">Insert Template</span>
-                <button class="icon-btn" onclick="closeTemplatePicker()">
+                <button class="icon-btn" data-action="close-template-picker">
                     <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                 </button>
             </div>
@@ -1462,36 +1462,36 @@
             <div class="template-modal-footer">
                 <span><kbd>Esc</kbd> Close</span>
                 <div style="display:flex;gap:6px">
-                    <button onclick="saveCurrentAsTemplate()">Save current note as template</button>
-                    <button onclick="openManageTemplates()">Manage</button>
+                    <button data-action="save-current-as-template">Save current note as template</button>
+                    <button data-action="open-manage-templates">Manage</button>
                 </div>
             </div>
         </div>
     </div>
 
     <!-- Manage Templates Modal -->
-    <div class="modal-overlay" id="manage-templates-overlay" onclick="if(event.target===this)closeManageTemplates()">
+    <div class="modal-overlay" id="manage-templates-overlay" data-action="close-modal-self" data-modal-close="closeManageTemplates">
         <div class="template-modal">
             <div class="template-modal-header">
                 <span>Manage Templates</span>
-                <button class="icon-btn" onclick="closeManageTemplates()">
+                <button class="icon-btn" data-action="close-manage-templates">
                     <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                 </button>
             </div>
             <div class="template-modal-body" id="manage-template-list"></div>
             <div class="template-modal-footer">
                 <span>Delete templates or assign them as folder defaults</span>
-                <button onclick="closeManageTemplates()">Done</button>
+                <button data-action="close-manage-templates">Done</button>
             </div>
         </div>
     </div>
 
     <!-- Todo Detail Modal -->
-    <div class="modal-overlay" id="todo-detail-overlay" onclick="if(event.target===this)closeTodoDetailModal()">
+    <div class="modal-overlay" id="todo-detail-overlay" data-action="close-modal-self" data-modal-close="closeTodoDetailModal">
         <div class="agenda-modal">
             <div class="agenda-modal-header">
                 <span id="todo-modal-title">To-do</span>
-                <button class="icon-btn" onclick="closeTodoDetailModal()">
+                <button class="icon-btn" data-action="close-todo-modal">
                     <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                 </button>
             </div>
@@ -1501,20 +1501,20 @@
                 <textarea class="agenda-modal-textarea" id="todo-modal-input-content" placeholder="Notes (optional)" rows="3"></textarea>
             </div>
             <div class="agenda-modal-footer">
-                <button class="agenda-modal-btn danger" id="todo-modal-delete-btn" onclick="deleteFromTodoModal()">Delete</button>
+                <button class="agenda-modal-btn danger" id="todo-modal-delete-btn" data-action="delete-from-todo-modal">Delete</button>
                 <span class="agenda-modal-spacer"></span>
-                <button class="agenda-modal-btn" onclick="closeTodoDetailModal()">Cancel</button>
-                <button class="agenda-modal-btn primary" onclick="saveFromTodoModal()">Save</button>
+                <button class="agenda-modal-btn" data-action="close-todo-modal">Cancel</button>
+                <button class="agenda-modal-btn primary" data-action="save-from-todo-modal">Save</button>
             </div>
         </div>
     </div>
 
     <!-- Event Detail Modal -->
-    <div class="modal-overlay" id="event-detail-overlay" onclick="if(event.target===this)closeEventDetailModal()">
+    <div class="modal-overlay" id="event-detail-overlay" data-action="close-modal-self" data-modal-close="closeEventDetailModal">
         <div class="agenda-modal">
             <div class="agenda-modal-header">
                 <span id="event-modal-title">Event</span>
-                <button class="icon-btn" onclick="closeEventDetailModal()">
+                <button class="icon-btn" data-action="close-event-modal">
                     <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                 </button>
             </div>
@@ -1524,34 +1524,50 @@
                 <textarea class="agenda-modal-textarea" id="event-modal-input-content" placeholder="Notes (optional)" rows="3"></textarea>
             </div>
             <div class="agenda-modal-footer">
-                <button class="agenda-modal-btn danger" id="event-modal-delete-btn" onclick="deleteFromEventModal()">Delete</button>
+                <button class="agenda-modal-btn danger" id="event-modal-delete-btn" data-action="delete-from-event-modal">Delete</button>
                 <span class="agenda-modal-spacer"></span>
-                <button class="agenda-modal-btn" onclick="closeEventDetailModal()">Cancel</button>
-                <button class="agenda-modal-btn primary" onclick="saveFromEventModal()">Save</button>
+                <button class="agenda-modal-btn" data-action="close-event-modal">Cancel</button>
+                <button class="agenda-modal-btn primary" data-action="save-from-event-modal">Save</button>
             </div>
         </div>
     </div>
 
-    <script>
+    <script type="application/json" id="obsidified-page-data">
+    {
+        "noteId": {{ note_id }},
+        "currentCategory": "{% if note %}{{ note.get_category_name() }}{% elif category %}{{ category }}{% else %}Main{% endif %}",
+        "autoSaveEnabled": {% if theme_settings and theme_settings.auto_save %}true{% else %}false{% endif %},
+        "editMode": {% if theme_settings and theme_settings.preview_mode %}false{% else %}true{% endif %},
+        "currentFontSize": {{ font_size or 15 }},
+        "hasNote": {{ 'true' if note else 'false' }},
+        "defaultTemplateContent": {% if default_template %}{{ default_template.content | tojson }}{% else %}null{% endif %},
+        "defaultTemplateProps": {% if default_template %}{{ default_template.properties | default('{}', true) }}{% else %}null{% endif %},
+        "currentNoteIcon": {% if note and note.icon %}"{{ note.icon }}"{% else %}null{% endif %},
+        "currentNoteIconColor": {% if note and note.icon_color %}"{{ note.icon_color }}"{% else %}null{% endif %},
+        "panelWidgets": {{ panel_widgets | tojson }}
+    }
+    </script>
+    <script nonce="{{ csp_nonce() }}">
         // ============ State ============
-        var noteId = {{ note_id }};
-        var currentCategory = "{% if note %}{{ note.get_category_name() }}{% elif category %}{{ category }}{% else %}Main{% endif %}";
+        var _pageData = JSON.parse(document.getElementById('obsidified-page-data').textContent);
+        var noteId = _pageData.noteId;
+        var currentCategory = _pageData.currentCategory;
         var autoSaveTimer = null;
-        var autoSaveEnabled = {% if theme_settings and theme_settings.auto_save %}true{% else %}false{% endif %};
-        var editMode = {% if theme_settings and theme_settings.preview_mode %}false{% else %}true{% endif %};
+        var autoSaveEnabled = _pageData.autoSaveEnabled;
+        var editMode = _pageData.editMode;
         var isDirty = false;
         var isSaving = false;
         var cmEditor = null;
-        var currentFontSize = {{ font_size or 15 }};
+        var currentFontSize = _pageData.currentFontSize;
         var searchTimer = null;
         var searchSelectedIndex = -1;
         var searchResults = [];
         var pinnedNotes = JSON.parse(localStorage.getItem('obsidified-pinned') || '[]');
         var isMobile = window.innerWidth <= 768;
-        var defaultTemplateContent = {% if default_template %}{{ default_template.content | tojson }}{% else %}null{% endif %};
-        var defaultTemplateProps = {% if default_template %}{{ default_template.properties | default('{}', true) }}{% else %}null{% endif %};
-        var currentNoteIcon = {% if note and note.icon %}"{{ note.icon }}"{% else %}null{% endif %};
-        var currentNoteIconColor = {% if note and note.icon_color %}"{{ note.icon_color }}"{% else %}null{% endif %};
+        var defaultTemplateContent = _pageData.defaultTemplateContent;
+        var defaultTemplateProps = _pageData.defaultTemplateProps;
+        var currentNoteIcon = _pageData.currentNoteIcon;
+        var currentNoteIconColor = _pageData.currentNoteIconColor;
 
         function saveUiState(updates) {
             fetch('/api/save_ui_state', {
@@ -1699,7 +1715,7 @@
                             var totalNotes = folderNotes.length;
 
                             html += '<div class="folder collapsed"' + (cat ? ' data-category-id="' + catId + '"' : '') + ' data-path="' + esc(fullPath) + '">';
-                            html += '<div class="folder-header" onclick="toggleFolder(this.parentElement)"' + (cat ? ' draggable="true" ondragstart="onFolderDragStart(event,' + catId + ',\'' + esc(jesc(fullPath)) + '\')"' : '') + ' ondragover="onItemDragOver(event)" ondragleave="onItemDragLeave(event)" ondrop="onItemDrop(event,\'' + esc(jesc(fullPath)) + '\',' + catId + ')">';
+                            html += '<div class="folder-header" data-action="toggle-folder"' + (cat ? ' draggable="true" data-drag-type="folder" data-drag-category-id="' + catId + '" data-drag-path="' + esc(jesc(fullPath)) + '"' : '') + ' data-drop-target="folder" data-drop-path="' + esc(jesc(fullPath)) + '" data-drop-category-id="' + catId + '">';
                             html += '<span class="folder-chevron"><svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg></span>';
                             if (cat && cat.icon) {
                                 var fColor = cat.icon_color ? ' data-icon-color="' + esc(cat.icon_color) + '" style="color:' + esc(cat.icon_color) + '"' : '';
@@ -1710,16 +1726,16 @@
                             html += '<span class="folder-name">' + esc(name) + '</span>';
                             html += '<span class="folder-count">' + totalNotes + '</span>';
                             if (cat) {
-                                html += '<button class="icon-btn folder-newnote-btn" draggable="false" onclick="event.stopPropagation(); createNewNoteInFolder(' + catId + ',\'' + esc(jesc(fullPath)) + '\')" title="New note in ' + esc(name) + '"><svg viewBox="0 0 24 24" width="12" height="12"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="11" x2="12" y2="17"/><line x1="9" y1="14" x2="15" y2="14"/></svg></button>';
+                                html += '<button class="icon-btn folder-newnote-btn" draggable="false" data-action="new-note-in-folder" data-category-id="' + catId + '" data-path="' + esc(jesc(fullPath)) + '" title="New note in ' + esc(name) + '"><svg viewBox="0 0 24 24" width="12" height="12"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="11" x2="12" y2="17"/><line x1="9" y1="14" x2="15" y2="14"/></svg></button>';
                             }
-                            html += '<button class="icon-btn folder-add-btn" draggable="false" onclick="event.stopPropagation(); promptNewFolder(\'' + esc(jesc(fullPath)) + '\')" title="New subfolder"><svg viewBox="0 0 24 24" width="12" height="12"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/><line x1="12" y1="11" x2="12" y2="17"/><line x1="9" y1="14" x2="15" y2="14"/></svg></button>';
+                            html += '<button class="icon-btn folder-add-btn" draggable="false" data-action="new-subfolder" data-path="' + esc(jesc(fullPath)) + '" title="New subfolder"><svg viewBox="0 0 24 24" width="12" height="12"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/><line x1="12" y1="11" x2="12" y2="17"/><line x1="9" y1="14" x2="15" y2="14"/></svg></button>';
                             html += '</div>';
-                            html += '<div class="folder-items" ondragover="onItemDragOver(event)" ondragleave="onItemDragLeave(event)" ondrop="onItemDrop(event,\'' + esc(jesc(fullPath)) + '\',' + catId + ')">';
+                            html += '<div class="folder-items" data-drop-target="folder-items" data-drop-path="' + esc(jesc(fullPath)) + '" data-drop-category-id="' + catId + '">';
                             html += childHtml;
                             folderNotes.forEach(function(n) {
                                 var isActive = n.id === noteId ? ' active' : '';
                                 var title = n.title || 'Untitled';
-                                html += '<div class="file-item' + isActive + '" data-note-id="' + n.id + '" onclick="openNote(' + n.id + ')" draggable="true" ondragstart="onNoteDragStart(event,' + n.id + ')" ondragover="onItemDragOver(event)" ondragleave="onItemDragLeave(event)" ondrop="onItemDrop(event,\'' + esc(jesc(fullPath)) + '\',' + catId + ')">';
+                                html += '<div class="file-item' + isActive + '" data-note-id="' + n.id + '" data-action="open-note" draggable="true" data-drag-type="note" data-drag-id="' + n.id + '" data-drop-target="file-item" data-drop-path="' + esc(jesc(fullPath)) + '" data-drop-category-id="' + catId + '">';
                                 var noteIcon = n.icon || (cat ? cat.default_note_icon : null);
                                 var noteIconColor = n.icon ? n.icon_color : (cat ? cat.default_note_icon_color : null);
                                 if (noteIcon) {
@@ -1729,8 +1745,8 @@
                                     html += '<span class="file-icon"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></span>';
                                 }
                                 html += '<span class="file-name">' + esc(title) + '</span>';
-                                html += '<button class="icon-btn delete-btn" draggable="false" onclick="event.stopPropagation(); deleteSidebarNote(' + n.id + ',\'' + esc(jesc(title)) + '\')" title="Delete note"><svg viewBox="0 0 24 24" width="12" height="12"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>';
-                                html += '<button class="icon-btn pin-btn" draggable="false" data-note-id="' + n.id + '" onclick="event.stopPropagation(); togglePin(' + n.id + ')" title="Pin note"><svg viewBox="0 0 24 24" width="12" height="12"><path d="M12 2L15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26z"/></svg></button>';
+                                html += '<button class="icon-btn delete-btn" draggable="false" data-action="delete-sidebar-note" data-note-id="' + n.id + '" data-note-title="' + esc(jesc(title)) + '" title="Delete note"><svg viewBox="0 0 24 24" width="12" height="12"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>';
+                                html += '<button class="icon-btn pin-btn" draggable="false" data-note-id="' + n.id + '" data-action="toggle-pin" title="Pin note"><svg viewBox="0 0 24 24" width="12" height="12"><path d="M12 2L15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26z"/></svg></button>';
                                 html += '</div>';
                             });
                             html += '</div></div>';
@@ -1916,9 +1932,9 @@
                         var row = document.createElement('div');
                         row.className = 'prop-row';
                         row.setAttribute('data-prop-key', key);
-                        row.innerHTML = '<div class="prop-key"><input type="text" class="prop-value-input" value="" style="font-size:12px;font-weight:500;color:var(--text-muted)" onchange="onPropChanged()"></div>' +
-                            '<div class="prop-value"><input type="text" class="prop-value-input" value="" onchange="onPropChanged()"></div>' +
-                            '<button class="prop-remove-btn" onclick="removeProp(this)" title="Remove property"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>';
+                        row.innerHTML = '<div class="prop-key"><input type="text" class="prop-value-input" value="" style="font-size:12px;font-weight:500;color:var(--text-muted)" data-action="prop-changed"></div>' +
+                            '<div class="prop-value"><input type="text" class="prop-value-input" value="" data-action="prop-changed"></div>' +
+                            '<button class="prop-remove-btn" data-action="remove-prop" title="Remove property"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>';
                         row.querySelector('.prop-key .prop-value-input').value = key;
                         row.querySelector('.prop-value .prop-value-input').value = val || '';
                         propsBody.insertBefore(row, addBtn);
@@ -2315,7 +2331,7 @@
         var outboundLinksTimer = null;
         var outlineUpdateTimer = null;
 
-        var hasBeenSavedOnce = {{ 'true' if note else 'false' }};
+        var hasBeenSavedOnce = _pageData.hasNote;
 
         function updateMobileSaveBtn(state) {
             var btn = document.getElementById('mobile-save-btn');
@@ -2358,7 +2374,7 @@
                     if (data.length === 0) { list.innerHTML = '<li class="backlinks-empty">No outbound links</li>'; return; }
                     var html = '';
                     data.forEach(function(n) {
-                        html += '<li><a href="/note/' + n.id + '" onclick="event.preventDefault(); openNote(' + n.id + ')">' + escapeHtml(n.title || 'Untitled') + '</a></li>';
+                        html += '<li><a href="/note/' + n.id + '" data-action="open-note-link" data-note-id="' + n.id + '">' + escapeHtml(n.title || 'Untitled') + '</a></li>';
                     });
                     list.innerHTML = html;
                 } catch(e) { list.innerHTML = '<li class="backlinks-empty">No outbound links</li>'; }
@@ -2385,7 +2401,7 @@
                     var key = title.toLowerCase();
                     var found = wikiNoteList.find(function(n) { return n.title.toLowerCase() === key; });
                     if (found) {
-                        html += '<li><a href="/note/' + found.id + '" onclick="event.preventDefault(); openNote(' + found.id + ')">' + escapeHtml(found.title || 'Untitled') + '</a></li>';
+                        html += '<li><a href="/note/' + found.id + '" data-action="open-note-link" data-note-id="' + found.id + '">' + escapeHtml(found.title || 'Untitled') + '</a></li>';
                     } else {
                         html += '<li><span class="backlinks-empty outbound-missing">' + escapeHtml(title) + '</span></li>';
                     }
@@ -2512,7 +2528,7 @@
                 var div = document.createElement('div');
                 div.className = 'file-item active';
                 div.setAttribute('data-note-id', note.id);
-                div.setAttribute('onclick', 'openNote(' + note.id + ')');
+                div.setAttribute('data-action', 'open-note');
                 div.innerHTML = '<span class="file-icon"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></span><span class="file-name">' + escapeHtml(note.title || 'Untitled') + '</span>';
                 items.appendChild(div);
                 targetFolder.classList.remove('collapsed');
@@ -2727,7 +2743,8 @@
         }
 
         function onItemDrop(e, targetPath, targetCatId) {
-            e.currentTarget.classList.remove('drag-over');
+            var dropEl = e.target.closest ? e.target.closest('[data-drop-target]') : null;
+            if (dropEl) dropEl.classList.remove('drag-over');
             if (!dragType) return;
 
             // Let self-drops propagate so a valid ancestor can handle them
@@ -2972,25 +2989,25 @@
             ctxTarget = target;
             var html = '';
             if (target.type === 'note') {
-                html += '<div class="context-menu-item" onclick="ctxRenameNote()"><svg viewBox="0 0 24 24"><path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>Rename</div>';
-                html += '<div class="context-menu-item" onclick="ctxMoveNote()"><svg viewBox="0 0 24 24"><polyline points="5 9 2 12 5 15"/><polyline points="19 9 22 12 19 15"/><line x1="2" y1="12" x2="22" y2="12"/></svg>Move to folder</div>';
-                html += '<div class="context-menu-item" onclick="ctxPinNote()"><svg viewBox="0 0 24 24"><path d="M12 2L15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26z"/></svg>' + (pinnedNotes.indexOf(target.id) > -1 ? 'Unpin' : 'Pin') + '</div>';
-                html += '<div class="context-menu-item" onclick="ctxSetNoteIcon()"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>Set icon</div>';
-                html += '<div class="context-menu-item" onclick="ctxSaveAsTemplate()"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="11" x2="12" y2="17"/><line x1="9" y1="14" x2="15" y2="14"/></svg>Save as template</div>';
+                html += '<div class="context-menu-item" data-action="ctx-rename-note"><svg viewBox="0 0 24 24"><path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>Rename</div>';
+                html += '<div class="context-menu-item" data-action="ctx-move-note"><svg viewBox="0 0 24 24"><polyline points="5 9 2 12 5 15"/><polyline points="19 9 22 12 19 15"/><line x1="2" y1="12" x2="22" y2="12"/></svg>Move to folder</div>';
+                html += '<div class="context-menu-item" data-action="ctx-pin-note"><svg viewBox="0 0 24 24"><path d="M12 2L15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26z"/></svg>' + (pinnedNotes.indexOf(target.id) > -1 ? 'Unpin' : 'Pin') + '</div>';
+                html += '<div class="context-menu-item" data-action="ctx-set-note-icon"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>Set icon</div>';
+                html += '<div class="context-menu-item" data-action="ctx-save-as-template"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="11" x2="12" y2="17"/><line x1="9" y1="14" x2="15" y2="14"/></svg>Save as template</div>';
                 html += '<div class="context-menu-sep"></div>';
-                html += '<div class="context-menu-item danger" onclick="ctxDeleteNote()"><svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>Delete</div>';
+                html += '<div class="context-menu-item danger" data-action="ctx-delete-note"><svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>Delete</div>';
             } else {
-                html += '<div class="context-menu-item" onclick="ctxRenameFolder()"><svg viewBox="0 0 24 24"><path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>Rename</div>';
-                html += '<div class="context-menu-item" onclick="ctxMoveFolder()"><svg viewBox="0 0 24 24"><polyline points="5 9 2 12 5 15"/><polyline points="19 9 22 12 19 15"/><line x1="2" y1="12" x2="22" y2="12"/></svg>Move</div>';
-                html += '<div class="context-menu-item" onclick="ctxNewNoteInFolder()"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="11" x2="12" y2="17"/><line x1="9" y1="14" x2="15" y2="14"/></svg>New note here</div>';
-                html += '<div class="context-menu-item" onclick="ctxNewSubfolder()"><svg viewBox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/><line x1="12" y1="11" x2="12" y2="17"/><line x1="9" y1="14" x2="15" y2="14"/></svg>New subfolder</div>';
+                html += '<div class="context-menu-item" data-action="ctx-rename-folder"><svg viewBox="0 0 24 24"><path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>Rename</div>';
+                html += '<div class="context-menu-item" data-action="ctx-move-folder"><svg viewBox="0 0 24 24"><polyline points="5 9 2 12 5 15"/><polyline points="19 9 22 12 19 15"/><line x1="2" y1="12" x2="22" y2="12"/></svg>Move</div>';
+                html += '<div class="context-menu-item" data-action="ctx-new-note-in-folder"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="11" x2="12" y2="17"/><line x1="9" y1="14" x2="15" y2="14"/></svg>New note here</div>';
+                html += '<div class="context-menu-item" data-action="ctx-new-subfolder"><svg viewBox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/><line x1="12" y1="11" x2="12" y2="17"/><line x1="9" y1="14" x2="15" y2="14"/></svg>New subfolder</div>';
                 html += '<div class="context-menu-sep"></div>';
-                html += '<div class="context-menu-item" onclick="ctxNewFromTemplate()"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="11" x2="12" y2="17"/><line x1="9" y1="14" x2="15" y2="14"/></svg>New from template</div>';
-                html += '<div class="context-menu-item" onclick="ctxSetDefaultTemplate()"><svg viewBox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/><path d="M12 11v6"/><path d="M9 14h6"/></svg>Set default template</div>';
-                html += '<div class="context-menu-item" onclick="ctxSetFolderIcon()"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>Set folder icon</div>';
-                html += '<div class="context-menu-item" onclick="ctxSetDefaultNoteIcon()"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><circle cx="12" cy="14" r="2"/></svg>Set default note icon</div>';
+                html += '<div class="context-menu-item" data-action="ctx-new-from-template"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="11" x2="12" y2="17"/><line x1="9" y1="14" x2="15" y2="14"/></svg>New from template</div>';
+                html += '<div class="context-menu-item" data-action="ctx-set-default-template"><svg viewBox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/><path d="M12 11v6"/><path d="M9 14h6"/></svg>Set default template</div>';
+                html += '<div class="context-menu-item" data-action="ctx-set-folder-icon"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>Set folder icon</div>';
+                html += '<div class="context-menu-item" data-action="ctx-set-default-note-icon"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><circle cx="12" cy="14" r="2"/></svg>Set default note icon</div>';
                 html += '<div class="context-menu-sep"></div>';
-                html += '<div class="context-menu-item danger" onclick="ctxDeleteFolder()"><svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>Delete</div>';
+                html += '<div class="context-menu-item danger" data-action="ctx-delete-folder"><svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>Delete</div>';
             }
             ctxMenu.innerHTML = html;
             ctxMenu.classList.add('visible');
@@ -3325,7 +3342,7 @@
 
         // ============ Panel Widgets ============
 
-        var panelWidgets = {{ panel_widgets | tojson }};
+        var panelWidgets = _pageData.panelWidgets;
 
         function applyWidgetLayout() {
             var container = document.getElementById('right-panel-widgets');
@@ -3359,7 +3376,7 @@
                 item.innerHTML =
                     '<span class="widget-config-drag-handle"><svg viewBox="0 0 24 24"><line x1="8" y1="6" x2="8" y2="6.01"/><line x1="16" y1="6" x2="16" y2="6.01"/><line x1="8" y1="12" x2="8" y2="12.01"/><line x1="16" y1="12" x2="16" y2="12.01"/><line x1="8" y1="18" x2="8" y2="18.01"/><line x1="16" y1="18" x2="16" y2="18.01"/></svg></span>' +
                     '<span class="widget-config-label">' + escapeHtml(w.label) + '</span>' +
-                    '<label class="widget-config-toggle"><input type="checkbox" ' + (w.visible ? 'checked' : '') + ' onchange="toggleWidgetVisibility(' + idx + ', this.checked)"><span class="wc-slider"></span></label>';
+                    '<label class="widget-config-toggle"><input type="checkbox" ' + (w.visible ? 'checked' : '') + ' data-action="toggle-widget-visibility" data-widget-idx="' + idx + '"><span class="wc-slider"></span></label>';
 
                 // Drag events
                 item.addEventListener('dragstart', function(e) {
@@ -3523,8 +3540,8 @@
                 var checkedClass = t.completed ? ' checked' : '';
                 var itemClass = t.completed ? ' completed' : '';
                 var dateStr = t.time_until_due || '';
-                html += '<div class="agenda-widget-item' + itemClass + '" onclick="openTodoDetail(' + t.id + ')">' +
-                    '<button class="agenda-todo-check' + checkedClass + '" onclick="event.stopPropagation(); completeTodoWidget(' + t.id + ')" title="' + (t.completed ? 'Completed' : 'Complete') + '">' +
+                html += '<div class="agenda-widget-item' + itemClass + '" data-action="open-todo-detail" data-todo-id="' + t.id + '">' +
+                    '<button class="agenda-todo-check' + checkedClass + '" data-action="complete-todo-widget" data-todo-id="' + t.id + '" title="' + (t.completed ? 'Completed' : 'Complete') + '">' +
                     '<svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></button>' +
                     '<span class="agenda-item-title">' + escapeHtml(t.title || 'Untitled') + '</span>' +
                     '<span class="agenda-item-date">' + escapeHtml(dateStr) + '</span></div>';
@@ -3582,7 +3599,7 @@
             }
             var html = '';
             cachedEvents.forEach(function(e) {
-                html += '<div class="agenda-widget-item" onclick="openEventDetail(' + e.id + ')">' +
+                html += '<div class="agenda-widget-item" data-action="open-event-detail" data-event-id="' + e.id + '">' +
                     '<span class="agenda-dot event-dot"></span>' +
                     '<span class="agenda-item-title">' + escapeHtml(e.title || 'Untitled') + '</span>' +
                     '<span class="agenda-item-date">' + escapeHtml(e.time_until_event || '') + '</span></div>';
@@ -3879,7 +3896,7 @@
 
             var html = '';
             headings.forEach(function(h, i) {
-                html += '<li class="h' + h.level + '"><a href="#" onclick="scrollToHeading(' + i + '); return false;">' + escapeHtml(h.text) + '</a></li>';
+                html += '<li class="h' + h.level + '"><a href="#" data-action="scroll-to-heading" data-heading-index="' + i + '">' + escapeHtml(h.text) + '</a></li>';
             });
             list.innerHTML = html;
         }
@@ -3938,7 +3955,7 @@
                     var data = await FlaskySearch.computeBacklinks(noteTitle);
                     if (data.length === 0) { list.innerHTML = '<li class="backlinks-empty">No backlinks</li>'; return; }
                     var html = '';
-                    data.forEach(function(n) { html += '<li><a href="/note/' + n.id + '" onclick="event.preventDefault(); openNote(' + n.id + ')">' + escapeHtml(n.title || 'Untitled') + '</a></li>'; });
+                    data.forEach(function(n) { html += '<li><a href="/note/' + n.id + '" data-action="open-note-link" data-note-id="' + n.id + '">' + escapeHtml(n.title || 'Untitled') + '</a></li>'; });
                     list.innerHTML = html;
                 } catch(e) { list.innerHTML = '<li class="backlinks-empty">Failed to load</li>'; }
                 return;
@@ -3948,7 +3965,7 @@
             .then(function(data) {
                 if (data.length === 0) { list.innerHTML = '<li class="backlinks-empty">No backlinks</li>'; return; }
                 var html = '';
-                data.forEach(function(n) { html += '<li><a href="/note/' + n.id + '" onclick="event.preventDefault(); openNote(' + n.id + ')">' + escapeHtml(n.title || 'Untitled') + '</a></li>'; });
+                data.forEach(function(n) { html += '<li><a href="/note/' + n.id + '" data-action="open-note-link" data-note-id="' + n.id + '">' + escapeHtml(n.title || 'Untitled') + '</a></li>'; });
                 list.innerHTML = html;
             })
             .catch(function() { list.innerHTML = '<li class="backlinks-empty">Failed to load</li>'; });
@@ -4002,7 +4019,7 @@
             if (searchResults.length === 0) { container.innerHTML = '<div style="padding:16px;text-align:center;color:var(--text-muted);font-size:13px">No results</div>'; return; }
             var html = '';
             searchResults.forEach(function(note, i) {
-                html += '<div class="search-result-item' + (i === searchSelectedIndex ? ' selected' : '') + '" onclick="closeSearchModal(); openNote(' + note.id + ')" onmouseenter="searchSelectedIndex=' + i + ';renderSearchResults()">';
+                html += '<div class="search-result-item' + (i === searchSelectedIndex ? ' selected' : '') + '" data-action="search-result-click" data-note-id="' + note.id + '" data-result-index="' + i + '">';
                 html += '<div class="search-result-title">' + escapeHtml(note.title || 'Untitled') + '</div>';
                 html += '<div class="search-result-category">' + escapeHtml(note.category || 'Main') + '</div></div>';
             });
@@ -4042,9 +4059,9 @@
             var addBtn = body.querySelector('.prop-add-row');
             var row = document.createElement('div');
             row.className = 'prop-row';
-            row.innerHTML = '<div class="prop-key"><input type="text" class="prop-value-input" placeholder="key" style="font-size:12px;font-weight:500;color:var(--text-muted)" onchange="onPropChanged()"></div>' +
-                '<div class="prop-value"><input type="text" class="prop-value-input" placeholder="value" onchange="onPropChanged()"></div>' +
-                '<button class="prop-remove-btn" onclick="removeProp(this)" title="Remove property"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>';
+            row.innerHTML = '<div class="prop-key"><input type="text" class="prop-value-input" placeholder="key" style="font-size:12px;font-weight:500;color:var(--text-muted)" data-action="prop-changed"></div>' +
+                '<div class="prop-value"><input type="text" class="prop-value-input" placeholder="value" data-action="prop-changed"></div>' +
+                '<button class="prop-remove-btn" data-action="remove-prop" title="Remove property"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>';
             body.insertBefore(row, addBtn);
 
             // Expand the container if collapsed
@@ -4575,7 +4592,7 @@
                 }
                 var html = '';
                 data.forEach(function(t, i) {
-                    html += '<div class="template-item" onclick="applyTemplate(' + t.id + ')">';
+                    html += '<div class="template-item" data-action="apply-template" data-template-id="' + t.id + '">';
                     html += '<span class="template-item-name">' + t.name.replace(/</g, '&lt;') + '</span>';
                     html += '</div>';
                 });
@@ -4646,8 +4663,8 @@
                     row.className = 'prop-row';
                     row.setAttribute('data-prop-key', key);
                     row.innerHTML = '<div class="prop-key">' + key.replace(/</g, '&lt;') + '</div>' +
-                        '<div class="prop-value"><input type="text" class="prop-value-input" value="' + String(val).replace(/"/g, '&quot;') + '" onchange="onPropChanged()"></div>' +
-                        '<button class="prop-remove-btn" onclick="removeProp(this)" title="Remove property"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>';
+                        '<div class="prop-value"><input type="text" class="prop-value-input" value="' + String(val).replace(/"/g, '&quot;') + '" data-action="prop-changed"></div>' +
+                        '<button class="prop-remove-btn" data-action="remove-prop" title="Remove property"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>';
                     body.insertBefore(row, addBtn);
                 });
                 // Expand props panel
@@ -4922,7 +4939,7 @@
                                         var row = document.createElement('div');
                                         row.className = 'prop-row';
                                         row.setAttribute('data-prop-key', key);
-                                        row.innerHTML = '<div class="prop-key"><input type="text" class="prop-value-input" value="" style="font-size:12px;font-weight:500;color:var(--text-muted)" onchange="onPropChanged()"></div><div class="prop-value"><input type="text" class="prop-value-input" value="" onchange="onPropChanged()"></div><button class="prop-remove-btn" onclick="removeProp(this)" title="Remove property"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>';
+                                        row.innerHTML = '<div class="prop-key"><input type="text" class="prop-value-input" value="" style="font-size:12px;font-weight:500;color:var(--text-muted)" data-action="prop-changed"></div><div class="prop-value"><input type="text" class="prop-value-input" value="" data-action="prop-changed"></div><button class="prop-remove-btn" data-action="remove-prop" title="Remove property"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>';
                                         row.querySelector('.prop-key .prop-value-input').value = key;
                                         row.querySelector('.prop-value .prop-value-input').value = val || '';
                                         if (addBtn) propsBody.insertBefore(row, addBtn);
@@ -4950,6 +4967,273 @@
                 });
             }
         })();
+
+        // ============ Event Delegation ============
+
+        function _findAction(el) {
+            while (el && el !== document.body) {
+                if (el.dataset && el.dataset.action) return el;
+                el = el.parentElement;
+            }
+            return null;
+        }
+
+        // Click delegation
+        document.addEventListener('click', function(e) {
+            var el = _findAction(e.target);
+            if (!el) return;
+            var action = el.dataset.action;
+
+            // Actions that need stopPropagation (sidebar buttons inside other clickable elements)
+            var stopPropActions = {
+                'new-note-in-folder':1,'move-folder':1,'new-subfolder':1,'delete-folder':1,
+                'delete-sidebar-note':1,'toggle-pin':1,'open-add-todo':1,'open-add-event':1,
+                'complete-todo-widget':1
+            };
+            if (stopPropActions[action]) e.stopPropagation();
+
+            switch (action) {
+                case 'close-sidebar': closeSidebar(); break;
+                case 'new-folder': promptNewFolder(); break;
+                case 'create-new-note': createNewNote(); break;
+                case 'toggle-sidebar': toggleSidebar(); break;
+                case 'toggle-mode': toggleMode(); break;
+                case 'open-search': openSearchModal(); break;
+                case 'toggle-right-panel': toggleRightPanel(); break;
+                case 'toggle-dark-mode': toggleDarkMode(); break;
+                case 'toggle-shortcuts': toggleShortcutsModal(); break;
+                case 'delete-current-note': deleteCurrentNote(); break;
+                case 'open-note-icon-picker': openNoteIconPicker(); break;
+                case 'toggle-props-panel': togglePropsPanel(); break;
+                case 'add-prop-row': addPropRow(); break;
+                case 'remove-prop': removeProp(el); break;
+                case 'toggle-widget-config': toggleWidgetConfig(); break;
+                case 'save-note': saveNote(); break;
+                case 'change-font-size': changeFontSize(parseInt(el.dataset.delta)); break;
+                case 'toggle-widget-collapse': toggleWidgetCollapse(el.dataset.widgetId); break;
+                case 'open-add-todo': openAddTodoModal(); break;
+                case 'open-add-event': openAddEventModal(); break;
+                case 'set-todo-filter': setTodoFilter(el.dataset.filter); break;
+                case 'toggle-folder':
+                    var folder = el.closest('.folder');
+                    if (folder) toggleFolder(folder);
+                    break;
+                case 'open-note':
+                    var noteEl = el.closest('[data-note-id]');
+                    if (noteEl) openNote(parseInt(noteEl.dataset.noteId));
+                    break;
+                case 'open-note-link':
+                    e.preventDefault();
+                    openNote(parseInt(el.dataset.noteId));
+                    break;
+                case 'new-note-in-folder':
+                    createNewNoteInFolder(parseInt(el.dataset.categoryId), el.dataset.path);
+                    break;
+                case 'move-folder':
+                    promptMoveFolder(parseInt(el.dataset.categoryId), el.dataset.path);
+                    break;
+                case 'new-subfolder':
+                    promptNewFolder(el.dataset.path);
+                    break;
+                case 'delete-folder':
+                    deleteFolder(parseInt(el.dataset.categoryId), el.dataset.path);
+                    break;
+                case 'delete-sidebar-note':
+                    deleteSidebarNote(parseInt(el.dataset.noteId), el.dataset.noteTitle);
+                    break;
+                case 'toggle-pin':
+                    togglePin(parseInt(el.dataset.noteId));
+                    break;
+                case 'open-todo-detail':
+                    openTodoDetail(parseInt(el.dataset.todoId));
+                    break;
+                case 'complete-todo-widget':
+                    completeTodoWidget(parseInt(el.dataset.todoId));
+                    break;
+                case 'open-event-detail':
+                    openEventDetail(parseInt(el.dataset.eventId));
+                    break;
+                case 'scroll-to-heading':
+                    e.preventDefault();
+                    scrollToHeading(parseInt(el.dataset.headingIndex));
+                    break;
+                case 'search-result-click':
+                    closeSearchModal();
+                    openNote(parseInt(el.dataset.noteId));
+                    break;
+                case 'apply-template':
+                    applyTemplate(parseInt(el.dataset.templateId));
+                    break;
+                case 'close-template-picker': closeTemplatePicker(); break;
+                case 'save-current-as-template': saveCurrentAsTemplate(); break;
+                case 'open-manage-templates': openManageTemplates(); break;
+                case 'close-manage-templates': closeManageTemplates(); break;
+                case 'close-todo-modal': closeTodoDetailModal(); break;
+                case 'delete-from-todo-modal': deleteFromTodoModal(); break;
+                case 'save-from-todo-modal': saveFromTodoModal(); break;
+                case 'close-event-modal': closeEventDetailModal(); break;
+                case 'delete-from-event-modal': deleteFromEventModal(); break;
+                case 'save-from-event-modal': saveFromEventModal(); break;
+                case 'close-modal-self':
+                    if (e.target === el) {
+                        var closeFn = el.dataset.modalClose;
+                        if (closeFn && typeof window[closeFn] === 'function') window[closeFn]();
+                    }
+                    break;
+                // Context menu actions
+                case 'ctx-rename-note': ctxRenameNote(); break;
+                case 'ctx-move-note': ctxMoveNote(); break;
+                case 'ctx-pin-note': ctxPinNote(); break;
+                case 'ctx-set-note-icon': ctxSetNoteIcon(); break;
+                case 'ctx-save-as-template': ctxSaveAsTemplate(); break;
+                case 'ctx-delete-note': ctxDeleteNote(); break;
+                case 'ctx-rename-folder': ctxRenameFolder(); break;
+                case 'ctx-move-folder': ctxMoveFolder(); break;
+                case 'ctx-new-note-in-folder': ctxNewNoteInFolder(); break;
+                case 'ctx-new-subfolder': ctxNewSubfolder(); break;
+                case 'ctx-new-from-template': ctxNewFromTemplate(); break;
+                case 'ctx-set-default-template': ctxSetDefaultTemplate(); break;
+                case 'ctx-set-folder-icon': ctxSetFolderIcon(); break;
+                case 'ctx-set-default-note-icon': ctxSetDefaultNoteIcon(); break;
+                case 'ctx-delete-folder': ctxDeleteFolder(); break;
+            }
+        });
+
+        // Change delegation
+        document.addEventListener('change', function(e) {
+            var el = _findAction(e.target);
+            if (!el) return;
+            var action = el.dataset.action;
+            switch (action) {
+                case 'change-category': changeNoteCategory(el.value); break;
+                case 'prop-changed': onPropChanged(); break;
+                case 'toggle-widget-visibility':
+                    toggleWidgetVisibility(parseInt(el.dataset.widgetIdx), el.checked);
+                    break;
+                case 'qs-toggle-dark-mode': toggleDarkMode(); break;
+                case 'qs-toggle-mode': toggleMode(); break;
+                case 'qs-toggle-hide-title': toggleHideTitle(); break;
+                case 'qs-toggle-props-collapsed': togglePropsPanel(); break;
+                case 'qs-toggle-auto-save': toggleAutoSave(); break;
+            }
+        });
+
+        // Input delegation
+        document.addEventListener('input', function(e) {
+            var el = _findAction(e.target);
+            if (!el) return;
+            var action = el.dataset.action;
+            switch (action) {
+                case 'filter-notes': filterNotes(el.value); break;
+                case 'perform-search': performSearch(el.value); break;
+            }
+        });
+
+        // Mouseenter delegation for search results (capture phase since mouseenter doesn't bubble)
+        document.addEventListener('mouseenter', function(e) {
+            if (!e.target || !e.target.closest) return;
+            var el = e.target.closest('[data-action="search-result-click"]');
+            if (el) {
+                searchSelectedIndex = parseInt(el.dataset.resultIndex);
+                renderSearchResults();
+            }
+        }, true);
+
+        // Drag event delegation
+        document.addEventListener('dragstart', function(e) {
+            var el = e.target.closest('[data-drag-type]');
+            if (!el) return;
+            var type = el.dataset.dragType;
+            if (type === 'note') {
+                e.stopPropagation();
+                dragType = 'note';
+                dragNoteId = parseInt(el.dataset.dragId);
+                e.dataTransfer.effectAllowed = 'move';
+                e.dataTransfer.setData('text/plain', 'note:' + dragNoteId);
+                el.closest('.file-item').classList.add('dragging');
+            } else if (type === 'folder') {
+                dragType = 'folder';
+                dragFolderId = parseInt(el.dataset.dragCategoryId);
+                dragFolderPath = el.dataset.dragPath;
+                e.dataTransfer.effectAllowed = 'move';
+                e.dataTransfer.setData('text/plain', 'folder:' + dragFolderId);
+                el.closest('.folder').classList.add('dragging');
+                if (dragFolderPath.indexOf('/') !== -1) {
+                    document.getElementById('root-drop-zone').classList.add('visible');
+                }
+            }
+        });
+
+        document.addEventListener('dragover', function(e) {
+            var el = e.target.closest('[data-drop-target]');
+            if (!el || !dragType) return;
+            var dropType = el.dataset.dropTarget;
+            if (dropType === 'root') {
+                if (dragType !== 'folder') return;
+                e.preventDefault();
+                e.dataTransfer.dropEffect = 'move';
+                el.classList.add('drag-over');
+                return;
+            }
+            // folder / folder-items / file-item
+            var folder = el.closest('.folder');
+            if (dragType === 'folder' && folder) {
+                var targetPath = folder.dataset.path;
+                if (targetPath === dragFolderPath || targetPath.startsWith(dragFolderPath + '/')) return;
+            }
+            e.stopPropagation();
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+            el.classList.add('drag-over');
+            if (folder && folder.classList.contains('collapsed')) {
+                clearTimeout(dragExpandTimer);
+                dragExpandTimer = setTimeout(function() { folder.classList.remove('collapsed'); }, 600);
+            }
+        });
+
+        document.addEventListener('dragleave', function(e) {
+            var el = e.target.closest('[data-drop-target]');
+            if (!el) return;
+            var dropType = el.dataset.dropTarget;
+            if (dropType === 'root') {
+                el.classList.remove('drag-over');
+                return;
+            }
+            e.stopPropagation();
+            if (e.relatedTarget && el.contains(e.relatedTarget)) return;
+            el.classList.remove('drag-over');
+            clearTimeout(dragExpandTimer);
+        });
+
+        document.addEventListener('drop', function(e) {
+            var el = e.target.closest('[data-drop-target]');
+            if (!el || !dragType) return;
+            el.classList.remove('drag-over');
+            var dropType = el.dataset.dropTarget;
+            if (dropType === 'root') {
+                e.preventDefault();
+                el.classList.remove('drag-over');
+                if (dragType !== 'folder') return;
+                var fid = dragFolderId;
+                var fpath = dragFolderPath;
+                dragType = null;
+                moveCategoryRequest(fid, fpath, '').then(function(data) {
+                    if (data.success) refreshSidebar();
+                    else if (data.reason) alert(data.reason);
+                });
+                return;
+            }
+            var targetPath = el.dataset.dropPath;
+            var targetCatId = el.dataset.dropCategoryId ? parseInt(el.dataset.dropCategoryId) : null;
+            // Check self-drops for folders
+            if (dragType === 'folder') {
+                if (targetPath === dragFolderPath) return;
+                if (targetPath.startsWith(dragFolderPath + '/')) return;
+            }
+            e.preventDefault();
+            e.stopPropagation();
+            onItemDrop(e, targetPath, targetCatId);
+        });
     </script>
 </body>
 </html>
