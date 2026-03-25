@@ -103,6 +103,8 @@ Flasky Notes has been tested primarily on Ubuntu using a Firefox browser, but sh
 
 Flasky Notes is an open source project from Mehonal, licensed under [MIT](https://opensource.org/licenses/MIT) license. Mehonal reserves the right to change the license of future releases of Flasky Notes.
 
+Third-party library licenses can be found in [`static/vendor/LICENSES.md`](static/vendor/LICENSES.md).
+
 # Built With
 
 Flasky Notes was built with the contributions of other projects and technologies, including:
