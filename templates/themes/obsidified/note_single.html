@@ -20,14 +20,14 @@
     {% endif %}
 
     <!-- Markdown preview -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/2.0.3/marked.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.6/purify.min.js"></script>
+    <script src="{{ url_for('static', filename='vendor/marked/marked.min.js') }}"></script>
+    <script src="{{ url_for('static', filename='vendor/dompurify/purify.min.js') }}"></script>
     <script src="{{ url_for('static', filename='js/sanitize.js') }}"></script>
     <script src="{{ url_for('static', filename='js/wikilinks.js') }}"></script>
     <script src="{{ url_for('static', filename='js/icon-picker.js') }}"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css" id="hljs-dark">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css" id="hljs-light" disabled>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='vendor/hljs/styles/github-dark.min.css') }}" id="hljs-dark">
+    <link rel="stylesheet" href="{{ url_for('static', filename='vendor/hljs/styles/github.min.css') }}" id="hljs-light" disabled>
+    <script src="{{ url_for('static', filename='vendor/hljs/highlight.min.js') }}"></script>
 
     <style>
         /* ============ Variables ============ */

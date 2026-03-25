@@ -102,3 +102,23 @@ Flasky Notes has been tested primarily on Ubuntu using a Firefox browser, but sh
 # License
 
 Flasky Notes is an open source project from Mehonal, licensed under [MIT](https://opensource.org/licenses/MIT) license. Mehonal reserves the right to change the license of future releases of Flasky Notes.
+
+# Built With
+
+Flasky Notes was built with the contributions of other projects and technologies, including:
+
+- [Python](https://www.python.org/) & [Flask](https://flask.palletsprojects.com/) — Backend framework
+- [SQLite](https://www.sqlite.org/) & [SQLAlchemy](https://www.sqlalchemy.org/) — Database and ORM
+- [Alembic](https://alembic.sqlalchemy.org/) — Database migrations
+- [Flask-Talisman](https://github.com/GoogleCloudPlatform/flask-talisman) — Security headers
+- [bcrypt](https://github.com/pyca/bcrypt) — Password hashing
+- [PyYAML](https://pyyaml.org/) — Frontmatter parsing
+- [Gunicorn](https://gunicorn.org/) — Production server
+- [Bootstrap](https://getbootstrap.com/) — CSS framework
+- [CodeMirror 6](https://codemirror.net/) — Text editor
+- [marked.js](https://marked.js.org/) — Markdown rendering
+- [highlight.js](https://highlightjs.org/) — Syntax highlighting
+- [DOMPurify](https://github.com/cure53/DOMPurify) — HTML sanitization
+- [Docker](https://www.docker.com/) — Containerization
+- [esbuild](https://esbuild.github.io/) — JS bundling
+- [cryptography](https://cryptography.io/) — E2EE in the sync client

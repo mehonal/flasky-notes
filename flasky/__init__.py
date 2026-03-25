@@ -52,16 +52,18 @@ def create_app():
 
     # Security headers via Talisman
     csp = {
-        'default-src': "'self'",
-        'script-src': ["'self'", "'unsafe-inline'", "https://cdnjs.cloudflare.com", "https://cdn.jsdelivr.net"],
-        'style-src': ["'self'", "'unsafe-inline'", "https://cdnjs.cloudflare.com", "https://cdn.jsdelivr.net"],
-        'img-src': ["'self'", "data:"],
+        'default-src': "'none'",
+        'script-src': ["'self'", "'unsafe-inline'"],
+        'style-src': ["'self'", "'unsafe-inline'"],
+        'img-src': ["'self'", "data:", "blob:"],
         'font-src': "'self'",
-        'connect-src': ["'self'", "https://cdn.jsdelivr.net", "https://cdnjs.cloudflare.com"],
+        'connect-src': "'self'",
+        'media-src': ["'self'", "blob:"],
         'frame-src': "'none'",
         'object-src': "'none'",
         'base-uri': "'self'",
         'form-action': "'self'",
+        'manifest-src': "'self'",
     }
     Talisman(
         app,
