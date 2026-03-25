@@ -46,9 +46,10 @@
             var symKey = await FlaskyCrypto.unwrapSymmetricKey(encSymKey, keys.kek);
             await FlaskyCrypto.storeSymmetricKey(symKey);
 
-            // Redirect back to original page
+            // Redirect back to original page (validate to prevent open redirect)
             var params = new URLSearchParams(window.location.search);
             var next = params.get('next') || '/notes';
+            if (!next.startsWith('/') || next.startsWith('//')) next = '/notes';
             window.location.href = next;
         } catch (err) {
             errorEl.textContent = 'Incorrect password. Please try again.';

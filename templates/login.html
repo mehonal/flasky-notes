@@ -93,9 +93,14 @@
                 body: formData,
                 redirect: 'follow'
             });
-            // If legacy login redirects, follow it
+            // If legacy login redirects, follow it (validate origin to prevent open redirect)
             if (legacyResp.redirected) {
-                window.location.href = legacyResp.url;
+                var redirectUrl = new URL(legacyResp.url);
+                if (redirectUrl.origin === window.location.origin) {
+                    window.location.href = legacyResp.url;
+                } else {
+                    window.location.href = '/notes';
+                }
                 return;
             }
             // If not redirected, it returned an error message
