@@ -582,7 +582,9 @@ def notes_page():
     if g.user:
         theme_settings = g.user.get_theme_settings()
         theme = theme_settings.theme
-        if theme.has_notes_page:
+        if theme.slug == 'cli':
+            return redirect(url_for('web.cli'))
+        elif theme.has_notes_page:
             return render_template(f"themes/{theme_settings.theme.slug}/notes.html", notes = g.user.return_notes())
         else:
             return redirect(url_for('web.note_single_page', note_id = 0))
@@ -594,6 +596,8 @@ def categories_page():
     if g.user:
         theme_settings = g.user.get_theme_settings()
         theme = theme_settings.theme
+        if theme.slug == 'cli':
+            return redirect(url_for('web.cli'))
         if theme.has_categories_page:
             categories = g.user.categories
             return render_template(f"themes/{theme_settings.theme.slug}/categories.html", categories = categories)
@@ -606,6 +610,8 @@ def category_single_page(category):
     if g.user:
         theme_settings = g.user.get_theme_settings()
         theme = theme_settings.theme
+        if theme.slug == 'cli':
+            return redirect(url_for('web.cli'))
         category = g.user.get_category(category)
         notes = UserNote.query.filter_by(userid=g.user.id,category_id=category.id).all()
         return render_template(f"themes/{theme_settings.theme.slug}/notes.html", category = category, notes_of_category = True, notes = notes)
@@ -615,6 +621,8 @@ def category_single_page(category):
 def note_single_page(note_id):
     if g.user:
         theme_settings = g.user.get_theme_settings()
+        if theme_settings.theme.slug == 'cli':
+            return redirect(url_for('web.cli'))
         font_size = g.user.get_current_theme_font_size()
         note = UserNote.query.filter_by(id=note_id).first()
         if note and note is not None:
