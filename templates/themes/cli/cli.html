@@ -161,6 +161,97 @@
         color: #ff6b6b !important;
         border-color: #ff6b6b !important;
     }
+
+    /* Vim overlay */
+    #vim-overlay{
+        display: none;
+        position: fixed;
+        top: 0; left: 0; right: 0; bottom: 0;
+        background: #1a1a2e;
+        z-index: 100;
+        flex-direction: column;
+    }
+    #vim-overlay.active{
+        display: flex;
+    }
+    #vim-titlebar{
+        color: #4AF626;
+        padding: 4px 10px;
+        background: #2a2a3e;
+        font-size: 14px;
+        border-bottom: 1px solid #333;
+    }
+    #vim-content{
+        background: transparent;
+        border: none;
+        color: #e0e0e0;
+        font-family: 'Courier New', Courier, monospace;
+        font-size: 15px;
+        padding: 6px 10px;
+        flex: 1;
+        resize: none;
+        outline: none;
+        width: 100%;
+        line-height: 1.4;
+        tab-size: 4;
+    }
+    #vim-content.vim-normal{
+        caret-color: #4AF626;
+    }
+    #vim-content::selection{
+        background: rgba(74, 246, 38, 0.3);
+    }
+    #vim-statusline{
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        background: #2a2a3e;
+        padding: 2px 10px;
+        font-size: 14px;
+        min-height: 22px;
+        border-top: 1px solid #333;
+    }
+    #vim-status-mode{
+        color: #4AF626;
+        font-weight: bold;
+        min-width: 140px;
+    }
+    #vim-status-file{
+        color: #ccc;
+    }
+    #vim-status-pos{
+        color: #888;
+        min-width: 100px;
+        text-align: right;
+    }
+    #vim-status-msg{
+        color: #ffd93d;
+        flex: 1;
+        text-align: center;
+    }
+    #vim-commandline{
+        display: none;
+        background: #1a1a2e;
+        padding: 2px 10px;
+        border-top: 1px solid #333;
+    }
+    #vim-commandline.active{
+        display: flex;
+        align-items: center;
+    }
+    #vim-cmd-prefix{
+        color: #e0e0e0;
+        margin-right: 0;
+    }
+    #vim-cmd-input{
+        background: transparent;
+        border: none;
+        outline: none;
+        color: #e0e0e0;
+        font-family: 'Courier New', Courier, monospace;
+        font-size: 15px;
+        flex: 1;
+    }
 </style>
 
 {% if g.user and g.user.encryption_enabled %}
@@ -175,6 +266,21 @@
         <div id="command-line">
             <span id="location">flasky/{{g.user.username}} $</span>
             <form id="command-form"><input id="command" type="text" autofocus></form>
+        </div>
+    </div>
+
+    <div id="vim-overlay">
+        <div id="vim-titlebar"></div>
+        <textarea id="vim-content"></textarea>
+        <div id="vim-statusline">
+            <span id="vim-status-mode"></span>
+            <span id="vim-status-msg"></span>
+            <span id="vim-status-file"></span>
+            <span id="vim-status-pos"></span>
+        </div>
+        <div id="vim-commandline">
+            <span id="vim-cmd-prefix">:</span>
+            <input id="vim-cmd-input" type="text" autocomplete="off">
         </div>
     </div>
 
@@ -205,7 +311,7 @@
 
         document.addEventListener('DOMContentLoaded', () => commandInput.focus());
         document.addEventListener('click', (e) => {
-            if (!editOverlay.classList.contains('active')) commandInput.focus();
+            if (!editOverlay.classList.contains('active') && !vimOverlay.classList.contains('active')) commandInput.focus();
         });
 
         let notes = [];
@@ -340,8 +446,12 @@
                     createNote(argStr);
                     break;
 
-                case 'edit': case 'vi': case 'vim': case 'nano':
+                case 'edit': case 'nano':
                     editNote(argStr);
+                    break;
+
+                case 'vi': case 'vim':
+                    vimEditNote(argStr);
                     break;
 
                 case 'rm': case 'delete':
@@ -431,7 +541,8 @@
             print('    notes, ls          List notes (filtered by current category)');
             print('    cat <id>           Read a note');
             print('    new <title>        Create a new note');
-            print('    edit <id>          Edit a note (opens editor)');
+            print('    edit <id>          Edit a note (simple editor)');
+            print('    vi <id>            Edit a note (vim mode)');
             print('    rm <id>            Delete a note');
             print('    rename <id> <t>    Rename a note');
             print('    revert <id>        Revert note to previous version');
@@ -888,8 +999,11 @@
                 case 'read': case 'cat':
                     readTodo(rest[0]);
                     break;
-                case 'edit': case 'vi':
+                case 'edit': case 'nano':
                     editTodo(rest[0]);
+                    break;
+                case 'vi': case 'vim':
+                    vimEditTodo(rest[0]);
                     break;
                 default:
                     // If it's not a subcommand, treat the whole thing as listing
@@ -1052,8 +1166,11 @@
                 case 'read': case 'cat':
                     readEvent(rest[0]);
                     break;
-                case 'edit': case 'vi':
+                case 'edit': case 'nano':
                     editEvent(rest[0]);
+                    break;
+                case 'vi': case 'vim':
+                    vimEditEvent(rest[0]);
                     break;
                 default:
                     fetchEvents();
@@ -1153,6 +1270,937 @@
             editOverlay.classList.add('active');
             editTitle.focus();
         }
+
+        // --- Vim editor ---
+
+        const vimOverlay = document.getElementById('vim-overlay');
+        const vimTitlebar = document.getElementById('vim-titlebar');
+        const vimContent = document.getElementById('vim-content');
+        const vimStatusMode = document.getElementById('vim-status-mode');
+        const vimStatusMsg = document.getElementById('vim-status-msg');
+        const vimStatusFile = document.getElementById('vim-status-file');
+        const vimStatusPos = document.getElementById('vim-status-pos');
+        const vimCommandLine = document.getElementById('vim-commandline');
+        const vimCmdInput = document.getElementById('vim-cmd-input');
+
+        let vimMode = 'normal';
+        let vimOriginalTitle = '';
+        let vimOriginalContent = '';
+        let vimPendingKey = null;
+        let vimClipboard = '';
+        let vimClipboardLinewise = false;
+        let vimEditingType = null;
+        let vimEditingId = null;
+        let vimTitle = '';
+        let vimMsgTimeout = null;
+        let vimUndoStack = [];
+        let vimRedoStack = [];
+        let vimLastFind = null;       // {char, direction: 'f'|'F'|'t'|'T'}
+        let vimVisual = null;         // null | {mode: 'char'|'line', anchor: offset}
+        let vimCursorOffset = 0;      // true cursor position (independent of selection range)
+
+        function vimPushUndo(){
+            vimUndoStack.push({ content: vimContent.value, offset: vimCursorOffset });
+            vimRedoStack = [];
+            if (vimUndoStack.length > 200) vimUndoStack.shift();
+        }
+
+        function openVimEditor(type, id, title, content){
+            vimEditingType = type;
+            vimEditingId = id;
+            vimTitle = title;
+            vimOriginalTitle = title;
+            vimOriginalContent = content;
+            vimContent.value = content;
+            vimTitlebar.textContent = `${type} #${id} — ${title}`;
+            vimMode = 'normal';
+            vimPendingKey = null;
+            vimVisual = null;
+            vimCursorOffset = 0;
+            vimUndoStack = [];
+            vimRedoStack = [];
+            vimContent.classList.add('vim-normal');
+            vimOverlay.classList.add('active');
+            vimCommandLine.classList.remove('active');
+            vimContent.focus();
+            vimContent.setSelectionRange(0, 0);
+            updateVimStatusLine();
+        }
+
+        function vimIsDirty(){
+            return vimContent.value !== vimOriginalContent || vimTitle !== vimOriginalTitle;
+        }
+
+        async function vimSave(){
+            let encTitle = vimTitle, encContent = vimContent.value;
+            if (typeof FlaskyE2EE !== 'undefined' && FlaskyE2EE.isEncrypted()) {
+                encTitle = await FlaskyE2EE.encryptField(vimTitle);
+                encContent = await FlaskyE2EE.encryptField(vimContent.value);
+            }
+            let ok = false;
+            if (vimEditingType === 'note') {
+                const note = notes.find(n => n.id === vimEditingId);
+                const data = await apiPost('/api/save_note', {
+                    noteId: vimEditingId,
+                    title: encTitle,
+                    content: encContent,
+                    category: note ? (note.category_id || note.category) : null
+                });
+                ok = data.success;
+                if (ok) {
+                    if (typeof FlaskySearch !== 'undefined') FlaskySearch.invalidate();
+                    await fetchNotes();
+                }
+            } else if (vimEditingType === 'todo') {
+                const data = await apiPost('/api/edit_todo', {
+                    toDoId: vimEditingId,
+                    title: encTitle,
+                    content: encContent,
+                    dateDue: ''
+                });
+                ok = data.success;
+            } else if (vimEditingType === 'event') {
+                const data = await apiPost('/api/edit_event', {
+                    eventId: vimEditingId,
+                    title: encTitle,
+                    content: encContent,
+                    dateOfEvent: ''
+                });
+                ok = data.success;
+            }
+            if (ok) {
+                vimOriginalTitle = vimTitle;
+                vimOriginalContent = vimContent.value;
+                vimShowMsg(`"${vimTitle}" written`);
+            } else {
+                vimShowMsg('Error saving!', true);
+            }
+            return ok;
+        }
+
+        function vimClose(){
+            vimOverlay.classList.remove('active');
+            vimEditingType = null;
+            vimEditingId = null;
+            vimMode = 'normal';
+            vimVisual = null;
+            commandInput.focus();
+        }
+
+        async function vimSaveAndClose(){
+            const ok = await vimSave();
+            if (ok) {
+                print(`${vimEditingType} #${vimEditingId} saved.`, 'clr-green');
+                vimClose();
+            }
+        }
+
+        function vimShowMsg(msg, isError){
+            vimStatusMsg.textContent = msg;
+            vimStatusMsg.style.color = isError ? '#ff6b6b' : '#ffd93d';
+            clearTimeout(vimMsgTimeout);
+            vimMsgTimeout = setTimeout(() => { vimStatusMsg.textContent = ''; }, 3000);
+        }
+
+        function vimSetMode(mode){
+            if (mode === 'insert' && vimMode !== 'insert') vimPushUndo();
+            if (mode !== 'normal' && vimVisual) vimExitVisual();
+            vimMode = mode;
+            vimPendingKey = null;
+            if (mode === 'normal') {
+                vimContent.classList.add('vim-normal');
+                vimCommandLine.classList.remove('active');
+                vimContent.focus();
+            } else if (mode === 'insert') {
+                vimContent.classList.remove('vim-normal');
+                vimCommandLine.classList.remove('active');
+                vimContent.focus();
+            } else if (mode === 'command') {
+                vimContent.classList.add('vim-normal');
+                vimCommandLine.classList.add('active');
+                vimCmdInput.value = '';
+                vimCmdInput.focus();
+            }
+            updateVimStatusLine();
+        }
+
+        function updateVimStatusLine(){
+            if (vimMode === 'insert') {
+                vimStatusMode.textContent = '-- INSERT --';
+            } else if (vimMode === 'command') {
+                vimStatusMode.textContent = '';
+            } else if (vimVisual) {
+                vimStatusMode.textContent = vimVisual.mode === 'line' ? '-- VISUAL LINE --' : '-- VISUAL --';
+            } else {
+                vimStatusMode.textContent = '';
+            }
+            vimStatusFile.textContent = `${vimEditingType} #${vimEditingId}`;
+            const pos = getVimCursorPos();
+            vimStatusPos.textContent = `${pos.line + 1},${pos.col + 1}`;
+        }
+
+        // --- Vim cursor helpers ---
+
+        function getVimCursorPos(){
+            const text = vimContent.value;
+            const offset = vimCursorOffset;
+            const before = text.substring(0, offset);
+            const lines = before.split('\n');
+            return { line: lines.length - 1, col: lines[lines.length - 1].length };
+        }
+
+        function getVimLines(){
+            return vimContent.value.split('\n');
+        }
+
+        function getLineStartOffset(lineNum){
+            const lines = getVimLines();
+            let offset = 0;
+            for (let i = 0; i < lineNum && i < lines.length; i++){
+                offset += lines[i].length + 1;
+            }
+            return offset;
+        }
+
+        function setVimCursorOffset(offset){
+            offset = Math.max(0, Math.min(offset, vimContent.value.length));
+            vimCursorOffset = offset;
+            if (!vimVisual) {
+                vimContent.setSelectionRange(offset, offset);
+            }
+            updateVimStatusLine();
+        }
+
+        function setVimCursorPos(line, col){
+            const lines = getVimLines();
+            line = Math.max(0, Math.min(line, lines.length - 1));
+            col = Math.max(0, Math.min(col, Math.max(0, lines[line].length - 1)));
+            setVimCursorOffset(getLineStartOffset(line) + col);
+        }
+
+        // --- Vim find-char helpers ---
+
+        function vimFindChar(ch, direction){
+            const pos = getVimCursorPos();
+            const lineStart = getLineStartOffset(pos.line);
+            const lineText = getVimLines()[pos.line];
+
+            if (direction === 'f') {
+                const idx = lineText.indexOf(ch, pos.col + 1);
+                if (idx >= 0) return lineStart + idx;
+            } else if (direction === 'F') {
+                const idx = lineText.lastIndexOf(ch, pos.col - 1);
+                if (idx >= 0) return lineStart + idx;
+            } else if (direction === 't') {
+                const idx = lineText.indexOf(ch, pos.col + 1);
+                if (idx >= 1) return lineStart + idx - 1;
+            } else if (direction === 'T') {
+                const idx = lineText.lastIndexOf(ch, pos.col - 1);
+                if (idx >= 0 && idx + 1 < lineText.length) return lineStart + idx + 1;
+            }
+            return -1;
+        }
+
+        function vimRepeatFind(reverse){
+            if (!vimLastFind) return -1;
+            const dir = reverse
+                ? {f:'F', F:'f', t:'T', T:'t'}[vimLastFind.direction]
+                : vimLastFind.direction;
+            return vimFindChar(vimLastFind.char, dir);
+        }
+
+        // --- Vim visual mode helpers ---
+
+        function vimUpdateVisualSelection(){
+            if (!vimVisual) return;
+            const cursor = vimCursorOffset;
+            if (vimVisual.mode === 'char') {
+                const start = Math.min(vimVisual.anchor, cursor);
+                const end = Math.max(vimVisual.anchor, cursor) + 1;
+                vimContent.setSelectionRange(start, end);
+            } else {
+                // line mode: select full lines from anchor line to cursor line
+                const anchorPos = (() => {
+                    const before = vimContent.value.substring(0, vimVisual.anchor);
+                    return before.split('\n').length - 1;
+                })();
+                const cursorPos = getVimCursorPos().line;
+                const startLine = Math.min(anchorPos, cursorPos);
+                const endLine = Math.max(anchorPos, cursorPos);
+                const lines = getVimLines();
+                const start = getLineStartOffset(startLine);
+                const end = getLineStartOffset(endLine) + lines[endLine].length + (endLine < lines.length - 1 ? 1 : 0);
+                vimContent.setSelectionRange(start, end);
+            }
+            updateVimStatusLine();
+        }
+
+        function vimGetVisualRange(){
+            if (!vimVisual) return null;
+            // Read directly from the selection that vimUpdateVisualSelection() set
+            return {
+                start: vimContent.selectionStart,
+                end: vimContent.selectionEnd,
+                linewise: vimVisual.mode === 'line'
+            };
+        }
+
+        function vimExitVisual(){
+            vimVisual = null;
+            vimContent.setSelectionRange(vimCursorOffset, vimCursorOffset);
+            updateVimStatusLine();
+        }
+
+        // --- Vim open functions ---
+
+        function vimEditNote(idStr){
+            const id = parseInt(idStr);
+            if (isNaN(id)){ print("Usage: vi <note_id>", 'clr-red'); return; }
+            const note = notes.find(n => n.id === id);
+            if (!note){ print(`Note ${id} not found.`, 'clr-red'); return; }
+            openVimEditor('note', id, note.title || '', note.content || '');
+        }
+
+        async function vimEditTodo(idStr){
+            const id = parseInt(idStr);
+            if (isNaN(id)){ print("Usage: todo vi <id>", 'clr-red'); return; }
+            const data = await fetch(`/api/get_todo/${id}`).then(r => r.json());
+            if (!data.success){ print(`Todo ${id} not found.`, 'clr-red'); return; }
+            const t = data.todo;
+            if (typeof FlaskyE2EE !== 'undefined' && FlaskyE2EE.isEncrypted()) {
+                try { t.title = await FlaskyE2EE.decryptField(t.title); } catch(e) {}
+                try { t.content = await FlaskyE2EE.decryptField(t.content); } catch(e) {}
+            }
+            openVimEditor('todo', id, t.title || '', t.content || '');
+        }
+
+        async function vimEditEvent(idStr){
+            const id = parseInt(idStr);
+            if (isNaN(id)){ print("Usage: event vi <id>", 'clr-red'); return; }
+            const data = await fetch(`/api/get_event/${id}`).then(r => r.json());
+            if (!data.success){ print(`Event ${id} not found.`, 'clr-red'); return; }
+            const ev = data.event;
+            if (typeof FlaskyE2EE !== 'undefined' && FlaskyE2EE.isEncrypted()) {
+                try { ev.title = await FlaskyE2EE.decryptField(ev.title); } catch(e) {}
+                try { ev.content = await FlaskyE2EE.decryptField(ev.content); } catch(e) {}
+            }
+            openVimEditor('event', id, ev.title || '', ev.content || '');
+        }
+
+        // --- Vim command execution ---
+
+        function vimExecCommand(cmdStr){
+            const cmd = cmdStr.trim();
+            if (cmd === 'w' || cmd === 'w!') {
+                vimSave();
+            } else if (cmd === 'wq' || cmd === 'wq!' || cmd === 'x') {
+                vimSaveAndClose();
+            } else if (cmd === 'q') {
+                if (vimIsDirty()) {
+                    vimShowMsg('E37: No write since last change (add ! to override)', true);
+                } else {
+                    vimClose();
+                }
+            } else if (cmd === 'q!') {
+                vimClose();
+            } else if (/^\d+$/.test(cmd)) {
+                const lineNum = parseInt(cmd) - 1;
+                setVimCursorPos(lineNum, 0);
+            } else if (cmd.startsWith('title ')) {
+                const newTitle = cmd.substring(6).trim();
+                if (newTitle) {
+                    vimTitle = newTitle;
+                    vimTitlebar.textContent = `${vimEditingType} #${vimEditingId} — ${vimTitle}`;
+                    vimShowMsg(`Title set to "${newTitle}"`);
+                }
+            } else {
+                vimShowMsg(`E492: Not an editor command: ${cmd}`, true);
+            }
+            vimSetMode('normal');
+        }
+
+        // --- Vim normal mode key handler ---
+
+        function vimHandleNormalKey(e){
+            const key = e.key;
+
+            // Multi-key sequences — always preventDefault to avoid leaking keys to textarea
+            if (vimPendingKey) {
+                e.preventDefault();
+                const pending = vimPendingKey;
+                vimPendingKey = null;
+
+                if (pending === 'g') {
+                    if (key === 'g') {
+                        setVimCursorPos(0, 0);
+                        if (vimVisual) vimUpdateVisualSelection();
+                    }
+                    return;
+                }
+                if (pending === 'd') {
+                    if (key === 'd') {
+                        vimPushUndo();
+                        const pos = getVimCursorPos();
+                        const lines = getVimLines();
+                        vimClipboard = lines[pos.line];
+                        vimClipboardLinewise = true;
+                        lines.splice(pos.line, 1);
+                        if (lines.length === 0) lines.push('');
+                        vimContent.value = lines.join('\n');
+                        setVimCursorPos(Math.min(pos.line, lines.length - 1), 0);
+                    } else if (key === 'w') {
+                        const offset = vimCursorOffset;
+                        const text = vimContent.value;
+                        const match = text.substring(offset).match(/^(\S+\s*|\s+)/);
+                        if (match) {
+                            vimPushUndo();
+                            vimClipboard = match[0];
+                            vimClipboardLinewise = false;
+                            vimContent.value = text.substring(0, offset) + text.substring(offset + match[0].length);
+                            setVimCursorOffset(Math.min(offset, vimContent.value.length - 1));
+                        }
+                    } else if (key === '$') {
+                        const pos = getVimCursorPos();
+                        const lines = getVimLines();
+                        if (pos.col < lines[pos.line].length) {
+                            vimPushUndo();
+                            const lineStart = getLineStartOffset(pos.line);
+                            vimClipboard = lines[pos.line].substring(pos.col);
+                            vimClipboardLinewise = false;
+                            vimContent.value = vimContent.value.substring(0, lineStart + pos.col) + vimContent.value.substring(lineStart + lines[pos.line].length);
+                            setVimCursorOffset(Math.max(0, lineStart + pos.col - 1));
+                        }
+                    }
+                    return;
+                }
+                if (pending === 'y') {
+                    if (key === 'y') {
+                        const pos = getVimCursorPos();
+                        const lines = getVimLines();
+                        vimClipboard = lines[pos.line];
+                        vimClipboardLinewise = true;
+                        vimShowMsg('1 line yanked');
+                    }
+                    return;
+                }
+                if (pending === 'c') {
+                    if (key === 'c') {
+                        vimPushUndo();
+                        const pos = getVimCursorPos();
+                        const lines = getVimLines();
+                        vimClipboard = lines[pos.line];
+                        vimClipboardLinewise = true;
+                        lines[pos.line] = '';
+                        vimContent.value = lines.join('\n');
+                        setVimCursorPos(pos.line, 0);
+                        vimMode = 'insert';
+                        vimContent.classList.remove('vim-normal');
+                        updateVimStatusLine();
+                    } else if (key === 'w') {
+                        const offset = vimCursorOffset;
+                        const text = vimContent.value;
+                        const match = text.substring(offset).match(/^(\S+\s*|\s+)/);
+                        if (match) {
+                            vimPushUndo();
+                            vimClipboard = match[0];
+                            vimClipboardLinewise = false;
+                            vimContent.value = text.substring(0, offset) + text.substring(offset + match[0].length);
+                            setVimCursorOffset(offset);
+                        }
+                        vimMode = 'insert';
+                        vimContent.classList.remove('vim-normal');
+                        updateVimStatusLine();
+                    }
+                    return;
+                }
+                if (pending === 'Z') {
+                    if (key === 'Z') vimSaveAndClose();
+                    return;
+                }
+                if (pending === 'f' || pending === 'F' || pending === 't' || pending === 'T') {
+                    if (key.length === 1) {
+                        vimLastFind = { char: key, direction: pending };
+                        const target = vimFindChar(key, pending);
+                        if (target >= 0) setVimCursorOffset(target);
+                        if (vimVisual) vimUpdateVisualSelection();
+                    }
+                    return;
+                }
+                if (pending === 'r') {
+                    if (key.length === 1) {
+                        const offset = vimCursorOffset;
+                        const text = vimContent.value;
+                        if (offset < text.length && text[offset] !== '\n') {
+                            vimPushUndo();
+                            vimContent.value = text.substring(0, offset) + key + text.substring(offset + 1);
+                            setVimCursorOffset(offset);
+                        }
+                    }
+                    return;
+                }
+                return;
+            }
+
+            e.preventDefault();
+
+            const pos = getVimCursorPos();
+            const lines = getVimLines();
+            const offset = vimCursorOffset;
+            const text = vimContent.value;
+
+            switch(key){
+                // Insert mode entry
+                case 'i':
+                    vimSetMode('insert');
+                    break;
+                case 'I':
+                    {
+                        // Go to first non-whitespace character on line (vim behavior)
+                        const lineText = lines[pos.line];
+                        const firstNonWs = lineText.search(/\S/);
+                        setVimCursorPos(pos.line, firstNonWs >= 0 ? firstNonWs : 0);
+                    }
+                    vimSetMode('insert');
+                    break;
+                case 'a':
+                    setVimCursorOffset(Math.min(offset + 1, text.length));
+                    vimSetMode('insert');
+                    break;
+                case 'A':
+                    setVimCursorOffset(getLineStartOffset(pos.line) + lines[pos.line].length);
+                    vimSetMode('insert');
+                    break;
+                case 'o':
+                    {
+                        vimPushUndo();
+                        const eol = getLineStartOffset(pos.line) + lines[pos.line].length;
+                        vimContent.value = text.substring(0, eol) + '\n' + text.substring(eol);
+                        setVimCursorOffset(eol + 1);
+                    }
+                    vimMode = 'insert';
+                    vimContent.classList.remove('vim-normal');
+                    updateVimStatusLine();
+                    break;
+                case 'O':
+                    {
+                        vimPushUndo();
+                        const sol = getLineStartOffset(pos.line);
+                        vimContent.value = text.substring(0, sol) + '\n' + text.substring(sol);
+                        setVimCursorOffset(sol);
+                    }
+                    vimMode = 'insert';
+                    vimContent.classList.remove('vim-normal');
+                    updateVimStatusLine();
+                    break;
+
+                // Movement
+                case 'h': case 'ArrowLeft':
+                    if (pos.col > 0) setVimCursorOffset(offset - 1);
+                    break;
+                case 'l': case 'ArrowRight':
+                    if (pos.col < lines[pos.line].length - 1) setVimCursorOffset(offset + 1);
+                    break;
+                case 'j': case 'ArrowDown':
+                    if (pos.line < lines.length - 1) setVimCursorPos(pos.line + 1, pos.col);
+                    break;
+                case 'k': case 'ArrowUp':
+                    if (pos.line > 0) setVimCursorPos(pos.line - 1, pos.col);
+                    break;
+                case '0':
+                    setVimCursorPos(pos.line, 0);
+                    break;
+                case '^':
+                    {
+                        const firstNonWs = lines[pos.line].search(/\S/);
+                        setVimCursorPos(pos.line, firstNonWs >= 0 ? firstNonWs : 0);
+                    }
+                    break;
+                case '$':
+                    setVimCursorOffset(getLineStartOffset(pos.line) + Math.max(0, lines[pos.line].length - 1));
+                    break;
+                case 'G':
+                    setVimCursorPos(lines.length - 1, 0);
+                    break;
+                case 'g':
+                    vimPendingKey = 'g';
+                    break;
+
+                // Word motions
+                case 'w':
+                    {
+                        const after = text.substring(offset);
+                        const m = after.match(/^(\S+\s*|\s+)/);
+                        if (m) setVimCursorOffset(Math.min(offset + m[0].length, text.length - 1));
+                    }
+                    break;
+                case 'b':
+                    {
+                        // Proper vim b: go to start of previous word
+                        let i = offset - 1;
+                        // Skip whitespace backwards
+                        while (i > 0 && /\s/.test(text[i])) i--;
+                        // Skip non-whitespace backwards to find word start
+                        while (i > 0 && /\S/.test(text[i - 1])) i--;
+                        setVimCursorOffset(Math.max(0, i));
+                    }
+                    break;
+                case 'e':
+                    {
+                        // Proper vim e: go to end of current/next word
+                        let i = offset + 1;
+                        // Skip whitespace forward
+                        while (i < text.length && /\s/.test(text[i])) i++;
+                        // Skip non-whitespace forward to find word end
+                        while (i < text.length - 1 && /\S/.test(text[i + 1])) i++;
+                        if (i < text.length) setVimCursorOffset(i);
+                    }
+                    break;
+
+                // Text operations
+                case 'x':
+                    if (offset < text.length && text[offset] !== '\n') {
+                        vimPushUndo();
+                        vimClipboard = text[offset];
+                        vimClipboardLinewise = false;
+                        vimContent.value = text.substring(0, offset) + text.substring(offset + 1);
+                        // If we deleted the last char on the line, back up one
+                        const newLines = getVimLines();
+                        const newPos = getVimCursorPos();
+                        if (newPos.col > 0 && newPos.col >= newLines[newPos.line].length) {
+                            setVimCursorOffset(offset - 1);
+                        } else {
+                            setVimCursorOffset(offset);
+                        }
+                    }
+                    break;
+                case 'D':
+                    {
+                        vimPushUndo();
+                        // Delete from cursor to end of line
+                        const lineStart = getLineStartOffset(pos.line);
+                        vimClipboard = lines[pos.line].substring(pos.col);
+                        vimClipboardLinewise = false;
+                        vimContent.value = text.substring(0, lineStart + pos.col) + text.substring(lineStart + lines[pos.line].length);
+                        setVimCursorOffset(Math.max(0, lineStart + pos.col - 1));
+                    }
+                    break;
+                case 'C':
+                    {
+                        vimPushUndo();
+                        // Change from cursor to end of line
+                        const lineStart = getLineStartOffset(pos.line);
+                        vimClipboard = lines[pos.line].substring(pos.col);
+                        vimClipboardLinewise = false;
+                        vimContent.value = text.substring(0, lineStart + pos.col) + text.substring(lineStart + lines[pos.line].length);
+                        setVimCursorOffset(lineStart + pos.col);
+                        // Enter insert mode without double-pushing undo
+                        vimMode = 'insert';
+                        vimContent.classList.remove('vim-normal');
+                        updateVimStatusLine();
+                    }
+                    break;
+                case 'd':
+                    vimPendingKey = 'd';
+                    break;
+                case 'y':
+                    vimPendingKey = 'y';
+                    break;
+                case 'c':
+                    vimPendingKey = 'c';
+                    break;
+                case 'r':
+                    vimPendingKey = 'r';
+                    break;
+                case 'p':
+                    if (vimClipboard) {
+                        vimPushUndo();
+                        if (vimClipboardLinewise) {
+                            const eol = getLineStartOffset(pos.line) + lines[pos.line].length;
+                            vimContent.value = text.substring(0, eol) + '\n' + vimClipboard + text.substring(eol);
+                            setVimCursorPos(pos.line + 1, 0);
+                        } else {
+                            vimContent.value = text.substring(0, offset + 1) + vimClipboard + text.substring(offset + 1);
+                            setVimCursorOffset(offset + vimClipboard.length);
+                        }
+                    }
+                    break;
+                case 'P':
+                    if (vimClipboard) {
+                        vimPushUndo();
+                        if (vimClipboardLinewise) {
+                            const sol = getLineStartOffset(pos.line);
+                            vimContent.value = text.substring(0, sol) + vimClipboard + '\n' + text.substring(sol);
+                            setVimCursorPos(pos.line, 0);
+                        } else {
+                            vimContent.value = text.substring(0, offset) + vimClipboard + text.substring(offset);
+                            setVimCursorOffset(offset + vimClipboard.length - 1);
+                        }
+                    }
+                    break;
+
+                // Replace / toggle case
+                case '~':
+                    if (offset < text.length && text[offset] !== '\n') {
+                        vimPushUndo();
+                        const ch = text[offset];
+                        const toggled = ch === ch.toLowerCase() ? ch.toUpperCase() : ch.toLowerCase();
+                        vimContent.value = text.substring(0, offset) + toggled + text.substring(offset + 1);
+                        setVimCursorOffset(Math.min(offset + 1, getLineStartOffset(pos.line) + lines[pos.line].length - 1));
+                    }
+                    break;
+
+                // Undo/redo
+                case 'u':
+                    if (vimUndoStack.length > 0) {
+                        vimRedoStack.push({ content: vimContent.value, offset: vimCursorOffset });
+                        const state = vimUndoStack.pop();
+                        vimContent.value = state.content;
+                        setVimCursorOffset(state.offset);
+                    } else {
+                        vimShowMsg('Already at oldest change');
+                    }
+                    break;
+
+                // Save+quit shortcuts
+                case 'Z':
+                    vimPendingKey = 'Z';
+                    break;
+
+                // Join lines (J)
+                case 'J':
+                    if (pos.line < lines.length - 1) {
+                        vimPushUndo();
+                        const eol = getLineStartOffset(pos.line) + lines[pos.line].length;
+                        const nextLineContent = lines[pos.line + 1].replace(/^\s+/, '');
+                        vimContent.value = text.substring(0, eol) + ' ' + nextLineContent + text.substring(getLineStartOffset(pos.line + 1) + lines[pos.line + 1].length);
+                        setVimCursorOffset(eol);
+                    }
+                    break;
+
+                // Paragraph navigation
+                case '{':
+                    {
+                        let i = pos.line - 1;
+                        // Skip current blank lines
+                        while (i >= 0 && lines[i].trim() === '') i--;
+                        // Find next blank line
+                        while (i >= 0 && lines[i].trim() !== '') i--;
+                        setVimCursorPos(Math.max(0, i), 0);
+                        if (vimVisual) vimUpdateVisualSelection();
+                    }
+                    break;
+                case '}':
+                    {
+                        let i = pos.line + 1;
+                        // Skip current blank lines
+                        while (i < lines.length && lines[i].trim() === '') i++;
+                        // Find next blank line
+                        while (i < lines.length && lines[i].trim() !== '') i++;
+                        setVimCursorPos(Math.min(i, lines.length - 1), 0);
+                        if (vimVisual) vimUpdateVisualSelection();
+                    }
+                    break;
+
+                // Find character on line
+                case 'f': case 'F': case 't': case 'T':
+                    vimPendingKey = key;
+                    break;
+                case ';':
+                    {
+                        const target = vimRepeatFind(false);
+                        if (target >= 0) setVimCursorOffset(target);
+                        if (vimVisual) vimUpdateVisualSelection();
+                    }
+                    break;
+                case ',':
+                    {
+                        const target = vimRepeatFind(true);
+                        if (target >= 0) setVimCursorOffset(target);
+                        if (vimVisual) vimUpdateVisualSelection();
+                    }
+                    break;
+
+                // Visual mode
+                case 'v':
+                    if (vimVisual && vimVisual.mode === 'char') {
+                        vimExitVisual();
+                    } else {
+                        vimVisual = { mode: 'char', anchor: offset };
+                        vimUpdateVisualSelection();
+                    }
+                    break;
+                case 'V':
+                    if (vimVisual && vimVisual.mode === 'line') {
+                        vimExitVisual();
+                    } else {
+                        vimVisual = { mode: 'line', anchor: offset };
+                        vimUpdateVisualSelection();
+                    }
+                    break;
+
+                // Command mode
+                case ':':
+                    vimSetMode('command');
+                    break;
+            }
+
+            // Update visual selection after any movement
+            if (vimVisual && !['v','V'].includes(key)) {
+                vimUpdateVisualSelection();
+            }
+        }
+
+        // --- Vim visual mode operations ---
+
+        function vimVisualYank(){
+            const range = vimGetVisualRange();
+            if (!range) return;
+            vimClipboard = vimContent.value.substring(range.start, range.end);
+            vimClipboardLinewise = range.linewise;
+            // Remove trailing newline for linewise clipboard
+            if (range.linewise && vimClipboard.endsWith('\n')) {
+                vimClipboard = vimClipboard.slice(0, -1);
+            }
+            setVimCursorOffset(range.start);
+            vimExitVisual();
+            vimShowMsg(range.linewise
+                ? `${vimClipboard.split('\n').length} line(s) yanked`
+                : `${range.end - range.start} char(s) yanked`);
+        }
+
+        function vimVisualDelete(){
+            const range = vimGetVisualRange();
+            if (!range) return;
+            vimPushUndo();
+            vimClipboard = vimContent.value.substring(range.start, range.end);
+            vimClipboardLinewise = range.linewise;
+            if (range.linewise && vimClipboard.endsWith('\n')) {
+                vimClipboard = vimClipboard.slice(0, -1);
+            }
+            vimContent.value = vimContent.value.substring(0, range.start) + vimContent.value.substring(range.end);
+            setVimCursorOffset(Math.min(range.start, Math.max(0, vimContent.value.length - 1)));
+            vimExitVisual();
+        }
+
+        function vimVisualChange(){
+            vimVisualDelete();
+            vimMode = 'insert';
+            vimContent.classList.remove('vim-normal');
+            updateVimStatusLine();
+        }
+
+        function vimVisualToggleCase(){
+            const range = vimGetVisualRange();
+            if (!range) return;
+            vimPushUndo();
+            const selected = vimContent.value.substring(range.start, range.end);
+            let toggled = '';
+            for (const ch of selected) {
+                toggled += ch === ch.toLowerCase() ? ch.toUpperCase() : ch.toLowerCase();
+            }
+            vimContent.value = vimContent.value.substring(0, range.start) + toggled + vimContent.value.substring(range.end);
+            setVimCursorOffset(range.start);
+            vimExitVisual();
+        }
+
+        // --- Vim keydown handler ---
+
+        document.addEventListener('keydown', (e) => {
+            if (!vimOverlay.classList.contains('active')) return;
+
+            if (vimMode === 'normal') {
+                // Don't intercept Ctrl/Alt combos except Ctrl+R
+                if (e.ctrlKey && e.key === 'r') {
+                    e.preventDefault();
+                    if (vimRedoStack.length > 0) {
+                        vimUndoStack.push({ content: vimContent.value, offset: vimCursorOffset });
+                        const state = vimRedoStack.pop();
+                        vimContent.value = state.content;
+                        setVimCursorOffset(state.offset);
+                    } else {
+                        vimShowMsg('Already at newest change');
+                    }
+                    return;
+                }
+                if (e.ctrlKey || e.altKey || e.metaKey) return;
+                if (e.key === 'Escape') {
+                    e.preventDefault();
+                    vimPendingKey = null;
+                    if (vimVisual) vimExitVisual();
+                    return;
+                }
+                // Let function keys, F1-F12, etc. pass through
+                if (e.key.startsWith('F') && e.key.length > 1) return;
+                // Visual mode special keys
+                if (vimVisual) {
+                    if (e.key === 'y') { e.preventDefault(); vimVisualYank(); return; }
+                    if (e.key === 'd' || e.key === 'x') { e.preventDefault(); vimVisualDelete(); return; }
+                    if (e.key === 'c') { e.preventDefault(); vimVisualChange(); return; }
+                    if (e.key === '~') { e.preventDefault(); vimVisualToggleCase(); return; }
+                    if (e.key === 'J') {
+                        // Join selected lines (works in both char and line visual)
+                        e.preventDefault();
+                        const range = vimGetVisualRange();
+                        if (range) {
+                            const text = vimContent.value;
+                            const selected = text.substring(range.start, range.end);
+                            if (selected.includes('\n')) {
+                                vimPushUndo();
+                                const joined = selected.split('\n').map((l, i) => i === 0 ? l : l.replace(/^\s+/, '')).join(' ');
+                                vimContent.value = text.substring(0, range.start) + joined + text.substring(range.end);
+                                setVimCursorOffset(range.start);
+                            }
+                        }
+                        vimExitVisual();
+                        return;
+                    }
+                    // Other keys (movement) pass through to normal handler
+                }
+                vimHandleNormalKey(e);
+            } else if (vimMode === 'insert') {
+                if (e.key === 'Escape') {
+                    e.preventDefault();
+                    // Sync cursor offset from textarea (browser managed it during insert)
+                    vimCursorOffset = vimContent.selectionStart;
+                    // Move cursor back one if possible (vim behavior)
+                    const off = vimCursorOffset;
+                    if (off > 0) {
+                        const ch = vimContent.value[off - 1];
+                        if (ch !== '\n') setVimCursorOffset(off - 1);
+                    }
+                    vimSetMode('normal');
+                }
+            } else if (vimMode === 'command') {
+                if (e.key === 'Escape') {
+                    e.preventDefault();
+                    vimSetMode('normal');
+                } else if (e.key === 'Enter') {
+                    e.preventDefault();
+                    vimExecCommand(vimCmdInput.value);
+                }
+            }
+        });
+
+        // Update cursor position on click/key in vim editor
+        vimContent.addEventListener('mouseup', () => {
+            if (vimMode === 'insert') {
+                vimCursorOffset = vimContent.selectionStart;
+            } else {
+                vimCursorOffset = vimContent.selectionStart;
+                if (vimVisual) {
+                    vimUpdateVisualSelection();
+                } else {
+                    vimContent.setSelectionRange(vimCursorOffset, vimCursorOffset);
+                }
+            }
+            updateVimStatusLine();
+        });
+        vimContent.addEventListener('keyup', () => {
+            if (vimMode === 'insert') {
+                vimCursorOffset = vimContent.selectionStart;
+                updateVimStatusLine();
+            }
+        });
 
         // --- Command history (up/down arrows) ---
 
