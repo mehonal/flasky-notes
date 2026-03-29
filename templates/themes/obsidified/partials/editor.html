@@ -1,0 +1,52 @@
+                {% if note or note_id == 0 %}
+                <div class="editor" id="editor">
+                    <div style="display:flex; align-items:center; padding:24px 48px 0; gap:4px;">
+                        <button class="note-icon-btn" id="note-icon-btn" data-action="open-note-icon-picker" title="Set icon">
+                            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+                        </button>
+                        <input type="text" class="editor-title" id="note-title" placeholder="Untitled" value="{% if note %}{{ note.title }}{% endif %}" style="padding:0; flex:1;">
+                    </div>
+
+                    <div class="editor-scroll">
+                        <div class="editor-properties" id="editor-properties">
+                            <div class="props-container {% if theme_settings and theme_settings.properties_collapsed %}collapsed{% endif %}" id="props-container">
+                                <div class="props-header" data-action="toggle-props-panel">
+                                    <span>Properties</span>
+                                    <svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
+                                </div>
+                                <div class="props-body" id="props-body">
+                                    {% if note and note.get_properties() is mapping %}
+                                    {% for key, value in note.get_properties().items() %}
+                                    <div class="prop-row" data-prop-key="{{ key }}">
+                                        <div class="prop-key"><input type="text" class="prop-value-input" value="{{ key }}" style="font-size:12px;font-weight:500;color:var(--text-muted)" data-action="prop-changed"></div>
+                                        <div class="prop-value">
+                                            <input type="text" class="prop-value-input" value="{% if value is none %}{% elif value is iterable and value is not string %}{{ value | join(', ') }}{% else %}{{ value }}{% endif %}" data-action="prop-changed">
+                                        </div>
+                                        <button class="prop-remove-btn" data-action="remove-prop" title="Remove property">
+                                            <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                                        </button>
+                                    </div>
+                                    {% endfor %}
+                                    {% endif %}
+                                    <div class="prop-add-row" data-action="add-prop-row">
+                                        <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                                        Add property
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="editor-content-wrapper">
+                            <div class="cm-wrapper {% if not theme_settings or not theme_settings.preview_mode %}active{% endif %}" id="cm-wrapper">
+                                <textarea id="note-content">{% if note %}{{ note.content }}{% endif %}</textarea>
+                            </div>
+                            <div class="editor-preview {% if theme_settings and theme_settings.preview_mode %}active{% endif %}" id="note-preview"></div>
+                        </div>
+                    </div>
+                </div>
+                {% else %}
+                <div class="empty-state">
+                    <span>Select a note or press <kbd>Ctrl+N</kbd> to create one</span>
+                    <span>Press <kbd>Ctrl+K</kbd> to search</span>
+                </div>
+                {% endif %}

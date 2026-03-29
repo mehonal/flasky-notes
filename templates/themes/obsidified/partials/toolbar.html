@@ -1,0 +1,80 @@
+            <div class="toolbar">
+                <!-- Hamburger — always visible -->
+                <button class="icon-btn toggle-sidebar" data-action="toggle-sidebar" title="Toggle sidebar (Ctrl+B)" aria-label="Toggle sidebar" aria-expanded="{% if theme_settings and not theme_settings.sidebar_collapsed %}true{% else %}false{% endif %}">
+                    <svg viewBox="0 0 24 24" class="icon-btn-svg"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+                </button>
+
+                <div class="breadcrumb">
+                    <select class="breadcrumb-category-select" id="category-select" data-action="change-category" title="{% if note %}Move to category{% else %}Category for new note{% endif %}">
+                        {% for cat in g.user.categories | sort(attribute='name') %}
+                        <option value="{{ cat.id }}"
+                            {% if note and note.category_id == cat.id %}selected{% endif %}
+                            {% if not note and category and cat.name == category %}selected{% endif %}
+                        >{{ cat.name }}</option>
+                        {% endfor %}
+                    </select>
+                    <span class="breadcrumb-sep">/</span>
+                    <span class="breadcrumb-item active">{{ note.title or 'Untitled' if note else 'New note' }}</span>
+                </div>
+
+                <div class="toolbar-spacer"></div>
+
+                <div class="toolbar-actions">
+                    <div class="font-size-controls">
+                        <button class="icon-btn" data-action="change-font-size" data-delta="-1" title="Decrease font size" aria-label="Decrease font size">
+                            <svg viewBox="0 0 24 24"><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                        </button>
+                        <span class="font-size-label" id="font-size-label">{{ font_size or 15 }}</span>
+                        <button class="icon-btn" data-action="change-font-size" data-delta="1" title="Increase font size" aria-label="Increase font size">
+                            <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                        </button>
+                    </div>
+
+                    <button class="icon-btn mobile-save-btn" id="mobile-save-btn" data-action="save-note" title="Save note" aria-label="Save note">
+                        <svg viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                    </button>
+
+                    <div class="toolbar-divider desktop-only"></div>
+
+                    <button class="icon-btn {% if theme_settings and theme_settings.preview_mode %}active{% endif %}" id="mode-toggle" data-action="toggle-mode" title="Toggle edit/preview (Ctrl+E)" aria-label="Toggle edit/preview">
+                        <svg viewBox="0 0 24 24" id="mode-toggle-icon">
+                            {% if theme_settings and theme_settings.preview_mode %}
+                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
+                            {% else %}
+                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                            {% endif %}
+                        </svg>
+                    </button>
+
+                    <div class="toolbar-divider desktop-only"></div>
+
+                    <button class="icon-btn mobile-search-btn" data-action="open-search" title="Search (Ctrl+K)" aria-label="Search">
+                        <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                    </button>
+
+                    <button class="icon-btn {% if theme_settings and not theme_settings.right_panel_collapsed %}active{% endif %}" id="panel-toggle" data-action="toggle-right-panel" title="Outline panel (Ctrl+Shift+O)" aria-label="Outline panel" aria-expanded="{% if theme_settings and not theme_settings.right_panel_collapsed %}true{% else %}false{% endif %}">
+                        <svg viewBox="0 0 24 24"><line x1="3" y1="6" x2="13" y2="6"/><line x1="3" y1="10" x2="10" y2="10"/><line x1="3" y1="14" x2="13" y2="14"/><line x1="3" y1="18" x2="10" y2="18"/><rect x="17" y="4" width="4" height="16" rx="1"/></svg>
+                    </button>
+
+                    <button class="icon-btn" id="theme-toggle" data-action="toggle-dark-mode" title="Toggle theme" aria-label="Toggle theme">
+                        <svg viewBox="0 0 24 24" id="theme-icon">
+                            {% if g.user.get_current_theme_dark_mode() %}
+                            <circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+                            {% else %}
+                            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+                            {% endif %}
+                        </svg>
+                    </button>
+
+                    <button class="icon-btn desktop-only" data-action="toggle-shortcuts" title="Shortcuts (Ctrl+/)" aria-label="Keyboard shortcuts">
+                        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                    </button>
+
+                    {% if note %}
+                    <div class="toolbar-divider"></div>
+                    <button class="icon-btn danger" data-action="delete-current-note" title="Delete note" aria-label="Delete note">
+                        <svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                    </button>
+                    {% endif %}
+                </div>
+            </div>

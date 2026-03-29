@@ -1,0 +1,117 @@
+    <!-- Search Modal -->
+    <div class="modal-overlay" id="search-overlay" data-action="close-modal-self" data-modal-close="closeSearchModal">
+        <div class="search-modal">
+            <div class="search-modal-input-wrapper">
+                <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                <input type="text" class="search-modal-input" id="search-modal-input" placeholder="Search notes..." data-action="perform-search">
+            </div>
+            <div class="search-modal-results" id="search-results"></div>
+            <div class="search-modal-footer">
+                <span><kbd>&uarr;</kbd><kbd>&darr;</kbd> Navigate</span>
+                <span><kbd>Enter</kbd> Open</span>
+                <span><kbd>Esc</kbd> Close</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Shortcuts Modal -->
+    <div class="modal-overlay" id="shortcuts-overlay" data-action="close-modal-self" data-modal-close="closeShortcutsModal">
+        <div class="shortcuts-modal">
+            <h3>Keyboard Shortcuts</h3>
+            <div class="shortcuts-grid">
+                <div class="shortcut-item"><span class="shortcut-label">Save</span><span class="shortcut-keys"><kbd>Ctrl</kbd><kbd>S</kbd></span></div>
+                <div class="shortcut-item"><span class="shortcut-label">New note</span><span class="shortcut-keys"><kbd>Ctrl</kbd><kbd>N</kbd></span></div>
+                <div class="shortcut-item"><span class="shortcut-label">Edit / Preview</span><span class="shortcut-keys"><kbd>Ctrl</kbd><kbd>E</kbd></span></div>
+                <div class="shortcut-item"><span class="shortcut-label">Exit edit</span><span class="shortcut-keys"><kbd>Esc</kbd></span></div>
+                <div class="shortcut-item"><span class="shortcut-label">Search</span><span class="shortcut-keys"><kbd>Ctrl</kbd><kbd>K</kbd></span></div>
+                <div class="shortcut-item"><span class="shortcut-label">Filter sidebar</span><span class="shortcut-keys"><kbd>Ctrl</kbd><kbd>P</kbd></span></div>
+                <div class="shortcut-item"><span class="shortcut-label">Toggle sidebar</span><span class="shortcut-keys"><kbd>Ctrl</kbd><kbd>B</kbd></span></div>
+                <div class="shortcut-item"><span class="shortcut-label">Outline panel</span><span class="shortcut-keys"><kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>O</kbd></span></div>
+                <div class="shortcut-item"><span class="shortcut-label">This help</span><span class="shortcut-keys"><kbd>Ctrl</kbd><kbd>/</kbd></span></div>
+                <div class="shortcut-item"><span class="shortcut-label">Slash commands</span><span class="shortcut-keys"><kbd>/</kbd> in editor</span></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Template Picker Modal -->
+    <div class="modal-overlay" id="template-overlay" data-action="close-modal-self" data-modal-close="closeTemplatePicker">
+        <div class="template-modal">
+            <div class="template-modal-header">
+                <span id="template-modal-title">Insert Template</span>
+                <button class="icon-btn" data-action="close-template-picker">
+                    <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+            </div>
+            <div class="template-modal-body" id="template-list"></div>
+            <div class="template-modal-footer">
+                <span><kbd>Esc</kbd> Close</span>
+                <div style="display:flex;gap:6px">
+                    <button data-action="save-current-as-template">Save current note as template</button>
+                    <button data-action="open-manage-templates">Manage</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Manage Templates Modal -->
+    <div class="modal-overlay" id="manage-templates-overlay" data-action="close-modal-self" data-modal-close="closeManageTemplates">
+        <div class="template-modal">
+            <div class="template-modal-header">
+                <span>Manage Templates</span>
+                <button class="icon-btn" data-action="close-manage-templates">
+                    <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+            </div>
+            <div class="template-modal-body" id="manage-template-list"></div>
+            <div class="template-modal-footer">
+                <span>Delete templates or assign them as folder defaults</span>
+                <button data-action="close-manage-templates">Done</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Todo Detail Modal -->
+    <div class="modal-overlay" id="todo-detail-overlay" data-action="close-modal-self" data-modal-close="closeTodoDetailModal">
+        <div class="agenda-modal">
+            <div class="agenda-modal-header">
+                <span id="todo-modal-title">To-do</span>
+                <button class="icon-btn" data-action="close-todo-modal">
+                    <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+            </div>
+            <div class="agenda-modal-body">
+                <input type="text" class="agenda-modal-input" id="todo-modal-input-title" placeholder="Title">
+                <input type="date" class="agenda-modal-input" id="todo-modal-input-date">
+                <textarea class="agenda-modal-textarea" id="todo-modal-input-content" placeholder="Notes (optional)" rows="3"></textarea>
+            </div>
+            <div class="agenda-modal-footer">
+                <button class="agenda-modal-btn danger" id="todo-modal-delete-btn" data-action="delete-from-todo-modal">Delete</button>
+                <span class="agenda-modal-spacer"></span>
+                <button class="agenda-modal-btn" data-action="close-todo-modal">Cancel</button>
+                <button class="agenda-modal-btn primary" data-action="save-from-todo-modal">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Event Detail Modal -->
+    <div class="modal-overlay" id="event-detail-overlay" data-action="close-modal-self" data-modal-close="closeEventDetailModal">
+        <div class="agenda-modal">
+            <div class="agenda-modal-header">
+                <span id="event-modal-title">Event</span>
+                <button class="icon-btn" data-action="close-event-modal">
+                    <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+            </div>
+            <div class="agenda-modal-body">
+                <input type="text" class="agenda-modal-input" id="event-modal-input-title" placeholder="Title">
+                <input type="date" class="agenda-modal-input" id="event-modal-input-date">
+                <textarea class="agenda-modal-textarea" id="event-modal-input-content" placeholder="Notes (optional)" rows="3"></textarea>
+            </div>
+            <div class="agenda-modal-footer">
+                <button class="agenda-modal-btn danger" id="event-modal-delete-btn" data-action="delete-from-event-modal">Delete</button>
+                <span class="agenda-modal-spacer"></span>
+                <button class="agenda-modal-btn" data-action="close-event-modal">Cancel</button>
+                <button class="agenda-modal-btn primary" data-action="save-from-event-modal">Save</button>
+            </div>
+        </div>
+    </div>
