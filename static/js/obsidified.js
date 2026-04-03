@@ -250,7 +250,8 @@ function refreshSidebar(callback) {
         // Render Lucide icons in sidebar
         renderSidebarIcons();
 
-        // Re-apply pinned notes and search filter
+        // Re-apply pinned notes and search filter (reset cache so titles refresh after E2EE decrypt)
+        _lastPinnedKey = null;
         renderPinnedNotes();
         updatePinButtons();
         if (searchQuery) filterNotes(searchQuery);
