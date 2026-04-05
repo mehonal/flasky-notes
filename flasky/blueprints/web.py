@@ -1,6 +1,10 @@
-from flask import Blueprint, render_template, request, session, redirect, url_for, g, jsonify
+from flask import (Blueprint, render_template, request, session, redirect,
+                    url_for, g, jsonify, make_response, current_app, send_from_directory)
 from datetime import datetime, timedelta
 import bcrypt
+import hashlib
+import base64
+import json
 import re
 
 import config as CONFIG
@@ -94,7 +98,6 @@ def api_auth_salt():
     user = User.query.filter_by(username=username).first()
     # Always return a deterministic fake salt for unknown users to prevent enumeration
     if not user or not user.key_salt:
-        import hashlib
         fake = hashlib.sha256(('flasky-salt-' + username).encode()).hexdigest()
         return jsonify(key_salt=fake)
     return jsonify(key_salt=user.key_salt)
@@ -325,7 +328,6 @@ def api_auth_recovery_info():
     if not user or not user.recovery_encrypted_key:
         # Return a fake key that looks like a real wrapped key to prevent enumeration.
         # The client will fail to unwrap it (AES-GCM auth tag check), giving a generic error.
-        import hashlib, base64
         fake_bytes = hashlib.sha256(('flasky-recovery-' + username).encode()).digest()
         fake_bytes += hashlib.sha256(fake_bytes).digest()  # 64 bytes total (12 IV + wrapped + tag)
         return jsonify(recovery_encrypted_key=base64.b64encode(fake_bytes).decode())
@@ -380,7 +382,6 @@ def before_request():
                 g.user = user
 
     # CSRF validation for state-changing requests
-    from flask import current_app
     if request.method in ('POST', 'PUT', 'DELETE', 'PATCH') and not current_app.config.get('TESTING'):
         if not any(request.path.startswith(p) for p in _CSRF_EXEMPT):
             csrf_token = session.get('csrf_token')
@@ -686,7 +687,6 @@ def note_single_page(note_id):
         # E2EE: embed encrypted note data as JSON for client-side decryption
         encrypted_note_data = None
         if g.user.encryption_enabled and note:
-            import json
             encrypted_note_data = json.dumps({
                 'title': note.title,
                 'content': note.content,
@@ -739,8 +739,6 @@ def manifest_json():
 
 @web_bp.route("/attachment/<int:attachment_id>/<filename>")
 def serve_attachment(attachment_id, filename):
-    import os
-    from flask import send_from_directory, current_app, make_response
     if not g.user:
         return "Unauthorized", 401
     a = Attachment.query.filter_by(id=attachment_id, user_id=g.user.id).first()
@@ -758,3 +756,37 @@ def serve_attachment(attachment_id, filename):
         response.headers['X-Encrypted'] = 'true'
         return response
     return send_from_directory(os.path.dirname(disk), os.path.basename(disk), mimetype=a.content_type)
+
+
+@web_bp.route("/export")
+def export_page():
+    if not g.user:
+        return redirect(url_for('web.login_page'))
+    note_count = UserNote.query.filter_by(userid=g.user.id).count()
+    category_count = UserNoteCategory.query.filter_by(user_id=g.user.id).count()
+    attachment_count = Attachment.query.filter_by(user_id=g.user.id).count()
+    return render_template("export.html",
+                           note_count=note_count,
+                           category_count=category_count,
+                           attachment_count=attachment_count)
+
+
+@web_bp.route("/api/export/notes")
+def export_notes_api():
+    """Return all notes with full content for export (handles E2EE transparently)."""
+    if not g.user:
+        return jsonify(error="Unauthorized"), 401
+    notes = UserNote.query.filter_by(userid=g.user.id).all()
+    attachments = Attachment.query.filter_by(user_id=g.user.id).all()
+    result = []
+    for note in notes:
+        result.append({
+            "id": note.id,
+            "title": note.title,
+            "content": note.content,
+            "properties": note.properties,  # raw JSON string or encrypted ciphertext
+            "category": note.get_category_name(),
+        })
+    att_list = [{"id": a.id, "filename": a.filename} for a in attachments]
+    return jsonify(notes=result, attachments=att_list,
+                   encrypted=g.user.encryption_enabled)
