@@ -1000,7 +1000,10 @@ function deleteSidebarNote(id, title) {
         if (data.success) {
             if (window._invalidateNoteMap) window._invalidateNoteMap();
             refreshSidebar();
-            if (noteId === id) loadNote(0);
+            if (noteId === id) {
+                if (isMobile) closeSidebar();
+                loadNote(0);
+            }
         }
     });
 }
@@ -1036,6 +1039,7 @@ function changeNoteCategory(categoryId) {
 }
 
 function createNewNoteInFolder(catId, catName) {
+    if (isMobile) closeSidebar();
     if (isDirty) {
         saveNote(function() { loadNote(0, catName, catId); });
     } else {
@@ -3074,6 +3078,7 @@ function applyTemplate(templateId) {
             }
         } else if (templatePickerMode === 'new_in_folder' && templatePickerFolderId) {
             // Create a new note in the target folder, then populate from template
+            if (isMobile) closeSidebar();
             var catId = templatePickerFolderId;
             var folderEl = document.querySelector('.folder[data-category-id="' + catId + '"]');
             var catName = folderEl ? folderEl.dataset.path : '';
