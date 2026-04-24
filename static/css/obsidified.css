@@ -174,7 +174,11 @@ body {
 .folder-add-btn:hover, .folder-newnote-btn:hover { color: var(--accent) !important; }
 .folder-count { font-size: 11px; color: var(--text-muted); flex-shrink: 0; min-width: 16px; text-align: center; }
 .folder.collapsed .folder-items { display: none; }
-.folder-items > .folder { padding-left: 8px; }
+.folder-items { margin-left: 14px; padding-left: 8px; border-left: 1px solid var(--border); }
+.folder-items:hover { border-left-color: var(--text-muted); }
+.folder:not(.collapsed) > .folder-header { color: var(--text-primary); }
+.folder:not(.collapsed) > .folder-header .folder-icon,
+.folder:not(.collapsed) > .folder-header .folder-chevron { color: var(--accent); }
 .folder-header.drag-over, .file-item.drag-over { background: var(--accent-dim); outline: 2px dashed var(--accent); outline-offset: -2px; border-radius: 6px; }
 .folder-items.drag-over { background: var(--accent-dim); border-radius: 4px; }
 .file-item.dragging { opacity: 0.4; }
