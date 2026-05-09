@@ -382,6 +382,130 @@
             </form>
         </div>
 
+        <!-- AI Integration -->
+        <div class="settings-card">
+            <h2>AI Integration</h2>
+            <form method="POST">
+                <div class="sync-status">
+                    <div>
+                        {% if ai_enabled %}
+                        <span class="badge bg-success sync-badge">Enabled</span>
+                        {% else %}
+                        <span class="badge bg-secondary sync-badge">Disabled</span>
+                        {% endif %}
+                    </div>
+                    <button name="toggle-ai" class="btn btn-sm {% if ai_enabled %}btn-outline-danger{% else %}btn-outline-success{% endif %}" type="submit">
+                        {% if ai_enabled %}Disable{% else %}Enable{% endif %}
+                    </button>
+                </div>
+            </form>
+            <p class="text-muted small mt-2 mb-0">
+                When AI integration is disabled, Flasky Notes has absolutely no connection to any AI service. No data is sent anywhere.
+            </p>
+            {% if ai_enabled %}
+            <hr class="my-3">
+            <form method="POST">
+                <input type="hidden" name="csrf_token" value="{{ session.get('csrf_token', '') }}">
+                <div class="settings-row">
+                    <label for="ollama-api-key">API Key</label>
+                    <div class="d-flex gap-2 align-items-center">
+                        <input name="ollama-api-key" id="ollama-api-key" class="form-control" type="password" placeholder="{% if ai_settings and ai_settings.ollama_api_key %}Key configured (leave blank to keep){% else %}Enter your Ollama Cloud API key{% endif %}" style="flex:1;">
+                        {% if ai_settings and ai_settings.ollama_api_key %}
+                        <button name="remove-ai-api-key" class="btn btn-sm btn-outline-danger" type="submit">Remove Key</button>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="settings-row">
+                    <label for="ollama-model-select">Model</label>
+                    <select id="ollama-model-select" class="form-control">
+                        <option value="{{ ai_settings.ollama_model if ai_settings else 'gpt-oss:120b' }}">{{ ai_settings.ollama_model if ai_settings else 'gpt-oss:120b' }}</option>
+                    </select>
+                    <input name="ollama-model" id="ollama-model-value" type="hidden" value="{{ ai_settings.ollama_model if ai_settings else 'gpt-oss:120b' }}">
+                </div>
+                <div class="settings-row d-none" id="ollama-custom-model-row">
+                    <label for="ollama-model-custom">Custom Model Name</label>
+                    <input id="ollama-model-custom" class="form-control" type="text" placeholder="e.g. gpt-oss:120b" value="{{ ai_settings.ollama_model if ai_settings else 'gpt-oss:120b' }}">
+                </div>
+                <div class="settings-row">
+                    <label for="ollama-base-url">Base URL</label>
+                    <input name="ollama-base-url" id="ollama-base-url" class="form-control" type="text" value="{{ ai_settings.ollama_base_url if ai_settings else 'https://ollama.com' }}">
+                </div>
+                <div class="settings-row mt-2">
+                    <button name="update-ai-settings" class="btn btn-primary" type="submit">Save AI Settings</button>
+                </div>
+            </form>
+            <p class="text-muted small mt-2 mb-0">
+                AI chat is independent from your notes, sync, and other features. Your notes data is never sent to the AI service.
+            </p>
+            <script nonce="{{ csp_nonce() }}">
+            (function() {
+                var select = document.getElementById('ollama-model-select');
+                var customRow = document.getElementById('ollama-custom-model-row');
+                var customInput = document.getElementById('ollama-model-custom');
+                var hiddenInput = document.getElementById('ollama-model-value');
+                if (!select || !hiddenInput) return;
+                var currentModel = hiddenInput.value;
+
+                function updateHidden() {
+                    var sel = select.value;
+                    if (sel === '__custom__') {
+                        customRow.classList.remove('d-none');
+                        hiddenInput.value = customInput.value || currentModel;
+                    } else {
+                        customRow.classList.add('d-none');
+                        hiddenInput.value = sel;
+                    }
+                }
+
+                customInput.addEventListener('input', function() {
+                    hiddenInput.value = customInput.value;
+                });
+
+                select.addEventListener('change', updateHidden);
+
+                function populateModels(models) {
+                    select.innerHTML = '';
+                    var currentFound = false;
+                    models.forEach(function(m) {
+                        var opt = document.createElement('option');
+                        opt.value = m;
+                        opt.textContent = m;
+                        if (m === currentModel) {
+                            opt.selected = true;
+                            currentFound = true;
+                        }
+                        select.appendChild(opt);
+                    });
+                    var customOpt = document.createElement('option');
+                    customOpt.value = '__custom__';
+                    customOpt.textContent = 'Custom...';
+                    if (!currentFound && currentModel) {
+                        customOpt.selected = true;
+                        customRow.classList.remove('d-none');
+                        customInput.value = currentModel;
+                        hiddenInput.value = currentModel;
+                    }
+                    select.appendChild(customOpt);
+                }
+
+                fetch('/ai/api/models', {headers: {'X-CSRFToken': document.cookie.split('; ').find(function(c){return c.startsWith('X-CSRF-Token=')}) ? document.cookie.split('; ').find(function(c){return c.startsWith('X-CSRF-Token=')}).split('=')[1] : ''}})
+                    .then(function(r) { return r.json(); })
+                    .then(function(data) {
+                        var models = data.models || [];
+                        if (models.length > 0) {
+                            populateModels(models);
+                        } else {
+                            populateModels(["gpt-oss:120b","gpt-oss:20b","deepseek-v3.2","deepseek-v4-flash","glm-5.1","glm-5","kimi-k2-thinking","kimi-k2.6","kimi-k2.5","minimax-m2.7","minimax-m2.5","mistral-large-3:675b","qwen3.5:397b","qwen3-coder:480b","gemma4:31b","gemma3:27b"]);
+                        }
+                    })
+                    .catch(function() {
+                        populateModels(["gpt-oss:120b","gpt-oss:20b","deepseek-v3.2","deepseek-v4-flash","glm-5.1","glm-5","kimi-k2-thinking","kimi-k2.6","kimi-k2.5","minimax-m2.7","minimax-m2.5","mistral-large-3:675b","qwen3.5:397b","qwen3-coder:480b","gemma4:31b","gemma3:27b"]);
+                    });
+            })();
+            </script>
+            {% endif %}
+        </div>
+
         <!-- Encryption -->
         {% if g.user.encryption_enabled %}
         <div class="settings-card">

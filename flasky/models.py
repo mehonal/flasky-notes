@@ -16,33 +16,34 @@ from flasky.utils import parse_note_frontmatter, content_with_frontmatter
 
 class Theme(db.Model):
     __tablename__ = "theme"
-    id = db.Column(db.Integer, primary_key = True)
-    name = db.Column(db.String(100), unique = True)
-    has_settings_page = db.Column(db.Boolean, default = False)
-    has_categories_page = db.Column(db.Boolean, default = False)
-    has_notes_page = db.Column(db.Boolean, default = False)
-    slug = db.Column(db.String(100), unique = True)
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), unique=True)
+    has_settings_page = db.Column(db.Boolean, default=False)
+    has_categories_page = db.Column(db.Boolean, default=False)
+    has_notes_page = db.Column(db.Boolean, default=False)
+    slug = db.Column(db.String(100), unique=True)
+
 
 class UserTheme(db.Model):
     __tablename__ = "user_theme"
-    id = db.Column(db.Integer, primary_key = True)
-    user_id = db.Column(db.ForeignKey('user.id'))
-    theme_id = db.Column(db.ForeignKey('theme.id'))
-    font = db.Column(db.String(250), default = "sans-serif")
-    font_size = db.Column(db.Integer, default = 16)
-    mobile_font_size = db.Column(db.Integer, default = 16)
-    dark_mode = db.Column(db.Boolean, default = False)
-    hide_title = db.Column(db.Boolean, default = False)
-    notes_row_count = db.Column(db.Integer, default = 3)
-    notes_height = db.Column(db.Integer, default = 150)
-    auto_save = db.Column(db.Boolean, default = False)
-    sidebar_collapsed = db.Column(db.Boolean, default = False)
-    right_panel_collapsed = db.Column(db.Boolean, default = True)
-    properties_collapsed = db.Column(db.Boolean, default = True)
-    preview_mode = db.Column(db.Boolean, default = False)
-    panel_widgets = db.Column(db.Text, default = None)  # JSON: widget order + visibility
-    user = db.relationship('User', backref="themes")
-    theme = db.relationship('Theme', backref="users")
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.ForeignKey("user.id"))
+    theme_id = db.Column(db.ForeignKey("theme.id"))
+    font = db.Column(db.String(250), default="sans-serif")
+    font_size = db.Column(db.Integer, default=16)
+    mobile_font_size = db.Column(db.Integer, default=16)
+    dark_mode = db.Column(db.Boolean, default=False)
+    hide_title = db.Column(db.Boolean, default=False)
+    notes_row_count = db.Column(db.Integer, default=3)
+    notes_height = db.Column(db.Integer, default=150)
+    auto_save = db.Column(db.Boolean, default=False)
+    sidebar_collapsed = db.Column(db.Boolean, default=False)
+    right_panel_collapsed = db.Column(db.Boolean, default=True)
+    properties_collapsed = db.Column(db.Boolean, default=True)
+    preview_mode = db.Column(db.Boolean, default=False)
+    panel_widgets = db.Column(db.Text, default=None)  # JSON: widget order + visibility
+    user = db.relationship("User", backref="themes")
+    theme = db.relationship("Theme", backref="users")
 
     DEFAULT_PANEL_WIDGETS = [
         {"id": "outline", "label": "Outline", "visible": True},
@@ -56,15 +57,16 @@ class UserTheme(db.Model):
 
     def get_panel_widgets(self):
         import json
+
         if self.panel_widgets:
             try:
                 saved = json.loads(self.panel_widgets)
                 # Remove retired widget ids
-                saved = [w for w in saved if w['id'] != 'agenda']
+                saved = [w for w in saved if w["id"] != "agenda"]
                 # Merge with defaults to pick up newly added widgets
-                saved_ids = [w['id'] for w in saved]
+                saved_ids = [w["id"] for w in saved]
                 for default_w in self.DEFAULT_PANEL_WIDGETS:
-                    if default_w['id'] not in saved_ids:
+                    if default_w["id"] not in saved_ids:
                         saved.append(dict(default_w))
                 return saved
             except (json.JSONDecodeError, KeyError):
@@ -73,29 +75,37 @@ class UserTheme(db.Model):
 
     def set_panel_widgets(self, widgets):
         import json
+
         self.panel_widgets = json.dumps(widgets)
+
 
 class UserSettings(db.Model):
     __tablename__ = "user_settings"
-    id = db.Column(db.Integer, primary_key = True)
-    theme_preference = db.Column(db.String(100), default = "obsidified")
-    timezone = db.Column(db.String(100), default = "UTC")
-    obsidian_sync_enabled = db.Column(db.Boolean, default = False)
+    id = db.Column(db.Integer, primary_key=True)
+    theme_preference = db.Column(db.String(100), default="obsidified")
+    timezone = db.Column(db.String(100), default="UTC")
+    obsidian_sync_enabled = db.Column(db.Boolean, default=False)
+    ai_enabled = db.Column(db.Boolean, default=False)
+    ollama_api_key = db.Column(db.String(500), nullable=True)
+    ollama_model = db.Column(db.String(200), default="gpt-oss:120b")
+    ollama_base_url = db.Column(db.String(500), default="https://ollama.com")
+
 
 class ApiToken(db.Model):
     __tablename__ = "api_token"
-    id = db.Column(db.Integer, primary_key = True)
-    user_id = db.Column(db.ForeignKey('user.id'), nullable=False)
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.ForeignKey("user.id"), nullable=False)
     token_hash = db.Column(db.String(64), unique=True, nullable=False)
     name = db.Column(db.String(100), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     last_used_at = db.Column(db.DateTime)
-    user = db.relationship('User', backref="api_tokens")
+    user = db.relationship("User", backref="api_tokens")
+
 
 class SyncConflict(db.Model):
     __tablename__ = "sync_conflict"
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.ForeignKey('user.id'), nullable=False)
+    user_id = db.Column(db.ForeignKey("user.id"), nullable=False)
     note_id = db.Column(db.Integer, nullable=True)
     local_title = db.Column(db.Text)
     local_content = db.Column(db.Text)
@@ -104,45 +114,52 @@ class SyncConflict(db.Model):
     category = db.Column(db.Text)
     conflict_date = db.Column(db.DateTime, default=datetime.utcnow)
     resolved = db.Column(db.Boolean, default=False)
-    user = db.relationship('User', backref="sync_conflicts")
+    user = db.relationship("User", backref="sync_conflicts")
+
 
 class Attachment(db.Model):
     __tablename__ = "attachment"
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.ForeignKey('user.id'), nullable=False)
+    user_id = db.Column(db.ForeignKey("user.id"), nullable=False)
     filename = db.Column(db.Text, nullable=False)
     content_type = db.Column(db.String(200))
     file_hash = db.Column(db.String(64), nullable=False)
     file_size = db.Column(db.Integer)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    user = db.relationship('User', backref="attachments")
+    user = db.relationship("User", backref="attachments")
 
     def disk_path(self):
         from flask import current_app
-        attachment_dir = current_app.config['ATTACHMENT_DIR']
+
+        attachment_dir = current_app.config["ATTACHMENT_DIR"]
         user_dir = os.path.join(attachment_dir, str(self.user_id))
-        return os.path.join(user_dir, f"{self.file_hash}_{secure_filename(self.filename)}")
+        return os.path.join(
+            user_dir, f"{self.file_hash}_{secure_filename(self.filename)}"
+        )
+
 
 class User(db.Model):
     __tablename__ = "user"
-    id = db.Column(db.Integer, primary_key = True, autoincrement = True)
-    settingsid = db.Column(db.Integer, db.ForeignKey('user_settings.id'), unique = True)
-    username = db.Column(db.String(30), unique = True)
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    settingsid = db.Column(db.Integer, db.ForeignKey("user_settings.id"), unique=True)
+    username = db.Column(db.String(30), unique=True)
     password = db.Column(db.String(280))
-    email = db.Column(db.String(300), unique = True)
-    plan = db.Column(db.Integer, default = 0)
-    user_type = db.Column(db.Integer, default = 0)
+    email = db.Column(db.String(300), unique=True)
+    plan = db.Column(db.Integer, default=0)
+    user_type = db.Column(db.Integer, default=0)
     # E2EE columns
     encryption_enabled = db.Column(db.Boolean, default=False)
-    encrypted_symmetric_key = db.Column(db.Text)         # base64 AES-GCM wrapped key
-    recovery_encrypted_key = db.Column(db.Text)           # base64 recovery-key wrapped key
-    recovery_key_hash = db.Column(db.String(64))            # SHA-256 hash of raw recovery key bytes
-    encryption_version = db.Column(db.Integer, default=0) # 0=none, 1=AES-256-GCM
-    key_salt = db.Column(db.String(64))                   # hex-encoded random PBKDF2 salt
-    password_hint = db.Column(db.Text)                    # encrypted by client
-    settings = db.relationship('UserSettings', uselist = False, backref= "user")
+    encrypted_symmetric_key = db.Column(db.Text)  # base64 AES-GCM wrapped key
+    recovery_encrypted_key = db.Column(db.Text)  # base64 recovery-key wrapped key
+    recovery_key_hash = db.Column(
+        db.String(64)
+    )  # SHA-256 hash of raw recovery key bytes
+    encryption_version = db.Column(db.Integer, default=0)  # 0=none, 1=AES-256-GCM
+    key_salt = db.Column(db.String(64))  # hex-encoded random PBKDF2 salt
+    password_hint = db.Column(db.Text)  # encrypted by client
+    settings = db.relationship("UserSettings", uselist=False, backref="user")
 
-    def get_timezone(self, as_str = False):
+    def get_timezone(self, as_str=False):
         try:
             settings = self.return_settings()
             if settings.timezone is None or settings.timezone == "":
@@ -159,7 +176,11 @@ class User(db.Model):
 
     def set_timezone(self, timezone):
         try:
-            if timezone is None or timezone == "" or timezone not in available_timezones():
+            if (
+                timezone is None
+                or timezone == ""
+                or timezone not in available_timezones()
+            ):
                 logger.warning("Invalid timezone. Using UTC.")
                 timezone = "UTC"
             settings = self.return_settings()
@@ -174,7 +195,7 @@ class User(db.Model):
         logger.debug("Editing agenda")
         if not self.agenda_notes:
             logger.debug("No agenda notes found. Creating new.")
-            UserAgendaNotes(userid=self.id,content=content)
+            UserAgendaNotes(userid=self.id, content=content)
             db.session.commit()
             logger.debug("New agenda notes created.")
             return True
@@ -193,36 +214,47 @@ class User(db.Model):
         try:
             # E2EE: can't look up by name (it's encrypted), use first category
             if self.encryption_enabled:
-                category = UserNoteCategory.query.filter_by(user_id=self.id)\
-                    .order_by(UserNoteCategory.id).first()
+                category = (
+                    UserNoteCategory.query.filter_by(user_id=self.id)
+                    .order_by(UserNoteCategory.id)
+                    .first()
+                )
                 if category is None:
                     # Shouldn't happen — client creates the default category at registration
                     category = UserNoteCategory(user_id=self.id, name="")
                     db.session.add(category)
                     db.session.commit()
                 return category
-            category = UserNoteCategory.query.filter_by(user_id=self.id,name="Main").first()
+            category = UserNoteCategory.query.filter_by(
+                user_id=self.id, name="Main"
+            ).first()
             if category:
                 return category
             else:
-                category = UserNoteCategory.query.filter_by(user_id=self.id,name="main").first()
+                category = UserNoteCategory.query.filter_by(
+                    user_id=self.id, name="main"
+                ).first()
                 if category is None:
-                    category = UserNoteCategory(user_id=self.id,name="Main")
+                    category = UserNoteCategory(user_id=self.id, name="Main")
                     db.session.add(category)
                     db.session.commit()
             return category
         except Exception:
             return None
 
-    def get_category(self,category,create = False):
+    def get_category(self, category, create=False):
         category_obj = None
         if category is not None:
             if isinstance(category, int):
-                category_obj = UserNoteCategory.query.filter_by(user_id=self.id,id=category).first()
+                category_obj = UserNoteCategory.query.filter_by(
+                    user_id=self.id, id=category
+                ).first()
             elif isinstance(category, str):
-                category_obj = UserNoteCategory.query.filter_by(user_id=self.id,name=category).first()
+                category_obj = UserNoteCategory.query.filter_by(
+                    user_id=self.id, name=category
+                ).first()
         if category_obj is None and create and isinstance(category, str):
-            category_obj = UserNoteCategory(user_id=self.id,name=category)
+            category_obj = UserNoteCategory(user_id=self.id, name=category)
             db.session.add(category_obj)
             db.session.commit()
         if category is None:
@@ -234,41 +266,56 @@ class User(db.Model):
         Returns {name: {_category, _notes, _children: {name: ...}}}"""
         tree = {}
         for cat in sorted(self.categories, key=lambda c: c.name):
-            parts = cat.name.split('/')
+            parts = cat.name.split("/")
             node = tree
             for i, part in enumerate(parts):
                 if part not in node:
-                    node[part] = {'_children': {}, '_category': None, '_notes': []}
+                    node[part] = {"_children": {}, "_category": None, "_notes": []}
                 if i == len(parts) - 1:
-                    node[part]['_category'] = cat
-                    node[part]['_notes'] = sorted(cat.notes, key=lambda n: (n.title or '').lower())
-                node = node[part]['_children']
+                    node[part]["_category"] = cat
+                    node[part]["_notes"] = sorted(
+                        cat.notes, key=lambda n: (n.title or "").lower()
+                    )
+                node = node[part]["_children"]
         return tree
 
     def generate_theme_settings(self):
         for theme in Theme.query.all():
-            if UserTheme.query.filter_by(user_id=self.id, theme_id=theme.id).first() is None:
+            if (
+                UserTheme.query.filter_by(user_id=self.id, theme_id=theme.id).first()
+                is None
+            ):
                 user_theme = UserTheme(user_id=self.id, theme_id=theme.id)
                 db.session.add(user_theme)
         db.session.commit()
         return True
 
-    def get_theme_settings(self, theme_slug: str = None): # gets current theme's settings
+    def get_theme_settings(
+        self, theme_slug: str = None
+    ):  # gets current theme's settings
         if theme_slug is not None:
             theme = Theme.query.filter_by(slug=theme_slug).first()
             if theme and theme is not None:
-                user_theme = UserTheme.query.filter_by(user_id=self.id, theme_id=theme.id).first()
+                user_theme = UserTheme.query.filter_by(
+                    user_id=self.id, theme_id=theme.id
+                ).first()
                 if user_theme:
                     return user_theme
                 else:
                     self.generate_theme_settings()
-                    return UserTheme.query.filter_by(user_id=self.id, theme_id=theme.id).first()
+                    return UserTheme.query.filter_by(
+                        user_id=self.id, theme_id=theme.id
+                    ).first()
             else:
                 self.generate_theme_settings()
-                return UserTheme.query.filter_by(user_id=self.id, theme_id=theme.id).first()
+                return UserTheme.query.filter_by(
+                    user_id=self.id, theme_id=theme.id
+                ).first()
         theme_preference = self.return_settings().theme_preference
         theme = Theme.query.filter_by(slug=theme_preference).first()
-        user_theme = UserTheme.query.filter_by(user_id=self.id, theme_id=theme.id).first()
+        user_theme = UserTheme.query.filter_by(
+            user_id=self.id, theme_id=theme.id
+        ).first()
         if user_theme and user_theme is not None:
             return user_theme
         else:
@@ -279,35 +326,45 @@ class User(db.Model):
         try:
             return self.get_theme_settings().font
         except Exception:
-            logger.warning("Could not retrieve font via User.get_current_theme_font. Using default (sans-serif)")
+            logger.warning(
+                "Could not retrieve font via User.get_current_theme_font. Using default (sans-serif)"
+            )
             return "sans-serif"
 
     def get_current_theme_notes_height(self):
         try:
             return self.get_theme_settings().notes_height
         except Exception:
-            logger.warning("Could not retrieve note height for notes via User.get_current_theme_notes_height. Using default (150)")
+            logger.warning(
+                "Could not retrieve note height for notes via User.get_current_theme_notes_height. Using default (150)"
+            )
             return 150
 
     def get_current_theme_notes_row_count(self):
         try:
             return self.get_theme_settings().notes_row_count
         except Exception:
-            logger.warning("Could not retrieve row count preference for notes via User.get_current_theme_notes_row_count. Using default (3)")
+            logger.warning(
+                "Could not retrieve row count preference for notes via User.get_current_theme_notes_row_count. Using default (3)"
+            )
             return 3
 
     def get_current_theme_dark_mode(self):
         try:
             return self.get_theme_settings().dark_mode
         except Exception:
-            logger.warning("Could not retrieve dark mode preference via User.get_current_theme_dark_mode. Using default (off)")
+            logger.warning(
+                "Could not retrieve dark mode preference via User.get_current_theme_dark_mode. Using default (off)"
+            )
             return False
 
     def get_current_theme_font_size(self):
         try:
             return self.get_theme_settings().font_size
         except Exception:
-            logger.warning("Could not retrieve font size via User.return_current_theme_font_size. Using default (16)")
+            logger.warning(
+                "Could not retrieve font size via User.return_current_theme_font_size. Using default (16)"
+            )
             return 16
 
     def update_theme_font(self, theme, new_font):
@@ -327,7 +384,9 @@ class User(db.Model):
             db.session.commit()
             return True
         except Exception:
-            logger.warning("Could not update notes height via User.update_theme_notes_height.")
+            logger.warning(
+                "Could not update notes height via User.update_theme_notes_height."
+            )
             return False
 
     def update_theme_notes_row_count(self, theme, new_row_count):
@@ -337,7 +396,9 @@ class User(db.Model):
             db.session.commit()
             return True
         except Exception:
-            logger.warning("Could not update notes row count via User.update_theme_notes_row_count.")
+            logger.warning(
+                "Could not update notes row count via User.update_theme_notes_row_count."
+            )
             return False
 
     def update_theme_dark_mode(self, theme, dark_mode):
@@ -347,7 +408,9 @@ class User(db.Model):
             db.session.commit()
             return True
         except Exception:
-            logger.warning("Could not update dark mode via User.update_theme_dark_mode.")
+            logger.warning(
+                "Could not update dark mode via User.update_theme_dark_mode."
+            )
             return False
 
     def update_theme_auto_save(self, theme, auto_save):
@@ -357,7 +420,9 @@ class User(db.Model):
             db.session.commit()
             return True
         except Exception:
-            logger.warning("Could not update auto save via User.update_theme_auto_save.")
+            logger.warning(
+                "Could not update auto save via User.update_theme_auto_save."
+            )
             return False
 
     def update_theme_font_size(self, theme, new_font_size):
@@ -367,7 +432,9 @@ class User(db.Model):
             db.session.commit()
             return True
         except Exception:
-            logger.warning("Could not update font size via User.update_theme_font_size.")
+            logger.warning(
+                "Could not update font size via User.update_theme_font_size."
+            )
             return False
 
     def update_theme_mobile_font_size(self, theme, new_font_size):
@@ -377,7 +444,9 @@ class User(db.Model):
             db.session.commit()
             return True
         except Exception:
-            logger.warning("Could not update mobile font size via User.update_theme_mobile_font_size.")
+            logger.warning(
+                "Could not update mobile font size via User.update_theme_mobile_font_size."
+            )
             return False
 
     def update_theme_hide_title(self, theme, hide_title):
@@ -387,25 +456,31 @@ class User(db.Model):
             db.session.commit()
             return True
         except Exception:
-            logger.warning("Could not update hide title via User.update_theme_hide_title.")
+            logger.warning(
+                "Could not update hide title via User.update_theme_hide_title."
+            )
             return False
 
     def return_settings(self):
         try:
             return self.settings
         except Exception:
-            logger.warning("Could not return settings via User.return_settings. Attempting to generate.")
+            logger.warning(
+                "Could not return settings via User.return_settings. Attempting to generate."
+            )
             gen = self.generate_missing_settings()
             logger.warning("Settings generation attempt status: %s", gen)
             try:
                 return self.settings
             except Exception:
-                logger.warning("Settings could not be generated for user %s.", self.username)
+                logger.warning(
+                    "Settings could not be generated for user %s.", self.username
+                )
                 return None
 
-    def delete_note(self,note_id):
+    def delete_note(self, note_id):
         try:
-            note = UserNote.query.filter_by(userid=self.id,id=note_id).first()
+            note = UserNote.query.filter_by(userid=self.id, id=note_id).first()
             if note:
                 db.session.commit()
                 db.session.delete(note)
@@ -416,10 +491,19 @@ class User(db.Model):
         except Exception:
             return False
 
-    def return_notes(self, limit = None):
+    def return_notes(self, limit=None):
         if limit:
-            return UserNote.query.filter_by(userid=self.id).order_by(UserNote.date_last_changed.desc()).limit(limit).all()
-        return UserNote.query.filter_by(userid=self.id).order_by(UserNote.date_last_changed.desc()).all()
+            return (
+                UserNote.query.filter_by(userid=self.id)
+                .order_by(UserNote.date_last_changed.desc())
+                .limit(limit)
+                .all()
+            )
+        return (
+            UserNote.query.filter_by(userid=self.id)
+            .order_by(UserNote.date_last_changed.desc())
+            .all()
+        )
 
     def has_notes(self):
         try:
@@ -442,8 +526,13 @@ class User(db.Model):
             else:
                 cat_obj = self.get_category(category, create=True)
                 cat_id = cat_obj.id
-            note = UserNote(userid=self.id, title=title, content=content,
-                           category_id=cat_id, encrypted=encrypted)
+            note = UserNote(
+                userid=self.id,
+                title=title,
+                content=content,
+                category_id=cat_id,
+                encrypted=encrypted,
+            )
             return note
         except Exception:
             logger.warning("Could not add note.")
@@ -462,14 +551,16 @@ class User(db.Model):
                 db.session.commit()
                 return True
 
-    def __init__(self,username,password,email):
+    def __init__(self, username, password, email):
         self.username = username
-        hashed_pw = bcrypt.hashpw(password.encode('utf-8'),bcrypt.gensalt())
+        hashed_pw = bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt())
         self.password = hashed_pw
         self.email = email
         db.session.add(self)
         db.session.commit()
-        settings = UserSettings(id=User.query.filter_by(username=self.username).first().id)
+        settings = UserSettings(
+            id=User.query.filter_by(username=self.username).first().id
+        )
         db.session.commit()
         self.settings = settings
         db.session.commit()
@@ -477,9 +568,9 @@ class User(db.Model):
 
 class UserNote(db.Model):
     __tablename__ = "user_note"
-    id = db.Column(db.Integer, primary_key = True, autoincrement = True)
-    userid = db.Column(db.ForeignKey('user.id'))
-    category_id = db.Column(db.ForeignKey('user_note_category.id'))
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    userid = db.Column(db.ForeignKey("user.id"))
+    category_id = db.Column(db.ForeignKey("user_note_category.id"))
     title = db.Column(db.Text)
     content = db.Column(db.Text)
     properties = db.Column(db.Text)  # JSON string of frontmatter key-value pairs
@@ -488,8 +579,8 @@ class UserNote(db.Model):
     date_last_changed = db.Column(db.DateTime)
     icon = db.Column(db.String(100), nullable=True)
     icon_color = db.Column(db.String(20), nullable=True)
-    user = db.relationship('User', backref="notes")
-    category = db.relationship('UserNoteCategory', backref="notes")
+    user = db.relationship("User", backref="notes")
+    category = db.relationship("UserNoteCategory", backref="notes")
 
     def get_category_name(self):
         try:
@@ -499,11 +590,11 @@ class UserNote(db.Model):
 
     def return_time_ago(self):
         now = datetime.utcnow()
-        time = (now - self.date_last_changed).total_seconds() # seconds
+        time = (now - self.date_last_changed).total_seconds()  # seconds
         time = round(time)
         if time < 5:
             return "just now"
-        if time > 60: # mins
+        if time > 60:  # mins
             time = time / 60
             if time > 60:
                 time = time / 60
@@ -521,7 +612,7 @@ class UserNote(db.Model):
             time = round(time)
             return f"{time}s"
 
-    def return_description(self,max=100):
+    def return_description(self, max=100):
         if self.content:
             return self.content[0:max]
         else:
@@ -542,7 +633,7 @@ class UserNote(db.Model):
         self.date_last_changed = datetime.utcnow()
         db.session.commit()
 
-    def change_category(self,new_category):
+    def change_category(self, new_category):
         if isinstance(new_category, UserNoteCategory):
             self.category_id = new_category.id
         elif isinstance(new_category, int):
@@ -555,12 +646,12 @@ class UserNote(db.Model):
                 except (ValueError, TypeError):
                     pass
             else:
-                new_category = self.user.get_category(new_category,create=True)
+                new_category = self.user.get_category(new_category, create=True)
                 self.category_id = new_category.id
         db.session.commit()
         return True
 
-    def change_title(self,new_title):
+    def change_title(self, new_title):
         self.title = new_title
         self.date_last_changed = datetime.utcnow()
         db.session.commit()
@@ -619,7 +710,7 @@ class UserNote(db.Model):
             "resolved_icon": self.get_resolved_icon(),
             "resolved_icon_color": self.get_resolved_icon_color(),
             "date_added": self.date_added,
-            "date_last_changed": self.date_last_changed
+            "date_last_changed": self.date_last_changed,
         }
 
     def __init__(self, userid, title, content, category_id, encrypted=False):
@@ -641,36 +732,38 @@ class UserNote(db.Model):
         db.session.add(self)
         db.session.commit()
 
+
 class UserNoteCategory(db.Model):
     __tablename__ = "user_note_category"
-    id = db.Column(db.Integer, primary_key = True)
-    user_id = db.Column(db.ForeignKey('user.id'))
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.ForeignKey("user.id"))
     name = db.Column(db.String(500))
     icon = db.Column(db.String(100), nullable=True)
     icon_color = db.Column(db.String(20), nullable=True)
     default_note_icon = db.Column(db.String(100), nullable=True)
     default_note_icon_color = db.Column(db.String(20), nullable=True)
-    default_template_id = db.Column(db.ForeignKey('note_template.id'), nullable=True)
-    user = db.relationship('User', backref="categories")
-    default_template = db.relationship('NoteTemplate')
+    default_template_id = db.Column(db.ForeignKey("note_template.id"), nullable=True)
+    user = db.relationship("User", backref="categories")
+    default_template = db.relationship("NoteTemplate")
 
-    def __init__(self, user_id,name):
+    def __init__(self, user_id, name):
         self.user_id = user_id
         self.name = name
         db.session.add(self)
         db.session.commit()
 
+
 class NoteTemplate(db.Model):
     __tablename__ = "note_template"
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.ForeignKey('user.id'), nullable=False)
+    user_id = db.Column(db.ForeignKey("user.id"), nullable=False)
     name = db.Column(db.Text, nullable=False)
     content = db.Column(db.Text)
     properties = db.Column(db.Text)
     icon = db.Column(db.String(100), nullable=True)
     icon_color = db.Column(db.String(20), nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    user = db.relationship('User', backref="templates")
+    user = db.relationship("User", backref="templates")
 
     def get_properties(self):
         if self.properties:
@@ -700,19 +793,20 @@ class NoteTemplate(db.Model):
         db.session.add(self)
         db.session.commit()
 
+
 class UserTodo(db.Model):
     __tablename__ = "user_todo"
-    id = db.Column(db.Integer, primary_key = True)
-    userid = db.Column(db.ForeignKey('user.id'))
+    id = db.Column(db.Integer, primary_key=True)
+    userid = db.Column(db.ForeignKey("user.id"))
     title = db.Column(db.Text)
     content = db.Column(db.Text)
     date_due = db.Column(db.DateTime)
     date_added = db.Column(db.DateTime)
     date_completed = db.Column(db.DateTime)
     date_last_changed = db.Column(db.DateTime)
-    completed = db.Column(db.Boolean, default = False)
-    archived = db.Column(db.Boolean, default = False)
-    user = db.relationship('User', backref="todos")
+    completed = db.Column(db.Boolean, default=False)
+    archived = db.Column(db.Boolean, default=False)
+    user = db.relationship("User", backref="todos")
 
     def has_content(self):
         if self.content and self.content != "" and self.content != None:
@@ -732,7 +826,7 @@ class UserTodo(db.Model):
             "archived": self.archived,
             "time_until_due": self.get_time_until_due(),
             "due_css_class": self.get_due_css_class(),
-            "has_content": self.has_content()
+            "has_content": self.has_content(),
         }
 
     def get_seconds_until_due(self):
@@ -772,7 +866,7 @@ class UserTodo(db.Model):
             return "warning"
         return "primary"
 
-    def __init__(self,userid,title,content="",date_due=None):
+    def __init__(self, userid, title, content="", date_due=None):
         self.userid = userid
         self.title = title
         self.content = content
@@ -782,16 +876,17 @@ class UserTodo(db.Model):
         db.session.add(self)
         db.session.commit()
 
+
 class UserEvent(db.Model):
     __tablename__ = "user_event"
-    id = db.Column(db.Integer, primary_key = True)
-    userid = db.Column(db.ForeignKey('user.id'))
+    id = db.Column(db.Integer, primary_key=True)
+    userid = db.Column(db.ForeignKey("user.id"))
     title = db.Column(db.Text)
     content = db.Column(db.Text)
     date_of_event = db.Column(db.DateTime)
     date_added = db.Column(db.DateTime)
     date_last_changed = db.Column(db.DateTime)
-    user = db.relationship('User', backref="events")
+    user = db.relationship("User", backref="events")
 
     def has_content(self):
         if self.content and self.content != "" and self.content != None:
@@ -809,7 +904,7 @@ class UserEvent(db.Model):
             "date_last_changed": self.date_last_changed,
             "time_until_event": self.get_time_until_event(),
             "event_css_class": self.get_event_css_class(),
-            "has_content": self.has_content()
+            "has_content": self.has_content(),
         }
 
     def get_seconds_until_event(self):
@@ -849,7 +944,7 @@ class UserEvent(db.Model):
             return "warning"
         return "primary"
 
-    def __init__(self,userid,title,content="",date_of_event=None):
+    def __init__(self, userid, title, content="", date_of_event=None):
         self.userid = userid
         self.title = title
         self.content = content
@@ -859,17 +954,46 @@ class UserEvent(db.Model):
         db.session.add(self)
         db.session.commit()
 
+
 class UserAgendaNotes(db.Model):
     __tablename__ = "user_agenda_notes"
-    id = db.Column(db.Integer, primary_key = True)
+    id = db.Column(db.Integer, primary_key=True)
     content = db.Column(db.Text)
-    userid = db.Column(db.ForeignKey('user.id'))
+    userid = db.Column(db.ForeignKey("user.id"))
     date_last_changed = db.Column(db.DateTime)
-    user = db.relationship('User', backref=db.backref('agenda_notes', uselist=False))
+    user = db.relationship("User", backref=db.backref("agenda_notes", uselist=False))
 
-    def __init__(self,userid, content=""):
+    def __init__(self, userid, content=""):
         self.userid = userid
         self.content = content
         self.date_last_changed = datetime.utcnow()
         db.session.add(self)
         db.session.commit()
+
+
+class AiConversation(db.Model):
+    __tablename__ = "ai_conversation"
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    user_id = db.Column(db.ForeignKey("user.id"), nullable=False)
+    title = db.Column(db.String(500), nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow)
+    user = db.relationship("User", backref="ai_conversations")
+
+    def return_json(self):
+        return {
+            "id": self.id,
+            "title": self.title or "Untitled",
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
+        }
+
+
+class AiMessage(db.Model):
+    __tablename__ = "ai_message"
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    conversation_id = db.Column(db.ForeignKey("ai_conversation.id"), nullable=False)
+    role = db.Column(db.String(20), nullable=False)
+    content = db.Column(db.Text, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    conversation = db.relationship("AiConversation", backref="messages")

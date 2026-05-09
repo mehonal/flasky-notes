@@ -38,6 +38,9 @@
             </div>
 
             <div class="sidebar-footer">
+                {% if g.user and g.user.settings and g.user.settings.ai_enabled %}
+                <a href="/ai">AI Chat</a>
+                {% endif %}
                 <a href="/settings">Settings</a>
                 <a href="/agenda">Agenda</a>
                 <a href="/logout">Logout</a>

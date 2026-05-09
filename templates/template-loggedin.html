@@ -25,6 +25,9 @@
           <li><a href="/notes" class="nav-link">Notes</a></li>
           <li><a href="/categories" class="nav-link">Categories</a></li>
           <li><a href="/note/0" class="nav-link text-success">Add Note</a></li>
+          {% if g.user and g.user.settings and g.user.settings.ai_enabled %}
+          <li><a href="/ai" class="nav-link text-info">AI Chat</a></li>
+          {% endif %}
           <li><a href="/settings" class="nav-link text-dark">Settings</a></li>
           <li><a href="/logout" class="nav-link text-danger">Logout</a></li>
         </ul>

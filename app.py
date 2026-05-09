@@ -7,8 +7,20 @@ package.
 
 from flasky import create_app, db
 from flasky.models import (
-    Theme, UserTheme, UserSettings, ApiToken, SyncConflict, Attachment,
-    User, UserNote, UserNoteCategory, UserTodo, UserEvent, UserAgendaNotes,
+    Theme,
+    UserTheme,
+    UserSettings,
+    ApiToken,
+    SyncConflict,
+    Attachment,
+    User,
+    UserNote,
+    UserNoteCategory,
+    UserTodo,
+    UserEvent,
+    UserAgendaNotes,
+    AiConversation,
+    AiMessage,
 )
 
 app = create_app()

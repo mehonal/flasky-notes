@@ -1,0 +1,575 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="{% if current_theme_dark %}dark{% else %}light{% endif %}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>AI Chat — Obsidified</title>
+    <link rel="icon" type="image/x-icon" href="/static/images/amazing_logo.png">
+    <link rel="apple-touch-icon" href="/static/images/amazing_logo.png" sizes="180x180">
+    <link rel="manifest" href="/manifest.json">
+
+    <script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='js/csrf.js') }}"></script>
+    <script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='vendor/marked/marked.min.js') }}"></script>
+    <script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='vendor/dompurify/purify.min.js') }}"></script>
+    <script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='js/sanitize.js') }}"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='vendor/hljs/styles/github-dark.min.css') }}" id="hljs-dark">
+    <link rel="stylesheet" href="{{ url_for('static', filename='vendor/hljs/styles/github.min.css') }}" id="hljs-light" disabled>
+    <script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='vendor/hljs/highlight.min.js') }}"></script>
+
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/obsidified.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/ai.css') }}">
+    <style nonce="{{ csp_nonce() }}">:root { --font-size: {{ font_size or 15 }}px; }</style>
+</head>
+<body>
+
+{% if not ai_enabled or not ai_settings.ollama_api_key %}
+<div class="ai-app">
+    <div class="ai-disabled-card">
+        <div class="ai-disabled-icon">
+            {% if not ai_enabled %}
+            <svg viewBox="0 0 24 24"><path d="M18.36 6.64a9 9 0 0 1 0 12.77"/><path d="M5.64 18.36a9 9 0 0 1 0-12.77"/><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="4.93" y1="4.93" x2="7.76" y2="7.76"/><line x1="16.24" y1="16.24" x2="19.07" y2="19.07"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/></svg>
+            {% else %}
+            <svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+            {% endif %}
+        </div>
+        {% if not ai_enabled %}
+        <div class="ai-disabled-title">AI Integration is Disabled</div>
+        <div class="ai-disabled-text">When AI integration is disabled, Flasky Notes has absolutely no connection to any AI service. No data is sent anywhere.</div>
+        <a href="/settings" class="ai-disabled-btn">Enable in Settings</a>
+        {% else %}
+        <div class="ai-disabled-title">API Key Required</div>
+        <div class="ai-disabled-text">Please configure your Ollama Cloud API key in Settings to start chatting.</div>
+        <a href="/settings" class="ai-disabled-btn">Configure in Settings</a>
+        {% endif %}
+    </div>
+</div>
+{% else %}
+
+<div class="ai-app">
+    <!-- Mobile sidebar backdrop -->
+    <div class="ai-sidebar-backdrop" id="ai-sidebar-backdrop"></div>
+
+    <!-- Sidebar -->
+    <div class="ai-sidebar" id="ai-sidebar">
+        <div class="ai-sidebar-header">
+            <span class="ai-sidebar-title">Conversations</span>
+            <div class="ai-sidebar-actions">
+                <button class="icon-btn" id="ai-close-sidebar-btn" title="Close sidebar" aria-label="Close sidebar">
+                    <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+            </div>
+        </div>
+        <button class="ai-new-chat-btn" id="ai-new-chat-btn">
+            <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            New Chat
+        </button>
+        <div class="ai-conversation-list" id="ai-conversation-list"></div>
+        <div class="ai-sidebar-footer">
+            <a href="/note/0">Notes</a>
+            <a href="/settings">Settings</a>
+            <a href="/logout">Logout</a>
+        </div>
+    </div>
+
+    <!-- Main -->
+    <div class="ai-main">
+        <div class="ai-toolbar">
+            <button class="icon-btn toggle-sidebar" id="ai-toggle-sidebar" title="Toggle sidebar" aria-label="Toggle sidebar">
+                <svg viewBox="0 0 24 24" style="width:16px;height:16px"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+            </button>
+            <div class="ai-toolbar-breadcrumb">
+                <span class="ai-toolbar-breadcrumb-title" id="ai-toolbar-title">AI Chat</span>
+            </div>
+            <div class="ai-toolbar-spacer"></div>
+            <select class="ai-model-select" id="ai-model-select" title="Select model">
+                {% for model in models %}
+                <option value="{{ model }}" {% if ai_settings.ollama_model == model %}selected{% endif %}>{{ model }}</option>
+                {% endfor %}
+            </select>
+            <div class="ai-toolbar-divider desktop-only"></div>
+            <button class="icon-btn" id="ai-toggle-panel" title="Info panel" aria-label="Toggle info panel">
+                <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            </button>
+            <button class="icon-btn" id="ai-toggle-dark" title="Toggle theme" aria-label="Toggle theme">
+                <svg viewBox="0 0 24 24" id="ai-theme-icon">
+                    {% if current_theme_dark %}
+                    <circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+                    {% else %}
+                    <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+                    {% endif %}
+                </svg>
+            </button>
+        </div>
+
+        <div class="ai-chat-area">
+            <div class="ai-messages" id="ai-messages">
+                <div class="ai-empty-state" id="ai-empty-state">
+                    <div class="ai-empty-state-icon">
+                        <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                    </div>
+                    <div class="ai-empty-state-title">Start a conversation</div>
+                    <div class="ai-empty-state-subtitle">Type a message below to begin chatting with AI.</div>
+                </div>
+            </div>
+
+            <!-- Right Panel -->
+            <div class="ai-right-panel collapsed" id="ai-right-panel">
+                <div class="ai-right-panel-header">
+                    <span>Info</span>
+                    <button class="ai-right-panel-close-btn" id="ai-close-panel-btn" title="Close panel" aria-label="Close panel">
+                        <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                    </button>
+                </div>
+                <div class="ai-right-panel-section" id="ai-panel-model">
+                    <div class="ai-right-panel-label">Model</div>
+                    <div class="ai-model-info" id="ai-panel-model-name">{{ ai_settings.ollama_model or 'gpt-oss:120b' }}</div>
+                </div>
+                <div class="ai-right-panel-section" id="ai-panel-conversation" style="display:none">
+                    <div class="ai-right-panel-label">Conversation</div>
+                    <div class="ai-right-panel-info">
+                        <div><span class="label">Title:</span> <span class="value" id="ai-panel-conv-title">—</span></div>
+                        <div><span class="label">Messages:</span> <span class="value" id="ai-panel-conv-count">0</span></div>
+                    </div>
+                    <div style="margin-top:8px; display:flex; flex-direction:column; gap:4px;">
+                        <button class="ai-right-panel-action danger" id="ai-panel-delete-btn">
+                            <svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                            Delete conversation
+                        </button>
+                    </div>
+                </div>
+                <div class="ai-right-panel-section">
+                    <div class="ai-right-panel-label">Shortcuts</div>
+                    <div class="ai-right-panel-info" style="font-size:12px;">
+                        <div style="margin-bottom:4px;"><kbd style="display:inline-block;padding:2px 6px;background:var(--bg-hover);border:1px solid var(--border-light);border-radius:4px;font-size:11px;font-family:inherit;color:var(--text-secondary);">Enter</kbd> Send message</div>
+                        <div style="margin-bottom:4px;"><kbd style="display:inline-block;padding:2px 6px;background:var(--bg-hover);border:1px solid var(--border-light);border-radius:4px;font-size:11px;font-family:inherit;color:var(--text-secondary);">Shift+Enter</kbd> New line</div>
+                        <div><kbd style="display:inline-block;padding:2px 6px;background:var(--bg-hover);border:1px solid var(--border-light);border-radius:4px;font-size:11px;font-family:inherit;color:var(--text-secondary);">Ctrl+B</kbd> Toggle sidebar</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="ai-input-area">
+            <div class="ai-input-wrapper">
+                <textarea class="ai-input" id="ai-input" placeholder="Type a message..." rows="1" autofocus></textarea>
+            </div>
+            <button class="ai-send-btn" id="ai-send-btn" title="Send message" aria-label="Send message">
+                <svg viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+            </button>
+        </div>
+
+        <div class="ai-status-bar">
+            <span id="ai-status-text">Ready</span>
+        </div>
+    </div>
+</div>
+
+<script nonce="{{ csp_nonce() }}">
+(function() {
+    var conversationId = {{ current_conversation_id }};
+    var currentConvData = {{ current_conversation_json | safe }};
+    var conversations = {{ conversations_json | safe }};
+    var isStreaming = false;
+
+    var messagesEl = document.getElementById('ai-messages');
+    var inputEl = document.getElementById('ai-input');
+    var sendBtn = document.getElementById('ai-send-btn');
+    var newChatBtn = document.getElementById('ai-new-chat-btn');
+    var convListEl = document.getElementById('ai-conversation-list');
+    var emptyState = document.getElementById('ai-empty-state');
+    var toolbarTitle = document.getElementById('ai-toolbar-title');
+    var statusText = document.getElementById('ai-status-text');
+    var modelSelect = document.getElementById('ai-model-select');
+
+    var sidebar = document.getElementById('ai-sidebar');
+    var backdrop = document.getElementById('ai-sidebar-backdrop');
+    var panel = document.getElementById('ai-right-panel');
+    var panelConvSection = document.getElementById('ai-panel-conversation');
+    var panelConvTitle = document.getElementById('ai-panel-conv-title');
+    var panelConvCount = document.getElementById('ai-panel-conv-count');
+    var panelDeleteBtn = document.getElementById('ai-panel-delete-btn');
+    var panelModelName = document.getElementById('ai-panel-model-name');
+
+    function getCSRFToken() {
+        var cookie = document.cookie.split('; ').find(function(c) { return c.startsWith('X-CSRF-Token='); });
+        return cookie ? cookie.split('=')[1] : '';
+    }
+
+    // Sidebar toggle
+    function isMobile() { return window.innerWidth <= 768; }
+
+    function openSidebar() {
+        sidebar.classList.remove('collapsed');
+        if (isMobile()) backdrop.classList.add('visible');
+    }
+    function closeSidebar() {
+        sidebar.classList.add('collapsed');
+        backdrop.classList.remove('visible');
+    }
+    function toggleSidebar() {
+        if (sidebar.classList.contains('collapsed')) openSidebar();
+        else closeSidebar();
+    }
+
+    document.getElementById('ai-toggle-sidebar').addEventListener('click', toggleSidebar);
+    document.getElementById('ai-close-sidebar-btn').addEventListener('click', closeSidebar);
+    backdrop.addEventListener('click', closeSidebar);
+
+    if (isMobile()) sidebar.classList.add('collapsed');
+
+    // Right panel toggle
+    function togglePanel() {
+        panel.classList.toggle('collapsed');
+    }
+    document.getElementById('ai-toggle-panel').addEventListener('click', togglePanel);
+    var closePanelBtn = document.getElementById('ai-close-panel-btn');
+    if (closePanelBtn) closePanelBtn.addEventListener('click', function() { panel.classList.add('collapsed'); });
+
+    // Dark mode toggle
+    var toggleDark = document.getElementById('ai-toggle-dark');
+    var themeIcon = document.getElementById('ai-theme-icon');
+    toggleDark.addEventListener('click', function() {
+        var html = document.documentElement;
+        var isDark = html.getAttribute('data-theme') === 'dark';
+        var newDark = !isDark;
+        html.setAttribute('data-theme', newDark ? 'dark' : 'light');
+        var darkCSS = document.getElementById('hljs-dark');
+        var lightCSS = document.getElementById('hljs-light');
+        if (newDark) {
+            darkCSS.disabled = false; lightCSS.disabled = true;
+        } else {
+            darkCSS.disabled = true; lightCSS.disabled = false;
+        }
+        themeIcon.innerHTML = newDark
+            ? '<circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>'
+            : '<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>';
+        fetch('/api/save_dark_mode/' + (newDark ? 1 : 0), { headers: { 'X-CSRFToken': getCSRFToken() } });
+    });
+
+    // Model select
+    modelSelect.addEventListener('change', function() {
+        fetch('/ai/api/settings', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRFToken() },
+            body: JSON.stringify({ model: modelSelect.value })
+        }).catch(function() {});
+    });
+
+    // Keyboard shortcuts
+    document.addEventListener('keydown', function(e) {
+        if (e.ctrlKey && e.key === 'b') {
+            e.preventDefault();
+            toggleSidebar();
+        }
+    });
+
+    // Conversations
+    function renderConversationList(convData) {
+        convListEl.innerHTML = '';
+        convData.forEach(function(c) {
+            var div = document.createElement('div');
+            div.className = 'ai-conversation-item' + (c.id === conversationId ? ' active' : '');
+            div.dataset.id = c.id;
+
+            var titleSpan = document.createElement('span');
+            titleSpan.className = 'ai-conversation-title';
+            titleSpan.textContent = c.title || 'Untitled';
+            div.appendChild(titleSpan);
+
+            var del = document.createElement('button');
+            del.className = 'ai-conversation-delete';
+            del.title = 'Delete';
+            del.innerHTML = '<svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>';
+            del.addEventListener('click', function(e) {
+                e.stopPropagation();
+                if (confirm('Delete this conversation?')) {
+                    fetch('/ai/api/conversations/' + c.id, {
+                        method: 'DELETE',
+                        headers: { 'X-CSRFToken': getCSRFToken() }
+                    }).then(function() {
+                        loadConversations();
+                        if (conversationId === c.id) {
+                            conversationId = null;
+                            currentConvData = null;
+                            clearMessages();
+                            updatePanel();
+                        }
+                    });
+                }
+            });
+            div.appendChild(del);
+
+            div.addEventListener('click', function() {
+                conversationId = c.id;
+                currentConvData = c;
+                loadMessages(c.id);
+                loadConversations();
+                updatePanel();
+                if (isMobile()) closeSidebar();
+            });
+            convListEl.appendChild(div);
+        });
+    }
+
+    function loadConversations() {
+        fetch('/ai/api/conversations', {
+            headers: { 'X-CSRFToken': getCSRFToken() }
+        }).then(function(r) { return r.json(); }).then(function(convData) {
+            conversations = convData;
+            renderConversationList(convData);
+        });
+    }
+
+    function clearMessages() {
+        messagesEl.innerHTML = '';
+        var empty = document.createElement('div');
+        empty.className = 'ai-empty-state';
+        empty.id = 'ai-empty-state';
+        empty.innerHTML = '<div class="ai-empty-state-icon"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></div>' +
+            '<div class="ai-empty-state-title">Start a conversation</div>' +
+            '<div class="ai-empty-state-subtitle">Type a message below to begin chatting with AI.</div>';
+        messagesEl.appendChild(empty);
+        emptyState = empty;
+    }
+
+    function escapeHtml(text) {
+        var div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    function renderMarkdown(text) {
+        try {
+            var html = marked.parse(text);
+            return DOMPurify.sanitize(html, SANITIZE_CONFIG);
+        } catch(e) {
+            return escapeHtml(text);
+        }
+    }
+
+    var SANITIZE_CONFIG = {
+        ALLOWED_TAGS: ['p','br','strong','em','a','code','pre','ul','ol','li','h1','h2','h3','h4','h5','h6','blockquote','table','thead','tbody','tr','th','td','hr','img','del','s','sup','sub'],
+        ALLOWED_ATTR: ['href','src','alt','title','class','id','target','rel'],
+        ALLOW_DATA_ATTR: false
+    };
+
+    function addMessageBubble(role, content, doRender) {
+        if (emptyState && emptyState.parentNode) emptyState.remove();
+        var wrapper = document.createElement('div');
+        wrapper.className = 'ai-message ai-message-' + role;
+
+        var avatar = document.createElement('div');
+        avatar.className = 'ai-message-avatar';
+        avatar.textContent = role === 'user' ? 'U' : 'AI';
+        wrapper.appendChild(avatar);
+
+        var contentDiv = document.createElement('div');
+        contentDiv.className = 'ai-message-content';
+        if (role === 'assistant' && doRender !== false) {
+            contentDiv.innerHTML = renderMarkdown(content);
+            setTimeout(function() {
+                contentDiv.querySelectorAll('pre code').forEach(function(block) {
+                    hljs.highlightElement(block);
+                });
+            }, 0);
+        } else {
+            contentDiv.textContent = content;
+        }
+        wrapper.appendChild(contentDiv);
+        messagesEl.appendChild(wrapper);
+        messagesEl.scrollTop = messagesEl.scrollHeight;
+        return contentDiv;
+    }
+
+    function updatePanel() {
+        if (conversationId && currentConvData) {
+            panelConvSection.style.display = '';
+            panelConvTitle.textContent = currentConvData.title || 'Untitled';
+            toolbarTitle.textContent = currentConvData.title || 'Untitled';
+        } else {
+            panelConvSection.style.display = 'none';
+            toolbarTitle.textContent = 'AI Chat';
+        }
+    }
+
+    function loadMessages(convId) {
+        fetch('/ai/api/conversations/' + convId + '/messages', {
+            headers: { 'X-CSRFToken': getCSRFToken() }
+        }).then(function(r) { return r.json(); }).then(function(msgs) {
+            messagesEl.innerHTML = '';
+            if (msgs.length === 0) {
+                var empty = document.createElement('div');
+                empty.className = 'ai-empty-state';
+                empty.id = 'ai-empty-state';
+                empty.innerHTML = '<div class="ai-empty-state-icon"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></div>' +
+                    '<div class="ai-empty-state-title">No messages yet</div>' +
+                    '<div class="ai-empty-state-subtitle">Type something below to start chatting.</div>';
+                messagesEl.appendChild(empty);
+                emptyState = empty;
+            } else {
+                emptyState = null;
+                msgs.forEach(function(m) {
+                    addMessageBubble(m.role, m.content);
+                });
+            }
+        });
+    }
+
+    panelDeleteBtn.addEventListener('click', function() {
+        if (!conversationId) return;
+        if (confirm('Delete this conversation?')) {
+            fetch('/ai/api/conversations/' + conversationId, {
+                method: 'DELETE',
+                headers: { 'X-CSRFToken': getCSRFToken() }
+            }).then(function() {
+                conversationId = null;
+                currentConvData = null;
+                clearMessages();
+                loadConversations();
+                updatePanel();
+            });
+        }
+    });
+
+    // Send message
+    function sendMessage() {
+        var text = inputEl.value.trim();
+        if (!text || isStreaming) return;
+        inputEl.value = '';
+        inputEl.style.height = 'auto';
+        addMessageBubble('user', text, false);
+        statusText.textContent = 'Sending...';
+
+        if (!conversationId) {
+            fetch('/ai/api/conversations', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRFToken() },
+                body: JSON.stringify({ title: text.substring(0, 100) })
+            }).then(function(r) { return r.json(); }).then(function(data) {
+                if (data.error) { alert(data.error); statusText.textContent = 'Ready'; return; }
+                conversationId = data.id;
+                currentConvData = data;
+                updatePanel();
+                loadConversations();
+                streamResponse(text);
+            });
+        } else {
+            streamResponse(text);
+        }
+    }
+
+    function streamResponse(userMsg) {
+        isStreaming = true;
+        sendBtn.disabled = true;
+        statusText.textContent = 'Thinking...';
+        var assistantDiv = addMessageBubble('assistant', '', false);
+        assistantDiv.classList.add('ai-cursor-blink');
+
+        fetch('/ai/api/conversations/' + conversationId + '/chat', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRFToken() },
+            body: JSON.stringify({ message: userMsg })
+        }).then(function(response) {
+            if (!response.ok) {
+                response.text().then(function(t) {
+                    assistantDiv.textContent = 'Error: ' + t;
+                    assistantDiv.classList.remove('ai-cursor-blink');
+                    isStreaming = false;
+                    sendBtn.disabled = false;
+                    statusText.textContent = 'Error';
+                });
+                return;
+            }
+            var reader = response.body.getReader();
+            var decoder = new TextDecoder();
+            var fullText = '';
+
+            function read() {
+                reader.read().then(function(result) {
+                    if (result.done) {
+                        assistantDiv.classList.remove('ai-cursor-blink');
+                        assistantDiv.innerHTML = renderMarkdown(fullText);
+                        assistantDiv.querySelectorAll('pre code').forEach(function(block) {
+                            hljs.highlightElement(block);
+                        });
+                        isStreaming = false;
+                        sendBtn.disabled = false;
+                        statusText.textContent = 'Ready';
+                        loadConversations();
+                        return;
+                    }
+                    var chunk = decoder.decode(result.value, {stream: true});
+                    var lines = chunk.split('\n');
+                    lines.forEach(function(line) {
+                        if (line.startsWith('data: ')) {
+                            try {
+                                var data = JSON.parse(line.substring(6));
+                                if (data.chunk) {
+                                    fullText += data.chunk;
+                                    assistantDiv.textContent = fullText;
+                                    messagesEl.scrollTop = messagesEl.scrollHeight;
+                                    statusText.textContent = 'Streaming...';
+                                } else if (data.error) {
+                                    assistantDiv.textContent = 'Error: ' + data.error;
+                                    assistantDiv.classList.remove('ai-cursor-blink');
+                                    isStreaming = false;
+                                    sendBtn.disabled = false;
+                                    statusText.textContent = 'Error';
+                                } else if (data.done) {
+                                    assistantDiv.classList.remove('ai-cursor-blink');
+                                    assistantDiv.innerHTML = renderMarkdown(fullText);
+                                    assistantDiv.querySelectorAll('pre code').forEach(function(block) {
+                                        hljs.highlightElement(block);
+                                    });
+                                    isStreaming = false;
+                                    sendBtn.disabled = false;
+                                    statusText.textContent = 'Ready';
+                                }
+                            } catch(e) {}
+                        }
+                    });
+                    read();
+                });
+            }
+            read();
+        }).catch(function(err) {
+            assistantDiv.textContent = 'Connection error: ' + err.message;
+            assistantDiv.classList.remove('ai-cursor-blink');
+            isStreaming = false;
+            sendBtn.disabled = false;
+            statusText.textContent = 'Error';
+        });
+    }
+
+    sendBtn.addEventListener('click', sendMessage);
+    inputEl.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            sendMessage();
+        }
+    });
+    newChatBtn.addEventListener('click', function() {
+        conversationId = null;
+        currentConvData = null;
+        clearMessages();
+        loadConversations();
+        updatePanel();
+        inputEl.focus();
+        if (isMobile()) closeSidebar();
+    });
+
+    inputEl.addEventListener('input', function() {
+        this.style.height = 'auto';
+        this.style.height = Math.min(this.scrollHeight, 160) + 'px';
+    });
+
+    // Init
+    loadConversations();
+    updatePanel();
+    if (conversationId) {
+        loadMessages(conversationId);
+    }
+})();
+</script>
+{% endif %}
+</body>
+</html>
