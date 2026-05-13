@@ -49,6 +49,13 @@
         "description": "View your agenda",
         "url": "/agenda",
         "icons": [{ "src": "/static/images/amazing_logo_256.png", "sizes": "256x256" }]
+      },
+      {
+        "name": "AI Chat",
+        "short_name": "AI",
+        "description": "Open AI Chat",
+        "url": "/ai",
+        "icons": [{ "src": "/static/images/amazing_logo_256.png", "sizes": "256x256" }]
       }
     ],
     "description": "Noting app",
