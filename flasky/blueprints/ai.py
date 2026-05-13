@@ -240,6 +240,8 @@ def chat(conv_id):
         for m in history:
             ollama_messages.append({"role": m.role, "content": m.content})
     model = settings.ollama_model or "gpt-oss:120b"
+    conv_id = conv.id
+    user_id = g.user.id
 
     def generate():
         full_response = []
@@ -252,16 +254,20 @@ def chat(conv_id):
                     full_response.append(chunk)
                     yield f"data: {json.dumps({'chunk': chunk})}\n\n"
             complete_text = "".join(full_response)
-            assistant_msg = AiMessage(
-                conversation_id=conv.id, role="assistant", content=complete_text
-            )
-            db.session.add(assistant_msg)
-            conv.updated_at = datetime.utcnow()
-            db.session.commit()
-            yield f"data: {json.dumps({'done': True, 'encrypted': encrypted, 'message_id': assistant_msg.id})}\n\n"
+            conv_obj = db.session.get(AiConversation, conv_id)
+            if conv_obj and conv_obj.user_id == user_id:
+                assistant_msg = AiMessage(
+                    conversation_id=conv_id, role="assistant", content=complete_text
+                )
+                db.session.add(assistant_msg)
+                conv_obj.updated_at = datetime.utcnow()
+                db.session.commit()
+                yield f"data: {json.dumps({'done': True, 'encrypted': encrypted, 'message_id': assistant_msg.id})}\n\n"
+            else:
+                yield f"data: {json.dumps({'error': 'Conversation not found.'})}\n\n"
         except Exception as e:
             logger.error("Ollama chat error: %s", e)
-            yield f"data: {json.dumps({'error': str(e)})}\n\n"
+            yield f"data: {json.dumps({'error': 'An error occurred while generating a response. Please try again.'})}\n\n"
 
     return Response(
         stream_with_context(generate()),

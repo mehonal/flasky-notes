@@ -1,10 +1,12 @@
-
 {% extends "template-loggedout.html" %}
 {% block body %}
 <div class="p-5" style="max-width:400px;margin:0 auto">
 <div class="text-center"><img class="mb-4" src="/static/images/amazing_logo.png" alt="Flasky Notes" width="128" height="128">
 </div>
 <form id="register-form">
+<!-- Honeypot field: hidden from humans, bots will fill it -->
+<input type="text" name="website" id="reg-honeypot" style="display:none" tabindex="-1" autocomplete="off">
+
 <input type="text" class="form-control mb-2" id="reg-username" placeholder="Username..." autocomplete="username" required>
 
 <input type="email" class="form-control mb-2" id="reg-email" placeholder="Email Address..." autocomplete="email" required>
@@ -14,6 +16,10 @@
 <input type="password" class="form-control mb-2" id="reg-password-confirm" placeholder="Confirm password..." autocomplete="new-password" required>
 
 <input type="text" class="form-control mb-2" id="reg-hint" placeholder="Password hint (optional)..." maxlength="200">
+
+{% if recaptcha_enabled %}
+<div class="g-recaptcha mb-2" data-sitekey="{{ recaptcha_site_key }}"></div>
+{% endif %}
 
 <div id="reg-error" class="alert alert-danger mb-2" style="display:none"></div>
 <div id="reg-status" class="text-muted text-center mb-2" style="display:none"></div>
@@ -38,6 +44,9 @@
 </div>
 </div>
 
+{% if recaptcha_enabled %}
+<script nonce="{{ csp_nonce() }}" src="https://www.google.com/recaptcha/api.js" async defer></script>
+{% endif %}
 <script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='js/crypto.js') }}"></script>
 <script nonce="{{ csp_nonce() }}">
 (function() {
@@ -45,6 +54,7 @@
     var errorEl = document.getElementById('reg-error');
     var statusEl = document.getElementById('reg-status');
     var btn = document.getElementById('reg-btn');
+    var recaptchaEnabled = {{ 'true' if recaptcha_enabled else 'false' }};
 
     document.getElementById('recovery-confirm').addEventListener('change', function() {
         document.getElementById('continue-btn').disabled = !this.checked;
@@ -60,6 +70,14 @@
         e.preventDefault();
         errorEl.style.display = 'none';
         statusEl.style.display = 'block';
+
+        // Honeypot check
+        if (document.getElementById('reg-honeypot').value) {
+            errorEl.textContent = 'Registration failed.';
+            errorEl.style.display = 'block';
+            statusEl.style.display = 'none';
+            return;
+        }
 
         var username = document.getElementById('reg-username').value.trim().toLowerCase();
         var email = document.getElementById('reg-email').value.trim().toLowerCase();
@@ -112,20 +130,25 @@
 
             // 6. Register with server
             statusEl.textContent = 'Creating account...';
+            var requestBody = {
+                username: username,
+                email: email,
+                auth_key: keys.authKeyHex,
+                encrypted_sym_key: wrappedSymKey,
+                recovery_encrypted_key: recoveryWrapped,
+                recovery_key_hash: recoveryHash,
+                key_salt: keySalt,
+                password_hint: hint,
+                encrypted_main_category: encryptedMain
+            };
+            // Include reCAPTCHA token if enabled
+            if (recaptchaEnabled && typeof grecaptcha !== 'undefined') {
+                requestBody.recaptcha_token = grecaptcha.getResponse();
+            }
             var resp = await fetch('/api/auth/register', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({
-                    username: username,
-                    email: email,
-                    auth_key: keys.authKeyHex,
-                    encrypted_sym_key: wrappedSymKey,
-                    recovery_encrypted_key: recoveryWrapped,
-                    recovery_key_hash: recoveryHash,
-                    key_salt: keySalt,
-                    password_hint: hint,
-                    encrypted_main_category: encryptedMain
-                })
+                body: JSON.stringify(requestBody)
             });
             var data = await resp.json();
 

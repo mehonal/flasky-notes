@@ -45,6 +45,9 @@ from flasky.utils import (
     generate_api_token,
     recovery_limiter,
     login_limiter,
+    login_required,
+    login_required_page,
+    verify_recaptcha,
 )
 
 # Paths exempt from CSRF validation (pre-auth or token-auth endpoints)
@@ -73,6 +76,13 @@ def api_auth_register():
     data = request.get_json()
     if not data:
         return jsonify(success=False, reason="Missing request body."), 400
+    # Honeypot: if 'website' field is present and filled, it's a bot
+    if data.get("website"):
+        return jsonify(success=False, reason="Registration failed."), 400
+    # reCAPTCHA verification (when enabled)
+    if CONFIG.RECAPTCHA_ENABLED:
+        if not verify_recaptcha(data.get("recaptcha_token", "")):
+            return jsonify(success=False, reason="reCAPTCHA verification failed."), 400
     username = (data.get("username") or "").lower().strip()
     email = (data.get("email") or "").lower().strip()
     auth_key = data.get("auth_key")
@@ -174,10 +184,9 @@ def api_auth_login():
 
 
 @web_bp.route("/api/auth/change_password", methods=["POST"])
+@login_required
 def api_auth_change_password():
     """Change password for E2EE user. Client re-wraps symmetric key with new KEK."""
-    if not g.user:
-        return jsonify(success=False, reason="Not logged in."), 401
     data = request.get_json()
     if not data:
         return jsonify(success=False, reason="Missing request body."), 400
@@ -200,10 +209,9 @@ def api_auth_change_password():
 
 
 @web_bp.route("/api/auth/update_recovery_key", methods=["POST"])
+@login_required
 def api_auth_update_recovery_key():
     """Update the recovery-encrypted symmetric key."""
-    if not g.user:
-        return jsonify(success=False, reason="Not logged in."), 401
     data = request.get_json()
     if not data or not data.get("recovery_encrypted_key"):
         return jsonify(success=False, reason="Missing recovery_encrypted_key."), 400
@@ -269,10 +277,9 @@ def api_auth_recover():
 
 
 @web_bp.route("/api/auth/enable_encryption", methods=["POST"])
+@login_required
 def api_auth_enable_encryption():
     """Enable E2EE for a legacy user (migration step 1: switch auth)."""
-    if not g.user:
-        return jsonify(success=False, reason="Not logged in."), 401
     data = request.get_json()
     if not data:
         return jsonify(success=False, reason="Missing request body."), 400
@@ -297,10 +304,9 @@ def api_auth_enable_encryption():
 
 
 @web_bp.route("/api/migrate/encrypt_data", methods=["POST"])
+@login_required
 def api_migrate_encrypt_data():
     """Batch update: replace plaintext data with encrypted ciphertext (migration step 2)."""
-    if not g.user:
-        return jsonify(success=False, reason="Not logged in."), 401
     if not g.user.encryption_enabled:
         return jsonify(success=False, reason="Encryption not enabled."), 400
     data = request.get_json()
@@ -382,10 +388,9 @@ def api_auth_recovery_info():
 
 
 @web_bp.route("/unlock")
+@login_required_page
 def unlock_page():
     """Password re-entry page for E2EE users whose sessionStorage key was lost."""
-    if not g.user:
-        return redirect(url_for("web.login_page"))
     if not g.user.encryption_enabled:
         return redirect(url_for("web.notes_page"))
     return render_template(
@@ -398,10 +403,9 @@ def unlock_page():
 
 
 @web_bp.route("/migrate-encryption")
+@login_required_page
 def migrate_encryption_page():
     """Force-migration page for legacy users who need to enable E2EE."""
-    if not g.user:
-        return redirect(url_for("web.login_page"))
     if g.user.encryption_enabled:
         return redirect(url_for("web.notes_page"))
     return render_template("migrate_encryption.html", username=g.user.username)
@@ -455,206 +459,211 @@ def before_request():
 
 
 @web_bp.route("/")
+@login_required_page
 def index_page():
-    if g.user:
-        return redirect(url_for("web.notes_page"))
-    else:
-        return redirect(url_for("web.login_page"))
+    return redirect(url_for("web.notes_page"))
 
 
 @web_bp.route("/settings", methods=["GET", "POST"])
+@login_required_page
 def settings_page():
-    if g.user:
-        g.user.generate_missing_settings()
-        settings = g.user.return_settings()
-        if request.method == "POST":
-            if "update-theme" in request.form:
-                theme = request.form["theme"]
-                g.user.settings.theme_preference = theme
-                db.session.commit()
-            elif "update-timezone" in request.form:
-                timezone = request.form["timezone"]
-                g.user.set_timezone(timezone)
-            elif "update-theme-settings" in request.form:
-                current_theme = g.user.settings.theme_preference
-                if "font-family" in request.form:
-                    g.user.update_theme_font(current_theme, request.form["font-family"])
-                if "font-size" in request.form:
-                    try:
-                        g.user.update_theme_font_size(
-                            current_theme, int(request.form["font-size"])
-                        )
-                    except (ValueError, TypeError):
-                        pass
-                if "mobile-font-size" in request.form:
-                    try:
-                        g.user.update_theme_mobile_font_size(
-                            current_theme, int(request.form["mobile-font-size"])
-                        )
-                    except (ValueError, TypeError):
-                        pass
-                if "dark-mode" in request.form:
-                    g.user.update_theme_dark_mode(
-                        current_theme, request.form["dark-mode"] == "1"
+    g.user.generate_missing_settings()
+    settings = g.user.return_settings()
+    if request.method == "POST":
+        if "update-theme" in request.form:
+            theme = request.form["theme"]
+            g.user.settings.theme_preference = theme
+            db.session.commit()
+        elif "update-timezone" in request.form:
+            timezone = request.form["timezone"]
+            g.user.set_timezone(timezone)
+        elif "update-theme-settings" in request.form:
+            current_theme = g.user.settings.theme_preference
+            if "font-family" in request.form:
+                g.user.update_theme_font(current_theme, request.form["font-family"])
+            if "font-size" in request.form:
+                try:
+                    g.user.update_theme_font_size(
+                        current_theme, int(request.form["font-size"])
                     )
-                else:
-                    g.user.update_theme_dark_mode(current_theme, False)
-                if "auto-save" in request.form:
-                    g.user.update_theme_auto_save(
-                        current_theme, request.form["auto-save"] == "1"
+                except (ValueError, TypeError):
+                    pass
+            if "mobile-font-size" in request.form:
+                try:
+                    g.user.update_theme_mobile_font_size(
+                        current_theme, int(request.form["mobile-font-size"])
                     )
-                else:
-                    g.user.update_theme_auto_save(current_theme, False)
-                if "hide-title" in request.form:
-                    g.user.update_theme_hide_title(
-                        current_theme, request.form["hide-title"] == "1"
-                    )
-                else:
-                    g.user.update_theme_hide_title(current_theme, False)
-                if "notes-row-count" in request.form:
-                    try:
-                        g.user.update_theme_notes_row_count(
-                            current_theme, int(request.form["notes-row-count"])
-                        )
-                    except (ValueError, TypeError):
-                        pass
-                if "notes-height" in request.form:
-                    try:
-                        g.user.update_theme_notes_height(
-                            current_theme, int(request.form["notes-height"])
-                        )
-                    except (ValueError, TypeError):
-                        pass
-                # UI state booleans
-                ts = g.user.get_theme_settings(current_theme)
-                for field in (
-                    "sidebar_collapsed",
-                    "right_panel_collapsed",
-                    "properties_collapsed",
-                    "preview_mode",
-                ):
-                    form_key = field.replace("_", "-")
-                    if form_key in request.form:
-                        setattr(ts, field, request.form[form_key] == "1")
-                    else:
-                        setattr(ts, field, False)
-                # Panel widgets visibility
-                widget_keys = [k for k in request.form if k.startswith("widget-")]
-                if widget_keys or current_theme == "obsidified":
-                    widgets = ts.get_panel_widgets()
-                    for w in widgets:
-                        w["visible"] = ("widget-" + w["id"]) in request.form
-                    ts.set_panel_widgets(widgets)
-                db.session.commit()
-            elif "generate-api-token" in request.form:
-                token_name = request.form.get("token-name", "").strip()
-                if not token_name:
-                    token_name = "Unnamed Token"
-                plaintext, token_hash = generate_api_token()
-                new_token = ApiToken(
-                    user_id=g.user.id, token_hash=token_hash, name=token_name
+                except (ValueError, TypeError):
+                    pass
+            if "dark-mode" in request.form:
+                g.user.update_theme_dark_mode(
+                    current_theme, request.form["dark-mode"] == "1"
                 )
-                db.session.add(new_token)
-                db.session.commit()
-                tokens = ApiToken.query.filter_by(user_id=g.user.id).all()
-                current_theme_obj = Theme.query.filter_by(
-                    slug=settings.theme_preference
-                ).first()
-                ts = g.user.get_theme_settings(settings.theme_preference)
-                return render_template(
-                    "settings.html",
-                    themes=Theme.query.all(),
-                    timezones=available_timezones(),
-                    tokens=tokens,
-                    new_token=plaintext,
-                    sync_enabled=settings.obsidian_sync_enabled,
-                    current_theme=current_theme_obj,
-                    theme_settings=ts,
-                    ai_enabled=settings.ai_enabled,
-                    ai_settings=settings,
+            else:
+                g.user.update_theme_dark_mode(current_theme, False)
+            if "auto-save" in request.form:
+                g.user.update_theme_auto_save(
+                    current_theme, request.form["auto-save"] == "1"
                 )
-            elif "revoke-api-token" in request.form:
-                token_id = request.form.get("token-id")
-                token = ApiToken.query.filter_by(id=token_id, user_id=g.user.id).first()
-                if token:
-                    db.session.delete(token)
-                    db.session.commit()
-            elif "toggle-obsidian-sync" in request.form:
-                settings.obsidian_sync_enabled = not settings.obsidian_sync_enabled
+            else:
+                g.user.update_theme_auto_save(current_theme, False)
+            if "hide-title" in request.form:
+                g.user.update_theme_hide_title(
+                    current_theme, request.form["hide-title"] == "1"
+                )
+            else:
+                g.user.update_theme_hide_title(current_theme, False)
+            if "notes-row-count" in request.form:
+                try:
+                    g.user.update_theme_notes_row_count(
+                        current_theme, int(request.form["notes-row-count"])
+                    )
+                except (ValueError, TypeError):
+                    pass
+            if "notes-height" in request.form:
+                try:
+                    g.user.update_theme_notes_height(
+                        current_theme, int(request.form["notes-height"])
+                    )
+                except (ValueError, TypeError):
+                    pass
+            # UI state booleans
+            ts = g.user.get_theme_settings(current_theme)
+            for field in (
+                "sidebar_collapsed",
+                "right_panel_collapsed",
+                "properties_collapsed",
+                "preview_mode",
+            ):
+                form_key = field.replace("_", "-")
+                if form_key in request.form:
+                    setattr(ts, field, request.form[form_key] == "1")
+                else:
+                    setattr(ts, field, False)
+            # Panel widgets visibility
+            widget_keys = [k for k in request.form if k.startswith("widget-")]
+            if widget_keys or current_theme == "obsidified":
+                widgets = ts.get_panel_widgets()
+                for w in widgets:
+                    w["visible"] = ("widget-" + w["id"]) in request.form
+                ts.set_panel_widgets(widgets)
+            db.session.commit()
+        elif "generate-api-token" in request.form:
+            token_name = request.form.get("token-name", "").strip()
+            if not token_name:
+                token_name = "Unnamed Token"
+            plaintext, token_hash = generate_api_token()
+            new_token = ApiToken(
+                user_id=g.user.id, token_hash=token_hash, name=token_name
+            )
+            db.session.add(new_token)
+            db.session.commit()
+            tokens = ApiToken.query.filter_by(user_id=g.user.id).all()
+            current_theme_obj = Theme.query.filter_by(
+                slug=settings.theme_preference
+            ).first()
+            ts = g.user.get_theme_settings(settings.theme_preference)
+            return render_template(
+                "settings.html",
+                themes=Theme.query.all(),
+                timezones=available_timezones(),
+                tokens=tokens,
+                new_token=plaintext,
+                sync_enabled=settings.obsidian_sync_enabled,
+                current_theme=current_theme_obj,
+                theme_settings=ts,
+                ai_enabled=settings.ai_enabled,
+                ai_settings=settings,
+            )
+        elif "revoke-api-token" in request.form:
+            token_id = request.form.get("token-id")
+            token = ApiToken.query.filter_by(id=token_id, user_id=g.user.id).first()
+            if token:
+                db.session.delete(token)
                 db.session.commit()
-            elif "toggle-ai" in request.form:
-                settings.ai_enabled = not settings.ai_enabled
-                if not settings.ai_enabled:
-                    settings.ollama_api_key = None
-                db.session.commit()
-            elif "update-ai-settings" in request.form:
-                api_key = request.form.get("ollama-api-key", "").strip()
-                model = request.form.get("ollama-model", "").strip()
-                base_url = request.form.get("ollama-base-url", "").strip()
-                if api_key:
-                    settings.ollama_api_key = api_key
-                if model:
-                    settings.ollama_model = model
-                if base_url:
-                    settings.ollama_base_url = base_url
-                db.session.commit()
-            elif "remove-ai-api-key" in request.form:
+        elif "toggle-obsidian-sync" in request.form:
+            settings.obsidian_sync_enabled = not settings.obsidian_sync_enabled
+            db.session.commit()
+        elif "toggle-ai" in request.form:
+            settings.ai_enabled = not settings.ai_enabled
+            if not settings.ai_enabled:
                 settings.ollama_api_key = None
+            db.session.commit()
+        elif "update-ai-settings" in request.form:
+            api_key = request.form.get("ollama-api-key", "").strip()
+            model = request.form.get("ollama-model", "").strip()
+            base_url = request.form.get("ollama-base-url", "").strip()
+            if api_key:
+                settings.ollama_api_key = api_key
+            if model:
+                settings.ollama_model = model
+            if base_url:
+                settings.ollama_base_url = base_url
+            db.session.commit()
+        elif "remove-ai-api-key" in request.form:
+            settings.ollama_api_key = None
+            db.session.commit()
+        elif "resolve-conflict" in request.form:
+            conflict_id = request.form.get("conflict-id")
+            resolution = request.form.get("resolution")
+            conflict = SyncConflict.query.filter_by(
+                id=conflict_id, user_id=g.user.id
+            ).first()
+            if conflict and resolution in ("local", "server"):
+                if conflict.note_id:
+                    note = UserNote.query.filter_by(
+                        userid=g.user.id, id=conflict.note_id
+                    ).first()
+                    if note:
+                        if resolution == "local":
+                            note.change_title(conflict.local_title)
+                            note.change_content(conflict.local_content, encrypted=True)
+                        else:
+                            note.change_title(conflict.server_title)
+                            note.change_content(conflict.server_content, encrypted=True)
+                conflict.resolved = True
                 db.session.commit()
-            elif "resolve-conflict" in request.form:
-                conflict_id = request.form.get("conflict-id")
-                resolution = request.form.get("resolution")
-                conflict = SyncConflict.query.filter_by(
-                    id=conflict_id, user_id=g.user.id
-                ).first()
-                if conflict and resolution in ("local", "server"):
-                    if conflict.note_id:
-                        note = UserNote.query.filter_by(
-                            userid=g.user.id, id=conflict.note_id
-                        ).first()
-                        if note:
-                            if resolution == "local":
-                                note.change_title(conflict.local_title)
-                                note.change_content(
-                                    conflict.local_content, encrypted=True
-                                )
-                            else:
-                                note.change_title(conflict.server_title)
-                                note.change_content(
-                                    conflict.server_content, encrypted=True
-                                )
-                    conflict.resolved = True
-                    db.session.commit()
-            return redirect(url_for("web.settings_page"))
-        tokens = ApiToken.query.filter_by(user_id=g.user.id).all()
-        conflicts = (
-            SyncConflict.query.filter_by(user_id=g.user.id, resolved=False)
-            .order_by(SyncConflict.conflict_date.desc())
-            .all()
-        )
-        current_theme_slug = settings.theme_preference
-        current_theme = Theme.query.filter_by(slug=current_theme_slug).first()
-        theme_settings = g.user.get_theme_settings(current_theme_slug)
-        return render_template(
-            "settings.html",
-            themes=Theme.query.all(),
-            timezones=available_timezones(),
-            tokens=tokens,
-            conflicts=conflicts,
-            sync_enabled=settings.obsidian_sync_enabled,
-            current_theme=current_theme,
-            theme_settings=theme_settings,
-            ai_enabled=settings.ai_enabled,
-            ai_settings=settings,
-        )
-    return "You must be logged in to access this page."
+        return redirect(url_for("web.settings_page"))
+    tokens = ApiToken.query.filter_by(user_id=g.user.id).all()
+    conflicts = (
+        SyncConflict.query.filter_by(user_id=g.user.id, resolved=False)
+        .order_by(SyncConflict.conflict_date.desc())
+        .all()
+    )
+    current_theme_slug = settings.theme_preference
+    current_theme = Theme.query.filter_by(slug=current_theme_slug).first()
+    theme_settings = g.user.get_theme_settings(current_theme_slug)
+    return render_template(
+        "settings.html",
+        themes=Theme.query.all(),
+        timezones=available_timezones(),
+        tokens=tokens,
+        conflicts=conflicts,
+        sync_enabled=settings.obsidian_sync_enabled,
+        current_theme=current_theme,
+        theme_settings=theme_settings,
+        ai_enabled=settings.ai_enabled,
+        ai_settings=settings,
+    )
 
 
 @web_bp.route("/register", methods=["GET", "POST"])
 def register_page():
     if request.method == "POST":
-        # if recaptcha.verify(): # Use verify() method to see if ReCaptcha is filled out
-        if True:  # disable ReCaptcha
+        # Honeypot field: if filled, it's a bot
+        honeypot = request.form.get("website", "")
+        if honeypot:
+            return render_template(
+                "register.html",
+                recaptcha_enabled=CONFIG.RECAPTCHA_ENABLED,
+                recaptcha_site_key=current_app.config.get("RECAPTCHA_SITE_KEY", ""),
+            )
+        recaptcha_ok = True
+        if CONFIG.RECAPTCHA_ENABLED:
+            recaptcha_ok = verify_recaptcha(
+                request.form.get("g-recaptcha-response", "")
+            )
+        if recaptcha_ok:
             user_username = request.form["username"].lower()
             user_email = request.form["email"].lower()
             user_pw = request.form["password"]
@@ -677,9 +686,13 @@ def register_page():
                     return redirect(url_for("web.login_page"))
                 else:
                     return "There is already an account with this email address."
-            else:
-                return "There is already an account with this username."
-    return render_template("register.html")
+        else:
+            return "There is already an account with this username."
+    return render_template(
+        "register.html",
+        recaptcha_enabled=CONFIG.RECAPTCHA_ENABLED,
+        recaptcha_site_key=current_app.config.get("RECAPTCHA_SITE_KEY", ""),
+    )
 
 
 @web_bp.route("/login", methods=["GET", "POST"])
@@ -711,228 +724,207 @@ def login_page():
 
 
 @web_bp.route("/logout")
+@login_required_page
 def logout():
-    if g.user:
-        session.pop("user_id", None)
-        return redirect(url_for("web.login_page"))
-    else:
-        return redirect(url_for("web.login_page"))
+    session.pop("user_id", None)
+    return redirect(url_for("web.login_page"))
 
 
 @web_bp.route("/notes")
+@login_required_page
 def notes_page():
-    if g.user:
-        theme_settings = g.user.get_theme_settings()
-        theme = theme_settings.theme
-        if theme.slug == "cli":
-            return redirect(url_for("web.cli"))
-        elif theme.has_notes_page:
-            return render_template(
-                f"themes/{theme_settings.theme.slug}/notes.html",
-                notes=g.user.return_notes(),
-            )
-        else:
-            return redirect(url_for("web.note_single_page", note_id=0))
+    theme_settings = g.user.get_theme_settings()
+    theme = theme_settings.theme
+    if theme.slug == "cli":
+        return redirect(url_for("web.cli"))
+    elif theme.has_notes_page:
+        return render_template(
+            f"themes/{theme_settings.theme.slug}/notes.html",
+            notes=g.user.return_notes(),
+        )
     else:
-        return "You must log in."
+        return redirect(url_for("web.note_single_page", note_id=0))
 
 
 @web_bp.route("/categories")
+@login_required_page
 def categories_page():
-    if g.user:
-        theme_settings = g.user.get_theme_settings()
-        theme = theme_settings.theme
-        if theme.slug == "cli":
-            return redirect(url_for("web.cli"))
-        if theme.has_categories_page:
-            categories = g.user.categories
-            return render_template(
-                f"themes/{theme_settings.theme.slug}/categories.html",
-                categories=categories,
-            )
-        else:
-            return render_template(
-                f"themes/{theme_settings.theme.slug}/notes.html", categories=categories
-            )
-    return (
-        'You are not logged in. Please login using the <a href="/login">Login Page</a>.'
-    )
+    theme_settings = g.user.get_theme_settings()
+    theme = theme_settings.theme
+    if theme.slug == "cli":
+        return redirect(url_for("web.cli"))
+    if theme.has_categories_page:
+        categories = g.user.categories
+        return render_template(
+            f"themes/{theme_settings.theme.slug}/categories.html",
+            categories=categories,
+        )
+    else:
+        return render_template(
+            f"themes/{theme_settings.theme.slug}/notes.html", categories=categories
+        )
 
 
 @web_bp.route("/categories/<int:category>")
+@login_required_page
 def category_single_page(category):
-    if g.user:
-        theme_settings = g.user.get_theme_settings()
-        theme = theme_settings.theme
-        if theme.slug == "cli":
-            return redirect(url_for("web.cli"))
-        category = g.user.get_category(category)
-        notes = UserNote.query.filter_by(
-            userid=g.user.id, category_id=category.id
-        ).all()
-        return render_template(
-            f"themes/{theme_settings.theme.slug}/notes.html",
-            category=category,
-            notes_of_category=True,
-            notes=notes,
-        )
-    return (
-        'You are not logged in. Please login using the <a href="/login">Login Page</a>.'
+    theme_settings = g.user.get_theme_settings()
+    theme = theme_settings.theme
+    if theme.slug == "cli":
+        return redirect(url_for("web.cli"))
+    category = g.user.get_category(category)
+    notes = UserNote.query.filter_by(userid=g.user.id, category_id=category.id).all()
+    return render_template(
+        f"themes/{theme_settings.theme.slug}/notes.html",
+        category=category,
+        notes_of_category=True,
+        notes=notes,
     )
 
 
 @web_bp.route("/note/<int:note_id>", methods=["GET", "POST"])
+@login_required_page
 def note_single_page(note_id):
-    if g.user:
-        theme_settings = g.user.get_theme_settings()
-        if theme_settings.theme.slug == "cli":
-            return redirect(url_for("web.cli"))
-        font_size = g.user.get_current_theme_font_size()
-        note = UserNote.query.filter_by(id=note_id).first()
-        if note and note is not None:
-            if g.user != note.user:
-                return "You do not own this note. Click here to go to your <a href='/notes'>notes</a>."
-        if request.method == "POST":
-            if note_id == 0:
-                if "update-note" in request.form:
-                    note_title = request.form["title"]
-                    note_content = request.form["content"]
-                    try:
-                        note_category = request.form["category"]
-                    except KeyError:
-                        note_category = ""
-                    if len(note_title) < 1:
-                        note_title = None
-                    if len(note_content) < 1:
-                        note_content = None
-                    if len(note_category) < 1:
-                        note_category = None
-                    note = g.user.add_note(note_title, note_content, note_category)
-                    return redirect(url_for("web.note_single_page", note_id=note.id))
-            else:
-                if "revert_to_last_version" in request.form:
-                    note.revert_to_last_version()
-                    return redirect(url_for("web.note_single_page", note_id=note.id))
-                elif "delete_note" in request.form:
-                    g.user.delete_note(note_id)
-                    return redirect(url_for("web.notes_page"))
-                elif "update-note" in request.form:
-                    note_title = request.form["title"]
-                    note_content = request.form["content"]
-                    try:
-                        note_category = request.form["category"]
-                    except KeyError:
-                        note_category = ""
-                    if len(note_title) < 1:
-                        note_title = None
-                    if len(note_content) < 1:
-                        note_content = None
-                    if len(note_category) < 1:
-                        note_category = None
-                    note.change_title(note_title)
-                    note.change_content(note_content)
-                    note.change_category(note_category)
+    theme_settings = g.user.get_theme_settings()
+    if theme_settings.theme.slug == "cli":
+        return redirect(url_for("web.cli"))
+    font_size = g.user.get_current_theme_font_size()
+    note = UserNote.query.filter_by(id=note_id).first()
+    if note and note is not None:
+        if g.user != note.user:
+            return "You do not own this note. Click here to go to your <a href='/notes'>notes</a>."
+    if request.method == "POST":
+        if note_id == 0:
+            if "update-note" in request.form:
+                note_title = request.form["title"]
+                note_content = request.form["content"]
+                try:
+                    note_category = request.form["category"]
+                except KeyError:
+                    note_category = ""
+                if len(note_title) < 1:
+                    note_title = None
+                if len(note_content) < 1:
+                    note_content = None
+                if len(note_category) < 1:
+                    note_category = None
+                note = g.user.add_note(note_title, note_content, note_category)
                 return redirect(url_for("web.note_single_page", note_id=note.id))
-        category = request.args.get("category")
-        category_id = request.args.get("category_id", type=int)
-        category_tree = g.user.get_category_tree()
-        default_template = None
-        if note_id == 0 and (category or category_id):
-            if category_id:
-                cat_obj = UserNoteCategory.query.filter_by(
-                    user_id=g.user.id, id=category_id
-                ).first()
-            else:
-                cat_obj = UserNoteCategory.query.filter_by(
-                    user_id=g.user.id, name=category
-                ).first()
-            if cat_obj:
-                category = cat_obj.name
-                if cat_obj.default_template_id:
-                    default_template = NoteTemplate.query.get(
-                        cat_obj.default_template_id
-                    )
-        panel_widgets = theme_settings.get_panel_widgets()
-        # E2EE: embed encrypted note data as JSON for client-side decryption
-        encrypted_note_data = None
-        if g.user.encryption_enabled and note:
-            encrypted_note_data = json.dumps(
-                {
-                    "title": note.title,
-                    "content": note.content,
-                    "properties": note.properties,
-                    "previous_content": note.previous_content,
-                    "category_id": note.category_id,
-                }
-            )
-        return render_template(
-            f"themes/{theme_settings.theme.slug}/note_single.html",
-            note=note,
-            note_id=note_id,
-            font_size=font_size,
-            category=category,
-            theme_settings=theme_settings,
-            category_tree=category_tree,
-            default_template=default_template,
-            panel_widgets=panel_widgets,
-            encrypted_note_data=encrypted_note_data,
+        else:
+            if "revert_to_last_version" in request.form:
+                note.revert_to_last_version()
+                return redirect(url_for("web.note_single_page", note_id=note.id))
+            elif "delete_note" in request.form:
+                g.user.delete_note(note_id)
+                return redirect(url_for("web.notes_page"))
+            elif "update-note" in request.form:
+                note_title = request.form["title"]
+                note_content = request.form["content"]
+                try:
+                    note_category = request.form["category"]
+                except KeyError:
+                    note_category = ""
+                if len(note_title) < 1:
+                    note_title = None
+                if len(note_content) < 1:
+                    note_content = None
+                if len(note_category) < 1:
+                    note_category = None
+                note.change_title(note_title)
+                note.change_content(note_content)
+                note.change_category(note_category)
+            return redirect(url_for("web.note_single_page", note_id=note.id))
+    category = request.args.get("category")
+    category_id = request.args.get("category_id", type=int)
+    category_tree = g.user.get_category_tree()
+    default_template = None
+    if note_id == 0 and (category or category_id):
+        if category_id:
+            cat_obj = UserNoteCategory.query.filter_by(
+                user_id=g.user.id, id=category_id
+            ).first()
+        else:
+            cat_obj = UserNoteCategory.query.filter_by(
+                user_id=g.user.id, name=category
+            ).first()
+        if cat_obj:
+            category = cat_obj.name
+            if cat_obj.default_template_id:
+                default_template = NoteTemplate.query.get(cat_obj.default_template_id)
+    panel_widgets = theme_settings.get_panel_widgets()
+    # E2EE: embed encrypted note data as JSON for client-side decryption
+    encrypted_note_data = None
+    if g.user.encryption_enabled and note:
+        encrypted_note_data = json.dumps(
+            {
+                "title": note.title,
+                "content": note.content,
+                "properties": note.properties,
+                "previous_content": note.previous_content,
+                "category_id": note.category_id,
+            }
         )
-    return "You must log in."
+    return render_template(
+        f"themes/{theme_settings.theme.slug}/note_single.html",
+        note=note,
+        note_id=note_id,
+        font_size=font_size,
+        category=category,
+        theme_settings=theme_settings,
+        category_tree=category_tree,
+        default_template=default_template,
+        panel_widgets=panel_widgets,
+        encrypted_note_data=encrypted_note_data,
+    )
 
 
 @web_bp.route("/search")
+@login_required_page
 def search_page():
-    if g.user:
-        query = request.args.get("q")
-        if query and query is not None:
-            notes = (
-                UserNote.query.filter_by(userid=g.user.id)
-                .filter(UserNote.content.contains(query))
-                .all()
-            )
-            notes += (
-                UserNote.query.filter_by(userid=g.user.id)
-                .filter(UserNote.title.contains(query))
-                .all()
-            )
-            return render_template("search.html", query=query, notes=notes)
-        return render_template("search.html", query=query)
-    else:
-        return "You must log in."
+    query = request.args.get("q")
+    if query and query is not None:
+        notes = (
+            UserNote.query.filter_by(userid=g.user.id)
+            .filter(UserNote.content.contains(query))
+            .all()
+        )
+        notes += (
+            UserNote.query.filter_by(userid=g.user.id)
+            .filter(UserNote.title.contains(query))
+            .all()
+        )
+        return render_template("search.html", query=query, notes=notes)
+    return render_template("search.html", query=query)
 
 
 @web_bp.route("/agenda")
+@login_required_page
 def agenda_page():
-    if g.user:
-        events = (
-            UserEvent.query.filter_by(userid=g.user.id)
-            .filter(UserEvent.date_of_event > (datetime.utcnow() - timedelta(days=1)))
-            .order_by(UserEvent.date_of_event.asc())
-            .all()
-        )
-        events += UserEvent.query.filter_by(userid=g.user.id, date_of_event=None).all()
-        todos = (
-            UserTodo.query.filter_by(userid=g.user.id, archived=False)
-            .filter(UserTodo.date_due != None)
-            .order_by(UserTodo.date_due.asc())
-            .all()
-        )
-        todos += (
-            UserTodo.query.filter_by(userid=g.user.id, archived=False)
-            .filter(UserTodo.date_due == None)
-            .all()
-        )
-        return render_template("agenda.html", todos=todos, events=events)
-    else:
-        return "You must log in."
+    events = (
+        UserEvent.query.filter_by(userid=g.user.id)
+        .filter(UserEvent.date_of_event > (datetime.utcnow() - timedelta(days=1)))
+        .order_by(UserEvent.date_of_event.asc())
+        .all()
+    )
+    events += UserEvent.query.filter_by(userid=g.user.id, date_of_event=None).all()
+    todos = (
+        UserTodo.query.filter_by(userid=g.user.id, archived=False)
+        .filter(UserTodo.date_due != None)
+        .order_by(UserTodo.date_due.asc())
+        .all()
+    )
+    todos += (
+        UserTodo.query.filter_by(userid=g.user.id, archived=False)
+        .filter(UserTodo.date_due == None)
+        .all()
+    )
+    return render_template("agenda.html", todos=todos, events=events)
 
 
 @web_bp.route("/cli")
+@login_required_page
 def cli():
-    if g.user:
-        return render_template("themes/cli/cli.html")
-    else:
-        return "You must log in."
+    return render_template("themes/cli/cli.html")
 
 
 @web_bp.route("/manifest.json")
@@ -947,9 +939,8 @@ def manifest_json():
 
 
 @web_bp.route("/attachment/<int:attachment_id>/<filename>")
+@login_required
 def serve_attachment(attachment_id, filename):
-    if not g.user:
-        return "Unauthorized", 401
     a = Attachment.query.filter_by(id=attachment_id, user_id=g.user.id).first()
     if a is None:
         return "Not found", 404
@@ -970,9 +961,8 @@ def serve_attachment(attachment_id, filename):
 
 
 @web_bp.route("/export")
+@login_required_page
 def export_page():
-    if not g.user:
-        return redirect(url_for("web.login_page"))
     note_count = UserNote.query.filter_by(userid=g.user.id).count()
     category_count = UserNoteCategory.query.filter_by(user_id=g.user.id).count()
     attachment_count = Attachment.query.filter_by(user_id=g.user.id).count()
@@ -985,10 +975,9 @@ def export_page():
 
 
 @web_bp.route("/api/export/notes")
+@login_required
 def export_notes_api():
     """Return all notes with full content for export (handles E2EE transparently)."""
-    if not g.user:
-        return jsonify(error="Unauthorized"), 401
     notes = UserNote.query.filter_by(userid=g.user.id).all()
     attachments = Attachment.query.filter_by(user_id=g.user.id).all()
     result = []

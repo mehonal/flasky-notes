@@ -159,6 +159,9 @@
             <button class="ai-send-btn" id="ai-send-btn" title="Send message" aria-label="Send message">
                 <svg viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
             </button>
+            <button class="ai-stop-btn" id="ai-stop-btn" title="Stop generation" aria-label="Stop generation" style="display:none;">
+                <svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2" ry="2"/></svg>
+            </button>
         </div>
 
         <div class="ai-status-bar">
@@ -171,8 +174,8 @@
 (function() {
     var encryptionEnabled = {{ 'true' if encryption_enabled else 'false' }};
     var conversationId = {{ current_conversation_id }};
-    var currentConvData = {{ current_conversation_json | safe }};
-    var conversations = {{ conversations_json | safe }};
+    var currentConvData = {{ current_conversation_json | tojson }};
+    var conversations = {{ conversations_json | tojson }};
     var isStreaming = false;
     var isEncrypted = false;
     var localMessages = [];
@@ -180,7 +183,9 @@
     var messagesEl = document.getElementById('ai-messages');
     var inputEl = document.getElementById('ai-input');
     var sendBtn = document.getElementById('ai-send-btn');
+    var stopBtn = document.getElementById('ai-stop-btn');
     var newChatBtn = document.getElementById('ai-new-chat-btn');
+    var currentAbortController = null;
     var convListEl = document.getElementById('ai-conversation-list');
     var emptyState = document.getElementById('ai-empty-state');
     var toolbarTitle = document.getElementById('ai-toolbar-title');
@@ -522,12 +527,26 @@
         }
     }
 
+    function stopGeneration() {
+        if (currentAbortController) {
+            currentAbortController.abort();
+            currentAbortController = null;
+        }
+    }
+
+    stopBtn.addEventListener('click', stopGeneration);
+
     function streamResponse(encryptedMessage) {
         isStreaming = true;
-        sendBtn.disabled = true;
+        sendBtn.style.display = 'none';
+        stopBtn.style.display = 'flex';
+        inputEl.disabled = true;
         statusText.textContent = 'Thinking...';
         var assistantDiv = addMessageBubble('assistant', '', false);
         assistantDiv.classList.add('ai-cursor-blink');
+
+        var abortController = new AbortController();
+        currentAbortController = abortController;
 
         var chatBody = { message: encryptedMessage };
         if (isEncrypted) {
@@ -537,14 +556,22 @@
         fetch('/ai/api/conversations/' + conversationId + '/chat', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRFToken() },
-            body: JSON.stringify(chatBody)
+            body: JSON.stringify(chatBody),
+            signal: abortController.signal
         }).then(function(response) {
             if (!response.ok) {
                 response.text().then(function(t) {
-                    assistantDiv.textContent = 'Error: ' + t;
+                    try {
+                        var errData = JSON.parse(t);
+                        assistantDiv.textContent = errData.error || 'Something went wrong. Please try again.';
+                    } catch(e) {
+                        assistantDiv.textContent = 'Something went wrong. Please try again.';
+                    }
                     assistantDiv.classList.remove('ai-cursor-blink');
                     isStreaming = false;
-                    sendBtn.disabled = false;
+                    sendBtn.style.display = 'flex';
+                    stopBtn.style.display = 'none';
+                    inputEl.disabled = false;
                     statusText.textContent = 'Error';
                 });
                 return;
@@ -559,15 +586,7 @@
                     if (result.done) {
                         if (!streamFinished) {
                             streamFinished = true;
-                            assistantDiv.classList.remove('ai-cursor-blink');
-                            assistantDiv.innerHTML = renderMarkdown(fullText);
-                            assistantDiv.querySelectorAll('pre code').forEach(function(block) {
-                                hljs.highlightElement(block);
-                            });
-                            isStreaming = false;
-                            sendBtn.disabled = false;
-                            statusText.textContent = 'Ready';
-                            loadConversations();
+                            finishStream(assistantDiv, fullText, null, false);
                         }
                         return;
                     }
@@ -583,48 +602,70 @@
                                     messagesEl.scrollTop = messagesEl.scrollHeight;
                                     statusText.textContent = 'Streaming...';
                                 } else if (data.error) {
-                                    assistantDiv.textContent = 'Error: ' + data.error;
+                                    streamFinished = true;
+                                    assistantDiv.textContent = data.error;
                                     assistantDiv.classList.remove('ai-cursor-blink');
                                     isStreaming = false;
-                                    sendBtn.disabled = false;
+                                    sendBtn.style.display = 'flex';
+                                    stopBtn.style.display = 'none';
+                                    inputEl.disabled = false;
                                     statusText.textContent = 'Error';
                                 } else if (data.done) {
                                     streamFinished = true;
-                                    var messageId = data.message_id;
-                                    localMessages.push({ role: 'assistant', content: fullText });
-                                    assistantDiv.classList.remove('ai-cursor-blink');
-                                    assistantDiv.innerHTML = renderMarkdown(fullText);
-                                    assistantDiv.querySelectorAll('pre code').forEach(function(block) {
-                                        hljs.highlightElement(block);
-                                    });
-                                    if (isEncrypted && messageId) {
-                                        encryptIfNeeded(fullText).then(function(enc) {
-                                            fetch('/ai/api/messages/' + messageId + '/encrypt', {
-                                                method: 'PUT',
-                                                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRFToken() },
-                                                body: JSON.stringify({ content: enc })
-                                            }).catch(function() {});
-                                        });
-                                    }
-                                    isStreaming = false;
-                                    sendBtn.disabled = false;
-                                    statusText.textContent = 'Ready';
-                                    loadConversations();
+                                    finishStream(assistantDiv, fullText, data.message_id, true);
                                 }
                             } catch(e) {}
                         }
                     });
                     read();
+                }).catch(function(err) {
+                    if (err.name === 'AbortError' && !streamFinished) {
+                        streamFinished = true;
+                        reader.cancel();
+                        finishStream(assistantDiv, fullText, null, false);
+                    }
                 });
             }
             read();
         }).catch(function(err) {
-            assistantDiv.textContent = 'Connection error: ' + err.message;
+            if (err.name === 'AbortError') {
+                return;
+            }
+            assistantDiv.textContent = 'Connection error. Please try again.';
             assistantDiv.classList.remove('ai-cursor-blink');
             isStreaming = false;
-            sendBtn.disabled = false;
+            sendBtn.style.display = 'flex';
+            stopBtn.style.display = 'none';
+            inputEl.disabled = false;
             statusText.textContent = 'Error';
         });
+
+        function finishStream(div, text, messageId, wasClean) {
+            div.classList.remove('ai-cursor-blink');
+            if (text) {
+                div.innerHTML = renderMarkdown(text);
+                div.querySelectorAll('pre code').forEach(function(block) {
+                    hljs.highlightElement(block);
+                });
+                localMessages.push({ role: 'assistant', content: text });
+            }
+            if (isEncrypted && messageId && text) {
+                encryptIfNeeded(text).then(function(enc) {
+                    fetch('/ai/api/messages/' + messageId + '/encrypt', {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRFToken() },
+                        body: JSON.stringify({ content: enc })
+                    }).catch(function() {});
+                });
+            }
+            isStreaming = false;
+            sendBtn.style.display = 'flex';
+            stopBtn.style.display = 'none';
+            inputEl.disabled = false;
+            statusText.textContent = wasClean ? 'Ready' : 'Stopped';
+            currentAbortController = null;
+            loadConversations();
+        }
     }
 
     sendBtn.addEventListener('click', sendMessage);

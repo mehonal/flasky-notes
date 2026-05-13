@@ -43,6 +43,10 @@ def create_app():
     app.config["MAX_CONTENT_LENGTH"] = CONFIG.MAX_UPLOAD_SIZE_MB * 1024 * 1024
     app.config["SESSION_COOKIE_HTTPONLY"] = True
     app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
+    app.config["RECAPTCHA_ENABLED"] = CONFIG.RECAPTCHA_ENABLED
+    if CONFIG.RECAPTCHA_ENABLED:
+        app.config["RECAPTCHA_SITE_KEY"] = os.environ.get("RECAPTCHA_SITE_KEY", "")
+        app.config["RECAPTCHA_SECRET_KEY"] = os.environ.get("RECAPTCHA_SECRET_KEY", "")
     if CONFIG.ENFORCE_SSL:
         app.config["SESSION_COOKIE_SECURE"] = True
 
@@ -72,6 +76,19 @@ def create_app():
         "form-action": "'self'",
         "manifest-src": "'self'",
     }
+    if CONFIG.RECAPTCHA_ENABLED:
+        csp["script-src"] = [
+            "'self'",
+            "https://www.google.com/recaptcha/",
+            "https://www.gstatic.com/recaptcha/",
+        ]
+        csp["frame-src"] = [
+            "https://www.google.com/recaptcha/",
+            "https://recaptcha.google.com/recaptcha/",
+        ]
+        csp["style-src"].append("https://www.google.com/recaptcha/")
+        csp["img-src"].append("https://www.google.com/recaptcha/")
+        csp["connect-src"] = ["'self'", "https://www.google.com/recaptcha/"]
     Talisman(
         app,
         force_https=CONFIG.ENFORCE_SSL,

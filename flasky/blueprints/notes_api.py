@@ -6,351 +6,352 @@ import hashlib
 
 from flasky import db
 from flasky.models import (
-    UserNote, UserNoteCategory, UserTodo, UserEvent, Attachment, NoteTemplate
+    UserNote,
+    UserNoteCategory,
+    UserTodo,
+    UserEvent,
+    Attachment,
+    NoteTemplate,
 )
+from flasky.utils import login_required
 from werkzeug.utils import secure_filename
 
-notes_api_bp = Blueprint('notes_api', __name__, url_prefix='/api')
+notes_api_bp = Blueprint("notes_api", __name__, url_prefix="/api")
 
 
 @notes_api_bp.route("/get_all_notes")
+@login_required
 def get_all_notes_api():
-    if g.user:
-        notes = []
-        for note in UserNote.query.filter_by(userid=g.user.id):
-            notes.append(note.return_json())
-        return jsonify(notes)
-    else:
-        return jsonify(success=False,reason="Note logged in.")
+    notes = []
+    for note in UserNote.query.filter_by(userid=g.user.id):
+        notes.append(note.return_json())
+    return jsonify(notes)
 
-@notes_api_bp.route("/search_notes", methods=['POST'])
+
+@notes_api_bp.route("/search_notes", methods=["POST"])
+@login_required
 def search_notes_api():
-    if g.user:
-        # E2EE: server can't search encrypted content — client does it
-        if g.user.encryption_enabled:
-            return jsonify(results=[], client_side=True)
-        data = request.get_json()
-        query = data.get('query')
-        notes = UserNote.query.filter(
+    # E2EE: server can't search encrypted content — client does it
+    if g.user.encryption_enabled:
+        return jsonify(results=[], client_side=True)
+    data = request.get_json()
+    query = data.get("query")
+    notes = (
+        UserNote.query.filter(
             UserNote.userid == g.user.id,
-            db.or_(
-                UserNote.title.contains(query),
-                UserNote.content.contains(query)
-            )
-        ).order_by(UserNote.date_added.desc()).all()
-        return jsonify([note.return_json() for note in notes])
-    else:
-        return jsonify(success=False,reason="Not logged in.")
+            db.or_(UserNote.title.contains(query), UserNote.content.contains(query)),
+        )
+        .order_by(UserNote.date_added.desc())
+        .all()
+    )
+    return jsonify([note.return_json() for note in notes])
+
 
 @notes_api_bp.route("/backlinks/<int:note_id>")
+@login_required
 def backlinks_api(note_id):
-    if g.user:
-        # E2EE: computed client-side
-        if g.user.encryption_enabled:
-            return jsonify([])
-        note = UserNote.query.filter_by(id=note_id).first()
-        if note and g.user == note.user and note.title:
-            pattern = "%[[" + note.title + "]]%"
-            linking_notes = UserNote.query.filter(
-                UserNote.userid == g.user.id,
-                UserNote.id != note_id,
-                UserNote.content.ilike(pattern)
-            ).all()
-            return jsonify([{"id": n.id, "title": n.title or "Untitled"} for n in linking_notes])
+    # E2EE: computed client-side
+    if g.user.encryption_enabled:
         return jsonify([])
-    return jsonify(error="Not logged in"), 401
+    note = UserNote.query.filter_by(id=note_id).first()
+    if note and g.user == note.user and note.title:
+        pattern = "%[[" + note.title + "]]%"
+        linking_notes = UserNote.query.filter(
+            UserNote.userid == g.user.id,
+            UserNote.id != note_id,
+            UserNote.content.ilike(pattern),
+        ).all()
+        return jsonify(
+            [{"id": n.id, "title": n.title or "Untitled"} for n in linking_notes]
+        )
+    return jsonify([])
 
 
 @notes_api_bp.route("/outbound-links/<int:note_id>")
+@login_required
 def outbound_links_api(note_id):
-    if g.user:
-        # E2EE: computed client-side
-        if g.user.encryption_enabled:
-            return jsonify([])
-        note = UserNote.query.filter_by(id=note_id).first()
-        if note and g.user == note.user and note.content:
-            links = re.findall(r'\[\[([^\]|]+)(?:\|[^\]]+)?\]\]', note.content)
-            seen = set()
-            unique_titles = []
-            for title in links:
-                key = title.strip().lower()
-                if key not in seen:
-                    seen.add(key)
-                    unique_titles.append(title.strip())
-            if not unique_titles:
-                return jsonify([])
-            # Batch query: find all matching notes in one query
-            lower_keys = [t.lower() for t in unique_titles]
-            matching_notes = UserNote.query.filter(
-                UserNote.userid == g.user.id,
-                db.func.lower(UserNote.title).in_(lower_keys)
-            ).all()
-            title_map = {n.title.lower(): n for n in matching_notes if n.title}
-            result = []
-            for title in unique_titles:
-                target = title_map.get(title.lower())
-                if target:
-                    result.append({"id": target.id, "title": target.title or "Untitled"})
-                else:
-                    result.append({"id": None, "title": title})
-            return jsonify(result)
+    # E2EE: computed client-side
+    if g.user.encryption_enabled:
         return jsonify([])
-    return jsonify(error="Not logged in"), 401
+    note = UserNote.query.filter_by(id=note_id).first()
+    if note and g.user == note.user and note.content:
+        links = re.findall(r"\[\[([^\]|]+)(?:\|[^\]]+)?\]\]", note.content)
+        seen = set()
+        unique_titles = []
+        for title in links:
+            key = title.strip().lower()
+            if key not in seen:
+                seen.add(key)
+                unique_titles.append(title.strip())
+        if not unique_titles:
+            return jsonify([])
+        # Batch query: find all matching notes in one query
+        lower_keys = [t.lower() for t in unique_titles]
+        matching_notes = UserNote.query.filter(
+            UserNote.userid == g.user.id,
+            db.func.lower(UserNote.title).in_(lower_keys),
+        ).all()
+        title_map = {n.title.lower(): n for n in matching_notes if n.title}
+        result = []
+        for title in unique_titles:
+            target = title_map.get(title.lower())
+            if target:
+                result.append({"id": target.id, "title": target.title or "Untitled"})
+            else:
+                result.append({"id": None, "title": title})
+        return jsonify(result)
+    return jsonify([])
 
 
 @notes_api_bp.route("/note/check_last_edited/<int:note_id>")
+@login_required
 def check_last_edited_note_api(note_id):
-    if g.user:
-        note = UserNote.query.filter_by(id=note_id).first()
-        if note and g.user == note.user:
-            return jsonify(success=True,last_updated=f"Note last updated {note.return_time_ago()} ago.")
-        else:
-            return jsonify(success=False,reason="Note does not exist.")
+    note = UserNote.query.filter_by(id=note_id).first()
+    if note and g.user == note.user:
+        return jsonify(
+            success=True,
+            last_updated=f"Note last updated {note.return_time_ago()} ago.",
+        )
     else:
-        return jsonify(success=False,reason="Not logged in.")
+        return jsonify(success=False, reason="Note does not exist.")
 
 
 @notes_api_bp.route("/save_font_size/<int:font_size>")
+@login_required
 def save_font_size(font_size):
-    if g.user:
-        theme = g.user.return_settings().theme_preference
-        g.user.update_theme_font_size(theme, font_size)
-        return jsonify(success=True,theme=theme,font_size=font_size)
-    else:
-        return jsonify(success=False,reason="Not logged in.")
+    theme = g.user.return_settings().theme_preference
+    g.user.update_theme_font_size(theme, font_size)
+    return jsonify(success=True, theme=theme, font_size=font_size)
+
 
 @notes_api_bp.route("/save_mobile_font_size/<int:font_size>")
+@login_required
 def save_mobile_font_size(font_size):
-    if g.user:
-        theme = g.user.return_settings().theme_preference
-        g.user.update_theme_mobile_font_size(theme, font_size)
-        return jsonify(success=True,theme=theme,font_size=font_size)
-    else:
-        return jsonify(success=False,reason="Not logged in.")
+    theme = g.user.return_settings().theme_preference
+    g.user.update_theme_mobile_font_size(theme, font_size)
+    return jsonify(success=True, theme=theme, font_size=font_size)
 
-@notes_api_bp.route("/save_auto_save", methods=['POST'])
+
+@notes_api_bp.route("/save_auto_save", methods=["POST"])
+@login_required
 def save_auto_save():
-    if g.user:
-        theme = g.user.return_settings().theme_preference
-        auto_save = request.get_json().get('autoSave')
-        if auto_save == 1:
-            auto_save = True
-        else:
-            auto_save = False
-        g.user.update_theme_auto_save(theme, auto_save)
-        return jsonify(success=True,theme=theme,new_auto_save_setting=auto_save)
+    theme = g.user.return_settings().theme_preference
+    auto_save = request.get_json().get("autoSave")
+    if auto_save == 1:
+        auto_save = True
     else:
-        return jsonify(success=False,reason="Not logged in.")
+        auto_save = False
+    g.user.update_theme_auto_save(theme, auto_save)
+    return jsonify(success=True, theme=theme, new_auto_save_setting=auto_save)
+
 
 @notes_api_bp.route("/save_notes_row_count/<int:row_count>")
+@login_required
 def save_notes_row_count(row_count):
-    if g.user:
-        theme = g.user.return_settings().theme_preference
-        g.user.update_theme_notes_row_count(theme, row_count)
-        return jsonify(success=True,theme=theme,new_row_count=row_count)
-    else:
-        return jsonify(success=False,reason="Not logged in.")
+    theme = g.user.return_settings().theme_preference
+    g.user.update_theme_notes_row_count(theme, row_count)
+    return jsonify(success=True, theme=theme, new_row_count=row_count)
+
 
 @notes_api_bp.route("/save_notes_height/<int:height>")
+@login_required
 def save_notes_height(height):
-    if g.user:
-        theme = g.user.return_settings().theme_preference
-        g.user.update_theme_notes_height(theme, height)
-        return jsonify(success=True,theme=theme,new_height=height)
-    else:
-        return jsonify(success=False,reason="Not logged in.")
+    theme = g.user.return_settings().theme_preference
+    g.user.update_theme_notes_height(theme, height)
+    return jsonify(success=True, theme=theme, new_height=height)
+
 
 @notes_api_bp.route("/save_dark_mode/<int:dark_mode>")
+@login_required
 def save_dark_mode(dark_mode):
-    if g.user:
-        if dark_mode == 1:
-            dark_mode = True
-        else:
-            dark_mode = False
-        theme = g.user.return_settings().theme_preference
-        g.user.update_theme_dark_mode(theme, dark_mode)
-        return jsonify(success=True,theme=theme,new_dark_mode_setting=dark_mode)
+    if dark_mode == 1:
+        dark_mode = True
     else:
-        return jsonify(success=False,reason="Not logged in.")
+        dark_mode = False
+    theme = g.user.return_settings().theme_preference
+    g.user.update_theme_dark_mode(theme, dark_mode)
+    return jsonify(success=True, theme=theme, new_dark_mode_setting=dark_mode)
 
-@notes_api_bp.route("/save_ui_state", methods=['POST'])
+
+@notes_api_bp.route("/save_ui_state", methods=["POST"])
+@login_required
 def save_ui_state():
-    if g.user:
-        data = request.get_json()
-        if not data:
-            return jsonify(success=False, reason="No data provided.")
-        theme_slug = g.user.return_settings().theme_preference
-        theme_settings = g.user.get_theme_settings(theme_slug)
-        allowed = ('sidebar_collapsed', 'right_panel_collapsed', 'properties_collapsed', 'preview_mode')
-        for key in allowed:
-            if key in data:
-                setattr(theme_settings, key, bool(data[key]))
-        if 'panel_widgets' in data and isinstance(data['panel_widgets'], list):
-            theme_settings.set_panel_widgets(data['panel_widgets'])
-        db.session.commit()
-        return jsonify(success=True)
-    else:
-        return jsonify(success=False, reason="Not logged in.")
+    data = request.get_json()
+    if not data:
+        return jsonify(success=False, reason="No data provided.")
+    theme_slug = g.user.return_settings().theme_preference
+    theme_settings = g.user.get_theme_settings(theme_slug)
+    allowed = (
+        "sidebar_collapsed",
+        "right_panel_collapsed",
+        "properties_collapsed",
+        "preview_mode",
+    )
+    for key in allowed:
+        if key in data:
+            setattr(theme_settings, key, bool(data[key]))
+    if "panel_widgets" in data and isinstance(data["panel_widgets"], list):
+        theme_settings.set_panel_widgets(data["panel_widgets"])
+    db.session.commit()
+    return jsonify(success=True)
 
-@notes_api_bp.route("/save_font", methods=['POST'])
+
+@notes_api_bp.route("/save_font", methods=["POST"])
+@login_required
 def save_font():
-    if g.user:
-        new_font = request.data.decode('utf-8')
-        if len(new_font) < 250:
-            theme = g.user.return_settings().theme_preference
-            g.user.update_theme_font(theme, new_font)
-            return jsonify(success=True,theme=theme,new_font=new_font)
-        else:
-            return jsonify(success=False,reason="Font exceeds max allowed character limit of 250.")
-    else:
-        return jsonify(success=False,reason="Not logged in.")
-
-@notes_api_bp.route("/save_hide_title", methods=['POST'])
-def save_hide_title():
-    if g.user:
+    new_font = request.data.decode("utf-8")
+    if len(new_font) < 250:
         theme = g.user.return_settings().theme_preference
-        hide_title = request.get_json().get('hideTitle')
-        if hide_title == 1:
-            hide_title = True
-        else:
-            hide_title = False
-        g.user.update_theme_hide_title(theme, hide_title)
-        return jsonify(success=True,theme=theme,new_hide_title_setting=hide_title)
+        g.user.update_theme_font(theme, new_font)
+        return jsonify(success=True, theme=theme, new_font=new_font)
     else:
-        return jsonify(success=False,reason="Not logged in.")
+        return jsonify(
+            success=False, reason="Font exceeds max allowed character limit of 250."
+        )
 
-@notes_api_bp.route("/save_note", methods=['POST'])
+
+@notes_api_bp.route("/save_hide_title", methods=["POST"])
+@login_required
+def save_hide_title():
+    theme = g.user.return_settings().theme_preference
+    hide_title = request.get_json().get("hideTitle")
+    if hide_title == 1:
+        hide_title = True
+    else:
+        hide_title = False
+    g.user.update_theme_hide_title(theme, hide_title)
+    return jsonify(success=True, theme=theme, new_hide_title_setting=hide_title)
+
+
+@notes_api_bp.route("/save_note", methods=["POST"])
+@login_required
 def save_note():
-    if g.user:
-        data = request.get_json()
-        note_id = int(data.get('noteId'))
-        title = data.get('title')
-        content = data.get('content')
-        category = data.get('category')
-        encrypted = g.user.encryption_enabled
-        properties = data.get('properties')  # E2EE: encrypted properties sent separately
-        try:
-            category = int(category)
-        except (ValueError, TypeError):
-            pass
-        icon = data.get('icon')
-        icon_color = data.get('iconColor')
-        if note_id == 0:
-            note = g.user.add_note(title, content, category, encrypted=encrypted)
-            if encrypted and properties:
+    data = request.get_json()
+    note_id = int(data.get("noteId"))
+    title = data.get("title")
+    content = data.get("content")
+    category = data.get("category")
+    encrypted = g.user.encryption_enabled
+    properties = data.get("properties")  # E2EE: encrypted properties sent separately
+    try:
+        category = int(category)
+    except (ValueError, TypeError):
+        pass
+    icon = data.get("icon")
+    icon_color = data.get("iconColor")
+    if note_id == 0:
+        note = g.user.add_note(title, content, category, encrypted=encrypted)
+        if encrypted and properties:
+            note.properties = properties
+            db.session.commit()
+        if icon is not None:
+            note.icon = icon
+            note.icon_color = icon_color
+            db.session.commit()
+        return jsonify(success=True, note=note.return_json())
+    else:
+        note = UserNote.query.filter_by(id=note_id).first()
+        if note and g.user == note.user:
+            note.change_title(title)
+            note.change_content(content, encrypted=encrypted)
+            if encrypted and properties is not None:
                 note.properties = properties
                 db.session.commit()
+            note.change_category(category)
             if icon is not None:
                 note.icon = icon
                 note.icon_color = icon_color
                 db.session.commit()
             return jsonify(success=True, note=note.return_json())
         else:
-            note = UserNote.query.filter_by(id=note_id).first()
-            if note and g.user == note.user:
-                note.change_title(title)
-                note.change_content(content, encrypted=encrypted)
-                if encrypted and properties is not None:
-                    note.properties = properties
-                    db.session.commit()
-                note.change_category(category)
-                if icon is not None:
-                    note.icon = icon
-                    note.icon_color = icon_color
-                    db.session.commit()
-                return jsonify(success=True, note=note.return_json())
-            else:
-                return jsonify(success=False, reason="Note does not exist.")
-    else:
-        return jsonify(success=False, reason="Not logged in.")
-
-@notes_api_bp.route("/revert_note", methods=['POST'])
-def revert_note():
-    if g.user:
-        data = request.get_json()
-        note_id = int(data.get('noteId'))
-        note = UserNote.query.filter_by(id=note_id).first()
-        if note and g.user == note.user:
-            if note.previous_content is not None:
-                note.revert_to_last_version()
-                return jsonify(success=True, note=note.return_json())
-            else:
-                return jsonify(success=False, reason="No previous version available.")
-        else:
             return jsonify(success=False, reason="Note does not exist.")
+
+
+@notes_api_bp.route("/revert_note", methods=["POST"])
+@login_required
+def revert_note():
+    data = request.get_json()
+    note_id = int(data.get("noteId"))
+    note = UserNote.query.filter_by(id=note_id).first()
+    if note and g.user == note.user:
+        if note.previous_content is not None:
+            note.revert_to_last_version()
+            return jsonify(success=True, note=note.return_json())
+        else:
+            return jsonify(success=False, reason="No previous version available.")
     else:
-        return jsonify(success=False, reason="Not logged in.")
+        return jsonify(success=False, reason="Note does not exist.")
+
 
 @notes_api_bp.route("/note/<int:note_id>")
+@login_required
 def get_note(note_id):
-    if not g.user:
-        return jsonify(success=False, reason="Not logged in.")
     note = UserNote.query.filter_by(id=note_id, userid=g.user.id).first()
     if not note:
         return jsonify(success=False, reason="Note does not exist.")
     data = note.return_json()
-    data['category_id'] = note.category_id
+    data["category_id"] = note.category_id
     return jsonify(success=True, note=data)
 
 
-@notes_api_bp.route("/load_notes", methods=['POST'])
+@notes_api_bp.route("/load_notes", methods=["POST"])
+@login_required
 def load_notes():
-    if g.user:
-        page = request.get_json().get('page')
-        notes = []
-        for note in UserNote.query.filter_by(userid=g.user.id).order_by(UserNote.date_last_changed.desc()).paginate(page=page, per_page=5).items:
-            notes.append(note.return_json())
-        return jsonify(notes)
-    else:
-        return jsonify(success=False,reason="Not logged in.")
+    page = request.get_json().get("page")
+    notes = []
+    for note in (
+        UserNote.query.filter_by(userid=g.user.id)
+        .order_by(UserNote.date_last_changed.desc())
+        .paginate(page=page, per_page=5)
+        .items
+    ):
+        notes.append(note.return_json())
+    return jsonify(notes)
 
-@notes_api_bp.route("/delete_note", methods=['POST'])
+
+@notes_api_bp.route("/delete_note", methods=["POST"])
+@login_required
 def delete_note():
-    if g.user:
-        data = request.get_json()
-        note_id = data.get('noteId')
-        note = UserNote.query.filter_by(id=note_id).first()
-        if note and g.user == note.user:
-            db.session.delete(note)
-            db.session.commit()
-            return jsonify(success=True)
-        else:
-            return jsonify(success=False,reason="Note does not exist.")
-    else:
-        return jsonify(success=False,reason="Not logged in.")
-
-@notes_api_bp.route("/add_category", methods=['POST'])
-def add_category():
-    if g.user:
-        data = request.get_json()
-        category_name = data.get('categoryName')
-        category = g.user.get_category(category_name,create=True)
-        return jsonify(success=True,category=category.id)
-    else:
-        return jsonify(success=False,reason="Not logged in.")
-
-@notes_api_bp.route("/edit_note_category", methods=['POST'])
-def edit_note_category():
-    if g.user:
-        data = request.get_json()
-        note_id = data.get('noteId')
-        category = data.get('category')
-        note = UserNote.query.filter_by(id=note_id).first()
-        if note and g.user == note.user:
-            note.change_category(category)
-            return jsonify(success=True)
-        else:
-            return jsonify(success=False,reason="Note does not exist.")
-    else:
-        return jsonify(success=False,reason="Not logged in.")
-
-@notes_api_bp.route("/rename_note", methods=['POST'])
-def rename_note():
-    if not g.user:
-        return jsonify(success=False, reason="Not logged in.")
     data = request.get_json()
-    note_id = int(data.get('noteId', 0))
-    new_title = data.get('title', '').strip()
+    note_id = data.get("noteId")
+    note = UserNote.query.filter_by(id=note_id).first()
+    if note and g.user == note.user:
+        db.session.delete(note)
+        db.session.commit()
+        return jsonify(success=True)
+    else:
+        return jsonify(success=False, reason="Note does not exist.")
+
+
+@notes_api_bp.route("/add_category", methods=["POST"])
+@login_required
+def add_category():
+    data = request.get_json()
+    category_name = data.get("categoryName")
+    category = g.user.get_category(category_name, create=True)
+    return jsonify(success=True, category=category.id)
+
+
+@notes_api_bp.route("/edit_note_category", methods=["POST"])
+@login_required
+def edit_note_category():
+    data = request.get_json()
+    note_id = data.get("noteId")
+    category = data.get("category")
+    note = UserNote.query.filter_by(id=note_id).first()
+    if note and g.user == note.user:
+        note.change_category(category)
+        return jsonify(success=True)
+    else:
+        return jsonify(success=False, reason="Note does not exist.")
+
+
+@notes_api_bp.route("/rename_note", methods=["POST"])
+@login_required
+def rename_note():
+    data = request.get_json()
+    note_id = int(data.get("noteId", 0))
+    new_title = data.get("title", "").strip()
     if not new_title:
         return jsonify(success=False, reason="Title cannot be empty.")
     note = UserNote.query.filter_by(id=note_id).first()
@@ -359,16 +360,18 @@ def rename_note():
         return jsonify(success=True)
     return jsonify(success=False, reason="Note does not exist.")
 
-@notes_api_bp.route("/rename_category", methods=['POST'])
+
+@notes_api_bp.route("/rename_category", methods=["POST"])
+@login_required
 def rename_category():
-    if not g.user:
-        return jsonify(success=False, reason="Not logged in.")
     data = request.get_json()
-    category_id = int(data.get('categoryId', 0))
-    new_name = data.get('name', '').strip()
+    category_id = int(data.get("categoryId", 0))
+    new_name = data.get("name", "").strip()
     if not new_name:
         return jsonify(success=False, reason="Name cannot be empty.")
-    category = UserNoteCategory.query.filter_by(id=category_id, user_id=g.user.id).first()
+    category = UserNoteCategory.query.filter_by(
+        id=category_id, user_id=g.user.id
+    ).first()
     if not category:
         return jsonify(success=False, reason="Category does not exist.")
     main = g.user.get_main_category()
@@ -376,8 +379,8 @@ def rename_category():
         return jsonify(success=False, reason="Cannot rename the Main folder.")
     old_path = category.name
     # Build new full path: replace just the leaf name
-    parts = old_path.rsplit('/', 1)
-    new_path = parts[0] + '/' + new_name if len(parts) > 1 else new_name
+    parts = old_path.rsplit("/", 1)
+    new_path = parts[0] + "/" + new_name if len(parts) > 1 else new_name
     if new_path == old_path:
         return jsonify(success=True)
     if UserNoteCategory.query.filter_by(user_id=g.user.id, name=new_path).first():
@@ -385,41 +388,47 @@ def rename_category():
     # Rename children paths too
     children = UserNoteCategory.query.filter(
         UserNoteCategory.user_id == g.user.id,
-        UserNoteCategory.name.startswith(old_path + '/')
+        UserNoteCategory.name.startswith(old_path + "/"),
     ).all()
     for child in children:
-        child.name = new_path + child.name[len(old_path):]
+        child.name = new_path + child.name[len(old_path) :]
     category.name = new_path
     db.session.commit()
     return jsonify(success=True)
 
-@notes_api_bp.route("/set_note_icon", methods=['POST'])
+
+@notes_api_bp.route("/set_note_icon", methods=["POST"])
+@login_required
 def set_note_icon():
-    if not g.user:
-        return jsonify(success=False, reason="Not logged in.")
     data = request.get_json()
-    note_id = int(data.get('noteId', 0))
-    icon = data.get('icon')  # string or null to clear
-    icon_color = data.get('iconColor')  # string or null
+    note_id = int(data.get("noteId", 0))
+    icon = data.get("icon")  # string or null to clear
+    icon_color = data.get("iconColor")  # string or null
     note = UserNote.query.filter_by(id=note_id, userid=g.user.id).first()
     if not note:
         return jsonify(success=False, reason="Note does not exist.")
     note.icon = icon
     note.icon_color = icon_color
     db.session.commit()
-    return jsonify(success=True, icon=note.icon, icon_color=note.icon_color,
-                   resolved_icon=note.get_resolved_icon(),
-                   resolved_icon_color=note.get_resolved_icon_color())
+    return jsonify(
+        success=True,
+        icon=note.icon,
+        icon_color=note.icon_color,
+        resolved_icon=note.get_resolved_icon(),
+        resolved_icon_color=note.get_resolved_icon_color(),
+    )
 
-@notes_api_bp.route("/set_folder_icon", methods=['POST'])
+
+@notes_api_bp.route("/set_folder_icon", methods=["POST"])
+@login_required
 def set_folder_icon():
-    if not g.user:
-        return jsonify(success=False, reason="Not logged in.")
     data = request.get_json()
-    category_id = int(data.get('categoryId', 0))
-    icon = data.get('icon')  # string or null to clear
-    icon_color = data.get('iconColor')  # string or null
-    category = UserNoteCategory.query.filter_by(id=category_id, user_id=g.user.id).first()
+    category_id = int(data.get("categoryId", 0))
+    icon = data.get("icon")  # string or null to clear
+    icon_color = data.get("iconColor")  # string or null
+    category = UserNoteCategory.query.filter_by(
+        id=category_id, user_id=g.user.id
+    ).first()
     if not category:
         return jsonify(success=False, reason="Category does not exist.")
     category.icon = icon
@@ -427,404 +436,442 @@ def set_folder_icon():
     db.session.commit()
     return jsonify(success=True, icon=category.icon, icon_color=category.icon_color)
 
-@notes_api_bp.route("/set_default_note_icon", methods=['POST'])
+
+@notes_api_bp.route("/set_default_note_icon", methods=["POST"])
+@login_required
 def set_default_note_icon():
-    if not g.user:
-        return jsonify(success=False, reason="Not logged in.")
     data = request.get_json()
-    category_id = int(data.get('categoryId', 0))
-    icon = data.get('icon')
-    icon_color = data.get('iconColor')
-    category = UserNoteCategory.query.filter_by(id=category_id, user_id=g.user.id).first()
+    category_id = int(data.get("categoryId", 0))
+    icon = data.get("icon")
+    icon_color = data.get("iconColor")
+    category = UserNoteCategory.query.filter_by(
+        id=category_id, user_id=g.user.id
+    ).first()
     if not category:
         return jsonify(success=False, reason="Category does not exist.")
     category.default_note_icon = icon
     category.default_note_icon_color = icon_color
     db.session.commit()
-    return jsonify(success=True, default_note_icon=category.default_note_icon,
-                   default_note_icon_color=category.default_note_icon_color)
+    return jsonify(
+        success=True,
+        default_note_icon=category.default_note_icon,
+        default_note_icon_color=category.default_note_icon_color,
+    )
 
-@notes_api_bp.route("/move_category", methods=['POST'])
+
+@notes_api_bp.route("/move_category", methods=["POST"])
+@login_required
 def move_category():
-    if g.user:
-        data = request.get_json()
-        category_id = int(data.get('categoryId'))
-        category = UserNoteCategory.query.filter_by(id=category_id).first()
-        if not category or g.user != category.user:
-            return jsonify(success=False, reason="Category does not exist.")
+    data = request.get_json()
+    category_id = int(data.get("categoryId"))
+    category = UserNoteCategory.query.filter_by(id=category_id).first()
+    if not category or g.user != category.user:
+        return jsonify(success=False, reason="Category does not exist.")
 
-        # E2EE: client sends pre-computed renames (server can't parse encrypted paths)
-        renames = data.get('renames')
-        if renames:
-            for rename in renames:
-                cat = UserNoteCategory.query.filter_by(id=rename['id'], user_id=g.user.id).first()
-                if cat:
-                    cat.name = rename['name']
-            db.session.commit()
-            return jsonify(success=True)
+    # E2EE: client sends pre-computed renames (server can't parse encrypted paths)
+    renames = data.get("renames")
+    if renames:
+        for rename in renames:
+            cat = UserNoteCategory.query.filter_by(
+                id=rename["id"], user_id=g.user.id
+            ).first()
+            if cat:
+                cat.name = rename["name"]
+        db.session.commit()
+        return jsonify(success=True)
 
-        # Non-E2EE: server computes new paths
-        target_path = data.get('targetPath', '').strip('/')
-        old_path = category.name
-        leaf_name = old_path.rsplit('/', 1)[-1]
-        new_path = target_path + '/' + leaf_name if target_path else leaf_name
-        if new_path == old_path:
-            return jsonify(success=True)
-        # Prevent moving into itself or its own children
-        if new_path == old_path or new_path.startswith(old_path + '/'):
-            return jsonify(success=False, reason="Cannot move a folder into itself.")
-        # Check for name collision
-        if UserNoteCategory.query.filter_by(user_id=g.user.id, name=new_path).first():
-            return jsonify(success=False, reason="A folder with that name already exists there.")
-        # Rename this category and all children
-        children = UserNoteCategory.query.filter(
-            UserNoteCategory.user_id == g.user.id,
-            UserNoteCategory.name.startswith(old_path + '/')
-        ).all()
+    # Non-E2EE: server computes new paths
+    target_path = data.get("targetPath", "").strip("/")
+    old_path = category.name
+    leaf_name = old_path.rsplit("/", 1)[-1]
+    new_path = target_path + "/" + leaf_name if target_path else leaf_name
+    if new_path == old_path:
+        return jsonify(success=True)
+    # Prevent moving into itself or its own children
+    if new_path == old_path or new_path.startswith(old_path + "/"):
+        return jsonify(success=False, reason="Cannot move a folder into itself.")
+    # Check for name collision
+    if UserNoteCategory.query.filter_by(user_id=g.user.id, name=new_path).first():
+        return jsonify(
+            success=False, reason="A folder with that name already exists there."
+        )
+    # Rename this category and all children
+    children = UserNoteCategory.query.filter(
+        UserNoteCategory.user_id == g.user.id,
+        UserNoteCategory.name.startswith(old_path + "/"),
+    ).all()
+    for child in children:
+        child.name = new_path + child.name[len(old_path) :]
+    category.name = new_path
+    db.session.commit()
+    return jsonify(success=True)
+
+
+@notes_api_bp.route("/delete_category", methods=["POST"])
+@login_required
+def delete_category():
+    data = request.get_json()
+    category_id = int(data.get("categoryId"))
+    category = UserNoteCategory.query.filter_by(id=category_id).first()
+    main = g.user.get_main_category() if category else None
+    is_main = category and main and category.id == main.id
+    if category and g.user == category.user and not is_main:
+        # For non-E2EE, also find children by path prefix
+        if g.user.encryption_enabled:
+            children = []  # E2EE: client sends separate delete for children
+        else:
+            children = UserNoteCategory.query.filter(
+                UserNoteCategory.user_id == g.user.id,
+                UserNoteCategory.name.startswith(category.name + "/"),
+            ).all()
         for child in children:
-            child.name = new_path + child.name[len(old_path):]
-        category.name = new_path
+            for note in child.notes:
+                note.category_id = main.id
+            db.session.delete(child)
+        for note in UserNote.query.filter_by(category_id=category_id):
+            note.category_id = main.id
+        db.session.commit()
+        db.session.delete(category)
         db.session.commit()
         return jsonify(success=True)
     else:
-        return jsonify(success=False, reason="Not logged in.")
+        return jsonify(success=False, reason="Category does not exist.")
 
-@notes_api_bp.route("/delete_category", methods=['POST'])
-def delete_category():
-    if g.user:
-        data = request.get_json()
-        category_id = int(data.get('categoryId'))
-        category = UserNoteCategory.query.filter_by(id=category_id).first()
-        main = g.user.get_main_category() if category else None
-        is_main = category and main and category.id == main.id
-        if category and g.user == category.user and not is_main:
-            # For non-E2EE, also find children by path prefix
-            if g.user.encryption_enabled:
-                children = []  # E2EE: client sends separate delete for children
-            else:
-                children = UserNoteCategory.query.filter(
-                    UserNoteCategory.user_id == g.user.id,
-                    UserNoteCategory.name.startswith(category.name + "/")
-                ).all()
-            for child in children:
-                for note in child.notes:
-                    note.category_id = main.id
-                db.session.delete(child)
-            for note in UserNote.query.filter_by(category_id=category_id):
-                note.category_id = main.id
-            db.session.commit()
-            db.session.delete(category)
-            db.session.commit()
-            return jsonify(success=True)
-        else:
-            return jsonify(success=False,reason="Category does not exist.")
-    else:
-        return jsonify(success=False,reason="Not logged in.")
 
 @notes_api_bp.route("/sidebar_tree")
+@login_required
 def sidebar_tree():
-    if not g.user:
-        return jsonify(success=False, reason="Not logged in.")
     # E2EE: return raw JSON data for client-side rendering
     if g.user.encryption_enabled:
         categories = [
-            {'id': cat.id, 'name': cat.name, 'icon': cat.icon, 'icon_color': cat.icon_color,
-             'default_note_icon': cat.default_note_icon, 'default_note_icon_color': cat.default_note_icon_color}
+            {
+                "id": cat.id,
+                "name": cat.name,
+                "icon": cat.icon,
+                "icon_color": cat.icon_color,
+                "default_note_icon": cat.default_note_icon,
+                "default_note_icon_color": cat.default_note_icon_color,
+            }
             for cat in sorted(g.user.categories, key=lambda c: c.id)
         ]
         notes = [
-            {'id': n.id, 'title': n.title, 'category_id': n.category_id,
-             'icon': n.icon, 'icon_color': n.icon_color,
-             'date_last_changed': n.date_last_changed.isoformat() if n.date_last_changed else None}
-            for n in UserNote.query.filter_by(userid=g.user.id).order_by(UserNote.date_last_changed.desc()).all()
+            {
+                "id": n.id,
+                "title": n.title,
+                "category_id": n.category_id,
+                "icon": n.icon,
+                "icon_color": n.icon_color,
+                "date_last_changed": n.date_last_changed.isoformat()
+                if n.date_last_changed
+                else None,
+            }
+            for n in UserNote.query.filter_by(userid=g.user.id)
+            .order_by(UserNote.date_last_changed.desc())
+            .all()
         ]
         return jsonify(success=True, encrypted=True, categories=categories, notes=notes)
     from flask import render_template
+
     category_tree = g.user.get_category_tree()
-    note_id = request.args.get('note_id', 0, type=int)
+    note_id = request.args.get("note_id", 0, type=int)
     tree_html = render_template(
-        'themes/obsidified/partials/sidebar_tree.html',
+        "themes/obsidified/partials/sidebar_tree.html",
         category_tree=category_tree,
-        active_note_id=note_id
+        active_note_id=note_id,
     )
     categories = [
-        {'id': cat.id, 'name': cat.name, 'icon': cat.icon, 'icon_color': cat.icon_color,
-             'default_note_icon': cat.default_note_icon, 'default_note_icon_color': cat.default_note_icon_color}
+        {
+            "id": cat.id,
+            "name": cat.name,
+            "icon": cat.icon,
+            "icon_color": cat.icon_color,
+            "default_note_icon": cat.default_note_icon,
+            "default_note_icon_color": cat.default_note_icon_color,
+        }
         for cat in sorted(g.user.categories, key=lambda c: c.name)
     ]
     return jsonify(success=True, tree_html=tree_html, categories=categories)
 
 
 @notes_api_bp.route("/get_todos")
+@login_required
 def get_todos():
-    if g.user:
-        todos = []
-        query = None
-        if request.args.get('archived') == "true":
-            query = UserTodo.query.filter_by(userid=g.user.id, archived=True).all()
-        else:
-            query = UserTodo.query.filter_by(userid=g.user.id, archived=False).all()
-        for todo in query:
-            todos.append({
+    todos = []
+    if request.args.get("archived") == "true":
+        query = UserTodo.query.filter_by(userid=g.user.id, archived=True).all()
+    else:
+        query = UserTodo.query.filter_by(userid=g.user.id, archived=False).all()
+    for todo in query:
+        todos.append(
+            {
                 "id": todo.id,
                 "title": todo.title,
                 "completed": todo.completed,
                 "archived": todo.archived,
                 "time_until_due": todo.get_time_until_due(),
                 "due_css_class": todo.get_due_css_class(),
-                "has_content": todo.has_content()
-            })
-        return jsonify(todos)
-    else:
-        return jsonify(success=False,reason="Not logged in.")
+                "has_content": todo.has_content(),
+            }
+        )
+    return jsonify(todos)
+
 
 @notes_api_bp.route("/get_todo/<int:todo_id>")
+@login_required
 def get_todo(todo_id):
-    if g.user:
-        todo = UserTodo.query.filter_by(id=todo_id).first()
-        if todo and g.user == todo.user:
-            return jsonify(success=True,todo=todo.return_json())
-        else:
-            return jsonify(success=False,reason="To do does not exist.")
+    todo = UserTodo.query.filter_by(id=todo_id).first()
+    if todo and g.user == todo.user:
+        return jsonify(success=True, todo=todo.return_json())
     else:
-        return jsonify(success=False,reason="Not logged in.")
+        return jsonify(success=False, reason="To do does not exist.")
+
 
 @notes_api_bp.route("/get_event/<int:event_id>")
+@login_required
 def get_event(event_id):
-    if g.user:
-        event = UserEvent.query.filter_by(id=event_id).first()
-        if event and g.user == event.user:
-            return jsonify(success=True,event=event.return_json())
-        else:
-            return jsonify(success=False,reason="Event does not exist.")
+    event = UserEvent.query.filter_by(id=event_id).first()
+    if event and g.user == event.user:
+        return jsonify(success=True, event=event.return_json())
     else:
-        return jsonify(success=False,reason="Not logged in.")
+        return jsonify(success=False, reason="Event does not exist.")
+
 
 @notes_api_bp.route("/get_events")
+@login_required
 def get_events():
-    if g.user:
-        events = []
-        if request.args.get('past') == "true":
-            query = UserEvent.query.filter_by(userid=g.user.id).filter(
+    events = []
+    if request.args.get("past") == "true":
+        query = (
+            UserEvent.query.filter_by(userid=g.user.id)
+            .filter(
                 UserEvent.date_of_event != None,
-                UserEvent.date_of_event <= (datetime.utcnow() - timedelta(days=1))
-            ).order_by(UserEvent.date_of_event.desc()).all()
-        else:
-            query = UserEvent.query.filter_by(userid=g.user.id).all()
-        for event in query:
-            events.append({
+                UserEvent.date_of_event <= (datetime.utcnow() - timedelta(days=1)),
+            )
+            .order_by(UserEvent.date_of_event.desc())
+            .all()
+        )
+    else:
+        query = UserEvent.query.filter_by(userid=g.user.id).all()
+    for event in query:
+        events.append(
+            {
                 "id": event.id,
                 "title": event.title,
                 "date_of_event": event.date_of_event,
                 "time_until_event": event.get_time_until_event(),
                 "event_css_class": event.get_event_css_class(),
-                "has_content": event.has_content()
-            })
-        return jsonify(events)
-    else:
-        return jsonify(success=False,reason="Not logged in.")
+                "has_content": event.has_content(),
+            }
+        )
+    return jsonify(events)
 
-@notes_api_bp.route("/add_todo", methods=['POST'])
+
+@notes_api_bp.route("/add_todo", methods=["POST"])
+@login_required
 def add_todo():
-    if g.user:
-        data = request.get_json()
-        title = data.get('title')
-        content = data.get('content')
-        date_due = data.get('dateDue')
-        if date_due and date_due != "":
-            date_due = datetime.strptime(date_due, "%Y-%m-%d")
-        else:
-            date_due = None
-        todo = UserTodo(userid=g.user.id,title=title,content=content,date_due=date_due)
-        return jsonify(success=True, todo=todo.return_json(), id=todo.id)
+    data = request.get_json()
+    title = data.get("title")
+    content = data.get("content")
+    date_due = data.get("dateDue")
+    if date_due and date_due != "":
+        date_due = datetime.strptime(date_due, "%Y-%m-%d")
     else:
-        return jsonify(success=False,reason="Not logged in.")
+        date_due = None
+    todo = UserTodo(userid=g.user.id, title=title, content=content, date_due=date_due)
+    return jsonify(success=True, todo=todo.return_json(), id=todo.id)
 
-@notes_api_bp.route("/add_event", methods=['POST'])
+
+@notes_api_bp.route("/add_event", methods=["POST"])
+@login_required
 def add_event():
-    if g.user:
-        data = request.get_json()
-        title = data.get('title')
-        content = data.get('content')
-        date_of_event = data.get('dateOfEvent')
-        if date_of_event and date_of_event != "":
-            date_of_event = datetime.strptime(date_of_event, "%Y-%m-%d")
-        else:
-            date_of_event = None
-        event = UserEvent(userid=g.user.id,title=title,content=content,date_of_event=date_of_event)
-        return jsonify(success=True, event=event.return_json(), id=event.id)
+    data = request.get_json()
+    title = data.get("title")
+    content = data.get("content")
+    date_of_event = data.get("dateOfEvent")
+    if date_of_event and date_of_event != "":
+        date_of_event = datetime.strptime(date_of_event, "%Y-%m-%d")
     else:
-        return jsonify(success=False,reason="Not logged in.")
+        date_of_event = None
+    event = UserEvent(
+        userid=g.user.id, title=title, content=content, date_of_event=date_of_event
+    )
+    return jsonify(success=True, event=event.return_json(), id=event.id)
 
-@notes_api_bp.route("/edit_todo", methods=['POST'])
+
+@notes_api_bp.route("/edit_todo", methods=["POST"])
+@login_required
 def edit_todo():
-    if g.user:
-        data = request.get_json()
-        todo_id = data.get('toDoId')
-        title = data.get('title')
-        content = data.get('content')
-        date_due = data.get('dateDue')
-        if date_due and date_due != "":
-            date_due = datetime.strptime(date_due, "%Y-%m-%d")
-        else:
-            date_due = None
-        todo = UserTodo.query.filter_by(id=todo_id).first()
-        if todo and g.user == todo.user:
-            todo.title = title
-            todo.content = content
-            todo.date_due = date_due
-            db.session.commit()
-            return jsonify(success=True, todo=todo.return_json())
-        else:
-            return jsonify(success=False,reason="To do does not exist.")
+    data = request.get_json()
+    todo_id = data.get("toDoId")
+    title = data.get("title")
+    content = data.get("content")
+    date_due = data.get("dateDue")
+    if date_due and date_due != "":
+        date_due = datetime.strptime(date_due, "%Y-%m-%d")
     else:
-        return jsonify(success=False,reason="Not logged in.")
+        date_due = None
+    todo = UserTodo.query.filter_by(id=todo_id).first()
+    if todo and g.user == todo.user:
+        todo.title = title
+        todo.content = content
+        todo.date_due = date_due
+        db.session.commit()
+        return jsonify(success=True, todo=todo.return_json())
+    else:
+        return jsonify(success=False, reason="To do does not exist.")
 
-@notes_api_bp.route("/edit_event", methods=['POST'])
+
+@notes_api_bp.route("/edit_event", methods=["POST"])
+@login_required
 def edit_event():
-    if g.user:
-        data = request.get_json()
-        event_id = data.get('eventId')
-        title = data.get('title')
-        content = data.get('content')
-        date_of_event = data.get('dateOfEvent')
-        if date_of_event and date_of_event != "":
-            date_of_event = datetime.strptime(date_of_event, "%Y-%m-%d")
-        else:
-            date_of_event = None
-        event = UserEvent.query.filter_by(id=event_id).first()
-        if event and g.user == event.user:
-            event.title = title
-            event.content = content
-            event.date_of_event = date_of_event
-            db.session.commit()
-            return jsonify(success=True, event=event.return_json())
-        else:
-            return jsonify(success=False,reason="Event does not exist.")
+    data = request.get_json()
+    event_id = data.get("eventId")
+    title = data.get("title")
+    content = data.get("content")
+    date_of_event = data.get("dateOfEvent")
+    if date_of_event and date_of_event != "":
+        date_of_event = datetime.strptime(date_of_event, "%Y-%m-%d")
     else:
-        return jsonify(success=False,reason="Not logged in.")
+        date_of_event = None
+    event = UserEvent.query.filter_by(id=event_id).first()
+    if event and g.user == event.user:
+        event.title = title
+        event.content = content
+        event.date_of_event = date_of_event
+        db.session.commit()
+        return jsonify(success=True, event=event.return_json())
+    else:
+        return jsonify(success=False, reason="Event does not exist.")
 
-@notes_api_bp.route("/delete_todo", methods=['POST'])
+
+@notes_api_bp.route("/delete_todo", methods=["POST"])
+@login_required
 def delete_todo():
-    if g.user:
-        data = request.get_json()
-        todo_id = data.get('toDoId')
-        todo = UserTodo.query.filter_by(id=todo_id).first()
-        if todo and g.user == todo.user:
-            db.session.delete(todo)
-            db.session.commit()
-            return jsonify(success=True)
-        else:
-            return jsonify(success=False,reason="To do does not exist.")
-    else:
-        return jsonify(success=False,reason="Not logged in.")
-
-@notes_api_bp.route("/delete_event", methods=['POST'])
-def delete_event():
-    if g.user:
-        data = request.get_json()
-        event_id = data.get('eventId')
-        event = UserEvent.query.filter_by(id=event_id).first()
-        if event and g.user == event.user:
-            db.session.delete(event)
-            db.session.commit()
-            return jsonify(success=True)
-        else:
-            return jsonify(success=False,reason="Event does not exist.")
-    else:
-        return jsonify(success=False,reason="Not logged in.")
-
-@notes_api_bp.route("/archive_todo", methods=['POST'])
-def archive_todo():
-    if g.user:
-        data = request.get_json()
-        todo_id = data.get('toDoId')
-        todo = UserTodo.query.filter_by(id=todo_id).first()
-        if todo and g.user == todo.user:
-            todo.archived = True
-            db.session.commit()
-            return jsonify(success=True)
-        else:
-            return jsonify(success=False,reason="To do does not exist.")
-    else:
-        return jsonify(success=False,reason="Not logged in.")
-
-@notes_api_bp.route("/unarchive_todo", methods=['POST'])
-def unarchive_todo():
-    if g.user:
-        data = request.get_json()
-        todo_id = data.get('toDoId')
-        todo = UserTodo.query.filter_by(id=todo_id).first()
-        if todo and g.user == todo.user:
-            todo.archived = False
-            db.session.commit()
-            return jsonify(success=True, todo=todo.return_json())
-        else:
-            return jsonify(success=False,reason="To do does not exist.")
-    else:
-        return jsonify(success=False,reason="Not logged in.")
-
-@notes_api_bp.route("/toggle_todo", methods=['POST'])
-def toggle_todo():
-    if g.user:
-        data = request.get_json()
-        todo_id = data.get('toDoId')
-        status = data.get('status')
-        todo = UserTodo.query.filter_by(id=todo_id).first()
-        if todo and g.user == todo.user:
-            if status == "1":
-                todo.completed = True
-                todo.date_completed = datetime.utcnow()
-            elif status == "0":
-                todo.completed = False
-                todo.date_completed = None
-            else:
-                todo.completed = not todo.completed
-                if todo.completed:
-                    todo.date_completed = datetime.utcnow()
-                else:
-                    todo.date_completed = None
-            db.session.commit()
-            return jsonify(success=True)
-        else:
-            return jsonify(success=False,reason="To do does not exist.")
-    else:
-        return jsonify(success=False,reason="Not logged in.")
-
-@notes_api_bp.route("/save_agenda_notes", methods=['POST'])
-def save_agenda_notes():
-    if g.user:
-        data = request.get_json()
-        content = data.get('content')
-        # E2EE: content is already encrypted, just store it
-        g.user.edit_agenda_notes(content)
+    data = request.get_json()
+    todo_id = data.get("toDoId")
+    todo = UserTodo.query.filter_by(id=todo_id).first()
+    if todo and g.user == todo.user:
+        db.session.delete(todo)
+        db.session.commit()
         return jsonify(success=True)
     else:
-        return jsonify(success=False,reason="Not logged in.")
+        return jsonify(success=False, reason="To do does not exist.")
+
+
+@notes_api_bp.route("/delete_event", methods=["POST"])
+@login_required
+def delete_event():
+    data = request.get_json()
+    event_id = data.get("eventId")
+    event = UserEvent.query.filter_by(id=event_id).first()
+    if event and g.user == event.user:
+        db.session.delete(event)
+        db.session.commit()
+        return jsonify(success=True)
+    else:
+        return jsonify(success=False, reason="Event does not exist.")
+
+
+@notes_api_bp.route("/archive_todo", methods=["POST"])
+@login_required
+def archive_todo():
+    data = request.get_json()
+    todo_id = data.get("toDoId")
+    todo = UserTodo.query.filter_by(id=todo_id).first()
+    if todo and g.user == todo.user:
+        todo.archived = True
+        db.session.commit()
+        return jsonify(success=True)
+    else:
+        return jsonify(success=False, reason="To do does not exist.")
+
+
+@notes_api_bp.route("/unarchive_todo", methods=["POST"])
+@login_required
+def unarchive_todo():
+    data = request.get_json()
+    todo_id = data.get("toDoId")
+    todo = UserTodo.query.filter_by(id=todo_id).first()
+    if todo and g.user == todo.user:
+        todo.archived = False
+        db.session.commit()
+        return jsonify(success=True, todo=todo.return_json())
+    else:
+        return jsonify(success=False, reason="To do does not exist.")
+
+
+@notes_api_bp.route("/toggle_todo", methods=["POST"])
+@login_required
+def toggle_todo():
+    data = request.get_json()
+    todo_id = data.get("toDoId")
+    status = data.get("status")
+    todo = UserTodo.query.filter_by(id=todo_id).first()
+    if todo and g.user == todo.user:
+        if status == "1":
+            todo.completed = True
+            todo.date_completed = datetime.utcnow()
+        elif status == "0":
+            todo.completed = False
+            todo.date_completed = None
+        else:
+            todo.completed = not todo.completed
+            if todo.completed:
+                todo.date_completed = datetime.utcnow()
+            else:
+                todo.date_completed = None
+        db.session.commit()
+        return jsonify(success=True)
+    else:
+        return jsonify(success=False, reason="To do does not exist.")
+
+
+@notes_api_bp.route("/save_agenda_notes", methods=["POST"])
+@login_required
+def save_agenda_notes():
+    data = request.get_json()
+    content = data.get("content")
+    # E2EE: content is already encrypted, just store it
+    g.user.edit_agenda_notes(content)
+    return jsonify(success=True)
 
 
 @notes_api_bp.route("/sidebar_tree_data")
+@login_required
 def sidebar_tree_data():
     """JSON-only sidebar data for E2EE client-side rendering."""
-    if not g.user:
-        return jsonify(success=False, reason="Not logged in.")
     categories = [
-        {'id': cat.id, 'name': cat.name, 'icon': cat.icon, 'icon_color': cat.icon_color,
-             'default_note_icon': cat.default_note_icon, 'default_note_icon_color': cat.default_note_icon_color}
+        {
+            "id": cat.id,
+            "name": cat.name,
+            "icon": cat.icon,
+            "icon_color": cat.icon_color,
+            "default_note_icon": cat.default_note_icon,
+            "default_note_icon_color": cat.default_note_icon_color,
+        }
         for cat in sorted(g.user.categories, key=lambda c: c.id)
     ]
     notes = [
-        {'id': n.id, 'title': n.title, 'category_id': n.category_id,
-         'icon': n.icon, 'icon_color': n.icon_color,
-         'date_last_changed': n.date_last_changed.isoformat() if n.date_last_changed else None}
-        for n in UserNote.query.filter_by(userid=g.user.id).order_by(UserNote.date_last_changed.desc()).all()
+        {
+            "id": n.id,
+            "title": n.title,
+            "category_id": n.category_id,
+            "icon": n.icon,
+            "icon_color": n.icon_color,
+            "date_last_changed": n.date_last_changed.isoformat()
+            if n.date_last_changed
+            else None,
+        }
+        for n in UserNote.query.filter_by(userid=g.user.id)
+        .order_by(UserNote.date_last_changed.desc())
+        .all()
     ]
     return jsonify(success=True, categories=categories, notes=notes)
 
+
 @notes_api_bp.route("/note-map")
+@login_required
 def note_map():
-    if not g.user:
-        return jsonify(error="Unauthorized"), 401
     # E2EE: return arrays of encrypted blobs instead of title-keyed dict
     if g.user.encryption_enabled:
         notes = UserNote.query.filter_by(userid=g.user.id).all()
@@ -844,105 +891,119 @@ def note_map():
     return jsonify({"notes": result, "attachments": att_map})
 
 
-@notes_api_bp.route("/note_content/<int:note_id>", methods=['GET'])
+@notes_api_bp.route("/note_content/<int:note_id>", methods=["GET"])
+@login_required
 def get_note_content(note_id):
-    if not g.user:
-        return jsonify(success=False, reason="Not logged in."), 401
     note = UserNote.query.filter_by(id=note_id, user_id=g.user.id).first()
     if not note:
         return jsonify(success=False, reason="Note not found."), 404
-    return jsonify(success=True, content=note.content or '', properties=note.get_properties())
+    return jsonify(
+        success=True, content=note.content or "", properties=note.get_properties()
+    )
 
-@notes_api_bp.route("/folder_default_template/<int:category_id>", methods=['GET'])
+
+@notes_api_bp.route("/folder_default_template/<int:category_id>", methods=["GET"])
+@login_required
 def get_folder_default_template(category_id):
-    if not g.user:
-        return jsonify(success=False, reason="Not logged in."), 401
     cat = UserNoteCategory.query.filter_by(id=category_id, user_id=g.user.id).first()
     if not cat or not cat.default_template_id:
         return jsonify(success=False, reason="No default template.")
-    t = NoteTemplate.query.filter_by(id=cat.default_template_id, user_id=g.user.id).first()
+    t = NoteTemplate.query.filter_by(
+        id=cat.default_template_id, user_id=g.user.id
+    ).first()
     if not t:
         return jsonify(success=False, reason="Template not found.")
     return jsonify(success=True, template=t.return_json())
 
+
 # ============ Templates ============
 
-@notes_api_bp.route("/templates", methods=['GET'])
+
+@notes_api_bp.route("/templates", methods=["GET"])
+@login_required
 def list_templates():
-    if not g.user:
-        return jsonify(error="Not logged in"), 401
-    templates = NoteTemplate.query.filter_by(user_id=g.user.id).order_by(NoteTemplate.name).all()
+    templates = (
+        NoteTemplate.query.filter_by(user_id=g.user.id)
+        .order_by(NoteTemplate.name)
+        .all()
+    )
     return jsonify([t.return_json() for t in templates])
 
-@notes_api_bp.route("/templates/<int:template_id>", methods=['GET'])
+
+@notes_api_bp.route("/templates/<int:template_id>", methods=["GET"])
+@login_required
 def get_template(template_id):
-    if not g.user:
-        return jsonify(error="Not logged in"), 401
     t = NoteTemplate.query.filter_by(id=template_id, user_id=g.user.id).first()
     if not t:
         return jsonify(success=False, reason="Template not found."), 404
     return jsonify(t.return_json())
 
-@notes_api_bp.route("/templates", methods=['POST'])
+
+@notes_api_bp.route("/templates", methods=["POST"])
+@login_required
 def create_template():
-    if not g.user:
-        return jsonify(error="Not logged in"), 401
     data = request.get_json()
-    name = (data.get('name') or '').strip()
+    name = (data.get("name") or "").strip()
     if not name:
         return jsonify(success=False, reason="Name is required.")
-    content = data.get('content', '')
-    properties = data.get('properties')
+    content = data.get("content", "")
+    properties = data.get("properties")
     import json
+
     props_json = json.dumps(properties) if properties else None
-    t = NoteTemplate(user_id=g.user.id, name=name, content=content, properties=props_json)
-    if data.get('icon'):
-        t.icon = data['icon']
-        t.icon_color = data.get('iconColor')
+    t = NoteTemplate(
+        user_id=g.user.id, name=name, content=content, properties=props_json
+    )
+    if data.get("icon"):
+        t.icon = data["icon"]
+        t.icon_color = data.get("iconColor")
         db.session.commit()
     return jsonify(success=True, template=t.return_json())
 
-@notes_api_bp.route("/templates/<int:template_id>", methods=['PUT'])
+
+@notes_api_bp.route("/templates/<int:template_id>", methods=["PUT"])
+@login_required
 def update_template(template_id):
-    if not g.user:
-        return jsonify(error="Not logged in"), 401
     t = NoteTemplate.query.filter_by(id=template_id, user_id=g.user.id).first()
     if not t:
         return jsonify(success=False, reason="Template not found."), 404
     data = request.get_json()
-    if 'name' in data:
-        t.name = (data['name'] or '').strip() or t.name
-    if 'content' in data:
-        t.content = data['content']
-    if 'properties' in data:
+    if "name" in data:
+        t.name = (data["name"] or "").strip() or t.name
+    if "content" in data:
+        t.content = data["content"]
+    if "properties" in data:
         import json
-        t.properties = json.dumps(data['properties']) if data['properties'] else None
-    if 'icon' in data:
-        t.icon = data['icon']
-        t.icon_color = data.get('iconColor')
+
+        t.properties = json.dumps(data["properties"]) if data["properties"] else None
+    if "icon" in data:
+        t.icon = data["icon"]
+        t.icon_color = data.get("iconColor")
     db.session.commit()
     return jsonify(success=True, template=t.return_json())
 
-@notes_api_bp.route("/templates/<int:template_id>", methods=['DELETE'])
+
+@notes_api_bp.route("/templates/<int:template_id>", methods=["DELETE"])
+@login_required
 def delete_template(template_id):
-    if not g.user:
-        return jsonify(error="Not logged in"), 401
     t = NoteTemplate.query.filter_by(id=template_id, user_id=g.user.id).first()
     if not t:
         return jsonify(success=False, reason="Template not found."), 404
     # Clear any folder defaults referencing this template
-    UserNoteCategory.query.filter_by(user_id=g.user.id, default_template_id=t.id).update({'default_template_id': None})
+    UserNoteCategory.query.filter_by(
+        user_id=g.user.id, default_template_id=t.id
+    ).update({"default_template_id": None})
     db.session.delete(t)
     db.session.commit()
     return jsonify(success=True)
 
-@notes_api_bp.route("/set_folder_template", methods=['POST'])
+
+@notes_api_bp.route("/set_folder_template", methods=["POST"])
+@login_required
 def set_folder_template():
-    if not g.user:
-        return jsonify(error="Not logged in"), 401
     data = request.get_json()
-    category_id = data.get('categoryId')
-    template_id = data.get('templateId')  # null to unset
+    category_id = data.get("categoryId")
+    template_id = data.get("templateId")  # null to unset
     cat = UserNoteCategory.query.filter_by(id=category_id, user_id=g.user.id).first()
     if not cat:
         return jsonify(success=False, reason="Folder not found.")
@@ -957,33 +1018,46 @@ def set_folder_template():
     return jsonify(success=True)
 
 
-@notes_api_bp.route("/upload_attachment", methods=['POST'])
+@notes_api_bp.route("/upload_attachment", methods=["POST"])
+@login_required
 def upload_attachment():
     """Upload an attachment. For E2EE users, file data and filename are already encrypted client-side."""
-    if not g.user:
-        return jsonify(error="Not logged in"), 401
-    if 'file' not in request.files:
+    if "file" not in request.files:
         return jsonify(error="No file part"), 400
-    f = request.files['file']
+    f = request.files["file"]
     if not f.filename:
         return jsonify(error="No filename"), 400
     data = f.read()
     file_hash = hashlib.sha256(data).hexdigest()
 
     # Get the display filename (may be encrypted for E2EE users)
-    display_filename = request.form.get('filename', f.filename)
+    display_filename = request.form.get("filename", f.filename)
 
     # For E2EE users, store as opaque blob
     if g.user.encryption_enabled:
-        content_type = 'application/octet-stream'
+        content_type = "application/octet-stream"
     else:
         import mimetypes
-        content_type = f.content_type or mimetypes.guess_type(f.filename)[0] or 'application/octet-stream'
+
+        content_type = (
+            f.content_type
+            or mimetypes.guess_type(f.filename)[0]
+            or "application/octet-stream"
+        )
 
     # Deduplicate
-    existing = Attachment.query.filter_by(user_id=g.user.id, file_hash=file_hash).first()
+    existing = Attachment.query.filter_by(
+        user_id=g.user.id, file_hash=file_hash
+    ).first()
     if existing:
-        return jsonify({"id": existing.id, "filename": existing.filename, "file_hash": existing.file_hash, "file_size": existing.file_size}), 200
+        return jsonify(
+            {
+                "id": existing.id,
+                "filename": existing.filename,
+                "file_hash": existing.file_hash,
+                "file_size": existing.file_size,
+            }
+        ), 200
 
     attachment = Attachment(
         user_id=g.user.id,
@@ -995,10 +1069,17 @@ def upload_attachment():
     db.session.add(attachment)
     db.session.commit()
 
-    attachment_dir = current_app.config['ATTACHMENT_DIR']
+    attachment_dir = current_app.config["ATTACHMENT_DIR"]
     user_dir = os.path.join(attachment_dir, str(g.user.id))
     os.makedirs(user_dir, exist_ok=True)
     disk = attachment.disk_path()
-    with open(disk, 'wb') as out:
+    with open(disk, "wb") as out:
         out.write(data)
-    return jsonify({"id": attachment.id, "filename": attachment.filename, "file_hash": attachment.file_hash, "file_size": attachment.file_size}), 201
+    return jsonify(
+        {
+            "id": attachment.id,
+            "filename": attachment.filename,
+            "file_hash": attachment.file_hash,
+            "file_size": attachment.file_size,
+        }
+    ), 201

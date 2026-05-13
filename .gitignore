@@ -6,4 +6,5 @@ applog.log
 /instance
 /migrations
 .env
+.flasky-sync.json
 build/cm6-editor/node_modules/

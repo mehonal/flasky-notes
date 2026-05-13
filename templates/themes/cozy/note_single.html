@@ -126,7 +126,7 @@
     <script nonce="{{ csp_nonce() }}" type="application/json" id="cozy-page-data">
     {
         "noteId": {{ note_id }},
-        "currentCategory": "{% if note %}{{ note.get_category_name() }}{% elif category %}{{ category }}{% else %}Main{% endif %}",
+        "currentCategory": {% if note %}{{ note.get_category_name() | tojson }}{% elif category %}{{ category | tojson }}{% else %}"Main"{% endif %},
         "darkMode": {% if g.user.get_theme_settings().dark_mode %}true{% else %}false{% endif %},
         "hideTitle": {% if g.user.get_theme_settings().hide_title %}true{% else %}false{% endif %},
         "autoSave": {% if g.user.get_theme_settings().auto_save %}true{% else %}false{% endif %},
