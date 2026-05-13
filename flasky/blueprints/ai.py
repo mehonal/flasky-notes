@@ -173,6 +173,23 @@ def delete_conversation(conv_id):
     return jsonify(success=True)
 
 
+@ai_bp.route("/api/conversations/<int:conv_id>/rename", methods=["PUT"])
+def rename_conversation(conv_id):
+    err = _check_ai_enabled()
+    if err:
+        return err
+    conv = AiConversation.query.filter_by(id=conv_id, user_id=g.user.id).first()
+    if not conv:
+        return jsonify(error="Conversation not found."), 404
+    data = request.get_json(silent=True) or {}
+    title = data.get("title", "").strip()
+    if not title:
+        return jsonify(error="Title cannot be empty."), 400
+    conv.title = title[:500]
+    db.session.commit()
+    return jsonify(conv.return_json())
+
+
 @ai_bp.route("/api/conversations/<int:conv_id>/messages", methods=["GET"])
 def get_messages(conv_id):
     err = _check_ai_enabled()

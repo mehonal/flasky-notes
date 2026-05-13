@@ -135,6 +135,10 @@
                         <div><span class="label">Messages:</span> <span class="value" id="ai-panel-conv-count">0</span></div>
                     </div>
                     <div style="margin-top:8px; display:flex; flex-direction:column; gap:4px;">
+                        <button class="ai-right-panel-action" id="ai-panel-rename-btn">
+                            <svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                            Rename conversation
+                        </button>
                         <button class="ai-right-panel-action danger" id="ai-panel-delete-btn">
                             <svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
                             Delete conversation
@@ -340,6 +344,18 @@
                     });
                 }
             });
+
+            var rename = document.createElement('button');
+            rename.className = 'ai-conversation-rename';
+            rename.title = 'Rename';
+            rename.innerHTML = '<svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>';
+            rename.addEventListener('click', function(e) {
+                e.stopPropagation();
+                decryptIfNeeded(c.title || 'Untitled').then(function(dec) {
+                    promptRename(c.id, dec);
+                });
+            });
+            div.appendChild(rename);
             div.appendChild(del);
 
             div.addEventListener('click', function() {
@@ -349,6 +365,14 @@
                 loadConversations();
                 updatePanel();
                 if (isMobile()) closeSidebar();
+            });
+
+            titleSpan.addEventListener('dblclick', function(e) {
+                e.stopPropagation();
+                e.preventDefault();
+                decryptIfNeeded(c.title || 'Untitled').then(function(dec) {
+                    promptRename(c.id, dec);
+                });
             });
             convListEl.appendChild(div);
         });
@@ -360,6 +384,34 @@
         }).then(function(r) { return r.json(); }).then(function(convData) {
             conversations = convData;
             renderConversationList(convData);
+        });
+    }
+
+    function promptRename(convId, currentTitle) {
+        var newTitle = prompt('Rename conversation:', currentTitle);
+        if (newTitle === null || !newTitle.trim()) return;
+        newTitle = newTitle.trim();
+        if (encryptionEnabled) {
+            encryptIfNeeded(newTitle).then(function(enc) {
+                doRename(convId, enc);
+            });
+        } else {
+            doRename(convId, newTitle);
+        }
+    }
+
+    function doRename(convId, title) {
+        fetch('/ai/api/conversations/' + convId + '/rename', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRFToken() },
+            body: JSON.stringify({ title: title })
+        }).then(function(r) { return r.json(); }).then(function(data) {
+            if (data.error) { alert(data.error); return; }
+            loadConversations();
+            if (conversationId === convId) {
+                currentConvData = data;
+                updatePanel();
+            }
         });
     }
 
@@ -488,6 +540,15 @@
                 updatePanel();
             });
         }
+    });
+
+    var panelRenameBtn = document.getElementById('ai-panel-rename-btn');
+    panelRenameBtn.addEventListener('click', function() {
+        if (!conversationId) return;
+        var displayTitle = currentConvData ? (currentConvData.title || 'Untitled') : 'Untitled';
+        decryptIfNeeded(displayTitle).then(function(dec) {
+            promptRename(conversationId, dec);
+        });
     });
 
     // Send message

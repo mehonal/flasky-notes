@@ -84,9 +84,16 @@ body[data-encrypted="true"] #ai-panel-conv-title { visibility: hidden; }
     display: none; background: none; border: none; color: var(--text-muted);
     cursor: pointer; padding: 2px; border-radius: 4px; flex-shrink: 0;
 }
+.ai-conversation-rename {
+    display: none; background: none; border: none; color: var(--text-muted);
+    cursor: pointer; padding: 2px; border-radius: 4px; flex-shrink: 0;
+}
 .ai-conversation-item:hover .ai-conversation-delete { display: flex; }
+.ai-conversation-item:hover .ai-conversation-rename { display: flex; }
 .ai-conversation-delete:hover { color: var(--red); }
+.ai-conversation-rename:hover { color: var(--accent); }
 .ai-conversation-delete svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.ai-conversation-rename svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 
 .ai-sidebar-footer {
     padding: 8px 12px; border-top: 1px solid var(--border);
