@@ -976,7 +976,6 @@ class AiConversation(db.Model):
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     user_id = db.Column(db.ForeignKey("user.id"), nullable=False)
     title = db.Column(db.String(500), nullable=True)
-    encrypted = db.Column(db.Boolean, default=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow)
     user = db.relationship("User", backref="ai_conversations")
@@ -985,7 +984,6 @@ class AiConversation(db.Model):
         return {
             "id": self.id,
             "title": self.title or "Untitled",
-            "encrypted": self.encrypted,
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,
         }

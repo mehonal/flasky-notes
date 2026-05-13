@@ -153,8 +153,7 @@ def create_conversation():
         return err
     data = request.get_json(silent=True) or {}
     title = data.get("title", "").strip() or None
-    encrypted = data.get("encrypted", False)
-    conv = AiConversation(user_id=g.user.id, title=title, encrypted=encrypted)
+    conv = AiConversation(user_id=g.user.id, title=title)
     db.session.add(conv)
     db.session.commit()
     return jsonify(conv.return_json())
@@ -187,20 +186,16 @@ def get_messages(conv_id):
         .order_by(AiMessage.created_at.asc())
         .all()
     )
-    return (
-        jsonify(
-            [
-                {
-                    "id": m.id,
-                    "role": m.role,
-                    "content": m.content,
-                    "created_at": m.created_at.isoformat() if m.created_at else None,
-                }
-                for m in messages
-            ]
-        ),
-        200,
-        {"X-Conversation-Encrypted": str(conv.encrypted).lower()},
+    return jsonify(
+        [
+            {
+                "id": m.id,
+                "role": m.role,
+                "content": m.content,
+                "created_at": m.created_at.isoformat() if m.created_at else None,
+            }
+            for m in messages
+        ]
     )
 
 
@@ -215,23 +210,21 @@ def chat(conv_id):
     conv = AiConversation.query.filter_by(id=conv_id, user_id=g.user.id).first()
     if not conv:
         return jsonify(error="Conversation not found."), 404
+    encrypted = g.user.encryption_enabled
     data = request.get_json(silent=True) or {}
     user_content = data.get("message", "").strip()
     if not user_content:
         return jsonify(error="Message cannot be empty."), 400
-    client_messages = data.get("messages")
     user_msg = AiMessage(conversation_id=conv.id, role="user", content=user_content)
     db.session.add(user_msg)
-    if not conv.title or conv.title == "Untitled":
-        if conv.encrypted:
-            conv.title = user_content
-        else:
-            conv.title = user_content[:100]
+    if not encrypted and (not conv.title or conv.title == "Untitled"):
+        conv.title = user_content[:100]
     from datetime import datetime
 
     conv.updated_at = datetime.utcnow()
     db.session.commit()
-    if conv.encrypted:
+    if encrypted:
+        client_messages = data.get("messages")
         if not client_messages:
             return jsonify(
                 error="Encrypted conversations require client-provided message history."
@@ -265,7 +258,7 @@ def chat(conv_id):
             db.session.add(assistant_msg)
             conv.updated_at = datetime.utcnow()
             db.session.commit()
-            yield f"data: {json.dumps({'done': True, 'encrypted': conv.encrypted, 'message_id': assistant_msg.id})}\n\n"
+            yield f"data: {json.dumps({'done': True, 'encrypted': encrypted, 'message_id': assistant_msg.id})}\n\n"
         except Exception as e:
             logger.error("Ollama chat error: %s", e)
             yield f"data: {json.dumps({'error': str(e)})}\n\n"
@@ -285,11 +278,11 @@ def encrypt_message(message_id):
     err = _check_ai_enabled()
     if err:
         return err
+    if not g.user.encryption_enabled:
+        return jsonify(error="Encryption is not enabled."), 400
     msg = AiMessage.query.get(message_id)
     if not msg or msg.conversation.user_id != g.user.id:
         return jsonify(error="Message not found."), 404
-    if not msg.conversation.encrypted:
-        return jsonify(error="Conversation is not encrypted."), 400
     data = request.get_json(silent=True) or {}
     encrypted_content = data.get("content", "").strip()
     if not encrypted_content:

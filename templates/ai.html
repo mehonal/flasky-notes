@@ -224,7 +224,7 @@
     }
 
     function revealContent() {
-        if (encryptionEnabled) {
+        if (encryptionEnabled && window.FlaskyE2EE) {
             FlaskyE2EE.revealContent();
         }
     }
@@ -439,11 +439,8 @@
         fetch('/ai/api/conversations/' + convId + '/messages', {
             headers: { 'X-CSRFToken': getCSRFToken() }
         }).then(function(r) {
-            var convEncrypted = r.headers.get('X-Conversation-Encrypted') === 'true';
-            return r.json().then(function(msgs) { return { msgs: msgs, encrypted: convEncrypted }; });
-        }).then(function(result) {
-            var msgs = result.msgs;
-            var convEncrypted = result.encrypted;
+            return r.json();
+        }).then(function(msgs) {
             messagesEl.innerHTML = '';
             if (msgs.length === 0) {
                 var empty = document.createElement('div');
@@ -456,20 +453,17 @@
                 emptyState = empty;
             } else {
                 emptyState = null;
-                var decryptPromises = [];
-                msgs.forEach(function(m) {
-                    if (convEncrypted && isEncrypted) {
-                        decryptPromises.push(
-                            decryptIfNeeded(m.content).then(function(dec) {
-                                localMessages.push({ role: m.role, content: dec });
-                                addMessageBubble(m.role, dec);
-                            })
-                        );
-                    } else {
-                        localMessages.push({ role: m.role, content: m.content });
-                        addMessageBubble(m.role, m.content);
+                (async function() {
+                    for (var i = 0; i < msgs.length; i++) {
+                        var m = msgs[i];
+                        var content = m.content;
+                        if (isEncrypted) {
+                            try { content = await decryptIfNeeded(m.content); } catch(e) {}
+                        }
+                        localMessages.push({ role: m.role, content: content });
+                        addMessageBubble(m.role, content);
                     }
-                });
+                })();
             }
         });
     }
@@ -511,7 +505,6 @@
 
         if (!conversationId) {
             var createBody = { title: encryptedTitle };
-            if (isEncrypted) createBody.encrypted = true;
             fetch('/ai/api/conversations', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRFToken() },
@@ -559,19 +552,23 @@
             var reader = response.body.getReader();
             var decoder = new TextDecoder();
             var fullText = '';
+            var streamFinished = false;
 
             function read() {
                 reader.read().then(function(result) {
                     if (result.done) {
-                        assistantDiv.classList.remove('ai-cursor-blink');
-                        assistantDiv.innerHTML = renderMarkdown(fullText);
-                        assistantDiv.querySelectorAll('pre code').forEach(function(block) {
-                            hljs.highlightElement(block);
-                        });
-                        isStreaming = false;
-                        sendBtn.disabled = false;
-                        statusText.textContent = 'Ready';
-                        loadConversations();
+                        if (!streamFinished) {
+                            streamFinished = true;
+                            assistantDiv.classList.remove('ai-cursor-blink');
+                            assistantDiv.innerHTML = renderMarkdown(fullText);
+                            assistantDiv.querySelectorAll('pre code').forEach(function(block) {
+                                hljs.highlightElement(block);
+                            });
+                            isStreaming = false;
+                            sendBtn.disabled = false;
+                            statusText.textContent = 'Ready';
+                            loadConversations();
+                        }
                         return;
                     }
                     var chunk = decoder.decode(result.value, {stream: true});
@@ -592,6 +589,7 @@
                                     sendBtn.disabled = false;
                                     statusText.textContent = 'Error';
                                 } else if (data.done) {
+                                    streamFinished = true;
                                     var messageId = data.message_id;
                                     localMessages.push({ role: 'assistant', content: fullText });
                                     assistantDiv.classList.remove('ai-cursor-blink');
