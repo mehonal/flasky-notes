@@ -9,6 +9,10 @@
     <link rel="manifest" href="/manifest.json">
 
     <script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='js/csrf.js') }}"></script>
+    {% if encryption_enabled %}
+    <script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='js/crypto.js') }}"></script>
+    <script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='js/e2ee.js') }}"></script>
+    {% endif %}
     <script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='vendor/marked/marked.min.js') }}"></script>
     <script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='vendor/dompurify/purify.min.js') }}"></script>
     <script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='js/sanitize.js') }}"></script>
@@ -20,7 +24,7 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/ai.css') }}">
     <style nonce="{{ csp_nonce() }}">:root { --font-size: {{ font_size or 15 }}px; }</style>
 </head>
-<body>
+<body{% if encryption_enabled %} data-encrypted="true"{% endif %}>
 
 {% if not ai_enabled or not ai_settings.ollama_api_key %}
 <div class="ai-app">
@@ -165,10 +169,13 @@
 
 <script nonce="{{ csp_nonce() }}">
 (function() {
+    var encryptionEnabled = {{ 'true' if encryption_enabled else 'false' }};
     var conversationId = {{ current_conversation_id }};
     var currentConvData = {{ current_conversation_json | safe }};
     var conversations = {{ conversations_json | safe }};
     var isStreaming = false;
+    var isEncrypted = false;
+    var localMessages = [];
 
     var messagesEl = document.getElementById('ai-messages');
     var inputEl = document.getElementById('ai-input');
@@ -192,6 +199,34 @@
     function getCSRFToken() {
         var cookie = document.cookie.split('; ').find(function(c) { return c.startsWith('X-CSRF-Token='); });
         return cookie ? cookie.split('=')[1] : '';
+    }
+
+    function initE2EE() {
+        if (!encryptionEnabled) {
+            isEncrypted = false;
+            return Promise.resolve(true);
+        }
+        return FlaskyE2EE.init().then(function(ready) {
+            if (!ready) return false;
+            isEncrypted = true;
+            return true;
+        });
+    }
+
+    async function encryptIfNeeded(plaintext) {
+        if (!isEncrypted) return plaintext;
+        return await FlaskyE2EE.encryptField(plaintext);
+    }
+
+    async function decryptIfNeeded(ciphertext) {
+        if (!isEncrypted) return ciphertext;
+        return await FlaskyE2EE.decryptField(ciphertext);
+    }
+
+    function revealContent() {
+        if (encryptionEnabled) {
+            FlaskyE2EE.revealContent();
+        }
     }
 
     // Sidebar toggle
@@ -272,7 +307,10 @@
 
             var titleSpan = document.createElement('span');
             titleSpan.className = 'ai-conversation-title';
-            titleSpan.textContent = c.title || 'Untitled';
+            var displayTitle = c.title || 'Untitled';
+            decryptIfNeeded(displayTitle).then(function(dec) {
+                titleSpan.textContent = dec;
+            });
             div.appendChild(titleSpan);
 
             var del = document.createElement('button');
@@ -290,6 +328,7 @@
                         if (conversationId === c.id) {
                             conversationId = null;
                             currentConvData = null;
+                            localMessages = [];
                             clearMessages();
                             updatePanel();
                         }
@@ -321,6 +360,7 @@
 
     function clearMessages() {
         messagesEl.innerHTML = '';
+        localMessages = [];
         var empty = document.createElement('div');
         empty.className = 'ai-empty-state';
         empty.id = 'ai-empty-state';
@@ -383,8 +423,11 @@
     function updatePanel() {
         if (conversationId && currentConvData) {
             panelConvSection.style.display = '';
-            panelConvTitle.textContent = currentConvData.title || 'Untitled';
-            toolbarTitle.textContent = currentConvData.title || 'Untitled';
+            var displayTitle = currentConvData.title || 'Untitled';
+            decryptIfNeeded(displayTitle).then(function(dec) {
+                panelConvTitle.textContent = dec;
+                toolbarTitle.textContent = dec;
+            });
         } else {
             panelConvSection.style.display = 'none';
             toolbarTitle.textContent = 'AI Chat';
@@ -392,9 +435,15 @@
     }
 
     function loadMessages(convId) {
+        localMessages = [];
         fetch('/ai/api/conversations/' + convId + '/messages', {
             headers: { 'X-CSRFToken': getCSRFToken() }
-        }).then(function(r) { return r.json(); }).then(function(msgs) {
+        }).then(function(r) {
+            var convEncrypted = r.headers.get('X-Conversation-Encrypted') === 'true';
+            return r.json().then(function(msgs) { return { msgs: msgs, encrypted: convEncrypted }; });
+        }).then(function(result) {
+            var msgs = result.msgs;
+            var convEncrypted = result.encrypted;
             messagesEl.innerHTML = '';
             if (msgs.length === 0) {
                 var empty = document.createElement('div');
@@ -407,8 +456,19 @@
                 emptyState = empty;
             } else {
                 emptyState = null;
+                var decryptPromises = [];
                 msgs.forEach(function(m) {
-                    addMessageBubble(m.role, m.content);
+                    if (convEncrypted && isEncrypted) {
+                        decryptPromises.push(
+                            decryptIfNeeded(m.content).then(function(dec) {
+                                localMessages.push({ role: m.role, content: dec });
+                                addMessageBubble(m.role, dec);
+                            })
+                        );
+                    } else {
+                        localMessages.push({ role: m.role, content: m.content });
+                        addMessageBubble(m.role, m.content);
+                    }
                 });
             }
         });
@@ -423,6 +483,7 @@
             }).then(function() {
                 conversationId = null;
                 currentConvData = null;
+                localMessages = [];
                 clearMessages();
                 loadConversations();
                 updatePanel();
@@ -431,43 +492,59 @@
     });
 
     // Send message
-    function sendMessage() {
+    async function sendMessage() {
         var text = inputEl.value.trim();
         if (!text || isStreaming) return;
         inputEl.value = '';
         inputEl.style.height = 'auto';
         addMessageBubble('user', text, false);
+        localMessages.push({ role: 'user', content: text });
         statusText.textContent = 'Sending...';
 
+        var encryptedTitle = text.substring(0, 100);
+        var encryptedMessage = text;
+
+        if (isEncrypted) {
+            encryptedTitle = await encryptIfNeeded(text.substring(0, 100));
+            encryptedMessage = await encryptIfNeeded(text);
+        }
+
         if (!conversationId) {
+            var createBody = { title: encryptedTitle };
+            if (isEncrypted) createBody.encrypted = true;
             fetch('/ai/api/conversations', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRFToken() },
-                body: JSON.stringify({ title: text.substring(0, 100) })
+                body: JSON.stringify(createBody)
             }).then(function(r) { return r.json(); }).then(function(data) {
                 if (data.error) { alert(data.error); statusText.textContent = 'Ready'; return; }
                 conversationId = data.id;
                 currentConvData = data;
                 updatePanel();
                 loadConversations();
-                streamResponse(text);
+                streamResponse(encryptedMessage);
             });
         } else {
-            streamResponse(text);
+            streamResponse(encryptedMessage);
         }
     }
 
-    function streamResponse(userMsg) {
+    function streamResponse(encryptedMessage) {
         isStreaming = true;
         sendBtn.disabled = true;
         statusText.textContent = 'Thinking...';
         var assistantDiv = addMessageBubble('assistant', '', false);
         assistantDiv.classList.add('ai-cursor-blink');
 
+        var chatBody = { message: encryptedMessage };
+        if (isEncrypted) {
+            chatBody.messages = localMessages;
+        }
+
         fetch('/ai/api/conversations/' + conversationId + '/chat', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRFToken() },
-            body: JSON.stringify({ message: userMsg })
+            body: JSON.stringify(chatBody)
         }).then(function(response) {
             if (!response.ok) {
                 response.text().then(function(t) {
@@ -515,14 +592,26 @@
                                     sendBtn.disabled = false;
                                     statusText.textContent = 'Error';
                                 } else if (data.done) {
+                                    var messageId = data.message_id;
+                                    localMessages.push({ role: 'assistant', content: fullText });
                                     assistantDiv.classList.remove('ai-cursor-blink');
                                     assistantDiv.innerHTML = renderMarkdown(fullText);
                                     assistantDiv.querySelectorAll('pre code').forEach(function(block) {
                                         hljs.highlightElement(block);
                                     });
+                                    if (isEncrypted && messageId) {
+                                        encryptIfNeeded(fullText).then(function(enc) {
+                                            fetch('/ai/api/messages/' + messageId + '/encrypt', {
+                                                method: 'PUT',
+                                                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRFToken() },
+                                                body: JSON.stringify({ content: enc })
+                                            }).catch(function() {});
+                                        });
+                                    }
                                     isStreaming = false;
                                     sendBtn.disabled = false;
                                     statusText.textContent = 'Ready';
+                                    loadConversations();
                                 }
                             } catch(e) {}
                         }
@@ -550,6 +639,7 @@
     newChatBtn.addEventListener('click', function() {
         conversationId = null;
         currentConvData = null;
+        localMessages = [];
         clearMessages();
         loadConversations();
         updatePanel();
@@ -563,11 +653,16 @@
     });
 
     // Init
-    loadConversations();
-    updatePanel();
-    if (conversationId) {
-        loadMessages(conversationId);
+    async function init() {
+        await initE2EE();
+        revealContent();
+        loadConversations();
+        updatePanel();
+        if (conversationId) {
+            loadMessages(conversationId);
+        }
     }
+    init();
 })();
 </script>
 {% endif %}

@@ -12,6 +12,12 @@ body {
     -webkit-font-smoothing: antialiased;
 }
 
+/* E2EE: hide content until decrypted */
+body[data-encrypted="true"] .ai-message-content,
+body[data-encrypted="true"] .ai-conversation-title,
+body[data-encrypted="true"] .ai-toolbar-breadcrumb-title,
+body[data-encrypted="true"] #ai-panel-conv-title { visibility: hidden; }
+
 ::-webkit-scrollbar { width: 6px; }
 ::-webkit-scrollbar-track { background: var(--scrollbar-track); }
 ::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 3px; }

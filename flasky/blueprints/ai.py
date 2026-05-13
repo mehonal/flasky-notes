@@ -83,6 +83,7 @@ def ai_page():
         return "You must be logged in to access this page.", 401
     settings = g.user.return_settings()
     ai_enabled = settings.ai_enabled if settings else False
+    encryption_enabled = g.user.encryption_enabled if g.user else False
     if not ai_enabled:
         font_size = g.user.get_current_theme_font_size() if g.user else 15
         return render_template(
@@ -95,6 +96,7 @@ def ai_page():
             current_theme_dark=g.user.get_current_theme_dark_mode(),
             font_size=font_size,
             models=OLLAMA_CLOUD_MODELS,
+            encryption_enabled=encryption_enabled,
         )
     conversations = (
         AiConversation.query.filter_by(user_id=g.user.id)
@@ -127,6 +129,7 @@ def ai_page():
         current_theme_dark=g.user.get_current_theme_dark_mode(),
         font_size=font_size,
         models=OLLAMA_CLOUD_MODELS,
+        encryption_enabled=encryption_enabled,
     )
 
 
@@ -150,7 +153,8 @@ def create_conversation():
         return err
     data = request.get_json(silent=True) or {}
     title = data.get("title", "").strip() or None
-    conv = AiConversation(user_id=g.user.id, title=title)
+    encrypted = data.get("encrypted", False)
+    conv = AiConversation(user_id=g.user.id, title=title, encrypted=encrypted)
     db.session.add(conv)
     db.session.commit()
     return jsonify(conv.return_json())
@@ -183,16 +187,20 @@ def get_messages(conv_id):
         .order_by(AiMessage.created_at.asc())
         .all()
     )
-    return jsonify(
-        [
-            {
-                "id": m.id,
-                "role": m.role,
-                "content": m.content,
-                "created_at": m.created_at.isoformat() if m.created_at else None,
-            }
-            for m in messages
-        ]
+    return (
+        jsonify(
+            [
+                {
+                    "id": m.id,
+                    "role": m.role,
+                    "content": m.content,
+                    "created_at": m.created_at.isoformat() if m.created_at else None,
+                }
+                for m in messages
+            ]
+        ),
+        200,
+        {"X-Conversation-Encrypted": str(conv.encrypted).lower()},
     )
 
 
@@ -211,22 +219,33 @@ def chat(conv_id):
     user_content = data.get("message", "").strip()
     if not user_content:
         return jsonify(error="Message cannot be empty."), 400
+    client_messages = data.get("messages")
     user_msg = AiMessage(conversation_id=conv.id, role="user", content=user_content)
     db.session.add(user_msg)
     if not conv.title or conv.title == "Untitled":
-        conv.title = user_content[:100]
+        if conv.encrypted:
+            conv.title = user_content
+        else:
+            conv.title = user_content[:100]
     from datetime import datetime
 
     conv.updated_at = datetime.utcnow()
     db.session.commit()
-    history = (
-        AiMessage.query.filter_by(conversation_id=conv.id)
-        .order_by(AiMessage.created_at.asc())
-        .all()
-    )
-    ollama_messages = []
-    for m in history:
-        ollama_messages.append({"role": m.role, "content": m.content})
+    if conv.encrypted:
+        if not client_messages:
+            return jsonify(
+                error="Encrypted conversations require client-provided message history."
+            ), 400
+        ollama_messages = client_messages
+    else:
+        history = (
+            AiMessage.query.filter_by(conversation_id=conv.id)
+            .order_by(AiMessage.created_at.asc())
+            .all()
+        )
+        ollama_messages = []
+        for m in history:
+            ollama_messages.append({"role": m.role, "content": m.content})
     model = settings.ollama_model or "gpt-oss:120b"
 
     def generate():
@@ -246,7 +265,7 @@ def chat(conv_id):
             db.session.add(assistant_msg)
             conv.updated_at = datetime.utcnow()
             db.session.commit()
-            yield f"data: {json.dumps({'done': True})}\n\n"
+            yield f"data: {json.dumps({'done': True, 'encrypted': conv.encrypted, 'message_id': assistant_msg.id})}\n\n"
         except Exception as e:
             logger.error("Ollama chat error: %s", e)
             yield f"data: {json.dumps({'error': str(e)})}\n\n"
@@ -259,6 +278,25 @@ def chat(conv_id):
             "X-Accel-Buffering": "no",
         },
     )
+
+
+@ai_bp.route("/api/messages/<int:message_id>/encrypt", methods=["PUT"])
+def encrypt_message(message_id):
+    err = _check_ai_enabled()
+    if err:
+        return err
+    msg = AiMessage.query.get(message_id)
+    if not msg or msg.conversation.user_id != g.user.id:
+        return jsonify(error="Message not found."), 404
+    if not msg.conversation.encrypted:
+        return jsonify(error="Conversation is not encrypted."), 400
+    data = request.get_json(silent=True) or {}
+    encrypted_content = data.get("content", "").strip()
+    if not encrypted_content:
+        return jsonify(error="Content cannot be empty."), 400
+    msg.content = encrypted_content
+    db.session.commit()
+    return jsonify(success=True)
 
 
 @ai_bp.route("/api/settings", methods=["POST"])
