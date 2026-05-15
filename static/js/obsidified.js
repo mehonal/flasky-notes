@@ -1488,6 +1488,7 @@ document.addEventListener('click', function(e) {
 });
 document.addEventListener('keydown', function(e) {
     if (e.key === 'Escape') hideContextMenu();
+    if (aiDropdown && aiDropdown.classList.contains('open')) { closeAIDropdown(); }
 });
 
 // Extract context info from a sidebar element
@@ -2621,8 +2622,10 @@ document.addEventListener('keydown', function(e) {
         si.focus(); si.select();
     }
     if (ctrl && e.shiftKey && e.key === 'O') { e.preventDefault(); toggleRightPanel(); }
+    if (ctrl && e.shiftKey && e.key === 'A') { e.preventDefault(); toggleAIPanel(); }
     if (ctrl && e.key === '/') { e.preventDefault(); toggleShortcutsModal(); }
     if (ctrl && e.key === 'b' && !editMode) { e.preventDefault(); toggleSidebar(); }
+    if (e.key === 'Escape' && aiPanel && !aiPanel.classList.contains('collapsed')) { e.preventDefault(); closeAIPanel(); closeAIDropdown(); }
 });
 
 // ============ Wikilink Autocomplete ============
@@ -2883,6 +2886,17 @@ var slashCommands = [
     { label: 'New from template', icon: 'N', action: 'new_from_template' },
     { label: 'Manage templates', icon: 'M', action: 'manage_templates' },
 ];
+if (typeof _pageData !== 'undefined' && _pageData.aiEnabled) {
+    slashCommands.push(
+        { label: 'AI: Ask', icon: '?', action: 'ai_ask' },
+        { label: 'AI: Summarize', icon: '\u2261', action: 'ai_summarize' },
+        { label: 'AI: Rewrite', icon: '\u270E', action: 'ai_rewrite' },
+        { label: 'AI: Expand', icon: '+', action: 'ai_expand' },
+        { label: 'AI: Fix grammar', icon: 'Aa', action: 'ai_fix_grammar' },
+        { label: 'AI: Explain', icon: '\u2139', action: 'ai_explain' },
+        { label: 'AI: Bullet points', icon: '\u2022', action: 'ai_bullets' }
+    );
+}
 
 function showSlashCommands(cm) {
     if (isWikiAutocompleteVisible()) return;
@@ -2927,7 +2941,8 @@ function renderSlashCommands() {
     if (!slashPopup) return;
     var html = '';
     slashFilteredCommands.forEach(function(cmd, i) {
-        html += '<div class="slash-command-item' + (i === slashSelectedIndex ? ' selected' : '') + '" data-index="' + i + '">';
+        var isAi = cmd.action && cmd.action.startsWith('ai_');
+        html += '<div class="slash-command-item' + (i === slashSelectedIndex ? ' selected' : '') + (isAi ? ' ai-command' : '') + '" data-index="' + i + '">';
         html += '<span class="slash-command-icon">' + cmd.icon + '</span>';
         html += '<span>' + cmd.label + '</span>';
         html += '</div>';
@@ -2993,6 +3008,26 @@ function acceptSlashCommand(index) {
     if (cmd.action === 'manage_templates') {
         cmEditor.replaceRange('', { line: cursor.line, ch: slashStart }, cursor);
         openManageTemplates();
+        return;
+    }
+
+    var aiActions = {
+        'ai_ask': null,
+        'ai_summarize': 'Summarize this note',
+        'ai_rewrite': 'Rewrite this note more clearly',
+        'ai_expand': 'Expand on this note with more detail',
+        'ai_fix_grammar': 'Fix the grammar and spelling in this note',
+        'ai_explain': 'Explain this in simple terms',
+        'ai_bullets': 'Convert this into bullet points'
+    };
+    if (cmd.action in aiActions) {
+        cmEditor.replaceRange('', { line: cursor.line, ch: slashStart }, cursor);
+        cmEditor.focus();
+        if (cmd.action === 'ai_ask') {
+            openAIPanelWithPrompt(null, null, false);
+        } else {
+            openAIPanelWithPrompt(cmd.label.replace('AI: ', ''), aiActions[cmd.action], true);
+        }
         return;
     }
 
@@ -3457,7 +3492,15 @@ document.addEventListener('click', function(e) {
         case 'toggle-sidebar': toggleSidebar(); break;
         case 'toggle-mode': toggleMode(); break;
         case 'open-search': openSearchModal(); break;
-        case 'ask-ai': toggleAIPanel(); break;
+        case 'ask-ai': toggleAIDropdown(); break;
+        case 'ai-open-chat': openAIPanelWithPrompt(null, null); closeAIDropdown(); break;
+        case 'ai-ask-note': openAIPanelWithPrompt(null, 'Ask about this note...', true); closeAIDropdown(); break;
+        case 'ai-summarize': openAIPanelWithPrompt('Summarize this note', 'Summarize this note', true); closeAIDropdown(); break;
+        case 'ai-rewrite': openAIPanelWithPrompt('Rewrite this note', 'Rewrite this note more clearly and concisely', true); closeAIDropdown(); break;
+        case 'ai-expand': openAIPanelWithPrompt('Expand this note', 'Expand on this note with more detail', true); closeAIDropdown(); break;
+        case 'ai-fix-grammar': openAIPanelWithPrompt('Fix grammar', 'Fix the grammar and spelling in this note', true); closeAIDropdown(); break;
+        case 'ai-explain': openAIPanelWithPrompt('Explain', 'Explain this in simple terms', true); closeAIDropdown(); break;
+        case 'ai-bullets': openAIPanelWithPrompt('Convert to bullets', 'Convert this into bullet points', true); closeAIDropdown(); break;
         case 'toggle-right-panel': toggleRightPanel(); break;
         case 'toggle-dark-mode': toggleDarkMode(); break;
         case 'toggle-shortcuts': toggleShortcutsModal(); break;
@@ -3695,6 +3738,73 @@ document.addEventListener('drop', function(e) {
 });
 
 // ============ AI Chat Panel ============
+var aiDropdown = document.getElementById('ai-dropdown');
+
+function toggleAIDropdown() {
+    if (!aiDropdown) return;
+    if (aiDropdown.classList.contains('open')) {
+        closeAIDropdown();
+    } else {
+        if (aiPanel && aiPanel.classList.contains('collapsed')) {
+            toggleAIPanel();
+        }
+        aiDropdown.classList.add('open');
+        setTimeout(function() {
+            document.addEventListener('click', closeAIDropdownOnOutsideClick, { capture: true });
+        }, 0);
+    }
+}
+
+function closeAIDropdown() {
+    if (!aiDropdown) return;
+    aiDropdown.classList.remove('open');
+    document.removeEventListener('click', closeAIDropdownOnOutsideClick, { capture: true });
+}
+
+function closeAIDropdownOnOutsideClick(e) {
+    if (aiDropdown && !aiDropdown.contains(e.target)) {
+        closeAIDropdown();
+    }
+}
+
+function openAIPanelWithPrompt(titleFallback, prompt, attachNote) {
+    if (aiPanel && aiPanel.classList.contains('collapsed')) {
+        toggleAIPanel();
+    }
+    setTimeout(function() {
+        if (attachNote && aiNoteContext === null) {
+            toggleAINoteContext();
+        } else if (!attachNote && aiNoteContext === null) {
+            // no note context needed
+        }
+        if (prompt && aiPanelInput) {
+            aiPanelInput.value = prompt;
+            aiPanelInput.focus();
+            aiPanelInput.style.height = 'auto';
+            aiPanelInput.style.height = Math.min(aiPanelInput.scrollHeight, 120) + 'px';
+        } else if (aiPanelInput) {
+            aiPanelInput.focus();
+        }
+    }, 100);
+}
+
+function aiOpenWithSelection(promptPrefix) {
+    if (!cmEditor) return;
+    var sel = cmEditor.getSelection();
+    if (!sel) return;
+    if (aiPanel && aiPanel.classList.contains('collapsed')) {
+        toggleAIPanel();
+    }
+    setTimeout(function() {
+        if (aiPanelInput) {
+            aiPanelInput.value = promptPrefix + ':\n\n' + sel;
+            aiPanelInput.focus();
+            aiPanelInput.style.height = 'auto';
+            aiPanelInput.style.height = Math.min(aiPanelInput.scrollHeight, 120) + 'px';
+        }
+    }, 100);
+}
+
 var aiPanel = document.getElementById('ai-panel');
 var aiPanelMessages = document.getElementById('ai-panel-messages');
 var aiPanelInput = document.getElementById('ai-panel-input');
@@ -3711,6 +3821,38 @@ var aiLocalMessages = [];
 var aiIsStreaming = false;
 var aiAbortController = null;
 var aiNoteContext = null;
+
+// Resizable AI panel
+(function() {
+    if (!aiPanel) return;
+    var savedWidth = localStorage.getItem('obsidified-ai-panel-width');
+    if (savedWidth) { aiPanel.style.width = savedWidth + 'px'; aiPanel.style.minWidth = savedWidth + 'px'; }
+    var handle = document.getElementById('ai-panel-resize-handle');
+    if (!handle) return;
+    var isResizing = false;
+    handle.addEventListener('mousedown', function(e) {
+        isResizing = true;
+        handle.classList.add('active');
+        document.body.style.cursor = 'col-resize';
+        document.body.style.userSelect = 'none';
+        e.preventDefault();
+    });
+    document.addEventListener('mousemove', function(e) {
+        if (!isResizing || aiPanel.classList.contains('collapsed')) return;
+        var newWidth = aiPanel.parentElement.getBoundingClientRect().right - e.clientX;
+        newWidth = Math.max(280, Math.min(600, newWidth));
+        aiPanel.style.width = newWidth + 'px';
+        aiPanel.style.minWidth = newWidth + 'px';
+    });
+    document.addEventListener('mouseup', function() {
+        if (!isResizing) return;
+        isResizing = false;
+        handle.classList.remove('active');
+        document.body.style.cursor = '';
+        document.body.style.userSelect = '';
+        localStorage.setItem('obsidified-ai-panel-width', parseInt(aiPanel.style.width));
+    });
+})();
 
 function toggleAIPanel() {
     if (!aiPanel) return;
@@ -3782,6 +3924,34 @@ function aiRenderMarkdown(text) {
     return sanitizeMarkdown(text.replace(/</g, '&lt;').replace(/\n/g, '<br>'));
 }
 
+function aiAddCodeCopyButtons(container) {
+    container.querySelectorAll('pre').forEach(function(pre) {
+        if (pre.querySelector('.ai-panel-code-copy-btn')) return;
+        var btn = document.createElement('button');
+        btn.className = 'ai-panel-code-copy-btn';
+        btn.title = 'Copy code';
+        btn.setAttribute('aria-label', 'Copy code');
+        btn.innerHTML = '<svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
+        btn.addEventListener('click', function(e) {
+            e.preventDefault();
+            var code = pre.querySelector('code');
+            var text = code ? code.textContent : pre.textContent;
+            navigator.clipboard.writeText(text).then(function() {
+                btn.classList.add('copied');
+                btn.innerHTML = '<svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>';
+                setTimeout(function() {
+                    btn.classList.remove('copied');
+                    btn.innerHTML = '<svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
+                }, 2000);
+            });
+        });
+        pre.appendChild(btn);
+    });
+}
+
+var AI_COPY_ICON = '<svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
+var AI_INSERT_ICON = '<svg viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>';
+
 function aiAddMessage(role, content, doRender, messageId) {
     if (aiPanelEmpty && aiPanelEmpty.parentNode) aiPanelEmpty.remove();
     var wrapper = document.createElement('div');
@@ -3801,6 +3971,7 @@ function aiAddMessage(role, content, doRender, messageId) {
             contentDiv.querySelectorAll('pre code').forEach(function(block) {
                 if (typeof hljs !== 'undefined') hljs.highlightElement(block);
             });
+            aiAddCodeCopyButtons(contentDiv);
         }, 0);
     } else {
         contentDiv.textContent = content;
@@ -3810,14 +3981,45 @@ function aiAddMessage(role, content, doRender, messageId) {
     if (content) {
         var actions = document.createElement('div');
         actions.className = 'ai-panel-msg-actions';
-        var noteBtn = document.createElement('button');
-        noteBtn.className = 'ai-panel-msg-action-btn';
-        noteBtn.title = 'Create note';
-        noteBtn.innerHTML = '<svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>';
-        noteBtn.addEventListener('click', function() {
-            aiCreateNoteFromMessage(content, messageId);
+
+        var copyBtn = document.createElement('button');
+        copyBtn.className = 'ai-panel-msg-action-btn';
+        copyBtn.title = 'Copy';
+        copyBtn.innerHTML = AI_COPY_ICON;
+        copyBtn.addEventListener('click', function() {
+            navigator.clipboard.writeText(content).then(function() {
+                copyBtn.innerHTML = '<svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>';
+                setTimeout(function() { copyBtn.innerHTML = AI_COPY_ICON; }, 2000);
+            });
         });
-        actions.appendChild(noteBtn);
+        actions.appendChild(copyBtn);
+
+        if (role === 'assistant' && cmEditor) {
+            var insertBtn = document.createElement('button');
+            insertBtn.className = 'ai-panel-msg-action-btn';
+            insertBtn.title = 'Insert into note';
+            insertBtn.innerHTML = AI_INSERT_ICON;
+            insertBtn.addEventListener('click', function() {
+                if (!cmEditor) return;
+                var cursor = cmEditor.getCursor();
+                cmEditor.replaceRange('\n' + content + '\n', cursor);
+                cmEditor.focus();
+                aiShowToast('Inserted into note');
+            });
+            actions.appendChild(insertBtn);
+        }
+
+        if (role === 'assistant') {
+            var noteBtn = document.createElement('button');
+            noteBtn.className = 'ai-panel-msg-action-btn';
+            noteBtn.title = 'Create note';
+            noteBtn.innerHTML = '<svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>';
+            noteBtn.addEventListener('click', function() {
+                aiCreateNoteFromMessage(content, messageId);
+            });
+            actions.appendChild(noteBtn);
+        }
+
         wrapper.appendChild(actions);
     }
 
@@ -3878,7 +4080,7 @@ async function aiSendPanelMessage() {
         messageForModel = 'The user has attached this note:\n---\n' + aiNoteContext.content + '\n---\n\n' + text;
     }
     aiLocalMessages.push({ role: 'user', content: messageForModel });
-    aiPanelStatus.textContent = 'Sending...';
+    aiPanelStatus.innerHTML = '<span class="streaming">Sending...</span>';
 
     var encryptedTitle = text.substring(0, 100);
     var encryptedMessage = messageForModel;
@@ -3894,7 +4096,7 @@ async function aiSendPanelMessage() {
         aiPanelSendBtn.style.display = 'none';
         aiPanelStopBtn.style.display = 'flex';
         aiPanelInput.disabled = true;
-        aiPanelStatus.textContent = 'Thinking...';
+        aiPanelStatus.innerHTML = '<span class="streaming">Thinking...</span>';
         var assistantDiv = aiAddMessage('assistant', '', false);
         assistantDiv.classList.add('ai-cursor-blink');
 
@@ -3939,9 +4141,11 @@ async function aiSendPanelMessage() {
                                     fullText += data.chunk;
                                     assistantDiv.textContent = fullText;
                                     aiPanelMessages.scrollTop = aiPanelMessages.scrollHeight;
-                                    aiPanelStatus.textContent = 'Streaming...';
+                                    aiPanelStatus.innerHTML = '<span class="streaming">Streaming...</span>';
                                 } else if (data.error) {
                                     streamFinished = true;
+                                    var errWrapper = assistantDiv.closest('.ai-panel-msg');
+                                    if (errWrapper) errWrapper.classList.add('ai-panel-msg-error');
                                     assistantDiv.textContent = data.error;
                                     assistantDiv.classList.remove('ai-cursor-blink');
                                     aiFinishStream();
@@ -3964,6 +4168,8 @@ async function aiSendPanelMessage() {
             read();
         }).catch(function(err) {
             if (err.name === 'AbortError') return;
+            var errWrapper = assistantDiv.closest('.ai-panel-msg');
+            if (errWrapper) errWrapper.classList.add('ai-panel-msg-error');
             assistantDiv.textContent = 'Connection error.';
             assistantDiv.classList.remove('ai-cursor-blink');
             aiFinishStream();
@@ -3976,7 +4182,7 @@ async function aiSendPanelMessage() {
             headers: { 'Content-Type': 'application/json', 'X-CSRFToken': aiGetCSRF() },
             body: JSON.stringify({ title: encryptedTitle, model: aiPanelModel ? aiPanelModel.value : undefined })
         }).then(function(r) { return r.json(); }).then(function(data) {
-            if (data.error) { alert(data.error); aiPanelStatus.textContent = 'Ready'; return; }
+            if (data.error) { aiShowToast(data.error); aiPanelStatus.textContent = 'Error'; return; }
             aiConversationId = data.id;
             doStream();
         });
@@ -3993,6 +4199,7 @@ function aiFinishStream(div, text, messageId, wasClean) {
             div.querySelectorAll('pre code').forEach(function(block) {
                 if (typeof hljs !== 'undefined') hljs.highlightElement(block);
             });
+            aiAddCodeCopyButtons(div);
             aiLocalMessages.push({ role: 'assistant', content: text });
             if (messageId) {
                 var wrapper = div.closest('.ai-panel-msg');
@@ -4002,15 +4209,44 @@ function aiFinishStream(div, text, messageId, wasClean) {
                     if (existingActions) existingActions.remove();
                     var actions = document.createElement('div');
                     actions.className = 'ai-panel-msg-actions';
+
+                    var copyBtn = document.createElement('button');
+                    copyBtn.className = 'ai-panel-msg-action-btn';
+                    copyBtn.title = 'Copy';
+                    copyBtn.innerHTML = AI_COPY_ICON;
+                    var capturedText = text;
+                    copyBtn.addEventListener('click', function() {
+                        navigator.clipboard.writeText(capturedText).then(function() {
+                            copyBtn.innerHTML = '<svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>';
+                            setTimeout(function() { copyBtn.innerHTML = AI_COPY_ICON; }, 2000);
+                        });
+                    });
+                    actions.appendChild(copyBtn);
+
+                    if (typeof cmEditor !== 'undefined' && cmEditor) {
+                        var insertBtn = document.createElement('button');
+                        insertBtn.className = 'ai-panel-msg-action-btn';
+                        insertBtn.title = 'Insert into note';
+                        insertBtn.innerHTML = AI_INSERT_ICON;
+                        insertBtn.addEventListener('click', function() {
+                            if (!cmEditor) return;
+                            var cursor = cmEditor.getCursor();
+                            cmEditor.replaceRange('\n' + capturedText + '\n', cursor);
+                            cmEditor.focus();
+                            aiShowToast('Inserted into note');
+                        });
+                        actions.appendChild(insertBtn);
+                    }
+
                     var noteBtn = document.createElement('button');
                     noteBtn.className = 'ai-panel-msg-action-btn';
                     noteBtn.title = 'Create note';
                     noteBtn.innerHTML = '<svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>';
-                    var capturedText = text;
                     noteBtn.addEventListener('click', function() {
                         aiCreateNoteFromMessage(capturedText, messageId);
                     });
                     actions.appendChild(noteBtn);
+
                     wrapper.appendChild(actions);
                 }
             }
@@ -4022,6 +4258,7 @@ function aiFinishStream(div, text, messageId, wasClean) {
     aiPanelInput.disabled = false;
     aiPanelStatus.textContent = wasClean ? 'Ready' : 'Stopped';
     aiAbortController = null;
+    aiPanelInput.focus();
     if (typeof FlaskyE2EE !== 'undefined' && FlaskyE2EE.isEncrypted() && messageId && text) {
         FlaskyE2EE.encryptField(text).then(function(enc) {
             fetch('/ai/api/messages/' + messageId + '/encrypt', {
@@ -4090,3 +4327,77 @@ if (_pageData.aiEnabled) {
             }
         }).catch(function() {});
 }
+
+// ============ Editor Selection AI Toolbar ============
+(function() {
+    if (!_pageData.aiEnabled) return;
+    var selBar = document.createElement('div');
+    selBar.className = 'ai-sel-bar';
+    selBar.innerHTML =
+        '<button class="ai-sel-btn" data-action="ai-sel-ask" title="Ask AI about selection">Ask AI</button>' +
+        '<button class="ai-sel-btn" data-action="ai-sel-summarize" title="Summarize selection">Summarize</button>' +
+        '<button class="ai-sel-btn" data-action="ai-sel-rewrite" title="Rewrite selection">Rewrite</button>' +
+        '<button class="ai-sel-btn" data-action="ai-sel-explain" title="Explain selection">Explain</button>';
+    selBar.style.display = 'none';
+    document.body.appendChild(selBar);
+
+    var selBarVisible = false;
+
+    function hideSelBar() {
+        if (selBarVisible) { selBar.style.display = 'none'; selBarVisible = false; }
+    }
+
+    function showSelBar() {
+        if (!cmEditor || !_pageData.aiEnabled) return;
+        var sel = cmEditor.getSelection();
+        if (!sel || sel.length < 3) { hideSelBar(); return; }
+        var coords = cmEditor.coordsAtPos(cmEditor.getCursor('start'));
+        var rect = document.querySelector('.cm-editor').getBoundingClientRect();
+        selBar.style.display = 'flex';
+        selBarVisible = true;
+        selBar.style.left = Math.max(8, Math.min(coords.left - 40, window.innerWidth - 220)) + 'px';
+        selBar.style.top = Math.max(8, coords.top - 36 + rect.top + window.scrollY) + 'px';
+    }
+
+    if (cmEditor) {
+        cmEditor.on('selectionChange', function() {
+            setTimeout(function() {
+                var sel = cmEditor.getSelection();
+                if (sel && sel.length >= 3) showSelBar();
+                else hideSelBar();
+            }, 50);
+        });
+    }
+
+    document.addEventListener('mousedown', function(e) {
+        if (!selBar.contains(e.target)) {
+            setTimeout(hideSelBar, 200);
+        }
+    });
+
+    selBar.addEventListener('click', function(e) {
+        var btn = e.target.closest('.ai-sel-btn');
+        if (!btn) return;
+        var action = btn.dataset.action;
+        var sel = cmEditor ? cmEditor.getSelection() : '';
+        if (!sel) return;
+        hideSelBar();
+        var prompts = {
+            'ai-sel-ask': 'About this text:\n\n' + sel,
+            'ai-sel-summarize': 'Summarize the following text:\n\n' + sel,
+            'ai-sel-rewrite': 'Rewrite the following text more clearly:\n\n' + sel,
+            'ai-sel-explain': 'Explain the following text in simple terms:\n\n' + sel
+        };
+        if (prompts[action]) {
+            if (aiPanel && aiPanel.classList.contains('collapsed')) toggleAIPanel();
+            setTimeout(function() {
+                if (aiPanelInput) {
+                    aiPanelInput.value = prompts[action];
+                    aiPanelInput.focus();
+                    aiPanelInput.style.height = 'auto';
+                    aiPanelInput.style.height = Math.min(aiPanelInput.scrollHeight, 120) + 'px';
+                }
+            }, 100);
+        }
+    });
+})();

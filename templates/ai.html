@@ -107,13 +107,19 @@
 
         <div class="ai-chat-area">
             <div class="ai-messages" id="ai-messages">
-                <div class="ai-empty-state" id="ai-empty-state">
-                    <div class="ai-empty-state-icon">
-                        <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                    <div class="ai-empty-state" id="ai-empty-state">
+                        <div class="ai-empty-state-icon">
+                            <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                        </div>
+                        <div class="ai-empty-state-title">Start a conversation</div>
+                        <div class="ai-empty-state-subtitle">Type a message below or pick a suggestion:</div>
+                        <div class="ai-suggestions">
+                            <button class="ai-suggestion-btn" data-prompt="Help me write a note about ">Help me write</button>
+                            <button class="ai-suggestion-btn" data-prompt="Summarize the following text: ">Summarize</button>
+                            <button class="ai-suggestion-btn" data-prompt="Help me brainstorm ideas for ">Brainstorm</button>
+                            <button class="ai-suggestion-btn" data-prompt="Explain the following concept in simple terms: ">Explain</button>
+                        </div>
                     </div>
-                    <div class="ai-empty-state-title">Start a conversation</div>
-                    <div class="ai-empty-state-subtitle">Type a message below to begin chatting with AI.</div>
-                </div>
             </div>
 
             <!-- Right Panel -->
@@ -154,7 +160,9 @@
                     <div class="ai-right-panel-info" style="font-size:12px;">
                         <div style="margin-bottom:4px;"><kbd style="display:inline-block;padding:2px 6px;background:var(--bg-hover);border:1px solid var(--border-light);border-radius:4px;font-size:11px;font-family:inherit;color:var(--text-secondary);">Enter</kbd> Send message</div>
                         <div style="margin-bottom:4px;"><kbd style="display:inline-block;padding:2px 6px;background:var(--bg-hover);border:1px solid var(--border-light);border-radius:4px;font-size:11px;font-family:inherit;color:var(--text-secondary);">Shift+Enter</kbd> New line</div>
-                        <div><kbd style="display:inline-block;padding:2px 6px;background:var(--bg-hover);border:1px solid var(--border-light);border-radius:4px;font-size:11px;font-family:inherit;color:var(--text-secondary);">Ctrl+B</kbd> Toggle sidebar</div>
+                        <div style="margin-bottom:4px;"><kbd style="display:inline-block;padding:2px 6px;background:var(--bg-hover);border:1px solid var(--border-light);border-radius:4px;font-size:11px;font-family:inherit;color:var(--text-secondary);">Ctrl+B</kbd> Toggle sidebar</div>
+                        <div style="margin-bottom:4px;"><kbd style="display:inline-block;padding:2px 6px;background:var(--bg-hover);border:1px solid var(--border-light);border-radius:4px;font-size:11px;font-family:inherit;color:var(--text-secondary);">Ctrl+Shift+N</kbd> New chat</div>
+                        <div><kbd style="display:inline-block;padding:2px 6px;background:var(--bg-hover);border:1px solid var(--border-light);border-radius:4px;font-size:11px;font-family:inherit;color:var(--text-secondary);">Esc</kbd> Close sidebar / panel</div>
                     </div>
                 </div>
             </div>
@@ -309,6 +317,14 @@
             e.preventDefault();
             toggleSidebar();
         }
+        if (e.ctrlKey && e.shiftKey && e.key === 'N') {
+            e.preventDefault();
+            newChatBtn.click();
+        }
+        if (e.key === 'Escape') {
+            if (!sidebar.classList.contains('collapsed')) { closeSidebar(); }
+            else if (!panel.classList.contains('collapsed')) { panel.classList.add('collapsed'); }
+        }
     });
 
     // Conversations
@@ -454,6 +470,35 @@
         ALLOW_DATA_ATTR: false
     };
 
+    var COPY_ICON = '<svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
+    var REGEN_ICON = '<svg viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>';
+
+    function addCopyButtons(container) {
+        container.querySelectorAll('pre').forEach(function(pre) {
+            if (pre.querySelector('.ai-code-copy-btn')) return;
+            var btn = document.createElement('button');
+            btn.className = 'ai-code-copy-btn';
+            btn.title = 'Copy code';
+            btn.setAttribute('aria-label', 'Copy code');
+            btn.innerHTML = COPY_ICON;
+            btn.addEventListener('click', function(e) {
+                e.preventDefault();
+                var code = pre.querySelector('code');
+                var text = code ? code.textContent : pre.textContent;
+                navigator.clipboard.writeText(text).then(function() {
+                    btn.classList.add('copied');
+                    btn.innerHTML = '<svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>';
+                    setTimeout(function() {
+                        btn.classList.remove('copied');
+                        btn.innerHTML = COPY_ICON;
+                    }, 2000);
+                });
+            });
+            pre.style.position = 'relative';
+            pre.appendChild(btn);
+        });
+    }
+
     function addMessageBubble(role, content, doRender, messageId) {
         if (emptyState && emptyState.parentNode) emptyState.remove();
         var wrapper = document.createElement('div');
@@ -473,6 +518,7 @@
                 contentDiv.querySelectorAll('pre code').forEach(function(block) {
                     hljs.highlightElement(block);
                 });
+                addCopyButtons(contentDiv);
             }, 0);
         } else {
             contentDiv.textContent = content;
@@ -482,15 +528,32 @@
         if (content) {
             var actions = document.createElement('div');
             actions.className = 'ai-message-actions';
-            var noteBtn = document.createElement('button');
-            noteBtn.className = 'ai-message-action-btn';
-            noteBtn.title = 'Create note from this message';
-            noteBtn.setAttribute('aria-label', 'Create note from this message');
-            noteBtn.innerHTML = '<svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>';
-            noteBtn.addEventListener('click', function() {
-                createNoteFromMessage(content, messageId);
+
+            var copyBtn = document.createElement('button');
+            copyBtn.className = 'ai-message-action-btn';
+            copyBtn.title = 'Copy message';
+            copyBtn.setAttribute('aria-label', 'Copy message');
+            copyBtn.innerHTML = COPY_ICON;
+            copyBtn.addEventListener('click', function() {
+                navigator.clipboard.writeText(content).then(function() {
+                    copyBtn.innerHTML = '<svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>';
+                    setTimeout(function() { copyBtn.innerHTML = COPY_ICON; }, 2000);
+                });
             });
-            actions.appendChild(noteBtn);
+            actions.appendChild(copyBtn);
+
+            if (role === 'assistant') {
+                var noteBtn = document.createElement('button');
+                noteBtn.className = 'ai-message-action-btn';
+                noteBtn.title = 'Create note from this message';
+                noteBtn.setAttribute('aria-label', 'Create note from this message');
+                noteBtn.innerHTML = '<svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>';
+                noteBtn.addEventListener('click', function() {
+                    createNoteFromMessage(content, messageId);
+                });
+                actions.appendChild(noteBtn);
+            }
+
             wrapper.appendChild(actions);
         }
 
@@ -650,7 +713,7 @@
 
         addMessageBubble('user', text, false);
         localMessages.push({ role: 'user', content: text });
-        statusText.textContent = 'Sending...';
+        statusText.innerHTML = '<span class="ai-status-streaming">Sending...</span>';
 
         var encryptedTitle = text.substring(0, 100);
         var encryptedMessage = text;
@@ -693,7 +756,7 @@
         sendBtn.style.display = 'none';
         stopBtn.style.display = 'flex';
         inputEl.disabled = true;
-        statusText.textContent = 'Thinking...';
+        statusText.innerHTML = '<span class="ai-status-streaming">Thinking...</span>';
         var assistantDiv = addMessageBubble('assistant', '', false);
         assistantDiv.classList.add('ai-cursor-blink');
 
@@ -713,12 +776,32 @@
         }).then(function(response) {
             if (!response.ok) {
                 response.text().then(function(t) {
-                    try {
-                        var errData = JSON.parse(t);
-                        assistantDiv.textContent = errData.error || 'Something went wrong. Please try again.';
-                    } catch(e) {
-                        assistantDiv.textContent = 'Something went wrong. Please try again.';
-                    }
+                    var errorMsg = 'Something went wrong. Please try again.';
+                    try { var errData = JSON.parse(t); errorMsg = errData.error || errorMsg; } catch(e) {}
+                    var errWrapper = assistantDiv.closest('.ai-message');
+                    if (errWrapper) errWrapper.classList.add('ai-message-error');
+                    assistantDiv.textContent = errorMsg;
+                    var retryBtn = document.createElement('button');
+                    retryBtn.className = 'ai-error-retry-btn';
+                    retryBtn.innerHTML = REGEN_ICON + ' Retry';
+                    retryBtn.addEventListener('click', function() {
+                        if (errWrapper) errWrapper.remove();
+                        var lastUserMsg = '';
+                        for (var i = localMessages.length - 1; i >= 0; i--) {
+                            if (localMessages[i].role === 'user') { lastUserMsg = localMessages[i].content; break; }
+                        }
+                        if (lastUserMsg) {
+                            localMessages.pop();
+                            var prevUserMsg = localMessages[localMessages.length - 1];
+                            if (prevUserMsg && prevUserMsg.role === 'user') {
+                                inputEl.value = prevUserMsg.content;
+                                localMessages.pop();
+                            }
+                            sendMessage();
+                        }
+                    });
+                    assistantDiv.appendChild(document.createElement('br'));
+                    assistantDiv.appendChild(retryBtn);
                     assistantDiv.classList.remove('ai-cursor-blink');
                     isStreaming = false;
                     sendBtn.style.display = 'flex';
@@ -752,7 +835,7 @@
                                     fullText += data.chunk;
                                     assistantDiv.textContent = fullText;
                                     messagesEl.scrollTop = messagesEl.scrollHeight;
-                                    statusText.textContent = 'Streaming...';
+                                    statusText.innerHTML = '<span class="ai-status-streaming">Streaming...</span>';
                                 } else if (data.error) {
                                     streamFinished = true;
                                     assistantDiv.textContent = data.error;
@@ -783,7 +866,28 @@
             if (err.name === 'AbortError') {
                 return;
             }
+            var errWrapper = assistantDiv.closest('.ai-message');
+            if (errWrapper) errWrapper.classList.add('ai-message-error');
             assistantDiv.textContent = 'Connection error. Please try again.';
+            var retryBtn = document.createElement('button');
+            retryBtn.className = 'ai-error-retry-btn';
+            retryBtn.innerHTML = REGEN_ICON + ' Retry';
+            retryBtn.addEventListener('click', function() {
+                if (errWrapper) errWrapper.remove();
+                if (localMessages.length > 0) {
+                    var lastUserMsg = '';
+                    for (var i = localMessages.length - 1; i >= 0; i--) {
+                        if (localMessages[i].role === 'user') { lastUserMsg = localMessages[i].content; break; }
+                    }
+                    if (lastUserMsg) {
+                        localMessages.pop();
+                        inputEl.value = lastUserMsg;
+                        sendMessage();
+                    }
+                }
+            });
+            assistantDiv.appendChild(document.createElement('br'));
+            assistantDiv.appendChild(retryBtn);
             assistantDiv.classList.remove('ai-cursor-blink');
             isStreaming = false;
             sendBtn.style.display = 'flex';
@@ -799,6 +903,7 @@
                 div.querySelectorAll('pre code').forEach(function(block) {
                     hljs.highlightElement(block);
                 });
+                addCopyButtons(div);
                 localMessages.push({ role: 'assistant', content: text });
             }
             if (messageId) {
@@ -811,16 +916,68 @@
                     }
                     var actions = document.createElement('div');
                     actions.className = 'ai-message-actions';
+
+                    var copyBtn = document.createElement('button');
+                    copyBtn.className = 'ai-message-action-btn';
+                    copyBtn.title = 'Copy message';
+                    copyBtn.setAttribute('aria-label', 'Copy message');
+                    copyBtn.innerHTML = COPY_ICON;
+                    var capturedText = text;
+                    copyBtn.addEventListener('click', function() {
+                        navigator.clipboard.writeText(capturedText).then(function() {
+                            copyBtn.innerHTML = '<svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>';
+                            setTimeout(function() { copyBtn.innerHTML = COPY_ICON; }, 2000);
+                        });
+                    });
+                    actions.appendChild(copyBtn);
+
                     var noteBtn = document.createElement('button');
                     noteBtn.className = 'ai-message-action-btn';
                     noteBtn.title = 'Create note from this message';
                     noteBtn.setAttribute('aria-label', 'Create note from this message');
                     noteBtn.innerHTML = '<svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>';
-                    var capturedText = text;
                     noteBtn.addEventListener('click', function() {
                         createNoteFromMessage(capturedText, messageId);
                     });
                     actions.appendChild(noteBtn);
+
+                    var regenBtn = document.createElement('button');
+                    regenBtn.className = 'ai-message-action-btn';
+                    regenBtn.title = 'Regenerate response';
+                    regenBtn.setAttribute('aria-label', 'Regenerate response');
+                    regenBtn.innerHTML = REGEN_ICON;
+                    regenBtn.addEventListener('click', function() {
+                        if (isStreaming) return;
+                        var msgWrapper = div.closest('.ai-message');
+                        if (msgWrapper) {
+                            var prev = msgWrapper.previousElementSibling;
+                            if (prev && prev.classList.contains('ai-message-user')) {
+                                msgWrapper.remove();
+                                if (prev.parentNode) prev.remove();
+                            } else {
+                                msgWrapper.remove();
+                            }
+                        }
+                        if (localMessages.length >= 2) {
+                            localMessages.splice(-2, 2);
+                        }
+                        if (conversationId) {
+                            inputEl.value = '';
+                            var lastUserMsg = '';
+                            for (var i = localMessages.length - 1; i >= 0; i--) {
+                                if (localMessages[i].role === 'user') { lastUserMsg = localMessages[i].content; break; }
+                            }
+                            if (!lastUserMsg && localMessages.length > 0) {
+                                lastUserMsg = localMessages[localMessages.length - 1].content;
+                            }
+                            if (lastUserMsg) {
+                                inputEl.value = lastUserMsg;
+                                sendMessage();
+                            }
+                        }
+                    });
+                    actions.appendChild(regenBtn);
+
                     wrapper.appendChild(actions);
                 }
             }
@@ -838,6 +995,7 @@
             stopBtn.style.display = 'none';
             inputEl.disabled = false;
             statusText.textContent = wasClean ? 'Ready' : 'Stopped';
+            inputEl.focus();
             currentAbortController = null;
             loadConversations();
         }
@@ -864,6 +1022,16 @@
     inputEl.addEventListener('input', function() {
         this.style.height = 'auto';
         this.style.height = Math.min(this.scrollHeight, 160) + 'px';
+    });
+
+    // Suggestion buttons
+    document.addEventListener('click', function(e) {
+        var btn = e.target.closest('.ai-suggestion-btn');
+        if (btn && btn.dataset.prompt) {
+            inputEl.value = btn.dataset.prompt;
+            inputEl.focus();
+            inputEl.dispatchEvent(new Event('input'));
+        }
     });
 
     // Init

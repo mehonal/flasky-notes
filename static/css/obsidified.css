@@ -851,6 +851,8 @@ body {
 }
 .slash-command-item.selected .slash-command-icon,
 .slash-command-item:hover .slash-command-icon { opacity: 1; }
+.slash-command-item.ai-command { color: var(--accent); }
+.slash-command-item.ai-command .slash-command-icon { opacity: 0.9; }
 
 /* ============ Template Modal ============ */
 .template-modal {
@@ -1025,14 +1027,22 @@ body[data-encrypted="true"] .prop-value-input { visibility: hidden; }
 
 /* ============ AI Chat Panel ============ */
 .ai-panel {
-    width: 340px; min-width: 340px;
+    width: 340px; min-width: 280px; max-width: 600px;
     background: var(--bg-sidebar);
     border-left: 1px solid var(--border);
     display: flex; flex-direction: column; overflow: hidden;
-    transition: width 0.2s ease, min-width 0.2s ease, opacity 0.15s ease;
+    transition: opacity 0.15s ease;
     font-size: 13px;
+    position: relative;
 }
-.ai-panel.collapsed { width: 0; min-width: 0; border-left: none; opacity: 0; pointer-events: none; }
+.ai-panel.collapsed { width: 0; min-width: 0; max-width: 0; border-left: none; opacity: 0; pointer-events: none; }
+.ai-panel-resize-handle {
+    position: absolute; left: -3px; top: 0; bottom: 0; width: 6px;
+    cursor: col-resize; z-index: 10;
+}
+.ai-panel-resize-handle:hover, .ai-panel-resize-handle.active {
+    background: var(--accent); opacity: 0.3;
+}
 
 .ai-panel-top-bar {
     display: flex; align-items: center; padding: 4px 8px;
@@ -1177,6 +1187,83 @@ body[data-encrypted="true"] .prop-value-input { visibility: hidden; }
 .ai-toast a { color: var(--accent); text-decoration: none; font-weight: 500; }
 .ai-toast a:hover { text-decoration: underline; }
 @keyframes ai-toast-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+/* AI Dropdown Menu */
+.ai-dropdown-wrap {
+    position: relative;
+}
+.ai-dropdown {
+    display: none; position: absolute; top: 100%; right: 0; z-index: 500;
+    background: var(--bg-sidebar); border: 1px solid var(--border);
+    border-radius: 8px; padding: 4px; min-width: 180px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+}
+.ai-dropdown.open { display: block; }
+.ai-dropdown-item {
+    display: flex; align-items: center; gap: 8px; width: 100%;
+    padding: 7px 10px; border: none; background: none; color: var(--text-secondary);
+    font-size: 13px; font-family: inherit; cursor: pointer; border-radius: 6px;
+    transition: all 0.1s; text-align: left;
+}
+.ai-dropdown-item:hover { background: var(--bg-hover); color: var(--text-primary); }
+.ai-dropdown-item svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; flex-shrink: 0; }
+.ai-dropdown-divider { height: 1px; background: var(--border-light); margin: 4px 0; }
+
+/* Editor Selection AI Toolbar */
+.ai-sel-bar {
+    position: absolute; z-index: 600; display: none;
+    background: var(--bg-sidebar); border: 1px solid var(--border);
+    border-radius: 8px; padding: 3px; gap: 2px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.25); flex-direction: row;
+}
+.ai-sel-btn {
+    display: flex; align-items: center; padding: 5px 8px;
+    border: none; background: none; color: var(--text-secondary);
+    font-size: 12px; font-family: inherit; cursor: pointer; border-radius: 5px;
+    transition: all 0.1s; white-space: nowrap;
+}
+.ai-sel-btn:hover { background: var(--bg-hover); color: var(--text-primary); }
+
+/* AI Panel: Copy code blocks */
+.ai-panel-msg-assistant .ai-panel-msg-content pre {
+    position: relative;
+}
+.ai-panel-code-copy-btn {
+    position: absolute; top: 4px; right: 4px;
+    display: flex; align-items: center; justify-content: center;
+    width: 22px; height: 22px; border-radius: 4px; border: 1px solid var(--border);
+    background: var(--bg-hover); color: var(--text-muted); cursor: pointer;
+    opacity: 0; transition: opacity 0.15s, background 0.1s, color 0.1s;
+    z-index: 2;
+}
+.ai-panel-msg-assistant .ai-panel-msg-content pre:hover .ai-panel-code-copy-btn { opacity: 1; }
+.ai-panel-code-copy-btn:hover { background: var(--accent); color: var(--bg-primary); border-color: var(--accent); }
+.ai-panel-code-copy-btn svg { width: 12px; height: 12px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.ai-panel-code-copy-btn.copied { color: var(--accent); opacity: 1; }
+
+/* AI Panel: Message actions (copy + insert) */
+.ai-panel-msg-actions .ai-panel-msg-action-btn.ai-insert-btn { }
+
+/* AI Panel: Error message */
+.ai-panel-msg-error .ai-panel-msg-content {
+    background: rgba(220, 38, 38, 0.1) !important; border: 1px solid rgba(220, 38, 38, 0.3) !important;
+    color: #fca5a5;
+}
+.ai-panel-error-retry {
+    display: inline-flex; align-items: center; gap: 4px; margin-top: 6px;
+    padding: 3px 8px; border-radius: 4px; border: 1px solid rgba(220, 38, 38, 0.4);
+    background: transparent; color: #fca5a5; font-size: 11px; cursor: pointer;
+    font-family: inherit;
+}
+.ai-panel-error-retry:hover { background: rgba(220, 38, 38, 0.2); }
+
+/* AI Panel: Streaming status */
+.ai-panel-status.streaming { display: inline-flex; align-items: center; gap: 4px; }
+.ai-panel-status.streaming::before {
+    content: ''; width: 5px; height: 5px; border-radius: 50%;
+    background: var(--accent); animation: ai-panel-pulse 1.2s ease-in-out infinite;
+}
+@keyframes ai-panel-pulse { 0%, 100% { opacity: 0.4; } 50% { opacity: 1; } }
 
 /* Mobile Responsive for AI Panel */
 @media (max-width: 768px) {
