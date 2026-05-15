@@ -2702,7 +2702,15 @@ function showWikiAutocomplete(cm) {
             });
             wikiAutocomplete.addEventListener('mouseover', function(e) {
                 var item = e.target.closest('.wikilink-autocomplete-item');
-                if (item) { wikiSelectedIndex = parseInt(item.getAttribute('data-index')); renderWikiAutocomplete(); }
+                if (item) {
+                    var newIdx = parseInt(item.getAttribute('data-index'));
+                    if (newIdx !== wikiSelectedIndex) {
+                        var prev = wikiAutocomplete.querySelector('.wikilink-autocomplete-item.selected');
+                        if (prev) prev.classList.remove('selected');
+                        wikiSelectedIndex = newIdx;
+                        item.classList.add('selected');
+                    }
+                }
             });
         }
 
@@ -2923,6 +2931,26 @@ function showSlashCommands(cm) {
         slashPopup = document.createElement('div');
         slashPopup.className = 'slash-command-popup';
         document.body.appendChild(slashPopup);
+        slashPopup.addEventListener('mousedown', function(e) {
+            var item = e.target.closest('.slash-command-item');
+            if (item) { e.preventDefault(); acceptSlashCommand(parseInt(item.getAttribute('data-index'))); }
+        });
+        slashPopup.addEventListener('touchend', function(e) {
+            var item = e.target.closest('.slash-command-item');
+            if (item) { e.preventDefault(); acceptSlashCommand(parseInt(item.getAttribute('data-index'))); }
+        });
+        slashPopup.addEventListener('mouseover', function(e) {
+            var item = e.target.closest('.slash-command-item');
+            if (item) {
+                var newIdx = parseInt(item.getAttribute('data-index'));
+                if (newIdx !== slashSelectedIndex) {
+                    var prev = slashPopup.querySelector('.slash-command-item.selected');
+                    if (prev) prev.classList.remove('selected');
+                    slashSelectedIndex = newIdx;
+                    item.classList.add('selected');
+                }
+            }
+        });
     }
 
     renderSlashCommands();
@@ -2948,20 +2976,6 @@ function renderSlashCommands() {
         html += '</div>';
     });
     slashPopup.innerHTML = html;
-    slashPopup.querySelectorAll('.slash-command-item').forEach(function(item) {
-        item.addEventListener('mousedown', function(e) {
-            e.preventDefault();
-            acceptSlashCommand(parseInt(item.getAttribute('data-index')));
-        });
-        item.addEventListener('touchend', function(e) {
-            e.preventDefault();
-            acceptSlashCommand(parseInt(item.getAttribute('data-index')));
-        });
-        item.addEventListener('mouseenter', function() {
-            slashSelectedIndex = parseInt(item.getAttribute('data-index'));
-            renderSlashCommands();
-        });
-    });
     var sel = slashPopup.querySelector('.slash-command-item.selected');
     if (sel) sel.scrollIntoView({ block: 'nearest' });
 }
@@ -3636,8 +3650,14 @@ document.addEventListener('mouseenter', function(e) {
     if (!e.target || !e.target.closest) return;
     var el = e.target.closest('[data-action="search-result-click"]');
     if (el) {
-        searchSelectedIndex = parseInt(el.dataset.resultIndex);
-        renderSearchResults();
+        var newIdx = parseInt(el.dataset.resultIndex);
+        if (newIdx !== searchSelectedIndex) {
+            var container = document.getElementById('search-results');
+            var prev = container ? container.querySelector('.search-result-item.selected') : null;
+            if (prev) prev.classList.remove('selected');
+            searchSelectedIndex = newIdx;
+            el.classList.add('selected');
+        }
     }
 }, true);
 
