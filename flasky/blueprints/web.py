@@ -875,6 +875,7 @@ def note_single_page(note_id):
         default_template=default_template,
         panel_widgets=panel_widgets,
         encrypted_note_data=encrypted_note_data,
+        ai_settings=g.user.settings if g.user else None,
     )
 
 

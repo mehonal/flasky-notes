@@ -3450,11 +3450,14 @@ document.addEventListener('click', function(e) {
 
     switch (action) {
         case 'close-sidebar': closeSidebar(); break;
+        case 'close-ai-panel': closeAIPanel(); break;
+        case 'toggle-ai-note-context': toggleAINoteContext(); break;
         case 'new-folder': promptNewFolder(); break;
         case 'create-new-note': createNewNote(); break;
         case 'toggle-sidebar': toggleSidebar(); break;
         case 'toggle-mode': toggleMode(); break;
         case 'open-search': openSearchModal(); break;
+        case 'ask-ai': toggleAIPanel(); break;
         case 'toggle-right-panel': toggleRightPanel(); break;
         case 'toggle-dark-mode': toggleDarkMode(); break;
         case 'toggle-shortcuts': toggleShortcutsModal(); break;
@@ -3690,3 +3693,400 @@ document.addEventListener('drop', function(e) {
     e.stopPropagation();
     onItemDrop(e, targetPath, targetCatId);
 });
+
+// ============ AI Chat Panel ============
+var aiPanel = document.getElementById('ai-panel');
+var aiPanelMessages = document.getElementById('ai-panel-messages');
+var aiPanelInput = document.getElementById('ai-panel-input');
+var aiPanelSendBtn = document.getElementById('ai-panel-send-btn');
+var aiPanelStopBtn = document.getElementById('ai-panel-stop-btn');
+var aiPanelStatus = document.getElementById('ai-panel-status');
+var aiPanelModel = document.getElementById('ai-panel-model');
+var aiPanelEmpty = document.getElementById('ai-panel-empty');
+var aiPanelContext = document.getElementById('ai-panel-context');
+var aiPanelContextTitle = document.getElementById('ai-panel-context-title');
+var aiPanelContextDismiss = document.getElementById('ai-panel-context-dismiss');
+var aiConversationId = null;
+var aiLocalMessages = [];
+var aiIsStreaming = false;
+var aiAbortController = null;
+var aiNoteContext = null;
+
+function toggleAIPanel() {
+    if (!aiPanel) return;
+    aiPanel.classList.toggle('collapsed');
+    var expanded = !aiPanel.classList.contains('collapsed');
+    var btn = document.querySelector('[data-action="ask-ai"]');
+    if (btn) btn.classList.toggle('active', expanded);
+    if (expanded && aiLocalMessages.length === 0 && aiPanelEmpty) {
+        aiPanelInput.focus();
+    }
+    if (expanded && aiNoteContext && aiPanelContext) {
+        aiPanelContext.style.display = '';
+        aiPanelContextTitle.textContent = aiNoteContext.title;
+    }
+}
+
+function toggleAINoteContext() {
+    var includeBtn = document.getElementById('ai-panel-include-note');
+    if (aiNoteContext) {
+        aiNoteContext = null;
+        if (aiPanelContext) aiPanelContext.style.display = 'none';
+        if (aiPanelContextTitle) aiPanelContextTitle.textContent = '';
+        if (aiPanelInput) aiPanelInput.placeholder = 'Ask AI...';
+        if (includeBtn) includeBtn.classList.remove('active');
+    } else {
+        var title = document.getElementById('note-title');
+        var content = getEditorContent();
+        var noteTitle = title ? title.value.trim() : '';
+        if (!noteTitle && !content) {
+            if (includeBtn) includeBtn.classList.remove('active');
+            return;
+        }
+        aiNoteContext = { title: noteTitle || 'Untitled', content: content };
+        if (aiPanelContext) {
+            aiPanelContext.style.display = '';
+            aiPanelContextTitle.textContent = aiNoteContext.title;
+        }
+        if (aiPanelInput) aiPanelInput.placeholder = 'Ask about this note...';
+        if (includeBtn) includeBtn.classList.add('active');
+    }
+}
+
+function closeAIPanel() {
+    if (!aiPanel) return;
+    aiPanel.classList.add('collapsed');
+    var btn = document.querySelector('[data-action="ask-ai"]');
+    if (btn) btn.classList.remove('active');
+}
+
+if (aiPanelContextDismiss) {
+    aiPanelContextDismiss.addEventListener('click', function() {
+        aiNoteContext = null;
+        if (aiPanelContext) aiPanelContext.style.display = 'none';
+        if (aiPanelInput) aiPanelInput.placeholder = 'Ask AI...';
+        var includeBtn = document.getElementById('ai-panel-include-note');
+        if (includeBtn) includeBtn.classList.remove('active');
+    });
+}
+
+function aiGetCSRF() {
+    var cookie = document.cookie.match(/X-CSRF-Token=([^;]+)/);
+    return cookie ? cookie[1] : '';
+}
+
+function aiRenderMarkdown(text) {
+    if (typeof marked !== 'undefined' && marked.parse) {
+        return sanitizeMarkdown(marked.parse(text));
+    }
+    return sanitizeMarkdown(text.replace(/</g, '&lt;').replace(/\n/g, '<br>'));
+}
+
+function aiAddMessage(role, content, doRender, messageId) {
+    if (aiPanelEmpty && aiPanelEmpty.parentNode) aiPanelEmpty.remove();
+    var wrapper = document.createElement('div');
+    wrapper.className = 'ai-panel-msg ai-panel-msg-' + role;
+    if (messageId) wrapper.dataset.messageId = messageId;
+
+    var avatar = document.createElement('div');
+    avatar.className = 'ai-panel-msg-avatar';
+    avatar.textContent = role === 'user' ? 'U' : 'AI';
+    wrapper.appendChild(avatar);
+
+    var contentDiv = document.createElement('div');
+    contentDiv.className = 'ai-panel-msg-content';
+    if (role === 'assistant' && doRender !== false) {
+        contentDiv.innerHTML = aiRenderMarkdown(content);
+        setTimeout(function() {
+            contentDiv.querySelectorAll('pre code').forEach(function(block) {
+                if (typeof hljs !== 'undefined') hljs.highlightElement(block);
+            });
+        }, 0);
+    } else {
+        contentDiv.textContent = content;
+    }
+    wrapper.appendChild(contentDiv);
+
+    if (content) {
+        var actions = document.createElement('div');
+        actions.className = 'ai-panel-msg-actions';
+        var noteBtn = document.createElement('button');
+        noteBtn.className = 'ai-panel-msg-action-btn';
+        noteBtn.title = 'Create note';
+        noteBtn.innerHTML = '<svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>';
+        noteBtn.addEventListener('click', function() {
+            aiCreateNoteFromMessage(content, messageId);
+        });
+        actions.appendChild(noteBtn);
+        wrapper.appendChild(actions);
+    }
+
+    aiPanelMessages.appendChild(wrapper);
+    aiPanelMessages.scrollTop = aiPanelMessages.scrollHeight;
+    return contentDiv;
+}
+
+async function aiCreateNoteFromMessage(content, messageId) {
+    var title = content.split('\n')[0].substring(0, 100).replace(/^#+\s*/, '').trim() || 'AI Chat Note';
+    var payload = { source: 'custom', title: title, content: content };
+    var isE2EE = typeof FlaskyE2EE !== 'undefined' && FlaskyE2EE.isEncrypted();
+    if (isE2EE) {
+        try {
+            payload.title = await FlaskyE2EE.encryptField(title);
+            payload.content = await FlaskyE2EE.encryptField(content);
+        } catch(e) {
+            alert('Failed to encrypt note content.');
+            return;
+        }
+    }
+    fetch('/ai/api/create_note', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': aiGetCSRF() },
+        body: JSON.stringify(payload)
+    }).then(function(r) { return r.json(); }).then(function(data) {
+        if (data.success) {
+            aiShowToast('Note created: <a href="/note/' + data.note_id + '" target="_blank">' + escapeHtml(title) + '</a>');
+        } else {
+            alert(data.error || 'Failed to create note.');
+        }
+    }).catch(function() { alert('Failed to create note.'); });
+}
+
+function aiShowToast(html) {
+    var toast = document.createElement('div');
+    toast.className = 'ai-toast';
+    toast.innerHTML = html;
+    document.body.appendChild(toast);
+    setTimeout(function() {
+        toast.style.opacity = '0';
+        toast.style.transition = 'opacity 0.3s';
+        setTimeout(function() { toast.remove(); }, 300);
+    }, 5000);
+}
+
+async function aiSendPanelMessage() {
+    var text = aiPanelInput.value.trim();
+    if (!text || aiIsStreaming) return;
+    aiPanelInput.value = '';
+    aiPanelInput.style.height = 'auto';
+    aiPanelInput.style.height = aiPanelInput.scrollHeight + 'px';
+
+    aiAddMessage('user', text, false);
+
+    var messageForModel = text;
+    if (aiNoteContext) {
+        messageForModel = 'The user has attached this note:\n---\n' + aiNoteContext.content + '\n---\n\n' + text;
+    }
+    aiLocalMessages.push({ role: 'user', content: messageForModel });
+    aiPanelStatus.textContent = 'Sending...';
+
+    var encryptedTitle = text.substring(0, 100);
+    var encryptedMessage = messageForModel;
+
+    var isE2EE = typeof FlaskyE2EE !== 'undefined' && FlaskyE2EE.isEncrypted();
+    if (isE2EE) {
+        encryptedTitle = await FlaskyE2EE.encryptField(encryptedTitle);
+        encryptedMessage = await FlaskyE2EE.encryptField(encryptedMessage);
+    }
+
+    function doStream() {
+        aiIsStreaming = true;
+        aiPanelSendBtn.style.display = 'none';
+        aiPanelStopBtn.style.display = 'flex';
+        aiPanelInput.disabled = true;
+        aiPanelStatus.textContent = 'Thinking...';
+        var assistantDiv = aiAddMessage('assistant', '', false);
+        assistantDiv.classList.add('ai-cursor-blink');
+
+        aiAbortController = new AbortController();
+        var chatBody = { message: encryptedMessage };
+        if (typeof FlaskyE2EE !== 'undefined' && FlaskyE2EE.isEncrypted()) {
+            chatBody.messages = aiLocalMessages;
+        }
+
+        fetch('/ai/api/conversations/' + aiConversationId + '/chat', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': aiGetCSRF() },
+            body: JSON.stringify(chatBody),
+            signal: aiAbortController.signal
+        }).then(function(response) {
+            if (!response.ok) {
+                response.text().then(function(t) {
+                    try { var errData = JSON.parse(t); assistantDiv.textContent = errData.error || 'Error'; }
+                    catch(e) { assistantDiv.textContent = 'Something went wrong.'; }
+                    assistantDiv.classList.remove('ai-cursor-blink');
+                    aiFinishStream();
+                });
+                return;
+            }
+            var reader = response.body.getReader();
+            var decoder = new TextDecoder();
+            var fullText = '';
+            var streamFinished = false;
+
+            function read() {
+                reader.read().then(function(result) {
+                    if (result.done) {
+                        if (!streamFinished) aiFinishStream(assistantDiv, fullText, null, false);
+                        return;
+                    }
+                    var chunk = decoder.decode(result.value, {stream: true});
+                    chunk.split('\n').forEach(function(line) {
+                        if (line.startsWith('data: ')) {
+                            try {
+                                var data = JSON.parse(line.substring(6));
+                                if (data.chunk) {
+                                    fullText += data.chunk;
+                                    assistantDiv.textContent = fullText;
+                                    aiPanelMessages.scrollTop = aiPanelMessages.scrollHeight;
+                                    aiPanelStatus.textContent = 'Streaming...';
+                                } else if (data.error) {
+                                    streamFinished = true;
+                                    assistantDiv.textContent = data.error;
+                                    assistantDiv.classList.remove('ai-cursor-blink');
+                                    aiFinishStream();
+                                } else if (data.done) {
+                                    streamFinished = true;
+                                    aiFinishStream(assistantDiv, fullText, data.message_id, true);
+                                }
+                            } catch(e) {}
+                        }
+                    });
+                    read();
+                }).catch(function(err) {
+                    if (err.name === 'AbortError' && !streamFinished) {
+                        streamFinished = true;
+                        reader.cancel();
+                        aiFinishStream(assistantDiv, fullText, null, false);
+                    }
+                });
+            }
+            read();
+        }).catch(function(err) {
+            if (err.name === 'AbortError') return;
+            assistantDiv.textContent = 'Connection error.';
+            assistantDiv.classList.remove('ai-cursor-blink');
+            aiFinishStream();
+        });
+    }
+
+    if (!aiConversationId) {
+        fetch('/ai/api/conversations', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': aiGetCSRF() },
+            body: JSON.stringify({ title: encryptedTitle, model: aiPanelModel ? aiPanelModel.value : undefined })
+        }).then(function(r) { return r.json(); }).then(function(data) {
+            if (data.error) { alert(data.error); aiPanelStatus.textContent = 'Ready'; return; }
+            aiConversationId = data.id;
+            doStream();
+        });
+    } else {
+        doStream();
+    }
+}
+
+function aiFinishStream(div, text, messageId, wasClean) {
+    if (div) {
+        div.classList.remove('ai-cursor-blink');
+        if (text) {
+            div.innerHTML = aiRenderMarkdown(text);
+            div.querySelectorAll('pre code').forEach(function(block) {
+                if (typeof hljs !== 'undefined') hljs.highlightElement(block);
+            });
+            aiLocalMessages.push({ role: 'assistant', content: text });
+            if (messageId) {
+                var wrapper = div.closest('.ai-panel-msg');
+                if (wrapper) {
+                    wrapper.dataset.messageId = messageId;
+                    var existingActions = wrapper.querySelector('.ai-panel-msg-actions');
+                    if (existingActions) existingActions.remove();
+                    var actions = document.createElement('div');
+                    actions.className = 'ai-panel-msg-actions';
+                    var noteBtn = document.createElement('button');
+                    noteBtn.className = 'ai-panel-msg-action-btn';
+                    noteBtn.title = 'Create note';
+                    noteBtn.innerHTML = '<svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>';
+                    var capturedText = text;
+                    noteBtn.addEventListener('click', function() {
+                        aiCreateNoteFromMessage(capturedText, messageId);
+                    });
+                    actions.appendChild(noteBtn);
+                    wrapper.appendChild(actions);
+                }
+            }
+        }
+    }
+    aiIsStreaming = false;
+    aiPanelSendBtn.style.display = 'flex';
+    aiPanelStopBtn.style.display = 'none';
+    aiPanelInput.disabled = false;
+    aiPanelStatus.textContent = wasClean ? 'Ready' : 'Stopped';
+    aiAbortController = null;
+    if (typeof FlaskyE2EE !== 'undefined' && FlaskyE2EE.isEncrypted() && messageId && text) {
+        FlaskyE2EE.encryptField(text).then(function(enc) {
+            fetch('/ai/api/messages/' + messageId + '/encrypt', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': aiGetCSRF() },
+                body: JSON.stringify({ content: enc })
+            }).catch(function(err) { console.error('Failed to encrypt assistant message on server:', err); });
+        }).catch(function(err) { console.error('Failed to encrypt assistant message locally:', err); });
+    }
+}
+
+if (aiPanelSendBtn) {
+    aiPanelSendBtn.addEventListener('click', aiSendPanelMessage);
+}
+if (aiPanelStopBtn) {
+    aiPanelStopBtn.addEventListener('click', function() {
+        if (aiAbortController) aiAbortController.abort();
+    });
+}
+if (aiPanelInput) {
+    aiPanelInput.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); aiSendPanelMessage(); }
+    });
+    aiPanelInput.addEventListener('input', function() {
+        this.style.height = 'auto';
+        this.style.height = Math.min(this.scrollHeight, 120) + 'px';
+    });
+}
+
+// Load AI models
+if (aiPanelModel && _pageData.aiEnabled) {
+    fetch('/ai/api/models', { headers: { 'X-CSRFToken': aiGetCSRF() } })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            var models = data.models || [];
+            aiPanelModel.innerHTML = '';
+            models.forEach(function(m) {
+                var opt = document.createElement('option');
+                opt.value = m; opt.textContent = m;
+                if (m === _pageData.aiModel) opt.selected = true;
+                aiPanelModel.appendChild(opt);
+            });
+        }).catch(function() {
+            if (_pageData.aiModel) aiPanelModel.innerHTML = '<option>' + _pageData.aiModel + '</option>';
+        });
+}
+
+// Save AI model selection
+if (aiPanelModel) {
+    aiPanelModel.addEventListener('change', function() {
+        fetch('/ai/api/settings', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': aiGetCSRF() },
+            body: JSON.stringify({ model: aiPanelModel.value })
+        }).catch(function() {});
+    });
+}
+
+// Load existing conversations list for model init
+if (_pageData.aiEnabled) {
+    fetch('/ai/api/conversations', { headers: { 'X-CSRFToken': aiGetCSRF() } })
+        .then(function(r) { return r.json(); })
+        .then(function(convs) {
+            if (convs.length > 0 && !aiConversationId) {
+                aiConversationId = convs[0].id;
+            }
+        }).catch(function() {});
+}

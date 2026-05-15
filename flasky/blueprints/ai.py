@@ -6,6 +6,8 @@ from flask import (
     jsonify,
     Response,
     stream_with_context,
+    redirect,
+    url_for,
 )
 import json
 import logging
@@ -353,3 +355,63 @@ def list_models():
     except Exception:
         pass
     return jsonify({"models": OLLAMA_CLOUD_MODELS, "source": "fallback"})
+
+
+@ai_bp.route("/api/create_note", methods=["POST"])
+def create_note_from_ai():
+    err = _check_ai_enabled()
+    if err:
+        return err
+    data = request.get_json(silent=True) or {}
+    source = data.get("source", "")
+    title = (data.get("title") or "").strip()
+    content = (data.get("content") or "").strip()
+
+    if source == "message":
+        message_id = data.get("message_id")
+        if not message_id:
+            return jsonify(error="message_id is required."), 400
+        msg = AiMessage.query.filter_by(id=message_id).first()
+        if not msg or msg.conversation.user_id != g.user.id:
+            return jsonify(error="Message not found."), 404
+        if content:
+            note_content = content
+            note_title = title or content[:100].split("\n")[0] or "AI Chat Note"
+        else:
+            note_content = msg.content
+            note_title = title or msg.content[:100].split("\n")[0] or "AI Chat Note"
+
+    elif source == "conversation":
+        conv_id = data.get("conversation_id")
+        if not conv_id:
+            return jsonify(error="conversation_id is required."), 400
+        conv = AiConversation.query.filter_by(id=conv_id, user_id=g.user.id).first()
+        if not conv:
+            return jsonify(error="Conversation not found."), 404
+        if not content:
+            return jsonify(
+                error="Content is required for conversation export. Send the assembled conversation text as content."
+            ), 400
+        note_title = title or conv.title or "AI Chat Export"
+        note_content = content
+
+    elif source == "custom":
+        if not content:
+            return jsonify(error="content is required."), 400
+        note_title = title or "AI Chat Note"
+        note_content = content
+
+    else:
+        return jsonify(
+            error="source must be 'message', 'conversation', or 'custom'."
+        ), 400
+
+    main_cat = g.user.get_category("Main", create=True)
+    note = g.user.add_note(
+        note_title,
+        note_content,
+        main_cat.id,
+        encrypted=g.user.encryption_enabled,
+    )
+    db.session.commit()
+    return jsonify(success=True, note_id=note.id, title=note_title)

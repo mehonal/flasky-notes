@@ -154,7 +154,7 @@ body[data-encrypted="true"] #ai-panel-conv-title { visibility: hidden; }
 .ai-empty-state-title { font-size: 16px; font-weight: 600; color: var(--text-secondary); }
 .ai-empty-state-subtitle { font-size: 13px; }
 
-.ai-message { display: flex; gap: 12px; max-width: 100%; }
+.ai-message { display: flex; gap: 12px; max-width: 100%; position: relative; }
 .ai-message-user { flex-direction: row-reverse; }
 .ai-message-assistant { flex-direction: row; }
 
@@ -311,6 +311,23 @@ body[data-encrypted="true"] #ai-panel-conv-title { visibility: hidden; }
     font-size: 13px; font-style: italic;
 }
 
+/* ============ Message Actions ============ */
+.ai-message-actions {
+    display: flex; gap: 4px; opacity: 0; transition: opacity 0.15s ease;
+    position: absolute; top: -8px; right: 4px;
+}
+.ai-message:hover .ai-message-actions { opacity: 1; }
+.ai-message-user .ai-message-actions { right: auto; left: 4px; }
+
+.ai-message-action-btn {
+    display: flex; align-items: center; justify-content: center;
+    width: 28px; height: 28px; border-radius: 6px; border: 1px solid var(--border);
+    background: var(--bg-secondary); color: var(--text-muted); cursor: pointer;
+    transition: all 0.1s ease;
+}
+.ai-message-action-btn:hover { background: var(--accent); color: var(--bg-primary); border-color: var(--accent); }
+.ai-message-action-btn svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
 /* ============ Disabled State ============ */
 .ai-disabled-card {
     flex: 1; display: flex; flex-direction: column; align-items: center;
@@ -386,3 +403,17 @@ body[data-encrypted="true"] #ai-panel-conv-title { visibility: hidden; }
 @media (max-width: 768px) {
     .ai-right-panel-close-btn { display: flex; }
 }
+
+/* ============ Toast Notification ============ */
+.ai-toast {
+    position: fixed; bottom: 20px; right: 20px;
+    background: var(--bg-sidebar); border: 1px solid var(--border);
+    border-radius: 8px; padding: 10px 14px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3); z-index: 10000;
+    display: flex; align-items: center; gap: 8px;
+    font-size: 14px; color: var(--text-primary);
+    animation: ai-toast-in 0.2s ease; max-width: 400px;
+}
+.ai-toast a { color: var(--accent); text-decoration: none; font-weight: 500; }
+.ai-toast a:hover { text-decoration: underline; }
+@keyframes ai-toast-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }

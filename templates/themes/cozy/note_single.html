@@ -112,6 +112,9 @@
             <button id="auto-save" title="Auto-Save"><span id="autosave-icon">⏸️</span><span class="button-text">Auto Save</span></button>
             <button id="agenda" title="Agenda">🗓️<span class="button-text">Agenda</span></button>
             <button id="search-notes" title="Search">🔍<span class="button-text">Search</span></button>
+            {% if g.user and g.user.settings and g.user.settings.ai_enabled %}
+            <a href="/ai" id="ask-ai" title="Ask AI about this note" style="text-decoration:none;color:inherit">💬<span class="button-text">Ask AI</span></a>
+            {% endif %}
             <button id="settings" title="Settings">⚙️<span class="button-text">Settings</span></button>
         </div>
     </div>

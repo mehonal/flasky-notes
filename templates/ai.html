@@ -139,6 +139,10 @@
                             <svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                             Rename conversation
                         </button>
+                        <button class="ai-right-panel-action" id="ai-panel-export-btn">
+                            <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+                            Export to note
+                        </button>
                         <button class="ai-right-panel-action danger" id="ai-panel-delete-btn">
                             <svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
                             Delete conversation
@@ -204,6 +208,7 @@
     var panelConvCount = document.getElementById('ai-panel-conv-count');
     var panelDeleteBtn = document.getElementById('ai-panel-delete-btn');
     var panelModelName = document.getElementById('ai-panel-model-name');
+    var panelExportBtn = document.getElementById('ai-panel-export-btn');
 
     function getCSRFToken() {
         var cookie = document.cookie.split('; ').find(function(c) { return c.startsWith('X-CSRF-Token='); });
@@ -449,10 +454,11 @@
         ALLOW_DATA_ATTR: false
     };
 
-    function addMessageBubble(role, content, doRender) {
+    function addMessageBubble(role, content, doRender, messageId) {
         if (emptyState && emptyState.parentNode) emptyState.remove();
         var wrapper = document.createElement('div');
         wrapper.className = 'ai-message ai-message-' + role;
+        if (messageId) wrapper.dataset.messageId = messageId;
 
         var avatar = document.createElement('div');
         avatar.className = 'ai-message-avatar';
@@ -472,10 +478,94 @@
             contentDiv.textContent = content;
         }
         wrapper.appendChild(contentDiv);
+
+        if (content) {
+            var actions = document.createElement('div');
+            actions.className = 'ai-message-actions';
+            var noteBtn = document.createElement('button');
+            noteBtn.className = 'ai-message-action-btn';
+            noteBtn.title = 'Create note from this message';
+            noteBtn.setAttribute('aria-label', 'Create note from this message');
+            noteBtn.innerHTML = '<svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>';
+            noteBtn.addEventListener('click', function() {
+                createNoteFromMessage(content, messageId);
+            });
+            actions.appendChild(noteBtn);
+            wrapper.appendChild(actions);
+        }
+
         messagesEl.appendChild(wrapper);
         messagesEl.scrollTop = messagesEl.scrollHeight;
         return contentDiv;
     }
+
+    async function createNoteFromAi(title, content) {
+        var payload = { source: 'custom', title: title, content: content };
+        if (isEncrypted) {
+            try {
+                payload.title = await encryptIfNeeded(title);
+                payload.content = await encryptIfNeeded(content);
+            } catch(e) {
+                alert('Failed to encrypt note content.');
+                return;
+            }
+        }
+        fetch('/ai/api/create_note', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRFToken() },
+            body: JSON.stringify(payload)
+        }).then(function(r) { return r.json(); }).then(function(data) {
+            if (data.success) {
+                showNoteToast('Note created: ', data.note_id, title);
+            } else {
+                alert(data.error || 'Failed to create note.');
+            }
+        }).catch(function() {
+            alert('Failed to create note.');
+        });
+    }
+
+    function showNoteToast(prefix, noteId, title) {
+        var toast = document.createElement('div');
+        toast.className = 'ai-toast';
+        toast.innerHTML = DOMPurify.sanitize(prefix) + '<a href="/note/' + noteId + '" target="_blank">' + DOMPurify.sanitize(title || 'Untitled') + '</a>';
+        document.body.appendChild(toast);
+        setTimeout(function() {
+            toast.style.opacity = '0';
+            toast.style.transition = 'opacity 0.3s';
+            setTimeout(function() { toast.remove(); }, 300);
+        }, 5000);
+    }
+
+    function createNoteFromMessage(content, messageId) {
+        var title = content.split('\n')[0].substring(0, 100);
+        title = title.replace(/^#+\s*/, '').trim() || 'AI Chat Note';
+        createNoteFromAi(title, content);
+    }
+
+    function exportConversationToNote() {
+        if (!conversationId) {
+            alert('No active conversation to export.');
+            return;
+        }
+        var lines = [];
+        for (var i = 0; i < localMessages.length; i++) {
+            var m = localMessages[i];
+            var roleLabel = m.role === 'user' ? 'You' : 'AI';
+            lines.push('**' + roleLabel + ':** ' + m.content);
+        }
+        var content = lines.join('\n\n---\n\n');
+        if (!content) {
+            alert('No messages to export.');
+            return;
+        }
+        (currentConvData && currentConvData.title ? decryptIfNeeded(currentConvData.title) : Promise.resolve(null)).then(function(dec) {
+            var title = dec || 'AI Chat Export';
+            createNoteFromAi(title, content);
+        });
+    }
+
+    panelExportBtn.addEventListener('click', exportConversationToNote);
 
     function updatePanel() {
         if (conversationId && currentConvData) {
@@ -518,7 +608,7 @@
                             try { content = await decryptIfNeeded(m.content); } catch(e) {}
                         }
                         localMessages.push({ role: m.role, content: content });
-                        addMessageBubble(m.role, content);
+                        addMessageBubble(m.role, content, true, m.id);
                     }
                 })();
             }
@@ -557,6 +647,7 @@
         if (!text || isStreaming) return;
         inputEl.value = '';
         inputEl.style.height = 'auto';
+
         addMessageBubble('user', text, false);
         localMessages.push({ role: 'user', content: text });
         statusText.textContent = 'Sending...';
@@ -710,13 +801,36 @@
                 });
                 localMessages.push({ role: 'assistant', content: text });
             }
+            if (messageId) {
+                var wrapper = div.closest('.ai-message');
+                if (wrapper) {
+                    wrapper.dataset.messageId = messageId;
+                    var existingActions = wrapper.querySelector('.ai-message-actions');
+                    if (existingActions) {
+                        existingActions.remove();
+                    }
+                    var actions = document.createElement('div');
+                    actions.className = 'ai-message-actions';
+                    var noteBtn = document.createElement('button');
+                    noteBtn.className = 'ai-message-action-btn';
+                    noteBtn.title = 'Create note from this message';
+                    noteBtn.setAttribute('aria-label', 'Create note from this message');
+                    noteBtn.innerHTML = '<svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>';
+                    var capturedText = text;
+                    noteBtn.addEventListener('click', function() {
+                        createNoteFromMessage(capturedText, messageId);
+                    });
+                    actions.appendChild(noteBtn);
+                    wrapper.appendChild(actions);
+                }
+            }
             if (isEncrypted && messageId && text) {
                 encryptIfNeeded(text).then(function(enc) {
                     fetch('/ai/api/messages/' + messageId + '/encrypt', {
                         method: 'PUT',
                         headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRFToken() },
                         body: JSON.stringify({ content: enc })
-                    }).catch(function() {});
+                    }).catch(function() { console.error('Failed to encrypt assistant message on server.'); });
                 });
             }
             isStreaming = false;
