@@ -931,12 +931,14 @@ def cli():
 @web_bp.route("/manifest.json")
 def manifest_json():
     page = request.args.get("page")
-    if page not in ["agenda", "notes"]:
+    if page not in ["agenda", "ai", "notes"]:
         page = "notes"
     if page == "notes":
         return redirect("/static/script/manifest.json")
     elif page == "agenda":
         return redirect("/static/script/manifest-agenda.json")
+    elif page == "ai":
+        return redirect("/static/script/manifest-ai.json")
 
 
 @web_bp.route("/attachment/<int:attachment_id>/<filename>")
