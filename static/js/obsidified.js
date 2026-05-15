@@ -4047,17 +4047,26 @@ async function aiCreateNoteFromMessage(content, messageId) {
         body: JSON.stringify(payload)
     }).then(function(r) { return r.json(); }).then(function(data) {
         if (data.success) {
-            aiShowToast('Note created: <a href="/note/' + data.note_id + '" target="_blank">' + escapeHtml(title) + '</a>');
+            aiShowToast('Note created: ', data.note_id, title);
         } else {
             alert(data.error || 'Failed to create note.');
         }
     }).catch(function() { alert('Failed to create note.'); });
 }
 
-function aiShowToast(html) {
+function aiShowToast(message, linkUrl, linkText) {
     var toast = document.createElement('div');
     toast.className = 'ai-toast';
-    toast.innerHTML = html;
+    if (linkUrl && linkText) {
+        var link = document.createElement('a');
+        link.href = '/note/' + encodeURIComponent(linkUrl);
+        link.target = '_blank';
+        link.textContent = linkText;
+        toast.appendChild(document.createTextNode(message));
+        toast.appendChild(link);
+    } else {
+        toast.textContent = message;
+    }
     document.body.appendChild(toast);
     setTimeout(function() {
         toast.style.opacity = '0';
@@ -4302,7 +4311,12 @@ if (aiPanelModel && _pageData.aiEnabled) {
                 aiPanelModel.appendChild(opt);
             });
         }).catch(function() {
-            if (_pageData.aiModel) aiPanelModel.innerHTML = '<option>' + _pageData.aiModel + '</option>';
+            if (_pageData.aiModel) {
+                var opt = document.createElement('option');
+                opt.value = _pageData.aiModel;
+                opt.textContent = _pageData.aiModel;
+                aiPanelModel.appendChild(opt);
+            }
         });
 }
 

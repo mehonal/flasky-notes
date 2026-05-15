@@ -591,7 +591,13 @@
     function showNoteToast(prefix, noteId, title) {
         var toast = document.createElement('div');
         toast.className = 'ai-toast';
-        toast.innerHTML = DOMPurify.sanitize(prefix) + '<a href="/note/' + noteId + '" target="_blank">' + DOMPurify.sanitize(title || 'Untitled') + '</a>';
+        var link = document.createElement('a');
+        link.href = '/note/' + encodeURIComponent(noteId);
+        link.target = '_blank';
+        link.textContent = title || 'Untitled';
+        toast.textContent = '';
+        toast.appendChild(document.createTextNode(prefix));
+        toast.appendChild(link);
         document.body.appendChild(toast);
         setTimeout(function() {
             toast.style.opacity = '0';
