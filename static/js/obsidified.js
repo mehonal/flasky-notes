@@ -4094,8 +4094,8 @@ function aiGetCSRF() {
 }
 
 function aiRenderMarkdown(text) {
-    if (typeof marked !== 'undefined' && marked.parse) {
-        return sanitizeMarkdown(marked.parse(text));
+    if (typeof marked !== 'undefined') {
+        return sanitizeMarkdown(marked(text));
     }
     return sanitizeMarkdown(text.replace(/</g, '&lt;').replace(/\n/g, '<br>'));
 }
