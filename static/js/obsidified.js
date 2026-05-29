@@ -3507,7 +3507,13 @@ document.addEventListener('click', function(e) {
         case 'toggle-sidebar': toggleSidebar(); break;
         case 'toggle-mode': toggleMode(); break;
         case 'open-search': openSearchModal(); break;
-        case 'ask-ai': toggleAIDropdown(); break;
+        case 'ask-ai':
+            if (aiPanel && !aiPanel.classList.contains('collapsed')) {
+                closeAIPanel();
+            } else {
+                toggleAIDropdown();
+            }
+            break;
         case 'ai-open-chat': aiNewChat(); openAIPanelWithPrompt(null, null); closeAIDropdown(); break;
         case 'ai-ask-note': openAIPanelWithPrompt(null, null, true); closeAIDropdown(); break;
         case 'ai-summarize': openAIPanelWithPrompt('Summarize this note', 'Summarize this note', true); closeAIDropdown(); break;
@@ -3878,12 +3884,19 @@ function toggleAIPanel() {
     var expanded = !aiPanel.classList.contains('collapsed');
     var btn = document.querySelector('[data-action="ask-ai"]');
     if (btn) btn.classList.toggle('active', expanded);
-    if (expanded && aiLocalMessages.length === 0 && aiPanelEmpty) {
-        aiPanelInput.focus();
-    }
-    if (expanded && aiNoteContext && aiPanelContext) {
-        aiPanelContext.style.display = '';
-        aiPanelContextTitle.textContent = aiNoteContext.title;
+    if (expanded) {
+        var savedWidth = localStorage.getItem('obsidified-ai-panel-width');
+        if (savedWidth) { aiPanel.style.width = savedWidth + 'px'; aiPanel.style.minWidth = savedWidth + 'px'; }
+        if (aiLocalMessages.length === 0 && aiPanelEmpty) {
+            aiPanelInput.focus();
+        }
+        if (aiNoteContext && aiPanelContext) {
+            aiPanelContext.style.display = '';
+            aiPanelContextTitle.textContent = aiNoteContext.title;
+        }
+    } else {
+        aiPanel.style.width = '';
+        aiPanel.style.minWidth = '';
     }
 }
 
@@ -3916,6 +3929,8 @@ function toggleAINoteContext() {
 function closeAIPanel() {
     if (!aiPanel) return;
     aiPanel.classList.add('collapsed');
+    aiPanel.style.width = '';
+    aiPanel.style.minWidth = '';
     var btn = document.querySelector('[data-action="ask-ai"]');
     if (btn) btn.classList.remove('active');
 }
