@@ -3501,14 +3501,15 @@ document.addEventListener('click', function(e) {
         case 'close-sidebar': closeSidebar(); break;
         case 'close-ai-panel': closeAIPanel(); break;
         case 'toggle-ai-note-context': toggleAINoteContext(); break;
+        case 'ai-new-chat': aiNewChat(); break;
         case 'new-folder': promptNewFolder(); break;
         case 'create-new-note': createNewNote(); break;
         case 'toggle-sidebar': toggleSidebar(); break;
         case 'toggle-mode': toggleMode(); break;
         case 'open-search': openSearchModal(); break;
         case 'ask-ai': toggleAIDropdown(); break;
-        case 'ai-open-chat': openAIPanelWithPrompt(null, null); closeAIDropdown(); break;
-        case 'ai-ask-note': openAIPanelWithPrompt(null, 'Ask about this note...', true); closeAIDropdown(); break;
+        case 'ai-open-chat': aiNewChat(); openAIPanelWithPrompt(null, null); closeAIDropdown(); break;
+        case 'ai-ask-note': openAIPanelWithPrompt(null, null, true); closeAIDropdown(); break;
         case 'ai-summarize': openAIPanelWithPrompt('Summarize this note', 'Summarize this note', true); closeAIDropdown(); break;
         case 'ai-rewrite': openAIPanelWithPrompt('Rewrite this note', 'Rewrite this note more clearly and concisely', true); closeAIDropdown(); break;
         case 'ai-expand': openAIPanelWithPrompt('Expand this note', 'Expand on this note with more detail', true); closeAIDropdown(); break;
@@ -3765,9 +3766,6 @@ function toggleAIDropdown() {
     if (aiDropdown.classList.contains('open')) {
         closeAIDropdown();
     } else {
-        if (aiPanel && aiPanel.classList.contains('collapsed')) {
-            toggleAIPanel();
-        }
         aiDropdown.classList.add('open');
         setTimeout(function() {
             document.addEventListener('click', closeAIDropdownOnOutsideClick, { capture: true });
@@ -3931,6 +3929,149 @@ if (aiPanelContextDismiss) {
         if (includeBtn) includeBtn.classList.remove('active');
     });
 }
+
+function aiNewChat() {
+    aiConversationId = null;
+    aiLocalMessages = [];
+    if (aiPanelMessages) {
+        aiPanelMessages.innerHTML = '';
+    }
+    if (aiPanelEmpty) {
+        aiPanelEmpty = document.createElement('div');
+        aiPanelEmpty.className = 'ai-panel-empty';
+        aiPanelEmpty.id = 'ai-panel-empty';
+        aiPanelEmpty.innerHTML = '<svg viewBox="0 0 24 24" width="32" height="32"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" fill="none" stroke="currentColor" stroke-width="1.5"/></svg><span>Ask me anything</span>';
+        aiPanelMessages.appendChild(aiPanelEmpty);
+    }
+    aiNoteContext = null;
+    if (aiPanelContext) aiPanelContext.style.display = 'none';
+    if (aiPanelContextTitle) aiPanelContextTitle.textContent = '';
+    if (aiPanelInput) aiPanelInput.placeholder = 'Ask AI...';
+    var includeBtn = document.getElementById('ai-panel-include-note');
+    if (includeBtn) includeBtn.classList.remove('active');
+    aiPanelStatus.textContent = 'Ready';
+    if (aiHistoryDropdown) aiHistoryDropdown.classList.remove('open');
+    if (aiPanelInput) aiPanelInput.focus();
+}
+
+var aiHistoryDropdown = document.getElementById('ai-panel-history-dropdown');
+var aiHistoryBtn = document.getElementById('ai-panel-history-btn');
+
+function aiLoadConversations() {
+    fetch('/ai/api/conversations', { headers: { 'X-CSRFToken': aiGetCSRF() } })
+        .then(function(r) { return r.json(); })
+        .then(function(convs) {
+            aiRenderConversationList(convs);
+        }).catch(function() {});
+}
+
+function aiRenderConversationList(convs) {
+    if (!aiHistoryDropdown) return;
+    aiHistoryDropdown.innerHTML = '';
+    if (convs.length === 0) {
+        var empty = document.createElement('div');
+        empty.className = 'ai-panel-history-empty';
+        empty.textContent = 'No conversations yet';
+        aiHistoryDropdown.appendChild(empty);
+        return;
+    }
+    convs.forEach(function(c) {
+        var item = document.createElement('div');
+        item.className = 'ai-panel-history-item' + (c.id === aiConversationId ? ' active' : '');
+        var titleSpan = document.createElement('span');
+        titleSpan.className = 'ai-panel-history-title';
+        var displayTitle = c.title || 'Untitled';
+        if (typeof FlaskyE2EE !== 'undefined' && FlaskyE2EE.isEncrypted()) {
+            FlaskyE2EE.decryptField(displayTitle).then(function(dec) {
+                titleSpan.textContent = dec;
+            }).catch(function() { titleSpan.textContent = displayTitle; });
+        } else {
+            titleSpan.textContent = displayTitle;
+        }
+        item.appendChild(titleSpan);
+        var del = document.createElement('button');
+        del.className = 'ai-panel-history-delete';
+        del.title = 'Delete';
+        del.innerHTML = '<svg viewBox="0 0 24 24" width="12" height="12"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>';
+        del.addEventListener('click', function(e) {
+            e.stopPropagation();
+            if (confirm('Delete this conversation?')) {
+                fetch('/ai/api/conversations/' + c.id, {
+                    method: 'DELETE',
+                    headers: { 'X-CSRFToken': aiGetCSRF() }
+                }).then(function() {
+                    if (aiConversationId === c.id) {
+                        aiNewChat();
+                    }
+                    aiLoadConversations();
+                });
+            }
+        });
+        item.appendChild(del);
+        item.addEventListener('click', function() {
+            aiConversationId = c.id;
+            aiLoadMessages(c.id);
+            aiHistoryDropdown.classList.remove('open');
+        });
+        aiHistoryDropdown.appendChild(item);
+    });
+}
+
+function aiLoadMessages(convId) {
+    aiLocalMessages = [];
+    fetch('/ai/api/conversations/' + convId + '/messages', {
+        headers: { 'X-CSRFToken': aiGetCSRF() }
+    }).then(function(r) { return r.json(); }).then(function(msgs) {
+        aiPanelMessages.innerHTML = '';
+        if (msgs.length === 0) {
+            aiPanelEmpty = document.createElement('div');
+            aiPanelEmpty.className = 'ai-panel-empty';
+            aiPanelEmpty.id = 'ai-panel-empty';
+            aiPanelEmpty.innerHTML = '<svg viewBox="0 0 24 24" width="32" height="32"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" fill="none" stroke="currentColor" stroke-width="1.5"/></svg><span>Ask me anything</span>';
+            aiPanelMessages.appendChild(aiPanelEmpty);
+        } else {
+            aiPanelEmpty = null;
+            var decryptChain = Promise.resolve();
+            msgs.forEach(function(m) {
+                decryptChain = decryptChain.then(function() {
+                    var content = m.content;
+                    if (typeof FlaskyE2EE !== 'undefined' && FlaskyE2EE.isEncrypted()) {
+                        return FlaskyE2EE.decryptField(content).then(function(dec) {
+                            aiLocalMessages.push({ role: m.role, content: dec });
+                            aiAddMessage(m.role, dec, true, m.id);
+                        }).catch(function() {
+                            aiLocalMessages.push({ role: m.role, content: content });
+                            aiAddMessage(m.role, content, true, m.id);
+                        });
+                    } else {
+                        aiLocalMessages.push({ role: m.role, content: content });
+                        aiAddMessage(m.role, content, true, m.id);
+                        return Promise.resolve();
+                    }
+                });
+            });
+        }
+    });
+}
+
+if (aiHistoryBtn) {
+    aiHistoryBtn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        if (aiHistoryDropdown) {
+            aiHistoryDropdown.classList.toggle('open');
+            if (aiHistoryDropdown.classList.contains('open')) {
+                aiLoadConversations();
+            }
+        }
+    });
+}
+
+document.addEventListener('click', function(e) {
+    var wrap = document.getElementById('ai-panel-history-wrap');
+    if (wrap && aiHistoryDropdown && !wrap.contains(e.target)) {
+        aiHistoryDropdown.classList.remove('open');
+    }
+});
 
 function aiGetCSRF() {
     var cookie = document.cookie.match(/X-CSRF-Token=([^;]+)/);
@@ -4213,6 +4354,7 @@ async function aiSendPanelMessage() {
         }).then(function(r) { return r.json(); }).then(function(data) {
             if (data.error) { aiShowToast(data.error); aiPanelStatus.textContent = 'Error'; return; }
             aiConversationId = data.id;
+            aiLoadConversations();
             doStream();
         });
     } else {
@@ -4351,16 +4493,7 @@ if (aiPanelModel) {
     });
 }
 
-// Load existing conversations list for model init
-if (_pageData.aiEnabled) {
-    fetch('/ai/api/conversations', { headers: { 'X-CSRFToken': aiGetCSRF() } })
-        .then(function(r) { return r.json(); })
-        .then(function(convs) {
-            if (convs.length > 0 && !aiConversationId) {
-                aiConversationId = convs[0].id;
-            }
-        }).catch(function() {});
-}
+// No auto-load of existing conversations; start fresh each time
 
 // ============ Editor Selection AI Toolbar ============
 (function() {

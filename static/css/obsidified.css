@@ -1099,6 +1099,54 @@ body[data-encrypted="true"] .prop-value-input { visibility: hidden; }
 .ai-panel-msg-user .ai-panel-msg-avatar { background: var(--accent); color: var(--bg-primary); }
 .ai-panel-msg-assistant .ai-panel-msg-avatar { background: var(--bg-hover); color: var(--accent); }
 
+.ai-panel-new-chat-btn {
+    background: none; border: none; color: var(--text-muted); cursor: pointer;
+    display: flex; align-items: center; justify-content: center; padding: 2px;
+    border-radius: 4px; transition: all 0.15s;
+}
+.ai-panel-new-chat-btn:hover { color: var(--text-primary); background: var(--bg-hover); }
+.ai-panel-new-chat-btn svg { stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+.ai-panel-history-wrap { position: relative; }
+.ai-panel-history-btn {
+    background: none; border: none; color: var(--text-muted); cursor: pointer;
+    display: flex; align-items: center; justify-content: center; padding: 2px;
+    border-radius: 4px; transition: all 0.15s;
+}
+.ai-panel-history-btn:hover { color: var(--text-primary); background: var(--bg-hover); }
+.ai-panel-history-btn svg { stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+.ai-panel-history-dropdown {
+    display: none; position: absolute; top: 100%; left: 0; z-index: 600;
+    background: var(--bg-sidebar); border: 1px solid var(--border);
+    border-radius: 8px; padding: 4px; min-width: 220px; max-width: 280px;
+    max-height: 320px; overflow-y: auto;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+}
+.ai-panel-history-dropdown.open { display: block; }
+.ai-panel-history-empty {
+    padding: 12px; text-align: center; color: var(--text-muted); font-size: 12px;
+}
+.ai-panel-history-item {
+    display: flex; align-items: center; gap: 6px; width: 100%;
+    padding: 7px 8px; border: none; background: none; color: var(--text-secondary);
+    font-size: 12px; font-family: inherit; cursor: pointer; border-radius: 5px;
+    transition: all 0.1s; text-align: left;
+}
+.ai-panel-history-item:hover { background: var(--bg-hover); color: var(--text-primary); }
+.ai-panel-history-item.active { background: var(--accent); color: var(--bg-primary); }
+.ai-panel-history-title {
+    flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.ai-panel-history-delete {
+    background: none; border: none; color: var(--text-muted); cursor: pointer;
+    padding: 2px; border-radius: 3px; display: flex; align-items: center;
+    opacity: 0; transition: opacity 0.15s;
+}
+.ai-panel-history-item:hover .ai-panel-history-delete { opacity: 1; }
+.ai-panel-history-delete:hover { color: #ef4444; }
+.ai-panel-history-delete svg { stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
 .ai-panel-msg-content {
     max-width: 85%; padding: 8px 10px; border-radius: 10px;
     word-wrap: break-word; line-height: 1.5; font-size: 13px;
