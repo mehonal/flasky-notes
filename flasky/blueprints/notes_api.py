@@ -328,6 +328,13 @@ def delete_note():
 def add_category():
     data = request.get_json()
     category_name = data.get("categoryName")
+    if not category_name or not category_name.strip():
+        return jsonify(success=False, reason="Category name cannot be empty."), 400
+    if g.user.encryption_enabled:
+        category = UserNoteCategory(user_id=g.user.id, name=category_name)
+        db.session.add(category)
+        db.session.commit()
+        return jsonify(success=True, category=category.id)
     category = g.user.get_category(category_name, create=True)
     return jsonify(success=True, category=category.id)
 
@@ -366,9 +373,6 @@ def rename_note():
 def rename_category():
     data = request.get_json()
     category_id = int(data.get("categoryId", 0))
-    new_name = data.get("name", "").strip()
-    if not new_name:
-        return jsonify(success=False, reason="Name cannot be empty.")
     category = UserNoteCategory.query.filter_by(
         id=category_id, user_id=g.user.id
     ).first()
@@ -377,15 +381,30 @@ def rename_category():
     main = g.user.get_main_category()
     if main and category.id == main.id:
         return jsonify(success=False, reason="Cannot rename the Main folder.")
+    new_name = data.get("name", "").strip()
+    renames = data.get("renames")
+    if g.user.encryption_enabled:
+        if not renames:
+            return jsonify(
+                success=False, reason="Encrypted folders must be renamed via renames."
+            )
+        for rename in renames:
+            cat = UserNoteCategory.query.filter_by(
+                id=rename["id"], user_id=g.user.id
+            ).first()
+            if cat:
+                cat.name = rename["name"]
+        db.session.commit()
+        return jsonify(success=True)
+    if not new_name:
+        return jsonify(success=False, reason="Name cannot be empty.")
     old_path = category.name
-    # Build new full path: replace just the leaf name
     parts = old_path.rsplit("/", 1)
     new_path = parts[0] + "/" + new_name if len(parts) > 1 else new_name
     if new_path == old_path:
         return jsonify(success=True)
     if UserNoteCategory.query.filter_by(user_id=g.user.id, name=new_path).first():
         return jsonify(success=False, reason="A folder with that name already exists.")
-    # Rename children paths too
     children = UserNoteCategory.query.filter(
         UserNoteCategory.user_id == g.user.id,
         UserNoteCategory.name.startswith(old_path + "/"),

@@ -123,8 +123,9 @@ def api_auth_register():
 
     # Create default category (encrypted for E2EE users)
     encrypted_main = data.get("encrypted_main_category")
-    cat_name = encrypted_main if encrypted_main else "Main"
-    default_cat = UserNoteCategory(user_id=new_user.id, name=cat_name)
+    if not encrypted_main:
+        return jsonify(success=False, reason="Missing encrypted category name."), 400
+    default_cat = UserNoteCategory(user_id=new_user.id, name=encrypted_main)
     db.session.add(default_cat)
     db.session.commit()
 

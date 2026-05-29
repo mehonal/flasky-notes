@@ -406,7 +406,7 @@ def create_note_from_ai():
             error="source must be 'message', 'conversation', or 'custom'."
         ), 400
 
-    main_cat = g.user.get_category("Main", create=True)
+    main_cat = g.user.get_main_category()
     note = g.user.add_note(
         note_title,
         note_content,

@@ -1633,7 +1633,7 @@ async function ctxRenameFolder() {
             renames[i].name = await FlaskyE2EE.encryptField(renames[i]._newPath);
             delete renames[i]._newPath;
         }
-        fetch('/api/move_category', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ categoryId: t.id, renames: renames }) })
+        fetch('/api/rename_category', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ categoryId: t.id, renames: renames }) })
         .then(function(r) { return r.json(); })
         .then(function(data) {
             if (data.success) refreshSidebar();

@@ -250,10 +250,20 @@ class User(db.Model):
                     user_id=self.id, id=category
                 ).first()
             elif isinstance(category, str):
-                category_obj = UserNoteCategory.query.filter_by(
-                    user_id=self.id, name=category
-                ).first()
+                if self.encryption_enabled:
+                    try:
+                        category_obj = UserNoteCategory.query.filter_by(
+                            user_id=self.id, id=int(category)
+                        ).first()
+                    except (ValueError, TypeError):
+                        return None
+                else:
+                    category_obj = UserNoteCategory.query.filter_by(
+                        user_id=self.id, name=category
+                    ).first()
         if category_obj is None and create and isinstance(category, str):
+            if self.encryption_enabled:
+                return None
             category_obj = UserNoteCategory(user_id=self.id, name=category)
             db.session.add(category_obj)
             db.session.commit()
@@ -517,12 +527,13 @@ class User(db.Model):
     def add_note(self, title, content, category, encrypted=False):
         try:
             if encrypted:
-                # For encrypted notes, category is an ID (not a name to look up)
                 if isinstance(category, int):
                     cat_id = category
                 else:
-                    cat_obj = self.get_category(category, create=True)
-                    cat_id = cat_obj.id
+                    try:
+                        cat_id = int(category)
+                    except (ValueError, TypeError):
+                        return False
             else:
                 cat_obj = self.get_category(category, create=True)
                 cat_id = cat_obj.id
