@@ -225,25 +225,20 @@ function refreshSidebar(callback) {
             if (parentFolder) parentFolder.classList.remove('collapsed');
         }
 
-        // Update breadcrumb category dropdown
-        var catSelect = document.getElementById('category-select');
-        if (catSelect && data.categories) {
-            var selectedCatId = catSelect.value;
-            catSelect.innerHTML = '';
-            data.categories.forEach(function(cat) {
-                var opt = document.createElement('option');
-                opt.value = cat.id;
-                opt.textContent = cat.name;
-                catSelect.appendChild(opt);
-            });
+        // Update breadcrumb category label if no note is open (keeps new-note folder in sync)
+        var folderLabel = document.getElementById('folder-picker-label');
+        if (folderLabel && data.categories) {
+            var selectedCatId = folderLabel.dataset.categoryId;
             if (activeItem) {
                 var noteFolder = activeItem.closest('.folder[data-category-id]');
-                if (noteFolder) catSelect.value = noteFolder.dataset.categoryId;
-            } else {
-                catSelect.value = selectedCatId;
+                if (noteFolder) {
+                    selectedCatId = noteFolder.dataset.categoryId;
+                    updateBreadcrumbCategory(noteFolder.querySelector('.folder-name').textContent, selectedCatId);
+                }
             }
-            if (catSelect.selectedOptions.length > 0) {
-                currentCategory = catSelect.selectedOptions[0].textContent;
+            if (!selectedCatId && data.categories.length > 0) {
+                var first = data.categories[0];
+                updateBreadcrumbCategory(first.name, first.id);
             }
         }
 
@@ -291,22 +286,10 @@ function loadNote(id, category, categoryId) {
             propsBody.querySelectorAll('.prop-row').forEach(function(r) { r.remove(); });
         }
         currentCategory = category || 'Main';
-        // Update category select
-        var catSelect = document.getElementById('category-select');
-        if (catSelect) {
-            if (categoryId) {
-                catSelect.value = String(categoryId);
-            } else {
-                for (var i = 0; i < catSelect.options.length; i++) {
-                    if (catSelect.options[i].textContent === currentCategory) {
-                        catSelect.selectedIndex = i;
-                        break;
-                    }
-                }
-            }
-        }
+        // Update breadcrumb category
+        updateBreadcrumbCategory(currentCategory, categoryId);
         history.pushState({ noteId: 0 }, '', '/note/0');
-        document.querySelector('.breadcrumb-item.active').textContent = 'New note';
+        document.getElementById('breadcrumb-note-title').textContent = 'New note';
         document.getElementById('save-status').textContent = '';
         document.getElementById('save-status').style.color = '';
         updateMobileSaveBtn('saved');
@@ -394,7 +377,7 @@ function loadNote(id, category, categoryId) {
 
         // Update URL and breadcrumb
         history.pushState({ noteId: n.id }, '', '/note/' + n.id);
-        document.querySelector('.breadcrumb-item.active').textContent = n.title || 'Untitled';
+        document.getElementById('breadcrumb-note-title').textContent = n.title || 'Untitled';
 
         // Update icon
         currentNoteIcon = n.icon || null;
@@ -403,8 +386,7 @@ function loadNote(id, category, categoryId) {
 
         // Update category
         currentCategory = n.category || 'Main';
-        var catSelect = document.getElementById('category-select');
-        if (catSelect && n.category_id) catSelect.value = n.category_id;
+        updateBreadcrumbCategory(currentCategory, n.category_id);
 
         // Update status
         document.getElementById('save-status').textContent = '\u2713 Saved';
@@ -887,8 +869,11 @@ async function _doSaveNote(titleVal, content, props, callback) {
         var catValue = currentCategory;
         if (typeof FlaskyE2EE !== 'undefined' && FlaskyE2EE.isEncrypted()) {
             // Use category ID for E2EE to avoid creating plaintext categories
-            var catSelect = document.getElementById('category-select');
-            if (catSelect) catValue = parseInt(catSelect.value);
+            var folderLabel = document.getElementById('folder-picker-label');
+            if (folderLabel) {
+                var folderId = parseInt(folderLabel.dataset.categoryId);
+                if (!isNaN(folderId)) catValue = folderId;
+            }
         }
         var payload = { noteId: noteId, title: titleVal, content: content, category: catValue };
         if (currentNoteIcon) {
@@ -935,7 +920,7 @@ async function _doSaveNote(titleVal, content, props, callback) {
                 noteId = data.note.id;
                 history.replaceState(null, '', '/note/' + noteId);
                 refreshSidebar();
-                var bc = document.querySelector('.breadcrumb-item.active');
+                var bc = document.getElementById('breadcrumb-note-title');
                 if (bc) bc.textContent = displayTitle || 'Untitled';
                 needsMapRefresh = true;
             } else if (data.note) {
@@ -964,7 +949,7 @@ async function _doSaveNote(titleVal, content, props, callback) {
 function updateSidebarNoteTitle(id, title) {
     var item = document.querySelector('.file-item[data-note-id="' + id + '"] .file-name');
     if (item) item.textContent = title || 'Untitled';
-    var bc = document.querySelector('.breadcrumb-item.active');
+    var bc = document.getElementById('breadcrumb-note-title');
     if (bc) bc.textContent = title || 'Untitled';
 }
 
@@ -986,7 +971,7 @@ function updateSidebarAfterSave(note) {
         var count = targetFolder.querySelector('.folder-count');
         if (count) count.textContent = items.querySelectorAll('.file-item').length;
     }
-    var bc = document.querySelector('.breadcrumb-item.active');
+    var bc = document.getElementById('breadcrumb-note-title');
     if (bc) bc.textContent = note.title || 'Untitled';
 }
 
@@ -1026,16 +1011,189 @@ function deleteCurrentNote() {
 
 // ============ Category / Folder management ============
 
+var _folderPickerData = [];
+var _folderPickerOpen = false;
+
+function getCurrentCategoryId() {
+    var label = document.getElementById('folder-picker-label');
+    var cid = label ? parseInt(label.dataset.categoryId) : NaN;
+    if (!isNaN(cid)) return cid;
+    // Fallback: try to find folder from current path in sidebar
+    if (!currentCategory) return null;
+    var folder = document.querySelector('.folder[data-path="' + currentCategory.replace(/"/g, '\\"') + '"]');
+    return folder ? parseInt(folder.dataset.categoryId) : null;
+}
+
+function updateBreadcrumbCategory(name, id) {
+    var label = document.getElementById('folder-picker-label');
+    if (label) {
+        label.textContent = name || 'Main';
+        if (id !== undefined && id !== null) label.dataset.categoryId = id;
+    }
+}
+
 function changeNoteCategory(categoryId) {
+    categoryId = parseInt(categoryId);
+    if (isNaN(categoryId)) return;
+    // Find category name in current picker data or sidebar
+    var cat = _folderPickerData.find(function(c) { return c.id === categoryId; });
+    if (cat) updateBreadcrumbCategory(cat.name, cat.id);
+    else {
+        var folder = document.querySelector('.folder[data-category-id="' + categoryId + '"]');
+        if (folder) updateBreadcrumbCategory(folder.querySelector('.folder-name').textContent, categoryId);
+    }
     // For new notes, just update currentCategory so the first save uses it
     if (!noteId || noteId === 0) {
-        var sel = document.getElementById('category-select');
-        currentCategory = sel.options[sel.selectedIndex].text;
+        currentCategory = document.getElementById('folder-picker-label').textContent;
         return;
     }
-    fetch('/api/edit_note_category', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ noteId: noteId, category: parseInt(categoryId) }) })
+    fetch('/api/edit_note_category', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ noteId: noteId, category: categoryId }) })
     .then(function(r) { return r.json(); })
     .then(function(data) { if (data.success) { refreshSidebar(); } });
+}
+
+function openFolderPicker() {
+    var trigger = document.getElementById('folder-picker-trigger');
+    var popover = document.getElementById('folder-picker-popover');
+    if (!trigger || !popover) return;
+    if (popover.classList.contains('visible')) { closeFolderPicker(); return; }
+    _folderPickerOpen = true;
+    popover.classList.add('visible');
+    positionFolderPicker();
+    setTimeout(function() { document.getElementById('folder-picker-search').focus(); }, 10);
+    document.addEventListener('click', closeFolderPickerOnOutsideClick, true);
+    refreshFolderPicker();
+}
+
+function closeFolderPicker() {
+    var popover = document.getElementById('folder-picker-popover');
+    if (popover) popover.classList.remove('visible');
+    _folderPickerOpen = false;
+    document.removeEventListener('click', closeFolderPickerOnOutsideClick, true);
+}
+
+function closeFolderPickerOnOutsideClick(e) {
+    var popover = document.getElementById('folder-picker-popover');
+    var trigger = document.getElementById('folder-picker-trigger');
+    if (!popover || popover.contains(e.target) || (trigger && trigger.contains(e.target))) return;
+    closeFolderPicker();
+}
+
+function positionFolderPicker() {
+    var trigger = document.getElementById('folder-picker-trigger');
+    var popover = document.getElementById('folder-picker-popover');
+    if (!trigger || !popover) return;
+    var rect = trigger.getBoundingClientRect();
+    // Always prefer opening below the trigger (stuck to top of page flow)
+    popover.classList.remove('position-top');
+    var popoverHeight = popover.offsetHeight || 380;
+    var spaceBelow = window.innerHeight - rect.bottom - 8;
+    if (spaceBelow < 180 && rect.top > popoverHeight + 8) {
+        popover.classList.add('position-top');
+    }
+        // On mobile align popover to viewport edges
+        if (window.innerWidth <= 768) {
+            popover.style.left = '8px';
+            popover.style.right = '8px';
+            popover.style.width = 'auto';
+            popover.style.top = (rect.bottom + 4) + 'px';
+        } else {
+            popover.style.left = '';
+            popover.style.right = '';
+            popover.style.width = '';
+            popover.style.top = '';
+        }
+    }
+
+function buildFolderPickerItems(filter) {
+    var treeRoot = document.getElementById('file-tree');
+    var items = [];
+    // Use sidebar tree as source of truth (works for E2EE and non-E2EE)
+    treeRoot.querySelectorAll('.folder[data-category-id]').forEach(function(f) {
+        var id = parseInt(f.dataset.categoryId);
+        var path = f.dataset.path || '';
+        var parts = path.split('/');
+        var depth = Math.max(0, parts.length - 1);
+        var header = f.querySelector('.folder-header');
+        var iconData = null;
+        if (header) {
+            var iconEl = header.querySelector('.lucide-icon[data-icon]');
+            var svgEl = header.querySelector('.folder-icon > svg');
+            if (iconEl) iconData = { icon: iconEl.dataset.icon, color: iconEl.dataset.iconColor || null };
+            else if (svgEl) iconData = { svg: true };
+        }
+        items.push({ id: id, path: path, depth: depth, iconData: iconData });
+    });
+    // Decrypt paths for E2EE using cached sidebar plaintext labels
+    var isEncrypted = typeof FlaskyE2EE !== 'undefined' && FlaskyE2EE.isEncrypted();
+    items.forEach(function(item) {
+        var folderEl = document.querySelector('.folder[data-category-id="' + item.id + '"]');
+        if (folderEl) {
+            var nameEl = folderEl.querySelector('.folder-name');
+            if (nameEl) item.path = nameEl.textContent.trim();
+        }
+    });
+    // Sort by name
+    items.sort(function(a, b) { return a.path.toLowerCase().localeCompare(b.path.toLowerCase()); });
+    if (filter) {
+        var q = filter.toLowerCase();
+        items = items.filter(function(item) { return item.path.toLowerCase().includes(q); });
+    }
+    return items;
+}
+
+function renderFolderPicker(filter) {
+    var tree = document.getElementById('folder-picker-tree');
+    if (!tree) return;
+    var items = buildFolderPickerItems(filter);
+    _folderPickerData = items;
+    var currentId = getCurrentCategoryId();
+    if (items.length === 0) {
+        tree.innerHTML = '<div class="folder-picker-empty">No folders found</div>';
+        return;
+    }
+    var isEncrypted = typeof FlaskyE2EE !== 'undefined' && FlaskyE2EE.isEncrypted();
+    var html = '';
+    items.forEach(function(item) {
+        var isCurrent = item.id === currentId;
+        var indent = item.depth * 14;
+        var iconHtml = '';
+        if (item.iconData && item.iconData.icon) {
+            var colorAttr = item.iconData.color ? ' data-icon-color="' + escapeHtml(item.iconData.color) + '" style="color:' + escapeHtml(item.iconData.color) + '"' : '';
+            iconHtml = '<span class="lucide-icon folder-picker-item-icon" data-icon="' + escapeHtml(item.iconData.icon) + '"' + colorAttr + '></span>';
+        } else {
+            iconHtml = '<span class="folder-picker-item-icon"><svg viewBox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg></span>';
+        }
+        html += '<button type="button" class="folder-picker-item' + (isCurrent ? ' current' : '') + '" data-action="select-folder" data-category-id="' + item.id + '" style="padding-left:' + (8 + indent) + 'px">' +
+            '<span class="folder-picker-indent" style="width:' + indent + 'px"></span>' +
+            iconHtml +
+            '<span class="folder-picker-item-name">' + escapeHtml(item.path) + '</span>' +
+            (isCurrent ? '<span class="folder-picker-item-path">current</span>' : '') +
+            '</button>';
+    });
+    tree.innerHTML = html;
+    if (typeof ensureLucideLoaded === 'function') ensureLucideLoaded(function() {
+        tree.querySelectorAll('.lucide-icon[data-icon]').forEach(function(el) {
+            var icon = el.dataset.icon;
+            var color = el.dataset.iconColor || null;
+            el.innerHTML = renderLucideIcon(icon, color, 16);
+        });
+    });
+}
+
+function refreshFolderPicker() {
+    var search = document.getElementById('folder-picker-search');
+    renderFolderPicker(search ? search.value : '');
+}
+
+function selectFolderFromPicker(categoryId) {
+    closeFolderPicker();
+    changeNoteCategory(categoryId);
+}
+
+function newFolderFromPicker() {
+    closeFolderPicker();
+    promptNewFolder();
 }
 
 function createNewNoteInFolder(catId, catName) {
@@ -3429,7 +3587,7 @@ window.addEventListener('resize', function() { isMobile = window.innerWidth <= 7
                         if (ta) ta.value = content || '';
                     }
                     // Update breadcrumb and page title
-                    var bc = document.querySelector('.breadcrumb-item.active');
+                    var bc = document.getElementById('breadcrumb-note-title');
                     if (bc) bc.textContent = title || 'Untitled';
                     document.title = (title || 'Untitled') + ' \u2014 Obsidified';
                     // Populate properties
@@ -3458,13 +3616,11 @@ window.addEventListener('resize', function() { isMobile = window.innerWidth <= 7
                 }
             }
             // Decrypt currentCategory variable and category select options
-            try { currentCategory = await FlaskyE2EE.decryptField(currentCategory); } catch(e) {}
-            var catSelect = document.getElementById('category-select');
-            if (catSelect) {
-                for (var i = 0; i < catSelect.options.length; i++) {
-                    try { catSelect.options[i].textContent = await FlaskyE2EE.decryptField(catSelect.options[i].textContent.trim()); } catch(e) {}
-                }
-            }
+        try { currentCategory = await FlaskyE2EE.decryptField(currentCategory); } catch(e) {}
+        var folderLabel = document.getElementById('folder-picker-label');
+        if (folderLabel) {
+            try { folderLabel.textContent = await FlaskyE2EE.decryptField(folderLabel.textContent.trim()); } catch(e) {}
+        }
             // Rebuild sidebar client-side (decrypts titles, builds subfolder tree, sorts alphabetically)
             refreshSidebar(function() {
                 FlaskyE2EE.revealContent();
@@ -3540,6 +3696,18 @@ document.addEventListener('click', function(e) {
         case 'toggle-folder':
             var folder = el.closest('.folder');
             if (folder) toggleFolder(folder);
+            break;
+        case 'open-folder-picker':
+            e.stopPropagation();
+            openFolderPicker();
+            break;
+        case 'new-folder-from-picker':
+            e.stopPropagation();
+            newFolderFromPicker();
+            break;
+        case 'select-folder':
+            e.stopPropagation();
+            selectFolderFromPicker(parseInt(el.dataset.categoryId));
             break;
         case 'open-note':
             var noteEl = el.closest('[data-note-id]');
@@ -3628,7 +3796,6 @@ document.addEventListener('change', function(e) {
     if (!el) return;
     var action = el.dataset.action;
     switch (action) {
-        case 'change-category': changeNoteCategory(el.value); break;
         case 'prop-changed': onPropChanged(); break;
         case 'toggle-widget-visibility':
             toggleWidgetVisibility(parseInt(el.dataset.widgetIdx), el.checked);
@@ -3649,6 +3816,7 @@ document.addEventListener('input', function(e) {
     switch (action) {
         case 'filter-notes': filterNotes(el.value); break;
         case 'perform-search': performSearch(el.value); break;
+        case 'folder-picker-search': refreshFolderPicker(); break;
     }
 });
 
