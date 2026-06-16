@@ -53,9 +53,12 @@ if (isMobile) {
 function toggleSidebar() {
     var sb = document.getElementById('sidebar');
     var bd = document.getElementById('sidebar-backdrop');
-    if (sb.classList.contains('collapsed')) {
+    var wasCollapsed = sb.classList.contains('collapsed');
+    if (wasCollapsed) {
         sb.classList.remove('collapsed');
         if (isMobile) bd.classList.add('visible');
+        // Close the right panel when opening the sidebar so they don't overlap
+        closeRightPanel();
     } else {
         closeSidebar();
     }
@@ -67,6 +70,20 @@ function toggleSidebar() {
 function closeSidebar() {
     document.getElementById('sidebar').classList.add('collapsed');
     document.getElementById('sidebar-backdrop').classList.remove('visible');
+    var toggleBtn = document.querySelector('.toggle-sidebar');
+    if (toggleBtn) toggleBtn.setAttribute('aria-expanded', 'false');
+}
+
+function closeRightPanel() {
+    var panel = document.getElementById('right-panel');
+    var btn = document.getElementById('panel-toggle');
+    panel.classList.add('collapsed');
+    panel.setAttribute('aria-hidden', 'true');
+    if (btn) {
+        btn.classList.remove('active');
+        btn.setAttribute('aria-expanded', 'false');
+    }
+    if (!isMobile) saveUiState({ right_panel_collapsed: true });
 }
 
 function persistMobileSidebarState() {
@@ -2464,11 +2481,14 @@ function toggleDarkMode() {
 function toggleRightPanel() {
     var panel = document.getElementById('right-panel');
     var btn = document.getElementById('panel-toggle');
+    var wasCollapsed = panel.classList.contains('collapsed');
     panel.classList.toggle('collapsed');
     var expanded = !panel.classList.contains('collapsed');
     if (expanded) {
         if (btn) btn.classList.add('active');
         refreshAllVisibleWidgets();
+        // Close the sidebar when opening the right panel so they don't overlap
+        closeSidebar();
     } else {
         if (btn) btn.classList.remove('active');
     }
