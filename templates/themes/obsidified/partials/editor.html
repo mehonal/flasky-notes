@@ -1,6 +1,6 @@
                 {% if note or note_id == 0 %}
                 <div class="editor" id="editor">
-                    <div style="display:flex; align-items:center; padding:24px 48px 0; gap:4px;">
+                    <div class="editor-title-wrap {% if theme_settings and theme_settings.hide_title %}hidden{% endif %}" id="editor-title-wrap" style="display:flex; align-items:center; gap:4px;">
                         <button class="note-icon-btn" id="note-icon-btn" data-action="open-note-icon-picker" title="Set icon">
                             <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
                         </button>

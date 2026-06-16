@@ -132,7 +132,7 @@
                                     </label>
                                     <label class="quick-setting-toggle">
                                         <span>Hide title</span>
-                                        <input type="checkbox" id="qs-hide-title" data-action="qs-toggle-hide-title">
+                                        <input type="checkbox" id="qs-hide-title" data-action="qs-toggle-hide-title" {% if theme_settings and theme_settings.hide_title %}checked{% endif %}>
                                         <span class="qs-toggle-slider"></span>
                                     </label>
                                     <label class="quick-setting-toggle">

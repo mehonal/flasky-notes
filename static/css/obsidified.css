@@ -324,9 +324,12 @@ body {
     max-width: 900px; width: 100%; margin: 0 auto;
 }
 
+.editor-title-wrap { padding: 24px 48px 0; transition: display 0.15s, padding 0.15s; }
+.editor-title-wrap.hidden { display: none !important; }
+
 .editor-title {
     width: 100%; background: transparent; border: none; color: var(--text-primary);
-    font-size: 28px; font-weight: 700; padding: 24px 48px 4px; outline: none;
+    font-size: 28px; font-weight: 700; padding: 0; outline: none;
     letter-spacing: -0.02em; line-height: 1.2;
 }
 
@@ -792,7 +795,7 @@ body {
     .right-panel .icon-btn { padding: 4px; min-width: auto; min-height: auto; }
 
     .editor { max-width: 100%; }
-    .editor-title { padding: 16px 16px 4px; font-size: 22px; }
+    .editor-title-wrap { padding: 16px 16px 0; }
     .editor-properties { padding: 4px 16px 8px; }
     .editor-preview { padding: 0 16px 40px; }
     .cm-editor .cm-scroller { padding: 0 16px 40px !important; }
@@ -840,7 +843,8 @@ body {
 }
 
 @media (max-width: 480px) {
-    .editor-title { font-size: 20px; padding: 12px 12px 4px; }
+    .editor-title-wrap { padding: 12px 12px 0; }
+    .editor-title { font-size: 20px; padding: 0; }
     .editor-properties { padding: 2px 12px 8px; }
     .editor-preview { padding: 0 12px 40px; }
     .cm-editor .cm-scroller { padding: 0 12px 40px !important; }

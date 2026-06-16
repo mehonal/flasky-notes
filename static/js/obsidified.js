@@ -2400,7 +2400,10 @@ function syncQuickSettingsState() {
     var autoSaveEl = document.getElementById('qs-auto-save');
     if (darkEl) darkEl.checked = document.documentElement.getAttribute('data-theme') === 'dark';
     if (previewEl) previewEl.checked = !editMode;
-    if (hideTitleEl) hideTitleEl.checked = document.getElementById('note-title') && document.getElementById('note-title').style.display === 'none';
+    if (hideTitleEl) {
+        var titleWrap = document.getElementById('editor-title-wrap');
+        hideTitleEl.checked = titleWrap && titleWrap.classList.contains('hidden');
+    }
     if (propsEl) propsEl.checked = document.getElementById('props-container') && document.getElementById('props-container').classList.contains('collapsed');
     if (autoSaveEl) autoSaveEl.checked = autoSaveEnabled;
 }
@@ -2416,10 +2419,10 @@ function toggleAutoSave() {
 }
 
 function toggleHideTitle() {
-    var titleEl = document.getElementById('note-title');
-    if (!titleEl) return;
-    var hidden = titleEl.style.display === 'none';
-    titleEl.style.display = hidden ? '' : 'none';
+    var wrapEl = document.getElementById('editor-title-wrap');
+    if (!wrapEl) return;
+    var hidden = wrapEl.classList.contains('hidden');
+    wrapEl.classList.toggle('hidden');
     fetch('/api/save_hide_title', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
