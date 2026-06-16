@@ -1,0 +1,24 @@
+<div class="breadcrumb" id="breadcrumb">
+    <button type="button" class="breadcrumb-folder" id="folder-picker-trigger" data-action="open-folder-picker" title="{% if note %}Move to folder{% else %}Folder for new note{% endif %}">
+        <span class="breadcrumb-folder-icon">
+            <svg viewBox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+        </span>
+        <span class="breadcrumb-folder-name" id="folder-picker-label" data-category-id="{% if note and note.category_id %}{{ note.category_id }}{% elif category_id %}{{ category_id }}{% endif %}">{% if note and note.category %}{{ note.get_category_name() }}{% elif category %}{{ category }}{% else %}Main{% endif %}</span>
+        <span class="breadcrumb-folder-chevron">
+            <svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
+        </span>
+    </button>
+    <span class="breadcrumb-sep">/</span>
+    <span class="breadcrumb-item active" id="breadcrumb-note-title">{{ note.title or 'Untitled' if note else 'New note' }}</span>
+    <div class="folder-picker-popover" id="folder-picker-popover">
+        <div class="folder-picker-search-wrap">
+            <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input type="text" class="folder-picker-search" id="folder-picker-search" placeholder="Search folders...">
+        </div>
+        <div class="folder-picker-tree" id="folder-picker-tree"></div>
+        <button type="button" class="folder-picker-new-folder" data-action="new-folder-from-picker">
+            <svg viewBox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/><line x1="12" y1="11" x2="12" y2="17"/><line x1="9" y1="14" x2="15" y2="14"/></svg>
+            New folder
+        </button>
+    </div>
+</div>

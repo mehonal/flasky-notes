@@ -237,24 +237,23 @@ body {
     border-bottom: 1px solid var(--border); padding: 0 8px;
     height: 42px; gap: 4px; flex-shrink: 0;
 }
+.toolbar-row { display: flex; align-items: center; gap: 4px; min-width: 0; }
+.toolbar-row-meta { flex: 1; min-width: 0; }
+.toolbar-row-actions { flex: 0 0 auto; justify-content: flex-end; }
 
 .toolbar .toggle-sidebar { margin-right: 4px; }
 
-.breadcrumb { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text-muted); min-width: 0; flex: 1; max-width: 100%; position: relative; }
+.breadcrumb { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text-muted); min-width: 0; flex: 1 1 auto; position: relative; }
 .breadcrumb-sep { color: var(--text-muted); opacity: 0.6; font-size: 11px; flex-shrink: 0; }
 .breadcrumb-item { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.breadcrumb-item.active { color: var(--text-primary); font-weight: 500; flex: 1; min-width: 60px; }
+.breadcrumb-item.active { color: var(--text-primary); font-weight: 500; flex: 1 1 auto; min-width: 60px; }
 
 .breadcrumb-folder {
     display: inline-flex; align-items: center; gap: 5px;
     background: transparent; border: 1px solid transparent; color: var(--text-secondary);
     font-size: 13px; font-family: inherit; padding: 2px 6px; border-radius: 6px;
-    cursor: pointer; outline: none; transition: all 0.15s ease; max-width: 55%; flex-shrink: 0; min-width: 0;
+    cursor: pointer; outline: none; transition: all 0.15s ease; flex: 0 1 auto; min-width: 60px;
 }
-.breadcrumb-folder:hover, .breadcrumb-folder:focus-visible { border-color: var(--border-light); background: var(--bg-hover); color: var(--text-primary); }
-.breadcrumb-folder:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
-.breadcrumb-folder-icon { flex-shrink: 0; display: inline-flex; color: var(--accent); }
-.breadcrumb-folder-icon svg { width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 .breadcrumb-folder-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
 .breadcrumb-folder-name.has-subfolders::after {
     content: '...'; margin-left: 3px; color: var(--text-muted); letter-spacing: 1px;
@@ -802,7 +801,10 @@ body {
     .toolbar-divider.desktop-only { display: none; }
     .toolbar .icon-btn.desktop-only { display: none; }
 
-    .toolbar { padding: 0 4px; gap: 1px; }
+    .toolbar { flex-direction: column; align-items: stretch; height: auto; padding: 4px 6px; gap: 2px; }
+    .toolbar-row { gap: 4px; }
+    .toolbar-row-meta { flex: 1 1 auto; min-width: 0; }
+    .toolbar-row-actions { justify-content: flex-end; }
     .toolbar-actions { gap: 0; }
     .toolbar-actions .icon-btn { padding: 6px; min-width: auto; min-height: auto; }
     .toolbar .toggle-sidebar { min-width: auto; min-height: auto; }
@@ -811,9 +813,9 @@ body {
     .font-size-label { min-width: 18px; font-size: 10px; }
 
     .breadcrumb { font-size: 12px; gap: 4px; min-width: 0; flex: 1; }
-    .breadcrumb-folder { font-size: 12px; max-width: none; flex: 1 1 45%; padding: 2px 4px; min-width: 0; }
+    .breadcrumb-folder { font-size: 12px; max-width: 50%; flex: 0 1 auto; padding: 2px 4px; min-width: 0; }
     .breadcrumb-folder-name { flex: 1; min-width: 0; }
-    .breadcrumb-item.active { max-width: none; flex: 1 1 45%; min-width: 0; }
+    .breadcrumb-item.active { max-width: none; flex: 1; min-width: 0; }
     .folder-picker-popover { left: 8px; right: 8px; width: auto; max-width: none; top: calc(100% + 2px); }
     .folder-picker-popover.position-top { bottom: auto; top: calc(100% + 2px); }
 
@@ -822,6 +824,19 @@ body {
     .shortcuts-grid { grid-template-columns: 1fr; }
     .search-modal { border-radius: 8px; }
     .modal-overlay { padding-top: 5vh; }
+}
+
+@media (max-width: 550px) {
+    .toolbar { flex-direction: column; align-items: stretch; height: auto; padding: 4px 6px; gap: 2px; }
+    .toolbar-row { gap: 4px; }
+    .toolbar-row-meta { flex: 1 1 auto; min-width: 0; }
+    .toolbar-row-actions { justify-content: flex-end; }
+
+    .breadcrumb { font-size: 12px; gap: 4px; }
+    .breadcrumb-folder { font-size: 12px; max-width: 45%; flex: 0 1 auto; padding: 2px 4px; }
+    .breadcrumb-item.active { max-width: none; flex: 1; }
+    .folder-picker-popover { left: 8px; right: 8px; width: auto; max-width: none; top: calc(100% + 2px); }
+    .folder-picker-popover.position-top { bottom: auto; top: calc(100% + 2px); }
 }
 
 @media (max-width: 480px) {
