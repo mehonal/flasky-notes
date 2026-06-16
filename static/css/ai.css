@@ -355,7 +355,8 @@ body[data-encrypted="true"] #ai-panel-conv-title { visibility: hidden; }
 .ai-right-panel-action.danger:hover { color: var(--red); }
 .ai-right-panel-action svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; flex-shrink: 0; }
 
-.ai-model-info { font-size: 12px; color: var(--text-muted); padding: 4px 0; line-height: 1.5; }
+.ai-model-info { font-size: 13px; color: var(--text-primary); padding: 2px 0; line-height: 1.5; font-weight: 500; }
+.ai-model-disclaimer { font-size: 11px; color: var(--text-muted); line-height: 1.4; margin-top: 2px; font-style: italic; }
 
 .ai-right-panel-empty {
     padding: 16px 12px; text-align: center; color: var(--text-muted);

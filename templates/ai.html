@@ -131,14 +131,17 @@
                     </button>
                 </div>
                 <div class="ai-right-panel-section" id="ai-panel-model">
-                    <div class="ai-right-panel-label">Model</div>
+                    <div class="ai-right-panel-label">Selected model</div>
                     <div class="ai-model-info" id="ai-panel-model-name">{{ ai_settings.ollama_model or 'gpt-oss:120b' }}</div>
+                    <div class="ai-model-disclaimer" id="ai-panel-model-disclaimer">Applies to new messages in this session</div>
                 </div>
                 <div class="ai-right-panel-section" id="ai-panel-conversation" style="display:none">
                     <div class="ai-right-panel-label">Conversation</div>
                     <div class="ai-right-panel-info">
                         <div><span class="label">Title:</span> <span class="value" id="ai-panel-conv-title">—</span></div>
+                        <div><span class="label">Created:</span> <span class="value" id="ai-panel-conv-created">—</span></div>
                         <div><span class="label">Messages:</span> <span class="value" id="ai-panel-conv-count">0</span></div>
+                        <div><span class="label">Size:</span> <span class="value" id="ai-panel-conv-size">—</span></div>
                     </div>
                     <div style="margin-top:8px; display:flex; flex-direction:column; gap:4px;">
                         <button class="ai-right-panel-action" id="ai-panel-rename-btn">
@@ -216,6 +219,9 @@
     var panelConvCount = document.getElementById('ai-panel-conv-count');
     var panelDeleteBtn = document.getElementById('ai-panel-delete-btn');
     var panelModelName = document.getElementById('ai-panel-model-name');
+    var panelModelDisclaimer = document.getElementById('ai-panel-model-disclaimer');
+    var panelConvCreated = document.getElementById('ai-panel-conv-created');
+    var panelConvSize = document.getElementById('ai-panel-conv-size');
     var panelExportBtn = document.getElementById('ai-panel-export-btn');
 
     function getCSRFToken() {
@@ -304,10 +310,12 @@
 
     // Model select
     modelSelect.addEventListener('change', function() {
+        var newModel = modelSelect.value;
+        panelModelName.textContent = newModel;
         fetch('/ai/api/settings', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRFToken() },
-            body: JSON.stringify({ model: modelSelect.value })
+            body: JSON.stringify({ model: newModel })
         }).catch(function() {});
     });
 
@@ -636,7 +644,29 @@
 
     panelExportBtn.addEventListener('click', exportConversationToNote);
 
+    function formatRelativeDate(dateStr) {
+        if (!dateStr) return '—';
+        var d = new Date(dateStr);
+        var now = new Date();
+        var diffMs = now - d;
+        var diffMins = Math.floor(diffMs / 60000);
+        if (diffMins < 1) return 'Just now';
+        if (diffMins < 60) return diffMins + 'm ago';
+        var diffHours = Math.floor(diffMins / 60);
+        if (diffHours < 24) return diffHours + 'h ago';
+        var diffDays = Math.floor(diffHours / 24);
+        if (diffDays < 7) return diffDays + 'd ago';
+        return d.toLocaleDateString();
+    }
+
+    function formatCharCount(chars) {
+        if (chars < 1000) return chars + ' chars';
+        if (chars < 1000000) return (chars / 1000).toFixed(1) + 'k chars';
+        return (chars / 1000000).toFixed(1) + 'M chars';
+    }
+
     function updatePanel() {
+        panelModelName.textContent = modelSelect.value;
         if (conversationId && currentConvData) {
             panelConvSection.style.display = '';
             var displayTitle = currentConvData.title || 'Untitled';
@@ -644,6 +674,15 @@
                 panelConvTitle.textContent = dec;
                 toolbarTitle.textContent = dec;
             });
+            panelConvCreated.textContent = formatRelativeDate(currentConvData.created_at);
+            var userCount = 0, assistantCount = 0, totalChars = 0;
+            for (var i = 0; i < localMessages.length; i++) {
+                if (localMessages[i].role === 'user') userCount++;
+                else if (localMessages[i].role === 'assistant') assistantCount++;
+                totalChars += (localMessages[i].content || '').length;
+            }
+            panelConvCount.textContent = localMessages.length + ' (' + userCount + ' you, ' + assistantCount + ' AI)';
+            panelConvSize.textContent = formatCharCount(totalChars);
         } else {
             panelConvSection.style.display = 'none';
             toolbarTitle.textContent = 'AI Chat';
@@ -679,6 +718,7 @@
                         localMessages.push({ role: m.role, content: content });
                         addMessageBubble(m.role, content, true, m.id);
                     }
+                    updatePanel();
                 })();
             }
         });
@@ -1004,6 +1044,7 @@
             inputEl.focus();
             currentAbortController = null;
             loadConversations();
+            updatePanel();
         }
     }
 
