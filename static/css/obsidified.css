@@ -996,10 +996,8 @@ body {
 }
 
 /* ============ Mobile-only toolbar buttons ============ */
-.mobile-search-btn { display: none; }
 .mobile-save-btn { display: none; }
 @media (max-width: 768px) {
-    .mobile-search-btn { display: flex; }
     .mobile-save-btn { display: flex; }
     .mobile-save-btn.saved { color: var(--green); }
     .mobile-save-btn.unsaved { color: var(--yellow); }
