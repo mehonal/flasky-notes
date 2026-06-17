@@ -693,7 +693,10 @@ def add_todo():
     content = data.get("content")
     date_due = data.get("dateDue")
     if date_due and date_due != "":
-        date_due = datetime.strptime(date_due, "%Y-%m-%d")
+        try:
+            date_due = datetime.strptime(date_due, "%Y-%m-%dT%H:%M")
+        except ValueError:
+            date_due = datetime.strptime(date_due, "%Y-%m-%d")
     else:
         date_due = None
     todo = UserTodo(userid=g.user.id, title=title, content=content, date_due=date_due)
@@ -708,7 +711,10 @@ def add_event():
     content = data.get("content")
     date_of_event = data.get("dateOfEvent")
     if date_of_event and date_of_event != "":
-        date_of_event = datetime.strptime(date_of_event, "%Y-%m-%d")
+        try:
+            date_of_event = datetime.strptime(date_of_event, "%Y-%m-%dT%H:%M")
+        except ValueError:
+            date_of_event = datetime.strptime(date_of_event, "%Y-%m-%d")
     else:
         date_of_event = None
     event = UserEvent(
@@ -726,7 +732,10 @@ def edit_todo():
     content = data.get("content")
     date_due = data.get("dateDue")
     if date_due and date_due != "":
-        date_due = datetime.strptime(date_due, "%Y-%m-%d")
+        try:
+            date_due = datetime.strptime(date_due, "%Y-%m-%dT%H:%M")
+        except ValueError:
+            date_due = datetime.strptime(date_due, "%Y-%m-%d")
     else:
         date_due = None
     todo = UserTodo.query.filter_by(id=todo_id).first()
@@ -749,7 +758,10 @@ def edit_event():
     content = data.get("content")
     date_of_event = data.get("dateOfEvent")
     if date_of_event and date_of_event != "":
-        date_of_event = datetime.strptime(date_of_event, "%Y-%m-%d")
+        try:
+            date_of_event = datetime.strptime(date_of_event, "%Y-%m-%dT%H:%M")
+        except ValueError:
+            date_of_event = datetime.strptime(date_of_event, "%Y-%m-%d")
     else:
         date_of_event = None
     event = UserEvent.query.filter_by(id=event_id).first()

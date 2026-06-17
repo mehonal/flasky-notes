@@ -920,7 +920,14 @@ def agenda_page():
         .filter(UserTodo.date_due == None)
         .all()
     )
-    return render_template("agenda.html", todos=todos, events=events)
+    settings = g.user.return_settings()
+    return render_template(
+        "agenda.html",
+        todos=todos,
+        events=events,
+        ai_enabled=settings.ai_enabled if settings else False,
+        ai_settings=settings,
+    )
 
 
 @web_bp.route("/cli")

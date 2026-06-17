@@ -830,7 +830,8 @@ class UserTodo(db.Model):
             "id": self.id,
             "title": self.title,
             "content": self.content,
-            "date_due": self.date_due,
+            "date_due": self.date_due.isoformat() if self.date_due else None,
+            "formatted_due_time": self.get_formatted_due_time(),
             "date_added": self.date_added,
             "date_completed": self.date_completed,
             "completed": self.completed,
@@ -839,6 +840,13 @@ class UserTodo(db.Model):
             "due_css_class": self.get_due_css_class(),
             "has_content": self.has_content(),
         }
+
+    def get_formatted_due_time(self):
+        if not self.date_due:
+            return None
+        tz = self.user.get_timezone() if self.user else timezone.utc
+        local_dt = self.date_due.replace(tzinfo=timezone.utc).astimezone(tz)
+        return local_dt.strftime("%I:%M %p").lstrip("0")
 
     def get_seconds_until_due(self):
         if not self.date_due or self.date_due is None:
@@ -910,13 +918,21 @@ class UserEvent(db.Model):
             "id": self.id,
             "title": self.title,
             "content": self.content,
-            "date_of_event": self.date_of_event,
+            "date_of_event": self.date_of_event.isoformat() if self.date_of_event else None,
+            "formatted_event_time": self.get_formatted_event_time(),
             "date_added": self.date_added,
             "date_last_changed": self.date_last_changed,
             "time_until_event": self.get_time_until_event(),
             "event_css_class": self.get_event_css_class(),
             "has_content": self.has_content(),
         }
+
+    def get_formatted_event_time(self):
+        if not self.date_of_event:
+            return None
+        tz = self.user.get_timezone() if self.user else timezone.utc
+        local_dt = self.date_of_event.replace(tzinfo=timezone.utc).astimezone(tz)
+        return local_dt.strftime("%I:%M %p").lstrip("0")
 
     def get_seconds_until_event(self):
         if not self.date_of_event or self.date_of_event is None:
