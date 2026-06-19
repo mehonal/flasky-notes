@@ -10,34 +10,19 @@ os.environ['DATABASE_URI'] = 'sqlite:///:memory:'
 os.environ['SECRET_KEY'] = 'test-secret-key'
 
 from flasky import create_app, db
-from flasky.models import User, Theme, ApiToken
+from flasky.models import User, ApiToken
+from tests.e2ee_helpers import make_e2ee_user
 
 
 @pytest.fixture(autouse=True)
 def app_context():
-    """Create a fresh app and database for each test."""
+    """Create a fresh app and in-memory database for each test."""
     app = create_app()
-    app.config['TESTING'] = True
-    app.config['WTF_CSRF_ENABLED'] = False
+    app.config['TESTING'] = True  # disables CSRF check in before_request
 
     with app.app_context():
-        # create_app already calls db.create_all() and seeds themes,
-        # but we drop/recreate to ensure a clean slate each test
         db.drop_all()
         db.create_all()
-        # Seed themes
-        themes = [
-            ("Cozy", "cozy", False, False),
-            ("Obsidified", "obsidified", False, False),
-            ("CLI", "cli", False, False),
-        ]
-        for name, slug, has_categories, has_notes in themes:
-            if not Theme.query.filter_by(slug=slug).first():
-                t = Theme(name=name, slug=slug,
-                          has_categories_page=has_categories,
-                          has_notes_page=has_notes)
-                db.session.add(t)
-        db.session.commit()
         yield app
         db.session.remove()
         db.drop_all()
@@ -49,44 +34,27 @@ def client(app_context):
 
 
 @pytest.fixture
-def auth_client(client, app_context):
-    """Register and login a test user."""
-    username = "testuser"
-    password = "testpassword"
-    email = "test@test.com"
+def auth_client(app_context):
+    """Register and login an E2EE test user via the real auth flow.
 
-    client.post('/register', data={
-        'username': username,
-        'password': password,
-        'email': email
-    })
-
-    client.post('/login', data={
-        'username': username,
-        'password': password
-    })
-
-    return client
+    Returns (client, creds) where creds contains the symmetric key, auth_key,
+    etc. Tests that need to send encrypted content should use enc(creds, ...)
+    from tests.e2ee_helpers.
+    """
+    client = app_context.test_client()
+    creds = make_e2ee_user(client, "testuser", "testpassword123")
+    return client, creds
 
 
 @pytest.fixture
 def sync_client(app_context):
-    """Create a user with an API token for sync API testing.
-    Returns (client, token, user)."""
+    """Create an E2EE user with an API token for sync API testing.
+    Returns (client, token, user, creds).
+    """
     client = app_context.test_client()
+    creds = make_e2ee_user(client, "syncuser", "syncpassword123")
 
-    # Register and login
-    client.post('/register', data={
-        'username': 'syncuser',
-        'password': 'syncpassword',
-        'email': 'sync@test.com'
-    })
-    client.post('/login', data={
-        'username': 'syncuser',
-        'password': 'syncpassword'
-    })
-
-    # Create an API token directly
+    # Create an API token directly in the DB
     plaintext = "test-sync-token-abc123"
     token_hash = hashlib.sha256(plaintext.encode('utf-8')).hexdigest()
     user = User.query.filter_by(username='syncuser').first()
@@ -94,4 +62,4 @@ def sync_client(app_context):
     db.session.add(api_token)
     db.session.commit()
 
-    return client, plaintext, user
+    return client, plaintext, user, creds

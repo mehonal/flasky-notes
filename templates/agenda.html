@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="{% if g.user.get_theme_settings().dark_mode %}dark{% else %}light{% endif %}">
+<html lang="en" data-theme="{% if ui_settings and ui_settings.dark_mode %}dark{% else %}light{% endif %}">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -8,11 +8,10 @@
     <script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='js/sanitize.js') }}"></script>
     <script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='js/csrf.js') }}"></script>
     <script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='js/search-modal.js') }}"></script>
-    {% if g.user.encryption_enabled %}
+    <!-- E2EE (mandatory — always loaded) -->
     <script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='js/crypto.js') }}"></script>
     <script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='js/e2ee.js') }}"></script>
     <script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='js/e2ee-search.js') }}"></script>
-    {% endif %}
     {% if ai_enabled %}
     <script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='vendor/marked/marked.min.js') }}"></script>
     <link rel="stylesheet" href="{{ url_for('static', filename='vendor/hljs/styles/github-dark.min.css') }}" id="hljs-dark">
@@ -805,7 +804,7 @@
     }
   </style>
 </head>
-<body{% if g.user.encryption_enabled %} data-encrypted="true"{% endif %}>
+<body data-encrypted="true">
   <!-- Toast container -->
   <div class="toast-container" id="toast-container"></div>
 
@@ -1037,7 +1036,7 @@
         <span>Agenda</span>
         <div class="status-spacer"></div>
         <span class="status-clickable" data-action="toggle-theme">
-          <span id="theme-label">{{ 'Dark' if g.user.get_theme_settings().dark_mode else 'Light' }}</span>
+          <span id="theme-label">{{ 'Dark' if ui_settings and ui_settings.dark_mode else 'Light' }}</span>
         </span>
        </div>
      </div>

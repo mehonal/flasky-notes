@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="{% if ui_settings and ui_settings.dark_mode %}dark{% else %}light{% endif %}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>{% if note %}Note — {% endif %}Flasky Notes</title>
+    <link rel="icon" type="image/x-icon" href="/static/images/amazing_logo.png">
+    <link rel="apple-touch-icon" href="/static/images/amazing_logo.png" sizes="180x180">
+    <link rel="manifest" href="/manifest.json">
+
+    <!-- CodeMirror 6 (bundled) -->
+    <script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='script/codemirror6.bundle.js') }}"></script>
+
+    <script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='js/csrf.js') }}"></script>
+    <!-- E2EE (mandatory — always loaded) -->
+    <script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='js/crypto.js') }}"></script>
+    <script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='js/e2ee.js') }}"></script>
+    <script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='js/e2ee-search.js') }}"></script>
+
+    <!-- Markdown preview -->
+    <script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='vendor/marked/marked.min.js') }}"></script>
+    <script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='vendor/dompurify/purify.min.js') }}"></script>
+    <script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='js/sanitize.js') }}"></script>
+    <script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='js/wikilinks.js') }}"></script>
+    <script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='js/icon-picker.js') }}"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='vendor/hljs/styles/github-dark.min.css') }}" id="hljs-dark">
+    <link rel="stylesheet" href="{{ url_for('static', filename='vendor/hljs/styles/github.min.css') }}" id="hljs-light" disabled>
+    <script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='vendor/hljs/highlight.min.js') }}"></script>
+
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
+    <style nonce="{{ csp_nonce() }}">:root { --font-size: {{ font_size or 15 }}px; }</style>
+</head>
+<body data-encrypted="true">
+    {% if encrypted_note_data %}
+    <script type="application/json" id="encrypted-note-data">{{ encrypted_note_data|safe }}</script>
+    {% endif %}
+    <!-- Context menu -->
+    <div class="context-menu" id="context-menu"></div>
+
+    <div class="app">
+        <!-- Mobile sidebar backdrop -->
+        <div class="sidebar-backdrop" id="sidebar-backdrop" data-action="close-sidebar"></div>
+
+        {% include 'sidebar.html' %}
+
+        <!-- Main -->
+        <div class="main">
+            {% include 'toolbar.html' %}
+
+            <div class="editor-area">
+                {% include 'editor.html' %}
+
+                {% include 'right_panel.html' %}
+
+                {% if g.user and g.user.settings and g.user.settings.ai_enabled %}
+                <!-- AI Chat Panel -->
+                <div class="ai-panel collapsed" id="ai-panel">
+                    <div class="ai-panel-resize-handle" id="ai-panel-resize-handle"></div>
+                    <div class="ai-panel-top-bar">
+                        <span class="ai-panel-title">AI Chat</span>
+                        {% if note %}
+                        <button class="icon-btn ai-panel-include-note-btn" id="ai-panel-include-note" data-action="toggle-ai-note-context" title="Include current note as context" aria-label="Include current note as context">
+                            <svg viewBox="0 0 24 24" width="14" height="14"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+                        </button>
+                        {% endif %}
+                        <button class="icon-btn ai-panel-new-chat-btn" id="ai-panel-new-chat" data-action="ai-new-chat" title="New chat" aria-label="New chat">
+                            <svg viewBox="0 0 24 24" width="14" height="14"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                        </button>
+                        <div class="ai-panel-history-wrap" id="ai-panel-history-wrap">
+                            <button class="icon-btn ai-panel-history-btn" id="ai-panel-history-btn" title="Chat history" aria-label="Chat history">
+                                <svg viewBox="0 0 24 24" width="14" height="14"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                            </button>
+                            <div class="ai-panel-history-dropdown" id="ai-panel-history-dropdown"></div>
+                        </div>
+                        <select class="ai-panel-model-select" id="ai-panel-model"></select>
+                        <span class="ai-panel-top-spacer"></span>
+                        <button class="icon-btn" data-action="close-ai-panel" title="Close AI panel" aria-label="Close AI panel">
+                            <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                        </button>
+                    </div>
+                    <div class="ai-panel-context" id="ai-panel-context" style="display:none">
+                        <span class="ai-panel-context-label">Note:</span>
+                        <span class="ai-panel-context-title" id="ai-panel-context-title"></span>
+                        <button class="ai-panel-context-dismiss" id="ai-panel-context-dismiss" title="Remove note context">
+                            <svg viewBox="0 0 24 24" width="12" height="12"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                        </button>
+                    </div>
+                    <div class="ai-panel-messages" id="ai-panel-messages">
+                        <div class="ai-panel-empty" id="ai-panel-empty">
+                            <svg viewBox="0 0 24 24" width="32" height="32"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>
+                            <span>Ask me anything</span>
+                        </div>
+                    </div>
+                    <div class="ai-panel-input-area">
+                        <textarea class="ai-panel-input" id="ai-panel-input" placeholder="Ask AI..." rows="1"></textarea>
+                        <button class="ai-panel-send-btn" id="ai-panel-send-btn" title="Send message" aria-label="Send message">
+                            <svg viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                        </button>
+                        <button class="ai-panel-stop-btn" id="ai-panel-stop-btn" title="Stop generation" aria-label="Stop generation" style="display:none;">
+                            <svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2" ry="2"/></svg>
+                        </button>
+                    </div>
+                    <div class="ai-panel-status" id="ai-panel-status">Ready</div>
+                </div>
+                {% endif %}
+            </div>
+
+            <div class="status-bar">
+                <span class="status-item" id="save-status"></span>
+                <span class="status-item mode-indicator {% if ui_settings and ui_settings.preview_mode %}preview{% else %}editing{% endif %}" id="mode-indicator">{% if ui_settings and ui_settings.preview_mode %}Preview{% else %}Editing{% endif %}</span>
+                <span class="status-spacer"></span>
+                {% if note %}
+                <span class="status-item status-clickable desktop-only" data-action="toggle-shortcuts" title="Keyboard shortcuts">Ctrl+/</span>
+                <span class="status-item" id="word-count">0 words</span>
+                <span class="status-item" id="char-count">{{ (note.content or '') | length }} chars</span>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    {% include 'modals.html' %}
+
+    <script nonce="{{ csp_nonce() }}" type="application/json" id="app-page-data">
+    {
+        "noteId": {{ note_id }},
+        "currentCategory": {% if note %}{{ note.get_category_name() | tojson }}{% elif category %}{{ category | tojson }}{% else %}"Main"{% endif %},
+        "autoSaveEnabled": {% if ui_settings and ui_settings.auto_save %}true{% else %}false{% endif %},
+        "editMode": {% if ui_settings and ui_settings.preview_mode %}false{% else %}true{% endif %},
+        "currentFontSize": {{ font_size or 15 }},
+        "hasNote": {{ 'true' if note else 'false' }},
+        "defaultTemplateContent": {% if default_template %}{{ default_template.content | tojson }}{% else %}null{% endif %},
+        "defaultTemplateProps": {% if default_template %}{{ default_template.properties | tojson }}{% else %}null{% endif %},
+        "currentNoteIcon": {% if note and note.icon %}{{ note.icon | tojson }}{% else %}null{% endif %},
+        "currentNoteIconColor": {% if note and note.icon_color %}{{ note.icon_color | tojson }}{% else %}null{% endif %},
+        "panelWidgets": {{ panel_widgets | tojson }},
+        "aiEnabled": {% if g.user and g.user.settings and g.user.settings.ai_enabled %}true{% else %}false{% endif %},
+        "aiModel": {% if ai_settings and ai_settings.ollama_model %}{{ ai_settings.ollama_model | tojson }}{% else %}"gpt-oss:120b"{% endif %},
+        "aiEndpoint": {% if ai_settings and ai_settings.ollama_endpoint %}{{ ai_settings.ollama_endpoint | tojson }}{% else %}""{% endif %}
+    }
+    </script>
+    <script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>

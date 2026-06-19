@@ -1,131 +1,140 @@
 """
-Structural Integration Tests: Database Layer
-White-box testing of database interactions and model methods
+Structural Integration Tests: Database layer (E2EE-aware).
+
+With mandatory E2EE the server stores content as opaque ciphertext — there
+is no server-side frontmatter parsing. These tests verify the data layer
+works correctly via the service layer (the only path that writes now).
 """
 
 import sys
 import os
-import json
+
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 from flasky import db
-from flasky.models import User, UserNote, UserNoteCategory
+from flasky.models import UserNote, UserNoteCategory
+
+
+def _make_user(username="testuser"):
+    from flasky.services.auth import create_user
+    return create_user(username, "testpass", f"{username}@test.com")
 
 
 def test_note_category_cascading():
     """Deleting a category should reassign notes to Main."""
-    user = User("testuser", "testpass", "test@test.com")
-    db.session.commit()
+    from flasky.services.notes import create_note
+    from flasky.services.categories import create_category, delete_category, get_or_create_main_category
 
-    main_category = user.get_main_category()
-    db.session.commit()
+    user = _make_user()
+    main_category = get_or_create_main_category(user)
+    test_category = create_category(user, "opaque-ciphertext")
 
-    test_category = UserNoteCategory(user.id, "Test Category")
-    db.session.commit()
+    note = create_note(user, "cipher-title", "cipher-content", test_category.id)
+    note_id = note.id
 
-    note = user.add_note("Test", "Content", test_category.id)
-    db.session.commit()
-
-    # Reassign notes before deleting category (mimicking delete_category route)
-    for n in UserNote.query.filter_by(category_id=test_category.id):
-        n.category_id = main_category.id
-    db.session.commit()
-    db.session.delete(test_category)
-    db.session.commit()
+    delete_category(user, test_category.id)
 
     db.session.refresh(note)
     assert note is not None
     assert note.category_id == main_category.id
 
 
-def test_note_change_content_parses_frontmatter():
-    """Changing note content with frontmatter should extract properties."""
-    user = User("testuser", "testpass", "test@test.com")
-    note = user.add_note("Test", "Original", None)
-
-    note.change_content("---\nstatus: published\n---\nNew body")
-    assert note.content == "New body"
-    props = note.get_properties()
-    assert props["status"] == "published"
-
-
 def test_note_change_content_stores_previous():
-    """change_content should store old content in previous_content."""
-    user = User("testuser", "testpass", "test@test.com")
-    note = user.add_note("Test", "Version 1", None)
+    """update_note should store old content in previous_content. With
+    mandatory E2EE the new content is opaque ciphertext, stored as-is.
+    """
+    from flasky.services.notes import create_note, update_note
+    user = _make_user()
+    note = create_note(user, "cipher-title", "cipher-v1", None)
 
-    note.change_content("Version 2")
-    assert note.content == "Version 2"
-    assert note.previous_content == "Version 1"
+    update_note(user, note.id, content="cipher-v2")
+    db.session.refresh(note)
+    assert note.content == "cipher-v2"
+    assert note.previous_content == "cipher-v1"
 
 
 def test_note_revert():
     """Reverting should swap content and previous_content."""
-    user = User("testuser", "testpass", "test@test.com")
-    note = user.add_note("Test", "v1", None)
-    note.change_content("v2")
+    from flasky.services.notes import create_note, update_note, revert_note
+    user = _make_user()
+    note = create_note(user, "cipher-title", "cipher-v1", None)
+    update_note(user, note.id, content="cipher-v2")
 
-    result = note.revert_to_last_version()
-    assert result is True
-    assert note.content == "v1"
-    assert note.previous_content == "v2"
+    result = revert_note(user, note.id)
+    assert result is not None
+    db.session.refresh(note)
+    assert note.content == "cipher-v1"
+    assert note.previous_content == "cipher-v2"
 
 
 def test_note_revert_no_previous():
-    """Reverting with no previous content should return False."""
-    user = User("testuser", "testpass", "test@test.com")
-    note = user.add_note("Test", "Only version", None)
+    """Reverting with no previous content should return None."""
+    from flasky.services.notes import create_note, revert_note
+    user = _make_user()
+    note = create_note(user, "cipher-title", "cipher-only", None)
 
-    result = note.revert_to_last_version()
-    assert result is False
-
-
-def test_note_get_full_content_with_properties():
-    """get_full_content should reconstruct frontmatter + body."""
-    user = User("testuser", "testpass", "test@test.com")
-    note = user.add_note("Test", "---\ntags:\n  - python\n---\nBody here", None)
-
-    full = note.get_full_content()
-    assert "tags:" in full
-    assert "Body here" in full
+    result = revert_note(user, note.id)
+    assert result is None
 
 
 def test_note_return_json():
     """return_json should include all expected keys."""
-    user = User("testuser", "testpass", "test@test.com")
-    note = user.add_note("Test", "Content", None)
+    from flasky.services.notes import create_note
+    user = _make_user()
+    note = create_note(user, "cipher-title", "cipher-content", None)
 
     data = note.return_json()
-    assert data['title'] == 'Test'
-    assert data['content'] == 'Content'
-    assert 'id' in data
-    assert 'category' in data
-    assert 'properties' in data
-    assert 'date_added' in data
-    assert 'date_last_changed' in data
+    assert data["title"] == "cipher-title"
+    assert data["content"] == "cipher-content"
+    assert "id" in data
+    assert "category" in data
+    assert "properties" in data
+    assert "date_added" in data
+    assert "date_last_changed" in data
 
 
 def test_note_change_category_by_id():
-    user = User("testuser", "testpass", "test@test.com")
-    cat = UserNoteCategory(user.id, "Target")
-    note = user.add_note("Test", "Content", None)
+    """With mandatory E2EE, update_note accepts an int id for category."""
+    from flasky.services.notes import create_note, update_note
+    from flasky.services.categories import create_category
+    user = _make_user()
+    cat = create_category(user, "target-ciphertext")
+    note = create_note(user, "cipher-title", "cipher-content", None)
 
-    note.change_category(cat.id)
+    update_note(user, note.id, category=cat.id)
+    db.session.refresh(note)
     assert note.category_id == cat.id
 
 
-def test_note_change_category_by_name():
-    user = User("testuser", "testpass", "test@test.com")
-    note = user.add_note("Test", "Content", None)
+def test_note_change_category_by_string_id():
+    """update_note also accepts a string that parses to an int id."""
+    from flasky.services.notes import create_note, update_note
+    from flasky.services.categories import create_category
+    user = _make_user()
+    cat = create_category(user, "target-ciphertext")
+    note = create_note(user, "cipher-title", "cipher-content", None)
 
-    note.change_category("NewCat")
-    assert note.category.name == "NewCat"
+    update_note(user, note.id, category=str(cat.id))
+    db.session.refresh(note)
+    assert note.category_id == cat.id
 
 
-def test_note_frontmatter_with_init():
-    """Creating a note with frontmatter should extract properties on init."""
-    user = User("testuser", "testpass", "test@test.com")
-    note = user.add_note("FM Note", "---\nkey: value\n---\nBody", None)
+def test_note_get_properties_returns_raw_when_ciphertext():
+    """With mandatory E2EE, properties is opaque ciphertext. get_properties
+    returns it as-is (no JSON parsing).
+    """
+    from flasky.services.notes import create_note, update_note
+    user = _make_user()
+    note = create_note(user, "cipher-title", "cipher-content", None)
+    update_note(user, note.id, properties="opaque-ciphertext-properties")
+    db.session.refresh(note)
 
-    assert note.content == "Body"
     props = note.get_properties()
-    assert props["key"] == "value"
+    assert props == "opaque-ciphertext-properties"
+
+
+def test_note_get_properties_empty_when_unset():
+    from flasky.services.notes import create_note
+    user = _make_user()
+    note = create_note(user, "cipher-title", "cipher-content", None)
+
+    assert note.get_properties() == {}

@@ -1,217 +1,119 @@
-{% extends "template-loggedout.html" %}
-{% block body %}
-{% if g.user.encryption_enabled %}
-<script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='js/crypto.js') }}"></script>
-<script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='js/e2ee.js') }}"></script>
-{% endif %}
-<script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='js/sanitize.js') }}"></script>
-<style>
+<!DOCTYPE html>
+<html lang="en" data-theme="{% if ui_settings and ui_settings.dark_mode %}dark{% else %}light{% endif %}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Settings — Flasky Notes</title>
+    <link rel="icon" type="image/x-icon" href="/static/images/amazing_logo.png">
+    <link rel="stylesheet" href="{{ url_for('static', filename='vendor/bootstrap/bootstrap.min.css') }}">
+    <!-- E2EE (mandatory — always loaded) -->
+    <script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='js/crypto.js') }}"></script>
+    <script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='js/e2ee.js') }}"></script>
+    <script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='js/sanitize.js') }}"></script>
+    <style>
     .settings-page {
         max-width: 1100px;
         margin: 0 auto;
         padding: 1.5rem 1rem 3rem;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        color: #1f2329;
+        background: #f9fafb;
+        min-height: 100vh;
     }
-    .settings-page h1 {
-        font-size: 1.75rem;
-        font-weight: 600;
-        margin-bottom: 1.5rem;
+    [data-theme="dark"] .settings-page {
+        color: #e6e6e6;
+        background: #14141f;
     }
+    .settings-page h1 { font-size: 1.75rem; margin-bottom: 1rem; }
     .settings-grid {
         display: grid;
-        grid-template-columns: 1fr;
-        gap: 1rem;
-    }
-    @media (min-width: 768px) {
-        .settings-grid {
-            grid-template-columns: 1fr 1fr;
-        }
-    }
-    @media (min-width: 1100px) {
-        .settings-grid {
-            grid-template-columns: 1fr 1fr 1fr;
-        }
+        grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+        gap: 1.25rem;
+        align-items: start;
     }
     .settings-card {
         background: #fff;
-        border: 1px solid #dee2e6;
-        border-radius: 0.5rem;
+        border: 1px solid #e5e7eb;
+        border-radius: 8px;
         padding: 1.25rem;
-        min-width: 0;
     }
-    .settings-card-wide {
-        grid-column: 1 / -1;
-        overflow: hidden;
+    [data-theme="dark"] .settings-card {
+        background: #1e1e2e;
+        border-color: #2a2a3a;
     }
-    .settings-card h2 {
-        font-size: 1rem;
-        font-weight: 600;
-        text-transform: uppercase;
-        letter-spacing: 0.04em;
-        color: #6c757d;
-        margin: 0 0 1rem;
-    }
+    .settings-card h2 { font-size: 1.1rem; margin: 0 0 0.75rem; }
+    .settings-card-wide { grid-column: 1 / -1; }
     .settings-row {
         display: flex;
         align-items: center;
-        gap: 0.5rem;
+        gap: 0.75rem;
+        padding: 0.35rem 0;
     }
-    .settings-row .form-select,
-    .settings-row .form-control {
-        flex: 1;
-        min-width: 0;
+    .settings-row label { flex: 1; }
+    .settings-row .form-check { margin-left: auto; }
+    hr { border-color: #e5e7eb; }
+    [data-theme="dark"] hr { border-color: #2a2a3a; }
+    .quick-links { display: flex; gap: 0.5rem; margin-bottom: 1rem; }
+    .quick-links a { font-size: 0.85rem; }
+    .text-muted { color: #6b7280; }
+    [data-theme="dark"] .text-muted { color: #9ca3af; }
+    .alert-warning {
+        background: #fff7ed;
+        border: 1px solid #fed7aa;
+        border-radius: 6px;
+        padding: 0.6rem 0.75rem;
+        color: #92400e;
     }
-    .settings-row + .settings-row {
-        margin-top: 0.75rem;
-    }
-    .token-alert {
-        margin-top: 0.75rem;
-    }
-    .token-table th, .token-table td {
-        vertical-align: middle;
-    }
-    .sync-status {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-    }
-    .sync-badge {
-        font-size: 0.8rem;
-        padding: 0.25em 0.6em;
-    }
-    .theme-table {
-        font-size: 0.8rem;
-        width: 100%;
-        border-collapse: collapse;
-    }
-    .theme-table th, .theme-table td {
-        padding: 0.35rem 0.5rem;
-        border: 1px solid #dee2e6;
-        text-align: center;
-        white-space: nowrap;
-    }
-    .theme-table thead th {
-        background: #f8f9fa;
-        font-weight: 600;
-        font-size: 0.75rem;
-        text-transform: uppercase;
-        letter-spacing: 0.03em;
-    }
-    .theme-table tbody tr:hover {
-        background: #f0f4ff;
-    }
-    .theme-table .yes { color: #198754; }
-    .theme-table .no { color: #adb5bd; }
-    .settings-dark .theme-table th,
-    .settings-dark .theme-table td {
-        border-color: #404040;
-    }
-    .settings-dark .theme-table thead th {
-        background: #383838;
-    }
-    .settings-dark .theme-table tbody tr:hover {
-        background: #353535;
-    }
-    .settings-dark .theme-table .yes { color: #75b798; }
-    .settings-dark .theme-table .no { color: #6c757d; }
-    .theme-table-wrap {
-        overflow-x: auto;
-        -webkit-overflow-scrolling: touch;
-        max-width: 100%;
-    }
-    .theme-table th:first-child,
-    .theme-table td:first-child {
-        position: sticky;
-        left: 0;
-        z-index: 1;
-        background: #fff;
-        text-align: left;
-        font-weight: 600;
-    }
-    .settings-dark .theme-table th:first-child,
-    .settings-dark .theme-table td:first-child {
-        background: #2d2d2d;
-    }
-    .settings-dark .theme-table thead th:first-child {
-        background: #383838;
-    }
-    .quick-links {
-        display: flex;
-        gap: 0.5rem;
-        flex-wrap: wrap;
-    }
-    .settings-row label {
-        white-space: nowrap;
-        margin: 0;
-    }
-    .settings-row .form-check.form-switch {
-        padding-left: 2.5em;
-        margin: 0;
-    }
-
-    /* Dark mode */
-    .settings-dark {
-        color: #d4d4d4;
-    }
-    body:has(.settings-dark) {
-        background: #1e1e1e;
-        color: #d4d4d4;
-    }
-    .settings-dark .settings-card {
-        background: #2d2d2d;
-        border-color: #404040;
-    }
-    .settings-dark .settings-card h2 {
-        color: #9d9d9d;
-    }
-    .settings-dark .form-select,
-    .settings-dark .form-control {
-        background: #383838;
-        border-color: #505050;
-        color: #d4d4d4;
-    }
-    .settings-dark .form-select:focus,
-    .settings-dark .form-control:focus {
-        background: #383838;
-        border-color: #6a9fff;
-        color: #d4d4d4;
-        box-shadow: 0 0 0 0.2rem rgba(106, 159, 255, 0.25);
-    }
-    .settings-dark .table {
-        color: #d4d4d4;
-        --bs-table-bg: transparent;
-    }
-    .settings-dark .table th {
-        border-color: #404040;
-    }
-    .settings-dark .table td {
-        border-color: #404040;
-    }
-    .settings-dark .text-muted {
-        color: #8a8a8a !important;
-    }
-    .settings-dark .btn-outline-dark {
-        color: #aaa;
-        border-color: #aaa;
-    }
-    .settings-dark .btn-outline-dark:hover {
-        background: #aaa;
-        color: #1e1e1e;
-    }
-    .settings-dark hr {
-        border-color: #404040;
-    }
-    .settings-dark .alert-warning {
+    [data-theme="dark"] .alert-warning {
         background: #3d3520;
         border-color: #5a4e2a;
         color: #e0c97a;
     }
-</style>
-
-<div class="settings-page {% if g.user.get_current_theme_dark_mode() %}settings-dark{% endif %}">
+    .badge { padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.75rem; font-weight: 600; }
+    .bg-success { background: #16a34a; color: #fff; }
+    .btn { padding: 0.4rem 0.85rem; border-radius: 6px; border: 1px solid transparent; cursor: pointer; font-size: 0.9rem; }
+    .btn-primary { background: #3b82f6; color: #fff; border-color: #3b82f6; }
+    .btn-outline-primary { background: transparent; color: #3b82f6; border-color: #3b82f6; }
+    .btn-outline-danger { background: transparent; color: #dc2626; border-color: #dc2626; }
+    .btn-outline-warning { background: transparent; color: #d97706; border-color: #d97706; }
+    .btn-outline-dark { background: transparent; color: inherit; border-color: #6b7280; }
+    .btn-sm { padding: 0.2rem 0.5rem; font-size: 0.8rem; }
+    .form-control, .form-select {
+        padding: 0.35rem 0.5rem;
+        border: 1px solid #d1d5db;
+        border-radius: 6px;
+        background: #fff;
+        color: inherit;
+    }
+    [data-theme="dark"] .form-control, [data-theme="dark"] .form-select {
+        background: #14141f;
+        border-color: #2a2a3a;
+    }
+    .form-check-input { width: 1.1rem; height: 1.1rem; }
+    .table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+    .table th, .table td { padding: 0.4rem 0.5rem; border-bottom: 1px solid #e5e7eb; text-align: left; }
+    [data-theme="dark"] .table th, [data-theme="dark"] .table td { border-color: #2a2a3a; }
+    .text-end { text-align: right; }
+    .mt-2 { margin-top: 0.5rem; }
+    .mt-3 { margin-top: 0.75rem; }
+    .mt-4 { margin-top: 1rem; }
+    .mb-0 { margin-bottom: 0; }
+    .mb-2 { margin-bottom: 0.5rem; }
+    .mb-3 { margin-bottom: 0.75rem; }
+    .my-3 { margin: 0.75rem 0; }
+    .small { font-size: 0.85rem; }
+    .text-success { color: #16a34a; }
+    .text-danger { color: #dc2626; }
+    code { font-family: ui-monospace, monospace; background: #f3f4f6; padding: 0.1rem 0.3rem; border-radius: 3px; }
+    [data-theme="dark"] code { background: #2a2a3a; }
+    </style>
+</head>
+<body data-encrypted="true">
+<div class="settings-page">
     <h1>Settings</h1>
 
     <!-- Quick Links -->
-    <div class="quick-links mb-3">
+    <div class="quick-links">
         <a href="/notes" class="btn btn-outline-primary btn-sm">Notes</a>
         <a href="/note/0" class="btn btn-outline-primary btn-sm">New Note</a>
         <a href="/logout" class="btn btn-outline-dark btn-sm">Log Out</a>
@@ -222,130 +124,99 @@
         <!-- Appearance -->
         <div class="settings-card">
             <h2>Appearance</h2>
-            <form method="POST">
+            <form method="POST" id="ui-settings-form">
                 <div class="settings-row">
-                    <select class="form-select" name="theme">
-                        {% for theme in themes %}
-                        <option value="{{ theme.slug }}" {% if theme.slug == g.user.return_settings().theme_preference %}selected{% endif %}>{{ theme.name }}</option>
-                        {% endfor %}
-                    </select>
-                    <button name="update-theme" class="btn btn-primary" type="submit">Switch</button>
+                    <label class="form-check-label" for="dark-mode">Dark mode</label>
+                    <div class="form-check form-switch ms-auto">
+                        <input class="form-check-input" type="checkbox" id="dark-mode" name="dark-mode" value="1" {% if ui_settings.dark_mode %}checked{% endif %}>
+                    </div>
+                </div>
+
+                <div class="settings-row">
+                    <label for="font-size">Font size</label>
+                    <input name="font-size" id="font-size" class="form-control" type="number" min="10" max="32" value="{{ ui_settings.font_size }}" style="max-width:80px">
+                </div>
+
+                <div class="settings-row">
+                    <label for="mobile-font-size">Mobile font size</label>
+                    <input name="mobile-font-size" id="mobile-font-size" class="form-control" type="number" min="10" max="32" value="{{ ui_settings.mobile_font_size }}" style="max-width:80px">
+                </div>
+
+                <div class="settings-row">
+                    <label for="font-family">Font family</label>
+                    <input name="font-family" id="font-family" class="form-control" type="text" value="{{ ui_settings.font }}" placeholder="e.g. Inter, serif">
+                </div>
+
+                <div class="settings-row">
+                    <label class="form-check-label" for="hide-title">Hide title</label>
+                    <div class="form-check form-switch ms-auto">
+                        <input class="form-check-input" type="checkbox" id="hide-title" name="hide-title" value="1" {% if ui_settings.hide_title %}checked{% endif %}>
+                    </div>
+                </div>
+
+                <div class="settings-row">
+                    <label class="form-check-label" for="auto-save">Auto-save</label>
+                    <div class="form-check form-switch ms-auto">
+                        <input class="form-check-input" type="checkbox" id="auto-save" name="auto-save" value="1" {% if ui_settings.auto_save %}checked{% endif %}>
+                    </div>
+                </div>
+
+                <div class="settings-row">
+                    <label class="form-check-label" for="sidebar-collapsed">Sidebar collapsed</label>
+                    <div class="form-check form-switch ms-auto">
+                        <input class="form-check-input" type="checkbox" id="sidebar-collapsed" name="sidebar-collapsed" value="1" {% if ui_settings.sidebar_collapsed %}checked{% endif %}>
+                    </div>
+                </div>
+
+                <div class="settings-row">
+                    <label class="form-check-label" for="right-panel-collapsed">Right panel collapsed</label>
+                    <div class="form-check form-switch ms-auto">
+                        <input class="form-check-input" type="checkbox" id="right-panel-collapsed" name="right-panel-collapsed" value="1" {% if ui_settings.right_panel_collapsed %}checked{% endif %}>
+                    </div>
+                </div>
+
+                <div class="settings-row">
+                    <label class="form-check-label" for="properties-collapsed">Properties collapsed</label>
+                    <div class="form-check form-switch ms-auto">
+                        <input class="form-check-input" type="checkbox" id="properties-collapsed" name="properties-collapsed" value="1" {% if ui_settings.properties_collapsed %}checked{% endif %}>
+                    </div>
+                </div>
+
+                <div class="settings-row">
+                    <label class="form-check-label" for="preview-mode">Preview mode</label>
+                    <div class="form-check form-switch ms-auto">
+                        <input class="form-check-input" type="checkbox" id="preview-mode" name="preview-mode" value="1" {% if ui_settings.preview_mode %}checked{% endif %}>
+                    </div>
+                </div>
+
+                <div class="settings-row">
+                    <label for="notes-row-count">Notes row count</label>
+                    <input name="notes-row-count" id="notes-row-count" class="form-control" type="number" min="1" max="100" value="{{ ui_settings.notes_row_count }}" style="max-width:80px">
+                </div>
+
+                <div class="settings-row">
+                    <label for="notes-height">Notes height</label>
+                    <input name="notes-height" id="notes-height" class="form-control" type="number" min="50" max="2000" value="{{ ui_settings.notes_height }}" style="max-width:80px">
+                </div>
+
+                <!-- Panel widgets visibility -->
+                {% set widgets = panel_widgets %}
+                <div class="settings-row" style="flex-direction:column; align-items:stretch; gap:0.35rem">
+                    <label class="text-muted small" style="font-weight:600; text-transform:uppercase; letter-spacing:0.03em">Panel widgets</label>
+                    {% for widget in widgets %}
+                    <div style="display:flex; align-items:center; justify-content:space-between; padding:0.15rem 0">
+                        <label class="form-check-label" for="widget-{{ widget.id }}" style="font-size:0.9rem">{{ widget.label }}</label>
+                        <div class="form-check form-switch" style="padding-left:2.5em; margin:0">
+                            <input class="form-check-input" type="checkbox" id="widget-{{ widget.id }}" name="widget-{{ widget.id }}" value="1" {% if widget.visible %}checked{% endif %}>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+
+                <div class="settings-row mt-2">
+                    <button name="update-ui-settings" class="btn btn-primary" type="submit">Save</button>
                 </div>
             </form>
-
-            {% if current_theme and current_theme.slug != 'cli' %}
-            <hr class="my-3">
-            <div id="theme-settings-area">
-                <form method="POST" id="theme-settings-form">
-                    {% set slug = current_theme.slug %}
-
-                    <!-- Dark mode: all except cli -->
-                    <div class="settings-row">
-                        <label class="form-check-label" for="dark-mode">Dark mode</label>
-                        <div class="form-check form-switch ms-auto">
-                            <input class="form-check-input" type="checkbox" id="dark-mode" name="dark-mode" value="1" {% if theme_settings.dark_mode %}checked{% endif %}>
-                        </div>
-                    </div>
-
-                    <!-- Font size: all except cli -->
-                    <div class="settings-row">
-                        <label for="font-size">Font size</label>
-                        <input name="font-size" id="font-size" class="form-control" type="number" min="10" max="32" value="{{ theme_settings.font_size }}" style="max-width:80px">
-                    </div>
-
-                    <!-- Mobile font size: cozy -->
-                    {% if slug in ('cozy') %}
-                    <div class="settings-row">
-                        <label for="mobile-font-size">Mobile font size</label>
-                        <input name="mobile-font-size" id="mobile-font-size" class="form-control" type="number" min="10" max="32" value="{{ theme_settings.mobile_font_size }}" style="max-width:80px">
-                    </div>
-                    {% endif %}
-
-                    <!-- Font family: cozy -->
-                    {% if slug in ('cozy',) %}
-                    <div class="settings-row">
-                        <label for="font-family">Font family</label>
-                        <input name="font-family" id="font-family" class="form-control" type="text" value="{{ theme_settings.font }}" placeholder="e.g. Inter, serif">
-                    </div>
-                    {% endif %}
-
-                    <!-- Hide title: obsidified, cozy -->
-                    {% if slug in ('obsidified', 'cozy') %}
-                    <div class="settings-row">
-                        <label class="form-check-label" for="hide-title">Hide title</label>
-                        <div class="form-check form-switch ms-auto">
-                            <input class="form-check-input" type="checkbox" id="hide-title" name="hide-title" value="1" {% if theme_settings.hide_title %}checked{% endif %}>
-                        </div>
-                    </div>
-                    {% endif %}
-
-                    <!-- Auto-save: obsidified, cozy -->
-                    {% if slug in ('obsidified', 'cozy') %}
-                    <div class="settings-row">
-                        <label class="form-check-label" for="auto-save">Auto-save</label>
-                        <div class="form-check form-switch ms-auto">
-                            <input class="form-check-input" type="checkbox" id="auto-save" name="auto-save" value="1" {% if theme_settings.auto_save %}checked{% endif %}>
-                        </div>
-                    </div>
-                    {% endif %}
-
-                    <!-- Sidebar collapsed: obsidified, cozy -->
-                    {% if slug in ('obsidified', 'cozy') %}
-                    <div class="settings-row">
-                        <label class="form-check-label" for="sidebar-collapsed">Sidebar collapsed</label>
-                        <div class="form-check form-switch ms-auto">
-                            <input class="form-check-input" type="checkbox" id="sidebar-collapsed" name="sidebar-collapsed" value="1" {% if theme_settings.sidebar_collapsed %}checked{% endif %}>
-                        </div>
-                    </div>
-                    {% endif %}
-
-                    <!-- Obsidified-only settings -->
-                    {% if slug == 'obsidified' %}
-                    <div class="settings-row">
-                        <label class="form-check-label" for="right-panel-collapsed">Right panel collapsed</label>
-                        <div class="form-check form-switch ms-auto">
-                            <input class="form-check-input" type="checkbox" id="right-panel-collapsed" name="right-panel-collapsed" value="1" {% if theme_settings.right_panel_collapsed %}checked{% endif %}>
-                        </div>
-                    </div>
-
-                    <div class="settings-row">
-                        <label class="form-check-label" for="properties-collapsed">Properties collapsed</label>
-                        <div class="form-check form-switch ms-auto">
-                            <input class="form-check-input" type="checkbox" id="properties-collapsed" name="properties-collapsed" value="1" {% if theme_settings.properties_collapsed %}checked{% endif %}>
-                        </div>
-                    </div>
-
-                    <div class="settings-row">
-                        <label class="form-check-label" for="preview-mode">Preview mode</label>
-                        <div class="form-check form-switch ms-auto">
-                            <input class="form-check-input" type="checkbox" id="preview-mode" name="preview-mode" value="1" {% if theme_settings.preview_mode %}checked{% endif %}>
-                        </div>
-                    </div>
-
-                    <!-- Panel widgets visibility -->
-                    {% set widgets = theme_settings.get_panel_widgets() %}
-                    <div class="settings-row" style="flex-direction:column; align-items:stretch; gap:0.35rem">
-                        <label class="text-muted" style="font-size:0.8rem; font-weight:600; text-transform:uppercase; letter-spacing:0.03em">Panel widgets</label>
-                        {% for widget in widgets %}
-                        <div style="display:flex; align-items:center; justify-content:space-between; padding:0.15rem 0">
-                            <label class="form-check-label" for="widget-{{ widget.id }}" style="font-size:0.9rem">{{ widget.label }}</label>
-                            <div class="form-check form-switch" style="padding-left:2.5em; margin:0">
-                                <input class="form-check-input" type="checkbox" id="widget-{{ widget.id }}" name="widget-{{ widget.id }}" value="1" {% if widget.visible %}checked{% endif %}>
-                            </div>
-                        </div>
-                        {% endfor %}
-                    </div>
-                    {% endif %}
-
-                    <div class="settings-row mt-2">
-                        <button name="update-theme-settings" class="btn btn-primary" type="submit">Save</button>
-                    </div>
-                </form>
-            </div>
-            <div id="theme-switch-hint" style="display:none">
-                <p class="text-muted small mb-0">Switch theme first to configure its settings.</p>
-            </div>
-            {% endif %}
         </div>
 
         <!-- Timezone -->
@@ -353,9 +224,9 @@
             <h2>Timezone</h2>
             <form method="POST">
                 <div class="settings-row">
-                    <select class="form-select" name="timezone">
-                        {% for timezone in timezones %}
-                        <option value="{{ timezone }}" {% if timezone == g.user.get_timezone(True) %}selected{% endif %}>{{ timezone }}</option>
+                    <select name="timezone" class="form-select">
+                        {% for tz in timezones %}
+                        <option value="{{ tz }}" {% if g.user.return_settings().timezone == tz %}selected{% endif %}>{{ tz }}</option>
                         {% endfor %}
                     </select>
                     <button name="update-timezone" class="btn btn-primary" type="submit">Save</button>
@@ -363,151 +234,7 @@
             </form>
         </div>
 
-        <!-- Obsidian Sync -->
-        <div class="settings-card">
-            <h2>Obsidian Sync</h2>
-            <form method="POST">
-                <div class="sync-status">
-                    <div>
-                        {% if sync_enabled %}
-                        <span class="badge bg-success sync-badge">Enabled</span>
-                        {% else %}
-                        <span class="badge bg-secondary sync-badge">Disabled</span>
-                        {% endif %}
-                    </div>
-                    <button name="toggle-obsidian-sync" class="btn btn-sm {% if sync_enabled %}btn-outline-danger{% else %}btn-outline-success{% endif %}" type="submit">
-                        {% if sync_enabled %}Disable{% else %}Enable{% endif %}
-                    </button>
-                </div>
-            </form>
-        </div>
-
-        <!-- AI Integration -->
-        <div class="settings-card">
-            <h2>AI Integration</h2>
-            <form method="POST">
-                <div class="sync-status">
-                    <div>
-                        {% if ai_enabled %}
-                        <span class="badge bg-success sync-badge">Enabled</span>
-                        {% else %}
-                        <span class="badge bg-secondary sync-badge">Disabled</span>
-                        {% endif %}
-                    </div>
-                    <button name="toggle-ai" class="btn btn-sm {% if ai_enabled %}btn-outline-danger{% else %}btn-outline-success{% endif %}" type="submit">
-                        {% if ai_enabled %}Disable{% else %}Enable{% endif %}
-                    </button>
-                </div>
-            </form>
-            <p class="text-muted small mt-2 mb-0">
-                When AI integration is disabled, Flasky Notes has absolutely no connection to any AI service. No data is sent anywhere.
-            </p>
-            {% if ai_enabled %}
-            <hr class="my-3">
-            <form method="POST">
-                <input type="hidden" name="csrf_token" value="{{ session.get('csrf_token', '') }}">
-                <div class="settings-row">
-                    <label for="ollama-api-key">API Key</label>
-                    <div class="d-flex gap-2 align-items-center">
-                        <input name="ollama-api-key" id="ollama-api-key" class="form-control" type="password" placeholder="{% if ai_settings and ai_settings.ollama_api_key %}Key configured (leave blank to keep){% else %}Enter your Ollama Cloud API key{% endif %}" style="flex:1;">
-                        {% if ai_settings and ai_settings.ollama_api_key %}
-                        <button name="remove-ai-api-key" class="btn btn-sm btn-outline-danger" type="submit">Remove Key</button>
-                        {% endif %}
-                    </div>
-                </div>
-                <div class="settings-row">
-                    <label for="ollama-model-select">Model</label>
-                    <select id="ollama-model-select" class="form-control">
-                        <option value="{{ ai_settings.ollama_model if ai_settings else 'gpt-oss:120b' }}">{{ ai_settings.ollama_model if ai_settings else 'gpt-oss:120b' }}</option>
-                    </select>
-                    <input name="ollama-model" id="ollama-model-value" type="hidden" value="{{ ai_settings.ollama_model if ai_settings else 'gpt-oss:120b' }}">
-                </div>
-                <div class="settings-row d-none" id="ollama-custom-model-row">
-                    <label for="ollama-model-custom">Custom Model Name</label>
-                    <input id="ollama-model-custom" class="form-control" type="text" placeholder="e.g. gpt-oss:120b" value="{{ ai_settings.ollama_model if ai_settings else 'gpt-oss:120b' }}">
-                </div>
-                <div class="settings-row">
-                    <label for="ollama-base-url">Base URL</label>
-                    <input name="ollama-base-url" id="ollama-base-url" class="form-control" type="text" value="{{ ai_settings.ollama_base_url if ai_settings else 'https://ollama.com' }}">
-                </div>
-                <div class="settings-row mt-2">
-                    <button name="update-ai-settings" class="btn btn-primary" type="submit">Save AI Settings</button>
-                </div>
-            </form>
-            <p class="text-muted small mt-2 mb-0">
-                AI chat is independent from your notes, sync, and other features. Your notes data is never sent to the AI service.
-            </p>
-            <script nonce="{{ csp_nonce() }}">
-            (function() {
-                var select = document.getElementById('ollama-model-select');
-                var customRow = document.getElementById('ollama-custom-model-row');
-                var customInput = document.getElementById('ollama-model-custom');
-                var hiddenInput = document.getElementById('ollama-model-value');
-                if (!select || !hiddenInput) return;
-                var currentModel = hiddenInput.value;
-
-                function updateHidden() {
-                    var sel = select.value;
-                    if (sel === '__custom__') {
-                        customRow.classList.remove('d-none');
-                        hiddenInput.value = customInput.value || currentModel;
-                    } else {
-                        customRow.classList.add('d-none');
-                        hiddenInput.value = sel;
-                    }
-                }
-
-                customInput.addEventListener('input', function() {
-                    hiddenInput.value = customInput.value;
-                });
-
-                select.addEventListener('change', updateHidden);
-
-                function populateModels(models) {
-                    select.innerHTML = '';
-                    var currentFound = false;
-                    models.forEach(function(m) {
-                        var opt = document.createElement('option');
-                        opt.value = m;
-                        opt.textContent = m;
-                        if (m === currentModel) {
-                            opt.selected = true;
-                            currentFound = true;
-                        }
-                        select.appendChild(opt);
-                    });
-                    var customOpt = document.createElement('option');
-                    customOpt.value = '__custom__';
-                    customOpt.textContent = 'Custom...';
-                    if (!currentFound && currentModel) {
-                        customOpt.selected = true;
-                        customRow.classList.remove('d-none');
-                        customInput.value = currentModel;
-                        hiddenInput.value = currentModel;
-                    }
-                    select.appendChild(customOpt);
-                }
-
-                fetch('/ai/api/models', {headers: {'X-CSRFToken': document.cookie.split('; ').find(function(c){return c.startsWith('X-CSRF-Token=')}) ? document.cookie.split('; ').find(function(c){return c.startsWith('X-CSRF-Token=')}).split('=')[1] : ''}})
-                    .then(function(r) { return r.json(); })
-                    .then(function(data) {
-                        var models = data.models || [];
-                        if (models.length > 0) {
-                            populateModels(models);
-                        } else {
-                            populateModels(["gpt-oss:120b","gpt-oss:20b","deepseek-v3.2","deepseek-v4-flash","glm-5.1","glm-5","kimi-k2-thinking","kimi-k2.6","kimi-k2.5","minimax-m2.7","minimax-m2.5","mistral-large-3:675b","qwen3.5:397b","qwen3-coder:480b","gemma4:31b","gemma3:27b"]);
-                        }
-                    })
-                    .catch(function() {
-                        populateModels(["gpt-oss:120b","gpt-oss:20b","deepseek-v3.2","deepseek-v4-flash","glm-5.1","glm-5","kimi-k2-thinking","kimi-k2.6","kimi-k2.5","minimax-m2.7","minimax-m2.5","mistral-large-3:675b","qwen3.5:397b","qwen3-coder:480b","gemma4:31b","gemma3:27b"]);
-                    });
-            })();
-            </script>
-            {% endif %}
-        </div>
-
         <!-- Encryption -->
-        {% if g.user.encryption_enabled %}
         <div class="settings-card">
             <h2>Encryption</h2>
             <div class="mb-3">
@@ -525,10 +252,10 @@
             </div>
 
             <h5 class="mt-4">Recovery Key</h5>
-            <p class="text-muted small">Generate a new recovery key. This replaces your existing one.</p>
+            <p class="text-muted small mb-0">Generate a new recovery key. This replaces your existing one.</p>
             <button class="btn btn-outline-warning" id="regen-recovery-btn">Regenerate Recovery Key</button>
             <div id="recovery-key-display" style="display:none" class="mt-2">
-                <div class="alert alert-warning">
+                <div class="alert-warning">
                     <strong>Save this recovery key now:</strong><br>
                     <code id="new-recovery-key" style="word-break:break-all"></code>
                 </div>
@@ -539,12 +266,56 @@
             <p>{{ g.user.password_hint }}</p>
             {% endif %}
         </div>
-        {% endif %}
 
         <div class="settings-card">
             <h2>Export</h2>
             <p style="margin-bottom:0.75rem;">Download all your notes as a .zip file.</p>
             <a href="/export" class="btn btn-primary">Export Notes</a>
+        </div>
+
+        <!-- AI Integration -->
+        <div class="settings-card">
+            <h2>AI Integration</h2>
+            <form method="POST">
+                <div class="settings-row">
+                    <label class="form-check-label" for="ai-toggle">AI enabled</label>
+                    <div class="form-check form-switch ms-auto">
+                        <input class="form-check-input" type="checkbox" id="ai-toggle" name="toggle-ai" {% if ai_enabled %}checked{% endif %} onchange="this.form.submit()">
+                    </div>
+                </div>
+            </form>
+            {% if ai_enabled %}
+            <hr class="my-3">
+            <form method="POST">
+                <div class="mb-2">
+                    <label class="text-muted small">Ollama API Key</label>
+                    <input name="ollama-api-key" class="form-control" type="password" placeholder="••••••••" value="{{ ai_settings.ollama_api_key or '' }}">
+                </div>
+                <div class="mb-2">
+                    <label class="text-muted small">Model</label>
+                    <input name="ollama-model" class="form-control" type="text" value="{{ ai_settings.ollama_model or '' }}">
+                </div>
+                <div class="mb-2">
+                    <label class="text-muted small">Base URL</label>
+                    <input name="ollama-base-url" class="form-control" type="text" value="{{ ai_settings.ollama_base_url or '' }}">
+                </div>
+                <button name="update-ai-settings" class="btn btn-primary btn-sm" type="submit">Save</button>
+                <button name="remove-ai-api-key" class="btn btn-outline-danger btn-sm" type="submit">Remove API Key</button>
+            </form>
+            {% endif %}
+        </div>
+
+        <!-- Obsidian Sync -->
+        <div class="settings-card">
+            <h2>Obsidian Sync</h2>
+            <form method="POST">
+                <div class="settings-row">
+                    <label class="form-check-label" for="sync-toggle">Sync enabled</label>
+                    <div class="form-check form-switch ms-auto">
+                        <input class="form-check-input" type="checkbox" id="sync-toggle" name="toggle-obsidian-sync" {% if sync_enabled %}checked{% endif %} onchange="this.form.submit()">
+                    </div>
+                </div>
+            </form>
         </div>
 
         <!-- API Tokens -->
@@ -558,14 +329,14 @@
             </form>
 
             {% if new_token %}
-            <div class="alert alert-warning token-alert">
+            <div class="alert-warning mt-2">
                 <small class="fw-bold">Copy this token now — it won't be shown again:</small>
                 <input type="text" class="form-control form-control-sm mt-1" value="{{ new_token }}" readonly id="new-token-input">
             </div>
             {% endif %}
 
             {% if tokens %}
-            <table class="table table-sm token-table mt-3 mb-0">
+            <table class="table table-sm mt-3 mb-0">
                 <thead>
                     <tr>
                         <th>Name</th>
@@ -590,32 +361,31 @@
                     {% endfor %}
                 </tbody>
             </table>
-            {% else %}
-            <p class="text-muted small mt-2 mb-0">No API tokens yet.</p>
             {% endif %}
         </div>
 
-        <!-- Sync Conflicts (only shown if there are conflicts) -->
+        <!-- Sync Conflicts -->
         {% if conflicts %}
         <div class="settings-card settings-card-wide">
             <h2>Sync Conflicts</h2>
-            <table class="table table-sm mb-0">
+            <table class="table table-sm">
                 <thead>
                     <tr>
-                        <th>Note</th>
+                        <th>Note ID</th>
+                        <th>Local</th>
+                        <th>Server</th>
                         <th>Date</th>
-                        <th class="text-end">Resolution</th>
+                        <th>Resolve</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for conflict in conflicts %}
                     <tr>
-                        <td>
-                            {{ conflict.local_title or conflict.server_title }}
-                            {% if conflict.category %}<br><small class="text-muted">{{ conflict.category }}</small>{% endif %}
-                        </td>
+                        <td>{{ conflict.note_id or '-' }}</td>
+                        <td><small class="text-muted">{{ (conflict.local_title or '')[:40] }}</small></td>
+                        <td><small class="text-muted">{{ (conflict.server_title or '')[:40] }}</small></td>
                         <td><small class="text-muted">{{ conflict.conflict_date.strftime('%Y-%m-%d %H:%M') if conflict.conflict_date else '-' }}</small></td>
-                        <td class="text-end">
+                        <td>
                             <form method="POST" style="display:inline">
                                 <input type="hidden" name="conflict-id" value="{{ conflict.id }}">
                                 <input type="hidden" name="resolution" value="local">
@@ -634,129 +404,14 @@
         </div>
         {% endif %}
 
-        <!-- Theme Comparison -->
-        <div class="settings-card settings-card-wide">
-            <h2>Theme Comparison</h2>
-            <div class="theme-table-wrap">
-                <table class="theme-table">
-                    <thead>
-                        <tr>
-                            <th>Feature</th>
-                            <th>Obsidified</th>
-                            <th>Cozy</th>
-                            <th>CLI</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td>Style</td>
-                            <td>File explorer</td>
-                            <td>Modern sidebar</td>
-                            <td>Terminal</td>
-                        </tr>
-                        <tr>
-                            <td>Dark mode</td>
-                            <td class="yes">&#10003;</td>
-                            <td class="yes">&#10003;</td>
-                            <td class="yes">&#10003;</td>
-                        </tr>
-                        <tr>
-                            <td>Markdown</td>
-                            <td class="yes">&#10003;</td>
-                            <td class="yes">&#10003;</td>
-                            <td class="no">&mdash;</td>
-                        </tr>
-                        <tr>
-                            <td>Wiki-links</td>
-                            <td class="yes">&#10003;</td>
-                            <td class="yes">&#10003;</td>
-                            <td class="no">&mdash;</td>
-                        </tr>
-                        <tr>
-                            <td>Search</td>
-                            <td class="yes">&#10003;</td>
-                            <td class="yes">&#10003;</td>
-                            <td class="no">&mdash;</td>
-                        </tr>
-                        <tr>
-                            <td>Font settings</td>
-                            <td class="yes">&#10003;</td>
-                            <td class="yes">&#10003;</td>
-                            <td class="no">&mdash;</td>
-                        </tr>
-                        <tr>
-                            <td>Properties</td>
-                            <td class="yes">&#10003;</td>
-                            <td class="yes">&#10003;</td>
-                            <td class="no">&mdash;</td>
-                        </tr>
-                        <tr>
-                            <td>Auto-save</td>
-                            <td class="yes">&#10003;</td>
-                            <td class="yes">&#10003;</td>
-                            <td class="no">&mdash;</td>
-                        </tr>
-                        <tr>
-                            <td>Sidebar</td>
-                            <td class="yes">&#10003;</td>
-                            <td class="yes">&#10003;</td>
-                            <td class="no">&mdash;</td>
-                        </tr>
-                        <tr>
-                            <td>Drag-drop</td>
-                            <td class="yes">&#10003;</td>
-                            <td class="yes">&#10003;</td>
-                            <td class="no">&mdash;</td>
-                        </tr>
-                        <tr>
-                            <td>Todos</td>
-                            <td class="yes">&#10003;</td>
-                            <td class="no">&mdash;</td>
-                            <td class="yes">&#10003;</td>
-                        </tr>
-                        <tr>
-                            <td>Events</td>
-                            <td class="yes">&#10003;</td>
-                            <td class="no">&mdash;</td>
-                            <td class="yes">&#10003;</td>
-                        </tr>
-                        <tr>
-                            <td>Outline panel</td>
-                            <td class="yes">&#10003;</td>
-                            <td class="no">&mdash;</td>
-                            <td class="no">&mdash;</td>
-                        </tr>
-                        <tr>
-                            <td>Backlinks</td>
-                            <td class="yes">&#10003;</td>
-                            <td class="no">&mdash;</td>
-                            <td class="no">&mdash;</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-        </div>
-
     </div>
 </div>
 <script nonce="{{ csp_nonce() }}">
 (function() {
     var tokenInput = document.getElementById('new-token-input');
     if (tokenInput) tokenInput.addEventListener('click', function() { this.select(); });
-
-    var themeSelect = document.querySelector('select[name="theme"]');
-    var settingsArea = document.getElementById('theme-settings-area');
-    var switchHint = document.getElementById('theme-switch-hint');
-    if (!themeSelect || !settingsArea) return;
-    var currentTheme = '{{ g.user.return_settings().theme_preference }}';
-    themeSelect.addEventListener('change', function() {
-        var changed = themeSelect.value !== currentTheme;
-        settingsArea.style.display = changed ? 'none' : '';
-        if (switchHint) switchHint.style.display = changed ? '' : 'none';
-    });
 })();
 </script>
-{% if g.user.encryption_enabled %}
 <script type="application/json" id="settings-encryption-data">
 {
     "username": {{ g.user.username|tojson }},
@@ -790,7 +445,6 @@ async function changeEncryptionPassword() {
     try {
         var oldSalt = await FlaskyCrypto.fetchSalt(settingsData.username);
         var oldKeys = await FlaskyCrypto.deriveKeys(currentPw, oldSalt);
-        // Verify old password works by unwrapping the symmetric key
         var encSymKey = settingsData.encryptedSymKey;
         var symKey;
         try {
@@ -814,7 +468,6 @@ async function changeEncryptionPassword() {
         });
         var data = await resp.json();
         if (data.success) {
-            // Update sessionStorage with same symmetric key (it doesn't change)
             await FlaskyCrypto.storeSymmetricKey(symKey);
             statusEl.innerHTML = '<span class="text-success">Password changed successfully.</span>';
             document.getElementById('current-password').value = '';
@@ -854,7 +507,13 @@ async function regenerateRecoveryKey() {
         alert('Error: ' + e.message);
     }
 }
+
+function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, function(c) {
+        return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+    });
+}
 })();
 </script>
-{% endif %}
-{% endblock %}
+</body>
+</html>

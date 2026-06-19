@@ -8,3 +8,6 @@ gunicorn
 flask-talisman
 PyYAML
 ollama
+marshmallow
+flask-smorest
+cryptography

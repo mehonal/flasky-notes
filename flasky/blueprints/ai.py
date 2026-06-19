@@ -14,6 +14,7 @@ import logging
 
 from flasky import db
 from flasky.models import AiConversation, AiMessage
+from flasky.ui_settings import get_setting
 
 logger = logging.getLogger(__name__)
 
@@ -85,9 +86,9 @@ def ai_page():
         return "You must be logged in to access this page.", 401
     settings = g.user.return_settings()
     ai_enabled = settings.ai_enabled if settings else False
-    encryption_enabled = g.user.encryption_enabled if g.user else False
+    font_size = get_setting(g.user, "font_size") if g.user else 15
+    dark_mode = get_setting(g.user, "dark_mode") if g.user else False
     if not ai_enabled:
-        font_size = g.user.get_current_theme_font_size() if g.user else 15
         return render_template(
             "ai.html",
             ai_enabled=False,
@@ -95,10 +96,9 @@ def ai_page():
             conversations_json="[]",
             current_conversation_id="null",
             current_conversation_json="null",
-            current_theme_dark=g.user.get_current_theme_dark_mode(),
+            current_theme_dark=dark_mode,
             font_size=font_size,
             models=OLLAMA_CLOUD_MODELS,
-            encryption_enabled=encryption_enabled,
         )
     conversations = (
         AiConversation.query.filter_by(user_id=g.user.id)
@@ -108,18 +108,11 @@ def ai_page():
     conv_id = request.args.get("conversation_id", type=int)
     current_conversation = None
     if conv_id:
-        current_conversation = AiConversation.query.filter_by(
-            id=conv_id, user_id=g.user.id
-        ).first()
-    font_size = g.user.get_current_theme_font_size() if g.user else 15
+        current_conversation = AiConversation.query.filter_by(id=conv_id, user_id=g.user.id).first()
     conversations_json = json.dumps([c.return_json() for c in conversations])
-    current_conversation_id = (
-        str(current_conversation.id) if current_conversation else "null"
-    )
+    current_conversation_id = str(current_conversation.id) if current_conversation else "null"
     current_conversation_json = (
-        json.dumps(current_conversation.return_json())
-        if current_conversation
-        else "null"
+        json.dumps(current_conversation.return_json()) if current_conversation else "null"
     )
     return render_template(
         "ai.html",
@@ -128,10 +121,9 @@ def ai_page():
         conversations_json=conversations_json,
         current_conversation_id=current_conversation_id,
         current_conversation_json=current_conversation_json,
-        current_theme_dark=g.user.get_current_theme_dark_mode(),
+        current_theme_dark=dark_mode,
         font_size=font_size,
         models=OLLAMA_CLOUD_MODELS,
-        encryption_enabled=encryption_enabled,
     )
 
 
@@ -229,35 +221,29 @@ def chat(conv_id):
     conv = AiConversation.query.filter_by(id=conv_id, user_id=g.user.id).first()
     if not conv:
         return jsonify(error="Conversation not found."), 404
-    encrypted = g.user.encryption_enabled
     data = request.get_json(silent=True) or {}
     user_content = data.get("message", "").strip()
     if not user_content:
         return jsonify(error="Message cannot be empty."), 400
     user_msg = AiMessage(conversation_id=conv.id, role="user", content=user_content)
     db.session.add(user_msg)
-    if not encrypted and (not conv.title or conv.title == "Untitled"):
-        conv.title = user_content[:100]
     from datetime import datetime
 
     conv.updated_at = datetime.utcnow()
     db.session.commit()
-    if encrypted:
-        client_messages = data.get("messages")
-        if not client_messages:
-            return jsonify(
-                error="Encrypted conversations require client-provided message history."
-            ), 400
-        ollama_messages = client_messages
-    else:
-        history = (
-            AiMessage.query.filter_by(conversation_id=conv.id)
-            .order_by(AiMessage.created_at.asc())
-            .all()
-        )
-        ollama_messages = []
-        for m in history:
-            ollama_messages.append({"role": m.role, "content": m.content})
+    # With mandatory E2EE, the server cannot read its own stored ciphertext to
+    # build history for the model — the client must send the full decrypted-
+    # then-re-encrypted-elsewhere message history is NOT what we want here;
+    # actually the client sends the messages it wants to feed the model
+    # (already decrypted by the client for the model call, but the server
+    # stores only the user's ciphertext). The server passes the client-provided
+    # messages straight through to Ollama.
+    client_messages = data.get("messages")
+    if not client_messages:
+        return jsonify(
+            error="Encrypted conversations require client-provided message history."
+        ), 400
+    ollama_messages = client_messages
     model = settings.ollama_model or "gpt-oss:120b"
     conv_id = conv.id
     user_id = g.user.id
@@ -281,7 +267,7 @@ def chat(conv_id):
                 db.session.add(assistant_msg)
                 conv_obj.updated_at = datetime.utcnow()
                 db.session.commit()
-                yield f"data: {json.dumps({'done': True, 'encrypted': encrypted, 'message_id': assistant_msg.id})}\n\n"
+                yield f"data: {json.dumps({'done': True, 'encrypted': True, 'message_id': assistant_msg.id})}\n\n"
             else:
                 yield f"data: {json.dumps({'error': 'Conversation not found.'})}\n\n"
         except Exception as e:
@@ -303,8 +289,6 @@ def encrypt_message(message_id):
     err = _check_ai_enabled()
     if err:
         return err
-    if not g.user.encryption_enabled:
-        return jsonify(error="Encryption is not enabled."), 400
     msg = AiMessage.query.get(message_id)
     if not msg or msg.conversation.user_id != g.user.id:
         return jsonify(error="Message not found."), 404
@@ -402,16 +386,9 @@ def create_note_from_ai():
         note_content = content
 
     else:
-        return jsonify(
-            error="source must be 'message', 'conversation', or 'custom'."
-        ), 400
+        return jsonify(error="source must be 'message', 'conversation', or 'custom'."), 400
 
-    main_cat = g.user.get_main_category()
-    note = g.user.add_note(
-        note_title,
-        note_content,
-        main_cat.id,
-        encrypted=g.user.encryption_enabled,
-    )
-    db.session.commit()
+    from flasky.services.notes import create_note
+
+    note = create_note(g.user, note_title, note_content, None)
     return jsonify(success=True, note_id=note.id, title=note_title)

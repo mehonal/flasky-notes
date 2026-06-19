@@ -74,7 +74,7 @@
             var data = await resp.json();
 
             if (data.success) {
-                if (data.encryption_enabled && data.encrypted_sym_key) {
+                if (data.encrypted_sym_key) {
                     statusEl.textContent = 'Unlocking vault...';
                     var symKey = await FlaskyCrypto.unwrapSymmetricKey(data.encrypted_sym_key, keys.kek);
                     await FlaskyCrypto.storeSymmetricKey(symKey);
@@ -83,29 +83,8 @@
                 return;
             }
 
-            // E2EE login failed — try legacy form login (raw password)
-            statusEl.textContent = 'Trying legacy login...';
-            var formData = new FormData();
-            formData.append('username', username);
-            formData.append('password', password);
-            var legacyResp = await fetch('/login', {
-                method: 'POST',
-                body: formData,
-                redirect: 'follow'
-            });
-            // If legacy login redirects, follow it (validate origin to prevent open redirect)
-            if (legacyResp.redirected) {
-                var redirectUrl = new URL(legacyResp.url);
-                if (redirectUrl.origin === window.location.origin) {
-                    window.location.href = legacyResp.url;
-                } else {
-                    window.location.href = '/notes';
-                }
-                return;
-            }
-            // If not redirected, it returned an error message
-            var text = await legacyResp.text();
-            errorEl.textContent = text;
+            // Login failed — surface the error
+            errorEl.textContent = data.reason || 'Login failed.';
             errorEl.style.display = 'block';
         } catch (err) {
             errorEl.textContent = 'Login failed: ' + err.message;

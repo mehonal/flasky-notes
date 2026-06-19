@@ -11,14 +11,18 @@ _DUMMY_BCRYPT_HASH = bcrypt.hashpw(b'dummy', bcrypt.gensalt())
 
 
 def _authenticate_user(data):
-    """Authenticate user via auth_key (E2EE) or legacy password."""
+    """Authenticate user via auth_key (the PBKDF2-derived hex string the
+    client computes from the user's password + key_salt). With mandatory E2EE
+    there is no legacy raw-password path; callers must derive the auth_key the
+    same way the login flow does (see static/js/crypto.js deriveKeys, or
+    sync_client/flasky_crypto.py derive_keys for a Python reference).
+    """
     if login_limiter.is_limited():
         return None, "Too many login attempts. Try again later."
     username = (data.get('username') or '').lower().strip()
-    # Support both auth_key (E2EE) and password (legacy)
-    auth_key = data.get('auth_key') or data.get('password')
+    auth_key = data.get('auth_key')
     if not username or not auth_key:
-        return None, "Missing username or credentials."
+        return None, "Missing username or auth_key."
     user = User.query.filter_by(username=username).first()
     if not user:
         bcrypt.checkpw(b'dummy', _DUMMY_BCRYPT_HASH)
@@ -41,12 +45,16 @@ def get_notes_external_api():
     except (ValueError, TypeError):
         limit = None
     notes = []
-    notes_q = UserNote.query.filter_by(userid=user.id).order_by(UserNote.date_last_changed.desc())
+    notes_q = (
+        UserNote.query.filter_by(userid=user.id)
+        .order_by(UserNote.date_last_changed.desc())
+    )
     if limit:
         notes_q = notes_q.limit(limit)
     for note in notes_q.all():
         notes.append(note.return_json())
     return jsonify(notes)
+
 
 @external_api_bp.route("/get-note", methods=['POST'])
 def get_note_external_api():
@@ -64,6 +72,7 @@ def get_note_external_api():
     else:
         return jsonify(success=False, reason="Note does not exist.")
 
+
 @external_api_bp.route("/add-note", methods=['POST'])
 def add_note_external_api():
     data = request.get_json()
@@ -73,12 +82,13 @@ def add_note_external_api():
     title = data.get('title', '')
     content = data.get('content', '')
     category = data.get('category', '')
-    # E2EE: caller must send pre-encrypted data
-    note = user.add_note(title, content, category, encrypted=user.encryption_enabled)
-    if note:
-        return jsonify(success=True, note=note.return_json())
-    else:
+    from flasky.services.notes import create_note
+    try:
+        note = create_note(user, title, content, category or None)
+    except ValueError:
         return jsonify(success=False, reason="Could not add note.")
+    return jsonify(success=True, note=note.return_json())
+
 
 @external_api_bp.route("/edit-note", methods=['POST'])
 def edit_note_external_api():
@@ -92,16 +102,12 @@ def edit_note_external_api():
     title = data.get('title')
     content = data.get('content')
     category = data.get('category')
-    note = UserNote.query.filter_by(userid=user.id, id=note_id).first()
-    if note:
-        encrypted = user.encryption_enabled
-        if title is not None:
-            note.change_title(title)
-        if content is not None:
-            if note.content != content:
-                note.change_content(content, encrypted=encrypted)
-        if category is not None:
-            note.change_category(category)
-        return jsonify(success=True, note=note.return_json())
-    else:
+    from flasky.services.notes import update_note, NoteNotFound, NotOwner
+    try:
+        note = update_note(user, int(note_id), title=title, content=content,
+                           category=category)
+    except (NoteNotFound, NotOwner):
         return jsonify(success=False, reason="Note does not exist.")
+    except (ValueError, TypeError):
+        return jsonify(success=False, reason="Invalid note id.")
+    return jsonify(success=True, note=note.return_json())

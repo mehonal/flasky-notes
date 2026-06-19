@@ -1,13 +1,10 @@
 import re
 import secrets
 import hashlib
-import json
 import time
 import threading
-import datetime as dt
 from functools import wraps
 
-import yaml
 from flask import request, jsonify, g, redirect, url_for
 
 
@@ -50,12 +47,6 @@ login_limiter = RateLimiter(max_attempts=10, window_seconds=300)
 sync_token_limiter = RateLimiter(max_attempts=20, window_seconds=900)
 
 
-_FRONTMATTER_RE = re.compile(r"^---\n(.*?)\n---\n", re.DOTALL)
-
-# Keys the sync script uses locally — never stored in server properties
-_SYNC_META_KEYS = {"flasky_id", "flasky_hash", "conflict_source"}
-
-
 def has_banned_chars(text):
     if text.isalnum():
         return False
@@ -81,58 +72,6 @@ def content_hash(content):
     if content is None:
         content = ""
     return hashlib.sha256(content.encode("utf-8")).hexdigest()
-
-
-def _make_json_safe(val):
-    """Convert YAML-parsed values to JSON-safe types."""
-    if isinstance(val, (dt.date, dt.datetime)):
-        return val.isoformat()
-    if isinstance(val, list):
-        return [_make_json_safe(v) for v in val]
-    if isinstance(val, dict):
-        return {k: _make_json_safe(v) for k, v in val.items()}
-    return val
-
-
-def parse_note_frontmatter(text):
-    """Split text into (properties_dict, body). Strips sync-only keys."""
-    if not text:
-        return {}, text or ""
-    m = _FRONTMATTER_RE.match(text)
-    if not m:
-        return {}, text
-    try:
-        raw = yaml.safe_load(m.group(1))
-        if not isinstance(raw, dict):
-            return {}, text
-    except yaml.YAMLError:
-        return {}, text
-    props = {k: _make_json_safe(v) for k, v in raw.items() if k not in _SYNC_META_KEYS}
-    body = text[m.end() :]
-    return props, body
-
-
-def build_note_frontmatter(props):
-    """Build a YAML frontmatter string from a dict."""
-    if not props:
-        return ""
-    # Use yaml.dump for proper list/nested value formatting
-    dumped = yaml.dump(
-        props, default_flow_style=False, allow_unicode=True, sort_keys=False
-    )
-    return f"---\n{dumped}---\n"
-
-
-def content_with_frontmatter(content, properties_json):
-    """Reconstruct full text with frontmatter prepended."""
-    props = {}
-    if properties_json:
-        try:
-            props = json.loads(properties_json)
-        except (json.JSONDecodeError, TypeError):
-            pass
-    fm = build_note_frontmatter(props)
-    return fm + (content or "")
 
 
 def format_utc_iso(dt_val):
@@ -191,6 +130,71 @@ def login_required_page(f):
         return f(*args, **kwargs)
 
     return decorated
+
+
+def require_note_owner(f):
+    """Decorator that loads a note by <note_id> path arg and verifies ownership.
+
+    Use on routes with an <int:note_id> path parameter. On success, the note is
+    passed to the handler as `note=` (and the original note_id kwarg is kept).
+    Returns 404 JSON if the note doesn't exist, 403 if not owned.
+    """
+
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        from flasky.services.notes import NoteNotFound, NotOwner, get_owned_note
+
+        note_id = kwargs.get("note_id")
+        if note_id is None:
+            return jsonify(error="Missing note_id"), 400
+        try:
+            note = get_owned_note(g.user, note_id)
+        except NoteNotFound:
+            return jsonify(error="Note not found."), 404
+        except NotOwner:
+            return jsonify(error="Not allowed."), 403
+        kwargs["note"] = note
+        return f(*args, **kwargs)
+
+    return decorated
+
+
+def register_error_handlers(app):
+    """Register central JSON error handlers on the app. Routes that raise
+    service-layer exceptions (NoteNotFound, NotOwner, CategoryNotFound, etc.)
+    get a consistent JSON response without each route needing its own try/except.
+    """
+
+    @app.errorhandler(400)
+    def _bad_request(err):
+        return jsonify(error=str(err) or "Bad request."), 400
+
+    @app.errorhandler(403)
+    def _forbidden(err):
+        return jsonify(error=str(err) or "Forbidden."), 403
+
+    @app.errorhandler(404)
+    def _not_found(err):
+        return jsonify(error=str(err) or "Not found."), 404
+
+    @app.errorhandler(422)
+    def _unprocessable(err):
+        # flask-smorest / marshmallow validation errors carry .messages
+        # (a dict of field -> error list). Surface them in the response.
+        messages = getattr(err, "messages", None)
+        if messages is None:
+            # Some flask-smorest versions wrap the validation error in a
+            # .data attribute or .args[0]; try those too.
+            data = getattr(err, "data", None)
+            if data and isinstance(data, dict):
+                messages = data.get("messages") or data.get("errors")
+            if messages is None and err.args:
+                messages = err.args[0]
+        return jsonify(error="Validation failed.", details=messages), 422
+
+    @app.errorhandler(500)
+    def _server_error(err):
+        return jsonify(error="Internal server error."), 500
 
 
 def verify_recaptcha(token):

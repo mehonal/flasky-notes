@@ -1,3 +1,4 @@
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="utf-8">
@@ -5,23 +6,15 @@
     <title>Flasky Notes</title>
 
     <!-- Favicons -->
-    <link rel="icon" type="image/x-icon" href="/static/images/amazing_logo.png"> 
+    <link rel="icon" type="image/x-icon" href="/static/images/amazing_logo.png">
     <link rel="apple-touch-icon" href="/static/images/amazing_logo.png" sizes="180x180">
-    <link rel="icon" href="/static/images/amazing_logo.png">
-    
+
     <script nonce="{{ csp_nonce() }}" src="/static/js/csrf.js"></script>
     <link rel="manifest" href="/manifest.json">
     <link href="{{ url_for('static', filename='vendor/bootstrap/bootstrap.min.css') }}" rel="stylesheet">
     <script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='vendor/bootstrap/bootstrap.bundle.min.js') }}"></script>
-
 </head>
-
 <body>
-      {% block body %}
-
-
-
-      {% endblock %}
+    {% block body %}{% endblock %}
 </body>
-
 </html>

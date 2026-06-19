@@ -1,98 +1,106 @@
 """
-Functional System Tests: Complete User Flows
-Testing complete user scenarios with parametrized boundary values
+Functional System Tests: Complete E2EE user flows.
+
+Tests the full registration + login + note creation flow via the real
+/api/auth/register and /api/auth/login endpoints with client-side key
+derivation (using tests/e2ee_helpers, which mirrors the JS crypto).
 """
 
 import sys
 import os
+
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 import pytest
-import random
-import string
-
-# bcrypt has a 72-byte password limit, but the app allows up to 100 chars.
-# Passwords 73-100 chars will pass validation but crash in User.__init__.
-# These combos are marked xfail to document the bug.
-_BCRYPT_LIMIT = 72
+from tests.e2ee_helpers import make_e2ee_user, enc, dec, derive_keys
 
 
-def random_string(k):
-    return ''.join(random.choices(string.ascii_lowercase, k=k))
+def test_full_e2ee_registration_and_login_flow(app_context):
+    """A fresh user can register, log in, create an encrypted note, fetch it
+    back, and decrypt it — end-to-end through the real auth + notes API.
+    """
+    client = app_context.test_client()
+    creds = make_e2ee_user(client, "flowuser", "flowpassword123")
+
+    # Create a note via the API (encrypted client-side)
+    r = client.post(
+        "/api/save_note",
+        json={
+            "noteId": 0,
+            "title": enc(creds, "Flow Test Note"),
+            "content": enc(creds, "Test content for flow"),
+            "category": None,
+        },
+    )
+    assert r.status_code == 200
+    assert r.json["success"] is True
+    note_id = r.json["note"]["id"]
+
+    # Fetch the note back and decrypt
+    fetch_r = client.get(f"/api/note/{note_id}")
+    assert fetch_r.json["success"] is True
+    assert dec(creds, fetch_r.json["note"]["title"]) == "Flow Test Note"
+    assert dec(creds, fetch_r.json["note"]["content"]) == "Test content for flow"
 
 
-def run_registration_flow(client, username, password):
-    """Run a full registration + note management flow.
-    Returns True for both valid and invalid credential combos."""
-    email = f"{username}@test.com"
+def test_e2ee_login_with_wrong_password_fails(app_context):
+    """Login with the wrong password (wrong auth_key) is rejected."""
+    client = app_context.test_client()
+    from tests.e2ee_helpers import register_e2ee_user
 
-    register_response = client.post('/register', data={
-        'username': username,
-        'password': password,
-        'email': email
-    }, follow_redirects=True)
-
-    # Invalid credentials should be rejected
-    if len(username) < 4 or len(username) > 30 or len(password) < 8 or len(password) > 100:
-        assert b'must be' in register_response.data.lower() or \
-               b'illegal' in register_response.data.lower()
-        return
-
-    # Valid registration should redirect to login
-    assert b'sign in' in register_response.data.lower() or \
-           b'login' in register_response.data.lower()
-
-    # Login
-    login_response = client.post('/login', data={
-        'username': username,
-        'password': password
-    }, follow_redirects=True)
-    assert login_response.status_code == 200
-
-    # Create note via form
-    note_response = client.post('/note/0', data={
-        'title': 'Flow Test Note',
-        'content': 'Test content for flow',
-        'update-note': True
-    }, follow_redirects=True)
-    assert b'Flow Test Note' in note_response.data
-
-    # Create category
-    cat_response = client.post('/api/add_category',
-                               json={'categoryName': 'Flow Category'})
-    assert cat_response.json['success'] is True
-    category_id = cat_response.json['category']
-
-    # Create note in category via API
-    categorized_note = client.post('/api/save_note',
-                                   json={
-                                       'noteId': 0,
-                                       'title': 'Categorized Note',
-                                       'content': 'In category',
-                                       'category': category_id
-                                   })
-    assert categorized_note.json['success'] is True
-
-    # Change theme
-    theme_response = client.post('/settings', data={
-        'update-theme': True,
-        'theme': 'cozy'
-    }, follow_redirects=True)
-    assert theme_response.status_code == 200
+    creds = register_e2ee_user(client, "wrongpwuser", "correctpassword")
+    # Derive auth_key from a DIFFERENT password
+    wrong_auth_key, _ = derive_keys("wrongpassword", "wrongpwuser")
+    r = client.post(
+        "/api/auth/login",
+        json={"username": "wrongpwuser", "auth_key": wrong_auth_key},
+    )
+    assert r.status_code == 401
+    assert r.json["success"] is False
 
 
-# Boundary values: username 3(too short), 4(min), 5(valid), 29(valid), 30(max), 31(too long)
-# Boundary values: password 7(too short), 8(min), 9(valid), 99(valid), 100(max), 101(too long)
-@pytest.mark.parametrize("uname_len", [3, 4, 5, 29, 30, 31])
-@pytest.mark.parametrize("pw_len", [7, 8, 9, 99, 100, 101])
-def test_registration_boundary(client, uname_len, pw_len):
-    # Valid username (4-30) + password over bcrypt's 72-byte limit (73-100)
-    # triggers a ValueError in bcrypt — this is a known app bug.
-    valid_username = 4 <= uname_len <= 30
-    exceeds_bcrypt = pw_len > _BCRYPT_LIMIT
-    valid_app_password = 8 <= pw_len <= 100
-    if valid_username and exceeds_bcrypt and valid_app_password:
-        pytest.xfail("App allows passwords >72 chars but bcrypt rejects them")
+def test_e2ee_duplicate_username_rejected(app_context):
+    client = app_context.test_client()
+    make_e2ee_user(client, "dupuser", "duppassword123")
+    # Second registration with same username should fail
+    from tests.e2ee_helpers import register_e2ee_user
+    with pytest.raises(RuntimeError):
+        register_e2ee_user(client, "dupuser", "anotherpassword123")
 
-    username = random_string(uname_len)
-    password = random_string(pw_len)
-    run_registration_flow(client, username, password)
+
+def test_e2ee_user_can_access_protected_routes_after_login(app_context):
+    client = app_context.test_client()
+    creds = make_e2ee_user(client, "protecteduser", "protectedpass123")
+
+    # Should be able to hit protected endpoints
+    r = client.get("/api/get_all_notes")
+    assert r.status_code == 200
+
+    r = client.get("/settings")
+    assert r.status_code == 200
+
+
+def test_e2ee_unauthenticated_user_blocked(client):
+    """Without logging in, protected routes return 401/302."""
+    r = client.get("/api/get_all_notes")
+    assert r.status_code == 401
+
+    r = client.get("/notes", follow_redirects=False)
+    assert r.status_code == 302  # redirect to /login
+
+
+def test_e2ee_salt_endpoint_returns_salt_for_known_user(app_context):
+    client = app_context.test_client()
+    creds = make_e2ee_user(client, "saltuser", "saltpass123")
+
+    r = client.get("/api/auth/salt?username=saltuser")
+    assert r.status_code == 200
+    assert r.json["key_salt"] is not None
+    # The salt should match what was registered
+    assert r.json["key_salt"] == creds["salt_hex"]
+
+
+def test_e2ee_salt_endpoint_returns_fake_salt_for_unknown_user(client):
+    """Unknown users get a deterministic fake salt to prevent enumeration."""
+    r = client.get("/api/auth/salt?username=nonexistentuser")
+    assert r.status_code == 200
+    assert r.json["key_salt"] is not None  # fake salt, not None

@@ -97,24 +97,62 @@ def create_app():
         session_cookie_secure=CONFIG.ENFORCE_SSL,
     )
 
-    logging.basicConfig(
-        filename="applog.log",
-        level=logging.WARNING,
-        format=f"%(asctime)s %(levelname)s %(name)s %(threadName)s : %(message)s",
+    # Configure logging. Use a stream handler (stdout) so logs go to the
+    # container/daemon's stdout instead of a hardcoded file in the cwd. The
+    # log level is WARNING by default; set LOG_LEVEL env var to override.
+    log_level = os.environ.get("LOG_LEVEL", "WARNING").upper()
+    handler = logging.StreamHandler()
+    handler.setFormatter(
+        logging.Formatter(
+            "%(asctime)s %(levelname)s %(name)s %(threadName)s : %(message)s"
+        )
     )
+    root_logger = logging.getLogger()
+    root_logger.setLevel(log_level)
+    # Avoid duplicate handlers if create_app() is called more than once (tests)
+    if not root_logger.handlers:
+        root_logger.addHandler(handler)
+    app.logger.setLevel(log_level)
+
+    # flask-smorest config (used by the @bp.arguments validation decorator
+    # on the notes/categories/agenda/templates blueprints). The OpenAPI spec
+    # is generated but not served publicly; these values just satisfy the lib.
+    app.config["API_TITLE"] = "Flasky Notes API"
+    app.config["API_VERSION"] = "v3"
+    app.config["OPENAPI_VERSION"] = "3.0.2"
 
     # Register blueprints
+    from flask_smorest import Api as SmorestApi
     from flasky.blueprints.web import web_bp
-    from flasky.blueprints.notes_api import notes_api_bp
+    from flasky.blueprints.notes import notes_bp
+    from flasky.blueprints.categories import categories_bp
+    from flasky.blueprints.agenda import agenda_bp
+    from flasky.blueprints.templates import templates_bp
+    from flasky.blueprints.attachments import attachments_bp
+    from flasky.blueprints.ui_state import ui_state_bp
     from flasky.blueprints.external_api import external_api_bp
     from flasky.blueprints.sync_api import sync_api_bp
     from flasky.blueprints.ai import ai_bp
 
+    # Plain Flask blueprints (no smorest validation) register directly
     app.register_blueprint(web_bp)
-    app.register_blueprint(notes_api_bp)
     app.register_blueprint(external_api_bp)
     app.register_blueprint(sync_api_bp)
     app.register_blueprint(ai_bp)
+    app.register_blueprint(attachments_bp)
+    app.register_blueprint(ui_state_bp)
+
+    # smorest blueprints register through an Api so @bp.arguments works
+    api = SmorestApi(app)
+    api.register_blueprint(notes_bp)
+    api.register_blueprint(categories_bp)
+    api.register_blueprint(agenda_bp)
+    api.register_blueprint(templates_bp)
+
+    # Central JSON error handlers (NoteNotFound, NotOwner, validation, etc.)
+    from flasky.utils import register_error_handlers
+
+    register_error_handlers(app)
 
     # Set CSRF cookie on responses so client JS can read it
     @app.after_request
@@ -142,33 +180,4 @@ def create_app():
         def ssl_validation():
             return "validate ssl here."
 
-    # Seed themes (skip if tables don't exist yet, e.g. during tests)
-    with app.app_context():
-        from flasky.models import Theme
-
-        try:
-            _seed_themes()
-            db.session.commit()
-        except Exception:
-            db.session.rollback()
-
     return app
-
-
-def _seed_themes():
-    from flasky.models import Theme
-
-    themes = [
-        ("Cozy", "cozy", False, False),
-        ("Obsidified", "obsidified", False, False),
-        ("CLI", "cli", False, False),
-    ]
-    for name, slug, has_categories, has_notes in themes:
-        if Theme.query.filter_by(slug=slug).first() is None:
-            t = Theme(
-                name=name,
-                slug=slug,
-                has_categories_page=has_categories,
-                has_notes_page=has_notes,
-            )
-            db.session.add(t)

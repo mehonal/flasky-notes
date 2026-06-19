@@ -9,14 +9,12 @@ from flask import (
     jsonify,
     make_response,
     current_app,
-    send_from_directory,
 )
 from datetime import datetime, timedelta
 import bcrypt
 import hashlib
 import base64
 import json
-import re
 
 import config as CONFIG
 from flasky import db
@@ -26,16 +24,10 @@ from flasky.models import (
     UserNoteCategory,
     UserTodo,
     UserEvent,
-    Theme,
-    UserTheme,
-    UserSettings,
     ApiToken,
     SyncConflict,
     Attachment,
     NoteTemplate,
-    UserAgendaNotes,
-    AiConversation,
-    AiMessage,
 )
 import os
 import secrets
@@ -48,6 +40,12 @@ from flasky.utils import (
     login_required,
     login_required_page,
     verify_recaptcha,
+)
+from flasky.ui_settings import (
+    get_all_settings,
+    set_setting,
+    get_panel_widgets,
+    set_panel_widgets,
 )
 
 # Paths exempt from CSRF validation (pre-auth or token-auth endpoints)
@@ -110,24 +108,23 @@ def api_auth_register():
     if User.query.filter_by(email=email).first():
         return jsonify(success=False, reason="Email already in use."), 400
 
-    # Create user with auth_key as the "password" (it gets bcrypt-hashed in __init__)
-    new_user = User(username, auth_key, email)
-    new_user.encryption_enabled = True
-    new_user.encrypted_symmetric_key = encrypted_sym_key
-    new_user.recovery_encrypted_key = recovery_encrypted_key
-    new_user.recovery_key_hash = data.get("recovery_key_hash")
-    new_user.encryption_version = 1
-    new_user.key_salt = data.get("key_salt") or os.urandom(32).hex()
-    new_user.password_hint = data.get("password_hint", "")
-    db.session.commit()
+    # Create user + key material + default category via the auth service.
+    from flasky.services.auth import register_e2ee_user
 
-    # Create default category (encrypted for E2EE users)
-    encrypted_main = data.get("encrypted_main_category")
-    if not encrypted_main:
-        return jsonify(success=False, reason="Missing encrypted category name."), 400
-    default_cat = UserNoteCategory(user_id=new_user.id, name=encrypted_main)
-    db.session.add(default_cat)
-    db.session.commit()
+    try:
+        register_e2ee_user(
+            username=username,
+            email=email,
+            auth_key=auth_key,
+            encrypted_sym_key=encrypted_sym_key,
+            recovery_encrypted_key=recovery_encrypted_key,
+            recovery_key_hash=data.get("recovery_key_hash"),
+            key_salt=data.get("key_salt"),
+            password_hint=data.get("password_hint", ""),
+            encrypted_main_category=data.get("encrypted_main_category"),
+        )
+    except ValueError as e:
+        return jsonify(success=False, reason=str(e)), 400
 
     return jsonify(success=True)
 
@@ -180,7 +177,6 @@ def api_auth_login():
     return jsonify(
         success=True,
         encrypted_sym_key=user.encrypted_symmetric_key,
-        encryption_enabled=user.encryption_enabled,
     )
 
 
@@ -196,16 +192,14 @@ def api_auth_change_password():
     if not new_auth_key or not new_encrypted_sym_key:
         return jsonify(success=False, reason="Missing required fields."), 400
 
-    g.user.password = bcrypt.hashpw(new_auth_key.encode("utf-8"), bcrypt.gensalt())
-    g.user.encrypted_symmetric_key = new_encrypted_sym_key
-    if data.get("new_recovery_encrypted_key"):
-        g.user.recovery_encrypted_key = data["new_recovery_encrypted_key"]
-    if data.get("new_recovery_key_hash"):
-        g.user.recovery_key_hash = data["new_recovery_key_hash"]
-    if data.get("new_key_salt"):
-        g.user.key_salt = data["new_key_salt"]
-    db.session.commit()
+    from flasky.services.auth import change_password
 
+    change_password(
+        g.user, new_auth_key, new_encrypted_sym_key,
+        new_recovery_encrypted_key=data.get("new_recovery_encrypted_key"),
+        new_recovery_key_hash=data.get("new_recovery_key_hash"),
+        new_key_salt=data.get("new_key_salt"),
+    )
     return jsonify(success=True)
 
 
@@ -216,10 +210,12 @@ def api_auth_update_recovery_key():
     data = request.get_json()
     if not data or not data.get("recovery_encrypted_key"):
         return jsonify(success=False, reason="Missing recovery_encrypted_key."), 400
-    g.user.recovery_encrypted_key = data["recovery_encrypted_key"]
-    if data.get("recovery_key_hash"):
-        g.user.recovery_key_hash = data["recovery_key_hash"]
-    db.session.commit()
+    from flasky.services.auth import update_recovery_key
+
+    update_recovery_key(
+        g.user, data["recovery_encrypted_key"],
+        recovery_key_hash=data.get("recovery_key_hash"),
+    )
     return jsonify(success=True)
 
 
@@ -238,7 +234,6 @@ def api_auth_recover():
     username = (data.get("username") or "").lower().strip()
     new_auth_key = data.get("new_auth_key")
     new_encrypted_sym_key = data.get("new_encrypted_sym_key")
-    new_recovery_encrypted_key = data.get("new_recovery_encrypted_key")
 
     recovery_key_hash = data.get("recovery_key_hash")
     if (
@@ -249,23 +244,16 @@ def api_auth_recover():
     ):
         return jsonify(success=False, reason="Missing required fields."), 400
 
-    user = User.query.filter_by(username=username).first()
+    from flasky.services.auth import recover_account
+
+    user = recover_account(
+        username, new_auth_key, new_encrypted_sym_key, recovery_key_hash,
+        new_recovery_encrypted_key=data.get("new_recovery_encrypted_key"),
+        new_recovery_key_hash=data.get("new_recovery_key_hash"),
+        new_key_salt=data.get("new_key_salt"),
+    )
     if not user:
-        # Generic message to prevent username enumeration
         return jsonify(success=False, reason="Recovery failed."), 400
-
-    # Verify the caller possesses the recovery key (constant-time even if no hash set)
-    expected = user.recovery_key_hash or ("0" * 64)
-    valid = secrets.compare_digest(expected, recovery_key_hash)
-    if not user.recovery_key_hash or not valid:
-        return jsonify(success=False, reason="Recovery failed."), 400
-
-    user.password = bcrypt.hashpw(new_auth_key.encode("utf-8"), bcrypt.gensalt())
-    user.encrypted_symmetric_key = new_encrypted_sym_key
-    if new_recovery_encrypted_key:
-        user.recovery_encrypted_key = new_recovery_encrypted_key
-    if data.get("new_recovery_key_hash"):
-        user.recovery_key_hash = data["new_recovery_key_hash"]
     if data.get("new_key_salt"):
         user.key_salt = data["new_key_salt"]
     db.session.commit()
@@ -274,94 +262,6 @@ def api_auth_recover():
     session["user_id"] = user.id
     session.permanent = True
 
-    return jsonify(success=True)
-
-
-@web_bp.route("/api/auth/enable_encryption", methods=["POST"])
-@login_required
-def api_auth_enable_encryption():
-    """Enable E2EE for a legacy user (migration step 1: switch auth)."""
-    data = request.get_json()
-    if not data:
-        return jsonify(success=False, reason="Missing request body."), 400
-    new_auth_key = data.get("auth_key")
-    encrypted_sym_key = data.get("encrypted_sym_key")
-    recovery_encrypted_key = data.get("recovery_encrypted_key")
-
-    if not new_auth_key or not encrypted_sym_key:
-        return jsonify(success=False, reason="Missing required fields."), 400
-
-    g.user.password = bcrypt.hashpw(new_auth_key.encode("utf-8"), bcrypt.gensalt())
-    g.user.encryption_enabled = True
-    g.user.encrypted_symmetric_key = encrypted_sym_key
-    g.user.recovery_encrypted_key = recovery_encrypted_key
-    g.user.recovery_key_hash = data.get("recovery_key_hash")
-    g.user.encryption_version = 1
-    g.user.key_salt = data.get("key_salt") or os.urandom(32).hex()
-    g.user.password_hint = data.get("password_hint", "")
-    db.session.commit()
-
-    return jsonify(success=True)
-
-
-@web_bp.route("/api/migrate/encrypt_data", methods=["POST"])
-@login_required
-def api_migrate_encrypt_data():
-    """Batch update: replace plaintext data with encrypted ciphertext (migration step 2)."""
-    if not g.user.encryption_enabled:
-        return jsonify(success=False, reason="Encryption not enabled."), 400
-    data = request.get_json()
-    if not data:
-        return jsonify(success=False, reason="Missing request body."), 400
-
-    # Process notes batch
-    notes = data.get("notes", [])
-    for item in notes:
-        note = UserNote.query.filter_by(id=item["id"], userid=g.user.id).first()
-        if note:
-            note.title = item.get("title", note.title)
-            note.content = item.get("content", note.content)
-            note.properties = item.get("properties", note.properties)
-            note.previous_content = item.get("previous_content", note.previous_content)
-
-    # Process categories batch
-    categories = data.get("categories", [])
-    for item in categories:
-        cat = UserNoteCategory.query.filter_by(id=item["id"], user_id=g.user.id).first()
-        if cat:
-            cat.name = item.get("name", cat.name)
-
-    # Process todos batch
-    todos = data.get("todos", [])
-    for item in todos:
-        todo = UserTodo.query.filter_by(id=item["id"], userid=g.user.id).first()
-        if todo:
-            todo.title = item.get("title", todo.title)
-            todo.content = item.get("content", todo.content)
-
-    # Process events batch
-    events = data.get("events", [])
-    for item in events:
-        event = UserEvent.query.filter_by(id=item["id"], userid=g.user.id).first()
-        if event:
-            event.title = item.get("title", event.title)
-            event.content = item.get("content", event.content)
-
-    # Process templates batch
-    templates = data.get("templates", [])
-    for item in templates:
-        tmpl = NoteTemplate.query.filter_by(id=item["id"], user_id=g.user.id).first()
-        if tmpl:
-            tmpl.name = item.get("name", tmpl.name)
-            tmpl.content = item.get("content", tmpl.content)
-            tmpl.properties = item.get("properties", tmpl.properties)
-
-    # Process agenda notes
-    agenda = data.get("agenda_notes")
-    if agenda and g.user.agenda_notes:
-        g.user.agenda_notes.content = agenda.get("content", g.user.agenda_notes.content)
-
-    db.session.commit()
     return jsonify(success=True)
 
 
@@ -392,8 +292,6 @@ def api_auth_recovery_info():
 @login_required_page
 def unlock_page():
     """Password re-entry page for E2EE users whose sessionStorage key was lost."""
-    if not g.user.encryption_enabled:
-        return redirect(url_for("web.notes_page"))
     return render_template(
         "unlock.html",
         encrypted_sym_key=g.user.encrypted_symmetric_key,
@@ -403,30 +301,13 @@ def unlock_page():
     )
 
 
-@web_bp.route("/migrate-encryption")
-@login_required_page
-def migrate_encryption_page():
-    """Force-migration page for legacy users who need to enable E2EE."""
-    if g.user.encryption_enabled:
-        return redirect(url_for("web.notes_page"))
-    return render_template("migrate_encryption.html", username=g.user.username)
-
-
-@web_bp.route("/api/migrate/get_all_data")
-def api_migrate_get_all_data():
-    """Disabled — encryption-only design, no plaintext data export."""
-    return jsonify(success=False, reason="This endpoint has been disabled."), 410
-
-
 @web_bp.before_app_request
 def before_request():
     if CONFIG.ENFORCE_SSL:
-        "ENFORCING SSL"
         if not request.is_secure:
             url = request.url.replace("http://", "https://", 1)
             code = 301
             return redirect(url, code=code)
-    "CHECKING/SETTING GLOBAL USER"
     session.modified = True
     g.user = None
     if "user_id" in session:
@@ -468,68 +349,54 @@ def index_page():
 @web_bp.route("/settings", methods=["GET", "POST"])
 @login_required_page
 def settings_page():
-    g.user.generate_missing_settings()
     settings = g.user.return_settings()
     if request.method == "POST":
-        if "update-theme" in request.form:
-            theme = request.form["theme"]
-            g.user.settings.theme_preference = theme
-            db.session.commit()
-        elif "update-timezone" in request.form:
+        if "update-timezone" in request.form:
             timezone = request.form["timezone"]
-            g.user.set_timezone(timezone)
-        elif "update-theme-settings" in request.form:
-            current_theme = g.user.settings.theme_preference
+            from flasky.services.settings import set_timezone
+            set_timezone(g.user, timezone)
+        elif "update-ui-settings" in request.form:
             if "font-family" in request.form:
-                g.user.update_theme_font(current_theme, request.form["font-family"])
+                set_setting(g.user, "font", request.form["font-family"])
             if "font-size" in request.form:
                 try:
-                    g.user.update_theme_font_size(
-                        current_theme, int(request.form["font-size"])
-                    )
+                    set_setting(g.user, "font_size", int(request.form["font-size"]))
                 except (ValueError, TypeError):
                     pass
             if "mobile-font-size" in request.form:
                 try:
-                    g.user.update_theme_mobile_font_size(
-                        current_theme, int(request.form["mobile-font-size"])
+                    set_setting(
+                        g.user, "mobile_font_size", int(request.form["mobile-font-size"])
                     )
                 except (ValueError, TypeError):
                     pass
             if "dark-mode" in request.form:
-                g.user.update_theme_dark_mode(
-                    current_theme, request.form["dark-mode"] == "1"
-                )
+                set_setting(g.user, "dark_mode", request.form["dark-mode"] == "1")
             else:
-                g.user.update_theme_dark_mode(current_theme, False)
+                set_setting(g.user, "dark_mode", False)
             if "auto-save" in request.form:
-                g.user.update_theme_auto_save(
-                    current_theme, request.form["auto-save"] == "1"
-                )
+                set_setting(g.user, "auto_save", request.form["auto-save"] == "1")
             else:
-                g.user.update_theme_auto_save(current_theme, False)
+                set_setting(g.user, "auto_save", False)
             if "hide-title" in request.form:
-                g.user.update_theme_hide_title(
-                    current_theme, request.form["hide-title"] == "1"
-                )
+                set_setting(g.user, "hide_title", request.form["hide-title"] == "1")
             else:
-                g.user.update_theme_hide_title(current_theme, False)
+                set_setting(g.user, "hide_title", False)
             if "notes-row-count" in request.form:
                 try:
-                    g.user.update_theme_notes_row_count(
-                        current_theme, int(request.form["notes-row-count"])
+                    set_setting(
+                        g.user, "notes_row_count", int(request.form["notes-row-count"])
                     )
                 except (ValueError, TypeError):
                     pass
             if "notes-height" in request.form:
                 try:
-                    g.user.update_theme_notes_height(
-                        current_theme, int(request.form["notes-height"])
+                    set_setting(
+                        g.user, "notes_height", int(request.form["notes-height"])
                     )
                 except (ValueError, TypeError):
                     pass
             # UI state booleans
-            ts = g.user.get_theme_settings(current_theme)
             for field in (
                 "sidebar_collapsed",
                 "right_panel_collapsed",
@@ -538,16 +405,16 @@ def settings_page():
             ):
                 form_key = field.replace("_", "-")
                 if form_key in request.form:
-                    setattr(ts, field, request.form[form_key] == "1")
+                    set_setting(g.user, field, request.form[form_key] == "1")
                 else:
-                    setattr(ts, field, False)
+                    set_setting(g.user, field, False)
             # Panel widgets visibility
             widget_keys = [k for k in request.form if k.startswith("widget-")]
-            if widget_keys or current_theme == "obsidified":
-                widgets = ts.get_panel_widgets()
+            if widget_keys:
+                widgets = get_panel_widgets(g.user)
                 for w in widgets:
                     w["visible"] = ("widget-" + w["id"]) in request.form
-                ts.set_panel_widgets(widgets)
+                set_panel_widgets(g.user, widgets)
             db.session.commit()
         elif "generate-api-token" in request.form:
             token_name = request.form.get("token-name", "").strip()
@@ -560,19 +427,14 @@ def settings_page():
             db.session.add(new_token)
             db.session.commit()
             tokens = ApiToken.query.filter_by(user_id=g.user.id).all()
-            current_theme_obj = Theme.query.filter_by(
-                slug=settings.theme_preference
-            ).first()
-            ts = g.user.get_theme_settings(settings.theme_preference)
             return render_template(
                 "settings.html",
-                themes=Theme.query.all(),
                 timezones=available_timezones(),
                 tokens=tokens,
                 new_token=plaintext,
                 sync_enabled=settings.obsidian_sync_enabled,
-                current_theme=current_theme_obj,
-                theme_settings=ts,
+                ui_settings=get_all_settings(g.user),
+                panel_widgets=get_panel_widgets(g.user),
                 ai_enabled=settings.ai_enabled,
                 ai_settings=settings,
             )
@@ -612,16 +474,19 @@ def settings_page():
             ).first()
             if conflict and resolution in ("local", "server"):
                 if conflict.note_id:
+                    from flasky.services.notes import update_note
                     note = UserNote.query.filter_by(
                         userid=g.user.id, id=conflict.note_id
                     ).first()
                     if note:
                         if resolution == "local":
-                            note.change_title(conflict.local_title)
-                            note.change_content(conflict.local_content, encrypted=True)
+                            update_note(g.user, note.id,
+                                        title=conflict.local_title,
+                                        content=conflict.local_content)
                         else:
-                            note.change_title(conflict.server_title)
-                            note.change_content(conflict.server_content, encrypted=True)
+                            update_note(g.user, note.id,
+                                        title=conflict.server_title,
+                                        content=conflict.server_content)
                 conflict.resolved = True
                 db.session.commit()
         return redirect(url_for("web.settings_page"))
@@ -631,64 +496,21 @@ def settings_page():
         .order_by(SyncConflict.conflict_date.desc())
         .all()
     )
-    current_theme_slug = settings.theme_preference
-    current_theme = Theme.query.filter_by(slug=current_theme_slug).first()
-    theme_settings = g.user.get_theme_settings(current_theme_slug)
     return render_template(
         "settings.html",
-        themes=Theme.query.all(),
         timezones=available_timezones(),
         tokens=tokens,
         conflicts=conflicts,
         sync_enabled=settings.obsidian_sync_enabled,
-        current_theme=current_theme,
-        theme_settings=theme_settings,
+        ui_settings=get_all_settings(g.user),
+        panel_widgets=get_panel_widgets(g.user),
         ai_enabled=settings.ai_enabled,
         ai_settings=settings,
     )
 
 
-@web_bp.route("/register", methods=["GET", "POST"])
+@web_bp.route("/register", methods=["GET"])
 def register_page():
-    if request.method == "POST":
-        # Honeypot field: if filled, it's a bot
-        honeypot = request.form.get("website", "")
-        if honeypot:
-            return render_template(
-                "register.html",
-                recaptcha_enabled=CONFIG.RECAPTCHA_ENABLED,
-                recaptcha_site_key=current_app.config.get("RECAPTCHA_SITE_KEY", ""),
-            )
-        recaptcha_ok = True
-        if CONFIG.RECAPTCHA_ENABLED:
-            recaptcha_ok = verify_recaptcha(
-                request.form.get("g-recaptcha-response", "")
-            )
-        if recaptcha_ok:
-            user_username = request.form["username"].lower()
-            user_email = request.form["email"].lower()
-            user_pw = request.form["password"]
-            if has_banned_chars(user_username) or " " in user_username:
-                return "Illegal username."
-            if not valid_email(user_email):
-                return "Illegal email."
-            if len(user_username) < 4:
-                return "Your username must be at least 4 characters."
-            if len(user_username) > 30:
-                return "Your username must be at most 30 characters."
-            if len(user_pw) < 8:
-                return "Your password must be at least 8 characters."
-            if len(user_pw) > 100:
-                return "Your password must be at most 100 characters."
-            if User.query.filter_by(username=user_username).first() is None:
-                if User.query.filter_by(email=user_email).first() is None:
-                    new_user = User(user_username, user_pw, user_email)
-                    db.session.commit()
-                    return redirect(url_for("web.login_page"))
-                else:
-                    return "There is already an account with this email address."
-        else:
-            return "There is already an account with this username."
     return render_template(
         "register.html",
         recaptcha_enabled=CONFIG.RECAPTCHA_ENABLED,
@@ -696,31 +518,8 @@ def register_page():
     )
 
 
-@web_bp.route("/login", methods=["GET", "POST"])
+@web_bp.route("/login", methods=["GET"])
 def login_page():
-    if request.method == "POST":
-        if login_limiter.is_limited():
-            return "Too many login attempts. Try again later.", 429
-        session.clear()
-        the_username = request.form["username"].lower()
-        password = request.form["password"]
-        user = User.query.filter_by(username=the_username).first()
-        if not user:
-            bcrypt.checkpw(b"dummy", _DUMMY_BCRYPT_HASH)
-            login_limiter.record()
-            return 'The username or password is not correct. You can try again via the <a href="/login">Login Page</a>.'
-        if bcrypt.checkpw(str(password).encode("utf-8"), user.password):
-            session.clear()
-            session["user_id"] = user.id
-            session.permanent = True
-            # Legacy user: redirect to migration page
-            if not user.encryption_enabled:
-                return redirect(url_for("web.migrate_encryption_page"))
-            # E2EE user logging in via form (shouldn't happen normally, but handle it)
-            return redirect(url_for("web.notes_page"))
-        else:
-            login_limiter.record()
-            return 'The username or password is not correct. You can try again via the <a href="/login">Login Page</a>.'
     return render_template("login.html")
 
 
@@ -734,67 +533,21 @@ def logout():
 @web_bp.route("/notes")
 @login_required_page
 def notes_page():
-    theme_settings = g.user.get_theme_settings()
-    theme = theme_settings.theme
-    if theme.slug == "cli":
-        return redirect(url_for("web.cli"))
-    elif theme.has_notes_page:
-        return render_template(
-            f"themes/{theme_settings.theme.slug}/notes.html",
-            notes=g.user.return_notes(),
-        )
-    else:
-        return redirect(url_for("web.note_single_page", note_id=0))
-
-
-@web_bp.route("/categories")
-@login_required_page
-def categories_page():
-    theme_settings = g.user.get_theme_settings()
-    theme = theme_settings.theme
-    if theme.slug == "cli":
-        return redirect(url_for("web.cli"))
-    if theme.has_categories_page:
-        categories = g.user.categories
-        return render_template(
-            f"themes/{theme_settings.theme.slug}/categories.html",
-            categories=categories,
-        )
-    else:
-        return render_template(
-            f"themes/{theme_settings.theme.slug}/notes.html", categories=categories
-        )
-
-
-@web_bp.route("/categories/<int:category>")
-@login_required_page
-def category_single_page(category):
-    theme_settings = g.user.get_theme_settings()
-    theme = theme_settings.theme
-    if theme.slug == "cli":
-        return redirect(url_for("web.cli"))
-    category = g.user.get_category(category)
-    notes = UserNote.query.filter_by(userid=g.user.id, category_id=category.id).all()
-    return render_template(
-        f"themes/{theme_settings.theme.slug}/notes.html",
-        category=category,
-        notes_of_category=True,
-        notes=notes,
-    )
+    # Single UI: no notes listing page — always go straight to the editor.
+    return redirect(url_for("web.note_single_page", note_id=0))
 
 
 @web_bp.route("/note/<int:note_id>", methods=["GET", "POST"])
 @login_required_page
 def note_single_page(note_id):
-    theme_settings = g.user.get_theme_settings()
-    if theme_settings.theme.slug == "cli":
-        return redirect(url_for("web.cli"))
-    font_size = g.user.get_current_theme_font_size()
+    ui_settings = get_all_settings(g.user)
+    font_size = ui_settings.font_size
     note = UserNote.query.filter_by(id=note_id).first()
     if note and note is not None:
         if g.user != note.user:
             return "You do not own this note. Click here to go to your <a href='/notes'>notes</a>."
     if request.method == "POST":
+        from flasky.services.notes import create_note, update_note, delete_note, revert_note
         if note_id == 0:
             if "update-note" in request.form:
                 note_title = request.form["title"]
@@ -809,14 +562,14 @@ def note_single_page(note_id):
                     note_content = None
                 if len(note_category) < 1:
                     note_category = None
-                note = g.user.add_note(note_title, note_content, note_category)
+                note = create_note(g.user, note_title, note_content, note_category)
                 return redirect(url_for("web.note_single_page", note_id=note.id))
         else:
             if "revert_to_last_version" in request.form:
-                note.revert_to_last_version()
+                revert_note(g.user, note_id)
                 return redirect(url_for("web.note_single_page", note_id=note.id))
             elif "delete_note" in request.form:
-                g.user.delete_note(note_id)
+                delete_note(g.user, note_id)
                 return redirect(url_for("web.notes_page"))
             elif "update-note" in request.form:
                 note_title = request.form["title"]
@@ -831,9 +584,8 @@ def note_single_page(note_id):
                     note_content = None
                 if len(note_category) < 1:
                     note_category = None
-                note.change_title(note_title)
-                note.change_content(note_content)
-                note.change_category(note_category)
+                update_note(g.user, note_id, title=note_title,
+                            content=note_content, category=note_category)
             return redirect(url_for("web.note_single_page", note_id=note.id))
     category = request.args.get("category")
     category_id = request.args.get("category_id", type=int)
@@ -852,10 +604,11 @@ def note_single_page(note_id):
             category = cat_obj.name
             if cat_obj.default_template_id:
                 default_template = NoteTemplate.query.get(cat_obj.default_template_id)
-    panel_widgets = theme_settings.get_panel_widgets()
-    # E2EE: embed encrypted note data as JSON for client-side decryption
+    panel_widgets = get_panel_widgets(g.user)
+    # Embed encrypted note data as JSON for client-side decryption.
+    # With mandatory E2EE this is always ciphertext; build it whenever a note exists.
     encrypted_note_data = None
-    if g.user.encryption_enabled and note:
+    if note:
         encrypted_note_data = json.dumps(
             {
                 "title": note.title,
@@ -866,12 +619,12 @@ def note_single_page(note_id):
             }
         )
     return render_template(
-        f"themes/{theme_settings.theme.slug}/note_single.html",
+        "note_single.html",
         note=note,
         note_id=note_id,
         font_size=font_size,
         category=category,
-        theme_settings=theme_settings,
+        ui_settings=ui_settings,
         category_tree=category_tree,
         default_template=default_template,
         panel_widgets=panel_widgets,
@@ -883,20 +636,10 @@ def note_single_page(note_id):
 @web_bp.route("/search")
 @login_required_page
 def search_page():
-    query = request.args.get("q")
-    if query and query is not None:
-        notes = (
-            UserNote.query.filter_by(userid=g.user.id)
-            .filter(UserNote.content.contains(query))
-            .all()
-        )
-        notes += (
-            UserNote.query.filter_by(userid=g.user.id)
-            .filter(UserNote.title.contains(query))
-            .all()
-        )
-        return render_template("search.html", query=query, notes=notes)
-    return render_template("search.html", query=query)
+    # Search is client-side for E2EE; the server cannot read ciphertext to
+    # search. The search modal lives inside the note editor UI, so redirect
+    # there. (Keep the route for clients that hit /search directly.)
+    return redirect(url_for("web.note_single_page", note_id=0))
 
 
 @web_bp.route("/agenda")
@@ -921,19 +664,15 @@ def agenda_page():
         .all()
     )
     settings = g.user.return_settings()
+    ui_settings = get_all_settings(g.user)
     return render_template(
         "agenda.html",
         todos=todos,
         events=events,
         ai_enabled=settings.ai_enabled if settings else False,
         ai_settings=settings,
+        ui_settings=ui_settings,
     )
-
-
-@web_bp.route("/cli")
-@login_required_page
-def cli():
-    return render_template("themes/cli/cli.html")
 
 
 @web_bp.route("/manifest.json")
@@ -952,23 +691,22 @@ def manifest_json():
 @web_bp.route("/attachment/<int:attachment_id>/<filename>")
 @login_required
 def serve_attachment(attachment_id, filename):
+    """Serve an attachment. With mandatory E2EE, files are always stored as
+    encrypted blobs on disk; the server returns opaque bytes and the client
+    decrypts them.
+    """
     a = Attachment.query.filter_by(id=attachment_id, user_id=g.user.id).first()
     if a is None:
         return "Not found", 404
     disk = a.disk_path()
     if not os.path.exists(disk):
         return "Not found", 404
-    # For E2EE users, serve raw encrypted bytes so client can decrypt
-    if g.user.encryption_enabled:
-        with open(disk, "rb") as f:
-            data = f.read()
-        response = make_response(data)
-        response.headers["Content-Type"] = "application/octet-stream"
-        response.headers["X-Encrypted"] = "true"
-        return response
-    return send_from_directory(
-        os.path.dirname(disk), os.path.basename(disk), mimetype=a.content_type
-    )
+    with open(disk, "rb") as f:
+        data = f.read()
+    response = make_response(data)
+    response.headers["Content-Type"] = "application/octet-stream"
+    response.headers["X-Encrypted"] = "true"
+    return response
 
 
 @web_bp.route("/export")
@@ -982,13 +720,19 @@ def export_page():
         note_count=note_count,
         category_count=category_count,
         attachment_count=attachment_count,
+        ui_settings=get_all_settings(g.user),
     )
 
 
 @web_bp.route("/api/export/notes")
 @login_required
 def export_notes_api():
-    """Return all notes with full content for export (handles E2EE transparently)."""
+    """Return all notes with full content for export.
+
+    With mandatory E2EE, content/title/properties are always opaque ciphertext;
+    the client decrypts after download. The encrypted flag is always True and
+    kept for client compatibility.
+    """
     notes = UserNote.query.filter_by(userid=g.user.id).all()
     attachments = Attachment.query.filter_by(user_id=g.user.id).all()
     result = []
@@ -998,11 +742,9 @@ def export_notes_api():
                 "id": note.id,
                 "title": note.title,
                 "content": note.content,
-                "properties": note.properties,  # raw JSON string or encrypted ciphertext
+                "properties": note.properties,  # opaque ciphertext
                 "category": note.get_category_name(),
             }
         )
     att_list = [{"id": a.id, "filename": a.filename} for a in attachments]
-    return jsonify(
-        notes=result, attachments=att_list, encrypted=g.user.encryption_enabled
-    )
+    return jsonify(notes=result, attachments=att_list, encrypted=True)
