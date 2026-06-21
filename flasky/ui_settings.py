@@ -56,6 +56,7 @@ REGISTRY: dict[str, SettingDef] = {
     "mobile_font_size": SettingDef("mobile_font_size", 15, int, _is_int_in_range(8, 40)),
     "dark_mode": SettingDef("dark_mode", False, bool),
     "compact_mode": SettingDef("compact_mode", False, bool),
+    "spotlight_mode": SettingDef("spotlight_mode", False, bool),
     "hide_title": SettingDef("hide_title", False, bool),
     "notes_row_count": SettingDef("notes_row_count", 3, int, _is_int_in_range(1, 100)),
     "notes_height": SettingDef("notes_height", 150, int, _is_int_in_range(50, 2000)),

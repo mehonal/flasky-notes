@@ -1491,3 +1491,43 @@ body[data-encrypted="true"] .prop-value-input { visibility: hidden; }
 [data-compact="true"] .editor-preview hr { margin: 0.8em 0; }
 [data-compact="true"] .editor-preview img { margin: 0.3em 0; }
 [data-compact="true"] .editor-preview table { font-size: 12px; margin: 0.6em 0; }
+
+/* ============ Spotlight mode ============ */
+/* Gated by [data-spotlight="true"] on <html> — set from ui_settings.spotlight_mode.
+   Hides all chrome (sidebar, toolbar, right/AI panels, status bar) so only the
+   editor remains. Title input stays (respects hide_title separately). The user
+   exits via Ctrl+Shift+F, Esc, or the Quick Settings toggle (which is reachable
+   because toggling spotlight off re-renders the right panel from its hidden state). */
+[data-spotlight="true"] .sidebar,
+[data-spotlight="true"] .sidebar-backdrop,
+[data-spotlight="true"] .toolbar,
+[data-spotlight="true"] .right-panel,
+[data-spotlight="true"] .ai-panel,
+[data-spotlight="true"] .status-bar {
+    display: none !important;
+}
+[data-spotlight="true"] .editor-area { flex: 1; }
+/* A small floating exit affordance top-right so the user is never trapped —
+   visible only while spotlight is active. */
+.spotlight-exit-btn {
+    position: fixed;
+    top: 10px;
+    right: 12px;
+    z-index: 100;
+    display: none;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border: 1px solid var(--border-light);
+    border-radius: 6px;
+    background: var(--bg-primary);
+    color: var(--text-muted);
+    font-size: 12px;
+    cursor: pointer;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+    opacity: 0.35;
+    transition: opacity 0.15s ease;
+}
+.spotlight-exit-btn:hover { opacity: 1; color: var(--text-secondary); }
+.spotlight-exit-btn svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+[data-spotlight="true"] .spotlight-exit-btn { display: flex; }

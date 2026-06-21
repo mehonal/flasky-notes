@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="{% if ui_settings and ui_settings.dark_mode %}dark{% else %}light{% endif %}"{% if ui_settings and ui_settings.compact_mode %} data-compact="true"{% endif %}>
+<html lang="en" data-theme="{% if ui_settings and ui_settings.dark_mode %}dark{% else %}light{% endif %}"{% if ui_settings and ui_settings.compact_mode %} data-compact="true"{% endif %}{% if ui_settings and ui_settings.spotlight_mode %} data-spotlight="true"{% endif %}>
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
@@ -36,6 +36,12 @@
     {% endif %}
     <!-- Context menu -->
     <div class="context-menu" id="context-menu"></div>
+
+    <!-- Spotlight exit affordance (visible only while data-spotlight="true") -->
+    <button class="spotlight-exit-btn" data-action="exit-spotlight" title="Exit spotlight (Esc)" aria-label="Exit spotlight mode">
+        <svg viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+        <span>Exit spotlight</span>
+    </button>
 
     <div class="app">
         <!-- Mobile sidebar backdrop -->

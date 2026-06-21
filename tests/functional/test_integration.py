@@ -350,6 +350,16 @@ def test_save_compact_mode(auth_client):
     assert r.json["new_compact_mode_setting"] is False
 
 
+def test_save_spotlight_mode(auth_client):
+    client, creds = auth_client
+    r = client.get("/api/save_spotlight_mode/1")
+    assert r.json["success"] is True
+    assert r.json["new_spotlight_mode_setting"] is True
+    r = client.get("/api/save_spotlight_mode/0")
+    assert r.json["success"] is True
+    assert r.json["new_spotlight_mode_setting"] is False
+
+
 def test_save_font_size(auth_client):
     client, creds = auth_client
     r = client.get("/api/save_font_size/20")

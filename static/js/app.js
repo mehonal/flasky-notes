@@ -2416,6 +2416,7 @@ function syncQuickSettingsState() {
     var propsEl = document.getElementById('qs-props-collapsed');
     var autoSaveEl = document.getElementById('qs-auto-save');
     var compactEl = document.getElementById('qs-compact-mode');
+    var spotlightEl = document.getElementById('qs-spotlight-mode');
     if (darkEl) darkEl.checked = document.documentElement.getAttribute('data-theme') === 'dark';
     if (previewEl) previewEl.checked = !editMode;
     if (hideTitleEl) {
@@ -2425,6 +2426,7 @@ function syncQuickSettingsState() {
     if (propsEl) propsEl.checked = document.getElementById('props-container') && document.getElementById('props-container').classList.contains('collapsed');
     if (autoSaveEl) autoSaveEl.checked = autoSaveEnabled;
     if (compactEl) compactEl.checked = document.documentElement.getAttribute('data-compact') === 'true';
+    if (spotlightEl) spotlightEl.checked = document.documentElement.getAttribute('data-spotlight') === 'true';
 }
 
 function toggleAutoSave() {
@@ -2485,6 +2487,16 @@ function toggleCompactMode() {
     else html.setAttribute('data-compact', 'true');
     if (cmEditor) cmEditor.refresh();
     fetch('/api/save_compact_mode/' + (isCompact ? 0 : 1));
+    syncQuickSettingsState();
+}
+
+function toggleSpotlightMode() {
+    var html = document.documentElement;
+    var isSpotlight = html.getAttribute('data-spotlight') === 'true';
+    if (isSpotlight) html.removeAttribute('data-spotlight');
+    else html.setAttribute('data-spotlight', 'true');
+    if (cmEditor) cmEditor.refresh();
+    fetch('/api/save_spotlight_mode/' + (isSpotlight ? 0 : 1));
     syncQuickSettingsState();
 }
 
@@ -2816,9 +2828,12 @@ document.addEventListener('keydown', function(e) {
     }
     if (ctrl && e.shiftKey && e.key === 'O') { e.preventDefault(); toggleRightPanel(); }
     if (ctrl && e.shiftKey && e.key === 'A') { e.preventDefault(); toggleAIPanel(); }
+    if (ctrl && e.shiftKey && (e.key === 'F' || e.key === 'f')) { e.preventDefault(); toggleSpotlightMode(); }
     if (ctrl && e.key === '/') { e.preventDefault(); toggleShortcutsModal(); }
     if (ctrl && e.key === 'b' && !editMode) { e.preventDefault(); toggleSidebar(); }
     if (e.key === 'Escape' && aiPanel && !aiPanel.classList.contains('collapsed')) { e.preventDefault(); closeAIPanel(); closeAIDropdown(); }
+    // Esc exits spotlight mode when not in edit mode (edit-mode Esc goes to preview first)
+    if (e.key === 'Escape' && !editMode && document.documentElement.getAttribute('data-spotlight') === 'true') { e.preventDefault(); toggleSpotlightMode(); }
 });
 
 // ============ Wikilink Autocomplete ============
@@ -3697,6 +3712,7 @@ document.addEventListener('click', function(e) {
         case 'create-new-note': createNewNote(); break;
         case 'toggle-sidebar': toggleSidebar(); break;
         case 'toggle-mode': toggleMode(); break;
+        case 'exit-spotlight': toggleSpotlightMode(); break;
         case 'open-search': openSearchModal(); break;
         case 'ask-ai':
             if (aiPanel && !aiPanel.classList.contains('collapsed')) {
@@ -3841,6 +3857,7 @@ document.addEventListener('change', function(e) {
         case 'qs-toggle-props-collapsed': togglePropsPanel(); break;
         case 'qs-toggle-auto-save': toggleAutoSave(); break;
         case 'qs-toggle-compact-mode': toggleCompactMode(); break;
+        case 'qs-toggle-spotlight-mode': toggleSpotlightMode(); break;
     }
 });
 

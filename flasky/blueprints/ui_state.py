@@ -75,6 +75,15 @@ def save_compact_mode(compact_mode):
     return jsonify(success=True, new_compact_mode_setting=compact_mode)
 
 
+@ui_state_bp.route("/save_spotlight_mode/<int:spotlight_mode>")
+@login_required
+def save_spotlight_mode(spotlight_mode):
+    spotlight_mode = spotlight_mode == 1
+    set_setting(g.user, "spotlight_mode", spotlight_mode)
+    db.session.commit()
+    return jsonify(success=True, new_spotlight_mode_setting=spotlight_mode)
+
+
 @ui_state_bp.route("/save_ui_state", methods=["POST"])
 @login_required
 def save_ui_state():
