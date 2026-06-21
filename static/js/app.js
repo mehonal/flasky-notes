@@ -56,9 +56,11 @@ function toggleSidebar() {
     var wasCollapsed = sb.classList.contains('collapsed');
     if (wasCollapsed) {
         sb.classList.remove('collapsed');
-        if (isMobile) bd.classList.add('visible');
-        // Close the right panel when opening the sidebar so they don't overlap
-        closeRightPanel();
+        if (isMobile) {
+            bd.classList.add('visible');
+            // On mobile, close the right panel so they don't overlap
+            closeRightPanel();
+        }
     } else {
         closeSidebar();
     }
@@ -72,6 +74,7 @@ function closeSidebar() {
     document.getElementById('sidebar-backdrop').classList.remove('visible');
     var toggleBtn = document.querySelector('.toggle-sidebar');
     if (toggleBtn) toggleBtn.setAttribute('aria-expanded', 'false');
+    if (!isMobile) saveUiState({ sidebar_collapsed: true });
 }
 
 function closeRightPanel() {
@@ -2511,8 +2514,8 @@ function toggleRightPanel() {
     if (expanded) {
         if (btn) btn.classList.add('active');
         refreshAllVisibleWidgets();
-        // Close the sidebar when opening the right panel so they don't overlap
-        closeSidebar();
+        // On mobile, close the sidebar so they don't overlap
+        if (isMobile) closeSidebar();
     } else {
         if (btn) btn.classList.remove('active');
     }
