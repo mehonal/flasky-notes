@@ -1412,3 +1412,82 @@ body[data-encrypted="true"] .prop-value-input { visibility: hidden; }
     }
     .ai-panel.collapsed { width: 0; min-width: 0; box-shadow: none; max-width: 0; }
 }
+
+/* ============ Compact mode ============ */
+/* Gated by [data-compact="true"] on <html> — set from ui_settings.compact_mode.
+   Scales down font sizes, spacing, and element heights across the editor page
+   for higher information density. Non-compact users are untouched. */
+
+/* Editor — font-size/line-height apply everywhere; horizontal padding is
+   desktop-only (mobile @media blocks set their own tighter padding) */
+[data-compact="true"] .cm-editor { line-height: 1.45 !important; font-size: calc(var(--font-size) * 0.88) !important; }
+[data-compact="true"] .editor-preview { font-size: calc(var(--font-size) * 0.88); line-height: 1.5; }
+@media (min-width: 769px) {
+    [data-compact="true"] .cm-editor .cm-scroller { padding: 0 32px 32px !important; }
+    [data-compact="true"] .editor-title-wrap { padding: 8px 32px 0; }
+    [data-compact="true"] .editor-title { font-size: 22px; }
+}
+
+/* Properties — align with editor 32px h-padding on desktop; on mobile the
+   @media block's 12px padding still applies. Font/row tightening is global. */
+[data-compact="true"] .props-container { font-size: 12px; }
+[data-compact="true"] .props-header { padding: 4px 10px; font-size: 10px; }
+[data-compact="true"] .prop-row { min-height: 26px; }
+[data-compact="true"] .prop-key { width: 100px; min-width: 100px; padding: 2px 10px; font-size: 11px; }
+[data-compact="true"] .prop-value { padding: 2px 10px; }
+[data-compact="true"] .prop-value-input { font-size: 12px; padding: 1px 0; }
+[data-compact="true"] .prop-add-row { padding: 2px 10px; }
+@media (min-width: 769px) {
+    [data-compact="true"] .editor-properties { padding: 4px 32px 8px; }
+}
+
+/* Sidebar — smaller rows, smaller font */
+[data-compact="true"] .folder { margin-bottom: 0; }
+[data-compact="true"] .folder-header { padding: 2px 8px; font-size: 12px; }
+[data-compact="true"] .folder-items { margin-left: 12px; padding-left: 6px; }
+[data-compact="true"] .file-item { padding: 1px 8px 1px 30px; font-size: 12px; gap: 5px; }
+[data-compact="true"] .folder-icon svg,
+[data-compact="true"] .file-item svg { width: 15px; height: 15px; }
+[data-compact="true"] .folder-count,
+[data-compact="true"] .sidebar-footer a { font-size: 10px; }
+[data-compact="true"] .sidebar-search input { font-size: 12px; padding: 4px 8px 4px 28px; background-position: 8px center; }
+[data-compact="true"] .sidebar-search { padding: 2px 10px 6px; }
+
+/* Toolbar + breadcrumb + status bar — desktop only (mobile keeps its own
+   wrapped toolbar layout via @media blocks; compact height/padding would
+   clip the wrapped rows on small screens) */
+@media (min-width: 769px) {
+    [data-compact="true"] .toolbar { height: 32px; }
+    [data-compact="true"] .toolbar-actions .icon-btn { padding: 4px; }
+}
+[data-compact="true"] .breadcrumb { font-size: 12px; gap: 4px; }
+[data-compact="true"] .breadcrumb-sep { font-size: 10px; }
+[data-compact="true"] .font-size-label { font-size: 10px; }
+[data-compact="true"] .status-bar { font-size: 10px; gap: 12px; }
+@media (min-width: 769px) {
+    [data-compact="true"] .status-bar { height: 20px; padding: 0 12px; }
+}
+
+/* Right panel + widgets */
+[data-compact="true"] .right-panel-section-header { padding: 6px 12px; }
+[data-compact="true"] .widget-header .widget-label { font-size: 12px; }
+[data-compact="true"] .widget-body { font-size: 12px; }
+[data-compact="true"] .quick-setting-toggle { padding: 4px 8px; font-size: 12px; }
+
+/* Preview — shrink heading font-sizes too, not just margins */
+[data-compact="true"] .editor-preview h1 { font-size: 1.4em; margin: 0.6em 0 0.2em; }
+[data-compact="true"] .editor-preview h2 { font-size: 1.2em; margin: 0.6em 0 0.2em; }
+[data-compact="true"] .editor-preview h3 { font-size: 1.05em; margin: 0.55em 0 0.2em; }
+[data-compact="true"] .editor-preview h4,
+[data-compact="true"] .editor-preview h5,
+[data-compact="true"] .editor-preview h6 { margin: 0.5em 0 0.2em; }
+[data-compact="true"] .editor-preview p { margin: 0.3em 0; }
+[data-compact="true"] .editor-preview ul,
+[data-compact="true"] .editor-preview ol { margin: 0.2em 0; }
+[data-compact="true"] .editor-preview li { margin: 0.06em 0; }
+[data-compact="true"] .editor-preview blockquote { padding-left: 12px; margin: 0.4em 0; }
+[data-compact="true"] .editor-preview pre { padding: 8px 14px; margin: 0.5em 0; }
+[data-compact="true"] .editor-preview code { font-size: 0.85em; padding: 1px 4px; }
+[data-compact="true"] .editor-preview hr { margin: 0.8em 0; }
+[data-compact="true"] .editor-preview img { margin: 0.3em 0; }
+[data-compact="true"] .editor-preview table { font-size: 12px; margin: 0.6em 0; }

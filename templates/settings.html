@@ -155,6 +155,13 @@
                 </div>
 
                 <div class="settings-row">
+                    <label class="form-check-label" for="compact-mode">Compact mode</label>
+                    <div class="form-check form-switch ms-auto">
+                        <input class="form-check-input" type="checkbox" id="compact-mode" name="compact-mode" value="1" {% if ui_settings.compact_mode %}checked{% endif %}>
+                    </div>
+                </div>
+
+                <div class="settings-row">
                     <label class="form-check-label" for="auto-save">Auto-save</label>
                     <div class="form-check form-switch ms-auto">
                         <input class="form-check-input" type="checkbox" id="auto-save" name="auto-save" value="1" {% if ui_settings.auto_save %}checked{% endif %}>

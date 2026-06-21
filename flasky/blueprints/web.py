@@ -374,6 +374,10 @@ def settings_page():
                 set_setting(g.user, "dark_mode", request.form["dark-mode"] == "1")
             else:
                 set_setting(g.user, "dark_mode", False)
+            if "compact-mode" in request.form:
+                set_setting(g.user, "compact_mode", request.form["compact-mode"] == "1")
+            else:
+                set_setting(g.user, "compact_mode", False)
             if "auto-save" in request.form:
                 set_setting(g.user, "auto_save", request.form["auto-save"] == "1")
             else:

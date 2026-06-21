@@ -104,6 +104,8 @@ def test_ui_settings_round_trip():
     assert get_setting(user, "dark_mode") is True
     set_setting(user, "font_size", 20)
     assert get_setting(user, "font_size") == 20
+    set_setting(user, "compact_mode", True)
+    assert get_setting(user, "compact_mode") is True
 
 
 def test_ui_settings_defaults_on_missing_key():
@@ -112,3 +114,4 @@ def test_ui_settings_defaults_on_missing_key():
     user = _make_user("testuser2", "testpass", "test2@test.com")
     assert get_setting(user, "font_size") == 16  # registry default
     assert get_setting(user, "dark_mode") is False  # registry default
+    assert get_setting(user, "compact_mode") is False  # registry default

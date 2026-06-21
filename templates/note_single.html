@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="{% if ui_settings and ui_settings.dark_mode %}dark{% else %}light{% endif %}">
+<html lang="en" data-theme="{% if ui_settings and ui_settings.dark_mode %}dark{% else %}light{% endif %}"{% if ui_settings and ui_settings.compact_mode %} data-compact="true"{% endif %}>
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">

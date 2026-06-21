@@ -66,6 +66,15 @@ def save_dark_mode(dark_mode):
     return jsonify(success=True, new_dark_mode_setting=dark_mode)
 
 
+@ui_state_bp.route("/save_compact_mode/<int:compact_mode>")
+@login_required
+def save_compact_mode(compact_mode):
+    compact_mode = compact_mode == 1
+    set_setting(g.user, "compact_mode", compact_mode)
+    db.session.commit()
+    return jsonify(success=True, new_compact_mode_setting=compact_mode)
+
+
 @ui_state_bp.route("/save_ui_state", methods=["POST"])
 @login_required
 def save_ui_state():
