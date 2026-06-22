@@ -787,11 +787,19 @@ var outlineUpdateTimer = null;
 var hasBeenSavedOnce = _pageData.hasNote;
 
 function updateMobileSaveBtn(state) {
-    var btn = document.getElementById('mobile-save-btn');
-    if (!btn) return;
-    btn.classList.remove('saved', 'unsaved');
-    if (state === 'unsaved') btn.classList.add('unsaved');
-    else if (state === 'saved') btn.classList.add('saved');
+    var btns = document.querySelectorAll('[data-action="save-note"]');
+    if (!btns.length) return;
+    btns.forEach(function(btn) {
+        btn.classList.remove('saved', 'unsaved', 'save-flash');
+        if (state === 'unsaved') btn.classList.add('unsaved');
+        else if (state === 'saved') {
+            btn.classList.add('saved');
+            if (btn.classList.contains('spotlight-ctrl-btn')) {
+                btn.classList.add('save-flash');
+                setTimeout(function() { btn.classList.remove('save-flash'); }, 1000);
+            }
+        }
+    });
 }
 
 function markDirty() {

@@ -1507,9 +1507,9 @@ body[data-encrypted="true"] .prop-value-input { visibility: hidden; }
     display: none !important;
 }
 [data-spotlight="true"] .editor-area { flex: 1; }
-/* A small floating exit affordance top-right so the user is never trapped —
-   visible only while spotlight is active. */
-.spotlight-exit-btn {
+/* Floating controls top-right so the user can save/search/exit while spotlight
+   is active — visible only while spotlight is active. */
+.spotlight-controls {
     position: fixed;
     top: 10px;
     right: 12px;
@@ -1517,17 +1517,35 @@ body[data-encrypted="true"] .prop-value-input { visibility: hidden; }
     display: none;
     align-items: center;
     gap: 6px;
-    padding: 4px 10px;
+    padding: 4px 6px;
     border: 1px solid var(--border-light);
     border-radius: 6px;
     background: var(--bg-primary);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+    opacity: 0.55;
+    transition: opacity 0.15s ease;
+}
+.spotlight-controls:hover { opacity: 1; }
+.spotlight-ctrl-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 6px;
+    border: none;
+    background: transparent;
     color: var(--text-muted);
     font-size: 12px;
     cursor: pointer;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
-    opacity: 0.35;
-    transition: opacity 0.15s ease;
+    border-radius: 4px;
+    transition: color 0.15s ease, background 0.15s ease;
 }
-.spotlight-exit-btn:hover { opacity: 1; color: var(--text-secondary); }
-.spotlight-exit-btn svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
-[data-spotlight="true"] .spotlight-exit-btn { display: flex; }
+.spotlight-ctrl-btn:hover { color: var(--text-secondary); background: var(--bg-secondary); }
+.spotlight-ctrl-btn svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.spotlight-ctrl-btn.saved { color: var(--green); }
+.spotlight-ctrl-btn.unsaved { color: var(--yellow); }
+.spotlight-ctrl-btn.save-flash { animation: spotlight-save-flash 1s ease; }
+@keyframes spotlight-save-flash {
+    0% { background: var(--green); color: var(--bg-primary); }
+    100% { background: transparent; color: var(--green); }
+}
+[data-spotlight="true"] .spotlight-controls { display: flex; }
