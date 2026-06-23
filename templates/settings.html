@@ -4,421 +4,826 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Settings — Flasky Notes</title>
-    <link rel="icon" type="image/x-icon" href="/static/images/amazing_logo.png">
-    <link rel="stylesheet" href="{{ url_for('static', filename='vendor/bootstrap/bootstrap.min.css') }}">
+
+    <script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='js/csrf.js') }}"></script>
     <!-- E2EE (mandatory — always loaded) -->
     <script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='js/crypto.js') }}"></script>
     <script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='js/e2ee.js') }}"></script>
     <script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='js/sanitize.js') }}"></script>
+
+    <!-- Favicons -->
+    <link rel="icon" type="image/x-icon" href="/static/images/amazing_logo.png">
+    <link rel="apple-touch-icon" href="/static/images/amazing_logo.png" sizes="180x180">
+    <link rel="icon" href="/static/images/amazing_logo.png">
+
+    <link rel="manifest" href="/manifest.json?page=settings">
+
     <style>
-    .settings-page {
-        max-width: 1100px;
-        margin: 0 auto;
-        padding: 1.5rem 1rem 3rem;
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-        color: #1f2329;
-        background: #f9fafb;
-        min-height: 100vh;
+    /* ============ Variables ============ */
+    :root {
+        --bg-primary: #1e1e2e;
+        --bg-secondary: #181825;
+        --bg-sidebar: #11111b;
+        --bg-hover: rgba(255,255,255,0.05);
+        --bg-active: rgba(255,255,255,0.08);
+        --bg-input: #1e1e2e;
+        --text-primary: #cdd6f4;
+        --text-secondary: #bac2de;
+        --text-muted: #585b70;
+        --accent: #b4befe;
+        --accent-dim: rgba(180,190,254,0.1);
+        --accent-hover: #cba6f7;
+        --border: rgba(255,255,255,0.06);
+        --border-light: rgba(255,255,255,0.1);
+        --green: #a6e3a1;
+        --red: #f38ba8;
+        --yellow: #f9e2af;
+        --blue: #89b4fa;
+        --peach: #fab387;
+        --scrollbar-track: transparent;
+        --scrollbar-thumb: rgba(255,255,255,0.1);
+        --shadow: 0 1px 3px rgba(0,0,0,0.3);
     }
-    [data-theme="dark"] .settings-page {
-        color: #e6e6e6;
-        background: #14141f;
+
+    [data-theme="light"] {
+        --bg-primary: #f8f9fc;
+        --bg-secondary: #eff1f5;
+        --bg-sidebar: #e6e9ef;
+        --bg-hover: rgba(0,0,0,0.04);
+        --bg-active: rgba(0,0,0,0.07);
+        --bg-input: #ffffff;
+        --text-primary: #4c4f69;
+        --text-secondary: #5c5f77;
+        --text-muted: #9ca0b0;
+        --accent: #7287fd;
+        --accent-dim: rgba(114,135,253,0.08);
+        --accent-hover: #8839ef;
+        --border: rgba(0,0,0,0.06);
+        --border-light: rgba(0,0,0,0.1);
+        --green: #40a02b;
+        --red: #d20f39;
+        --yellow: #df8e1d;
+        --blue: #1e66f5;
+        --peach: #fe640b;
+        --scrollbar-track: transparent;
+        --scrollbar-thumb: rgba(0,0,0,0.12);
+        --shadow: 0 1px 3px rgba(0,0,0,0.08);
     }
-    .settings-page h1 { font-size: 1.75rem; margin-bottom: 1rem; }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', system-ui, sans-serif;
+        background: var(--bg-primary);
+        color: var(--text-primary);
+        height: 100vh; height: 100dvh; overflow: hidden;
+        -webkit-font-smoothing: antialiased;
+    }
+
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: var(--scrollbar-track); }
+    ::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+    /* ============ Layout ============ */
+    .app { display: flex; height: 100vh; height: 100dvh; }
+
+    /* ============ Sidebar ============ */
+    .sidebar {
+        width: 240px; min-width: 240px;
+        background: var(--bg-sidebar);
+        border-right: 1px solid var(--border);
+        display: flex; flex-direction: column; overflow: hidden;
+        transition: width 0.2s ease, min-width 0.2s ease, opacity 0.15s ease;
+        z-index: 200;
+    }
+    .sidebar.collapsed { width: 0; min-width: 0; border-right: none; opacity: 0; pointer-events: none; }
+
+    .sidebar-header {
+        padding: 14px 16px; display: flex; align-items: center;
+        justify-content: space-between; gap: 8px; flex-shrink: 0;
+    }
+    .sidebar-title { font-size: 14px; font-weight: 700; color: var(--text-primary); letter-spacing: -0.01em; }
+    .sidebar-actions { display: flex; gap: 2px; }
+
+    .icon-btn {
+        background: none; border: none; color: var(--text-muted); cursor: pointer;
+        padding: 4px; border-radius: 6px; display: flex; align-items: center;
+        justify-content: center; transition: all 0.15s ease;
+    }
+    .icon-btn:hover { background: var(--bg-hover); color: var(--text-primary); }
+    .icon-btn svg {
+        width: 16px; height: 16px; stroke: currentColor; fill: none;
+        stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round;
+    }
+
+    .sidebar-nav { flex: 1; overflow-y: auto; padding: 4px 8px; }
+
+    .sidebar-section-label {
+        font-size: 11px; font-weight: 600; color: var(--text-muted);
+        text-transform: uppercase; letter-spacing: 0.8px; padding: 12px 8px 6px;
+    }
+    .sidebar-divider { height: 1px; background: var(--border); margin: 6px 8px; }
+
+    .nav-item {
+        display: flex; align-items: center; gap: 8px;
+        padding: 6px 10px; border-radius: 6px; cursor: pointer;
+        color: var(--text-secondary); font-size: 13px;
+        text-decoration: none; transition: all 0.1s ease;
+    }
+    .nav-item:hover { background: var(--bg-hover); color: var(--text-primary); }
+    .nav-item.active { background: var(--accent-dim); color: var(--accent); }
+    .nav-item svg {
+        width: 16px; height: 16px; stroke: currentColor; fill: none;
+        stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; flex-shrink: 0;
+    }
+
+    .sidebar-footer {
+        padding: 8px 12px; border-top: 1px solid var(--border);
+        display: flex; justify-content: center; flex-shrink: 0;
+    }
+    .sidebar-footer a {
+        color: var(--text-muted); padding: 5px 10px; border-radius: 6px;
+        font-size: 12px; text-decoration: none; transition: all 0.1s ease;
+    }
+    .sidebar-footer a:hover { background: var(--bg-hover); color: var(--text-secondary); }
+
+    .sidebar-backdrop {
+        display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+        background: rgba(0,0,0,0.5); z-index: 199;
+    }
+
+    /* ============ Main ============ */
+    .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; min-width: 0; }
+
+    .toolbar {
+        display: flex; align-items: center; background: var(--bg-secondary);
+        border-bottom: 1px solid var(--border); padding: 0 12px;
+        height: 42px; gap: 8px; flex-shrink: 0;
+    }
+    .toolbar-title { font-size: 13px; font-weight: 500; color: var(--text-primary); }
+    .toolbar-spacer { flex: 1; }
+
+    /* ============ Content ============ */
+    .content-area { flex: 1; overflow-y: auto; padding: 24px; }
+
     .settings-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
-        gap: 1.25rem;
-        align-items: start;
+        display: grid; grid-template-columns: 1fr 1fr; gap: 24px;
+        max-width: 1200px; margin: 0 auto; align-items: start;
     }
-    .settings-card {
-        background: #fff;
-        border: 1px solid #e5e7eb;
-        border-radius: 8px;
-        padding: 1.25rem;
+    .settings-grid > .panel.full { grid-column: 1 / -1; }
+
+    /* ============ Panels ============ */
+    .panel {
+        background: var(--bg-secondary); border: 1px solid var(--border);
+        border-radius: 10px; overflow: hidden;
     }
-    [data-theme="dark"] .settings-card {
-        background: #1e1e2e;
-        border-color: #2a2a3a;
+    .panel-header {
+        display: flex; align-items: center; justify-content: space-between;
+        padding: 12px 16px; border-bottom: 1px solid var(--border);
     }
-    .settings-card h2 { font-size: 1.1rem; margin: 0 0 0.75rem; }
-    .settings-card-wide { grid-column: 1 / -1; }
-    .settings-row {
-        display: flex;
-        align-items: center;
-        gap: 0.75rem;
-        padding: 0.35rem 0;
+    .panel-title {
+        font-size: 13px; font-weight: 600; color: var(--text-primary);
+        display: flex; align-items: center; gap: 8px;
     }
-    .settings-row label { flex: 1; }
-    .settings-row .form-check { margin-left: auto; }
-    hr { border-color: #e5e7eb; }
-    [data-theme="dark"] hr { border-color: #2a2a3a; }
-    .quick-links { display: flex; gap: 0.5rem; margin-bottom: 1rem; }
-    .quick-links a { font-size: 0.85rem; }
-    .text-muted { color: #6b7280; }
-    [data-theme="dark"] .text-muted { color: #9ca3af; }
-    .alert-warning {
-        background: #fff7ed;
-        border: 1px solid #fed7aa;
-        border-radius: 6px;
-        padding: 0.6rem 0.75rem;
-        color: #92400e;
+    .panel-title svg {
+        width: 16px; height: 16px; stroke: currentColor; fill: none;
+        stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round;
+        color: var(--text-muted);
     }
-    [data-theme="dark"] .alert-warning {
-        background: #3d3520;
-        border-color: #5a4e2a;
-        color: #e0c97a;
+    .panel-body { padding: 8px 0; }
+
+    /* ============ Settings rows ============ */
+    .setting-row {
+        display: flex; align-items: center; justify-content: space-between;
+        gap: 12px; padding: 8px 16px; transition: background 0.1s ease;
+        min-height: 36px;
     }
-    .badge { padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.75rem; font-weight: 600; }
-    .bg-success { background: #16a34a; color: #fff; }
-    .btn { padding: 0.4rem 0.85rem; border-radius: 6px; border: 1px solid transparent; cursor: pointer; font-size: 0.9rem; }
-    .btn-primary { background: #3b82f6; color: #fff; border-color: #3b82f6; }
-    .btn-outline-primary { background: transparent; color: #3b82f6; border-color: #3b82f6; }
-    .btn-outline-danger { background: transparent; color: #dc2626; border-color: #dc2626; }
-    .btn-outline-warning { background: transparent; color: #d97706; border-color: #d97706; }
-    .btn-outline-dark { background: transparent; color: inherit; border-color: #6b7280; }
-    .btn-sm { padding: 0.2rem 0.5rem; font-size: 0.8rem; }
-    .form-control, .form-select {
-        padding: 0.35rem 0.5rem;
-        border: 1px solid #d1d5db;
-        border-radius: 6px;
-        background: #fff;
-        color: inherit;
+    .setting-row:hover { background: var(--bg-hover); }
+    .setting-row + .setting-row { border-top: 1px solid var(--border); }
+
+    .setting-label { font-size: 13px; color: var(--text-primary); flex: 1; }
+    .setting-desc { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+    .setting-control { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+
+    /* ============ Toggle switch ============ */
+    .toggle {
+        position: relative; width: 36px; height: 20px;
+        background: var(--bg-hover); border: 1px solid var(--border-light);
+        border-radius: 10px; cursor: pointer; transition: all 0.15s ease;
+        flex-shrink: 0;
     }
-    [data-theme="dark"] .form-control, [data-theme="dark"] .form-select {
-        background: #14141f;
-        border-color: #2a2a3a;
+    .toggle::after {
+        content: ''; position: absolute; top: 2px; left: 2px;
+        width: 14px; height: 14px; background: var(--text-muted);
+        border-radius: 50%; transition: all 0.15s ease;
     }
-    .form-check-input { width: 1.1rem; height: 1.1rem; }
-    .table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
-    .table th, .table td { padding: 0.4rem 0.5rem; border-bottom: 1px solid #e5e7eb; text-align: left; }
-    [data-theme="dark"] .table th, [data-theme="dark"] .table td { border-color: #2a2a3a; }
-    .text-end { text-align: right; }
-    .mt-2 { margin-top: 0.5rem; }
-    .mt-3 { margin-top: 0.75rem; }
-    .mt-4 { margin-top: 1rem; }
-    .mb-0 { margin-bottom: 0; }
-    .mb-2 { margin-bottom: 0.5rem; }
-    .mb-3 { margin-bottom: 0.75rem; }
-    .my-3 { margin: 0.75rem 0; }
-    .small { font-size: 0.85rem; }
-    .text-success { color: #16a34a; }
-    .text-danger { color: #dc2626; }
-    code { font-family: ui-monospace, monospace; background: #f3f4f6; padding: 0.1rem 0.3rem; border-radius: 3px; }
-    [data-theme="dark"] code { background: #2a2a3a; }
+    .toggle.on { background: var(--accent-dim); border-color: var(--accent); }
+    .toggle.on::after { left: 18px; background: var(--accent); }
+    .toggle input { display: none; }
+
+    /* ============ Inputs ============ */
+    .setting-input {
+        background: var(--bg-hover); border: 1px solid transparent;
+        border-radius: 6px; padding: 6px 10px; color: var(--text-primary);
+        font-size: 13px; font-family: inherit; outline: none;
+        transition: border-color 0.15s ease, background 0.15s ease;
+        min-width: 0;
+    }
+    .setting-input:focus { border-color: var(--accent); background: var(--bg-input); }
+    .setting-input::placeholder { color: var(--text-muted); }
+    input[type="number"].setting-input { width: 80px; text-align: right; }
+    select.setting-input { cursor: pointer; min-width: 220px; }
+    .setting-input.password { width: 100%; }
+
+    /* ============ Small buttons ============ */
+    .btn-sm {
+        background: none; border: 1px solid var(--border-light); color: var(--text-secondary);
+        font-size: 12px; font-weight: 500; padding: 5px 12px; border-radius: 6px;
+        cursor: pointer; transition: all 0.15s ease; font-family: inherit;
+        display: inline-flex; align-items: center; gap: 4px;
+        text-decoration: none;
+    }
+    .btn-sm:hover { background: var(--bg-hover); color: var(--text-primary); border-color: var(--text-muted); }
+    .btn-sm.primary { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); }
+    .btn-sm.primary:hover { background: var(--accent); color: var(--bg-primary); }
+    .btn-sm.danger { border-color: var(--red); color: var(--red); }
+    .btn-sm.danger:hover { background: var(--red); color: var(--bg-primary); }
+    .btn-sm.warning { border-color: var(--yellow); color: var(--yellow); }
+    .btn-sm.warning:hover { background: var(--yellow); color: var(--bg-primary); }
+
+    /* ============ Action button (ghost) ============ */
+    .action-btn {
+        background: none; border: none; color: var(--text-muted); cursor: pointer;
+        padding: 4px; border-radius: 4px; display: flex; align-items: center;
+        transition: all 0.1s ease;
+    }
+    .action-btn:hover { background: var(--bg-hover); color: var(--text-secondary); }
+    .action-btn.danger:hover { color: var(--red); }
+    .action-btn svg {
+        width: 14px; height: 14px; stroke: currentColor; fill: none;
+        stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round;
+    }
+
+    /* ============ List items (token/conflict rows) ============ */
+    .list-item {
+        display: flex; align-items: center; justify-content: space-between;
+        padding: 8px 16px; border-top: 1px solid var(--border);
+        transition: background 0.1s ease; gap: 8px;
+    }
+    .list-item:hover { background: var(--bg-hover); }
+    .list-item-left { display: flex; align-items: center; gap: 10px; min-width: 0; flex: 1; }
+    .list-item-right { display: flex; gap: 4px; flex-shrink: 0; }
+    .list-item-label { font-size: 13px; color: var(--text-primary); }
+    .list-item-sub { font-size: 11px; color: var(--text-muted); }
+
+    /* ============ Badges ============ */
+    .badge {
+        display: inline-block; font-size: 10px; font-weight: 600;
+        padding: 2px 7px; border-radius: 10px; white-space: nowrap;
+    }
+    .badge-success { background: rgba(166,227,161,0.15); color: var(--green); }
+    .badge-warning { background: rgba(249,226,175,0.15); color: var(--yellow); }
+    .badge-danger { background: rgba(243,139,168,0.15); color: var(--red); }
+    .badge-info { background: rgba(137,180,250,0.15); color: var(--blue); }
+    .badge-secondary { background: var(--bg-hover); color: var(--text-muted); }
+    [data-theme="light"] .badge-success { background: rgba(64,160,43,0.1); }
+    [data-theme="light"] .badge-warning { background: rgba(223,142,29,0.1); }
+    [data-theme="light"] .badge-danger { background: rgba(210,15,57,0.1); }
+    [data-theme="light"] .badge-info { background: rgba(30,102,245,0.1); }
+
+    /* ============ Alert / callout ============ */
+    .callout {
+        padding: 10px 14px; border-radius: 8px; font-size: 12px;
+        margin: 8px 16px; border: 1px solid;
+    }
+    .callout-warning { background: rgba(249,226,175,0.08); border-color: rgba(249,226,175,0.25); color: var(--yellow); }
+    .callout-danger { background: rgba(243,139,168,0.08); border-color: rgba(243,139,168,0.25); color: var(--red); }
+    .callout code { background: var(--bg-hover); padding: 1px 5px; border-radius: 4px; word-break: break-all; font-family: ui-monospace, monospace; }
+
+    /* ============ Sub-section label ============ */
+    .sub-label {
+        font-size: 11px; font-weight: 600; color: var(--text-muted);
+        text-transform: uppercase; letter-spacing: 0.8px;
+        padding: 12px 16px 4px;
+    }
+
+    /* ============ Token display ============ */
+    .token-display {
+        display: flex; gap: 8px; margin: 8px 16px;
+        background: var(--bg-input); border: 1px solid var(--red);
+        border-radius: 6px; padding: 8px 10px; align-items: center;
+    }
+    .token-display input { flex: 1; background: none; border: none; color: var(--text-primary);
+        font-family: ui-monospace, monospace; font-size: 12px; outline: none; }
+
+    /* ============ Empty state ============ */
+    .empty-state {
+        text-align: center; padding: 16px; color: var(--text-muted);
+        font-size: 13px; font-style: italic;
+    }
+
+    /* ============ Status bar ============ */
+    .status-bar {
+        height: 26px; background: var(--bg-sidebar); border-top: 1px solid var(--border);
+        display: flex; align-items: center; padding: 0 16px; font-size: 11px;
+        color: var(--text-muted); gap: 16px; flex-shrink: 0;
+    }
+    .status-spacer { flex: 1; }
+    .status-clickable { cursor: pointer; padding: 1px 4px; border-radius: 3px; transition: background 0.1s; }
+    .status-clickable:hover { background: var(--bg-hover); color: var(--text-secondary); }
+
+    /* ============ Toast ============ */
+    .toast-container {
+        position: fixed; bottom: 16px; right: 16px; z-index: 9999;
+        display: flex; flex-direction: column; gap: 8px;
+    }
+    .toast {
+        background: var(--bg-secondary); border: 1px solid var(--border-light);
+        border-radius: 8px; padding: 10px 16px; font-size: 13px;
+        color: var(--text-primary); box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+        display: flex; align-items: center; gap: 8px;
+        animation: toast-in 0.2s ease;
+    }
+    .toast.success { border-left: 3px solid var(--green); }
+    .toast.danger { border-left: 3px solid var(--red); }
+    .toast.warning { border-left: 3px solid var(--yellow); }
+    @keyframes toast-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+    /* ============ Mobile ============ */
+    @media (max-width: 768px) {
+        .sidebar {
+            position: fixed; top: 0; left: 0; bottom: 0;
+            width: 280px; min-width: 280px;
+            box-shadow: 4px 0 24px rgba(0,0,0,0.4);
+        }
+        .sidebar.collapsed { width: 0; min-width: 0; box-shadow: none; }
+        .sidebar-backdrop.visible { display: block; }
+        .settings-grid { grid-template-columns: 1fr; }
+        .content-area { padding: 16px; }
+    }
     </style>
 </head>
 <body data-encrypted="true">
-<div class="settings-page">
-    <h1>Settings</h1>
 
-    <!-- Quick Links -->
-    <div class="quick-links">
-        <a href="/notes" class="btn btn-outline-primary btn-sm">Notes</a>
-        <a href="/note/0" class="btn btn-outline-primary btn-sm">New Note</a>
-        <a href="/logout" class="btn btn-outline-dark btn-sm">Log Out</a>
-    </div>
+<div class="toast-container" id="toast-container"></div>
 
-    <div class="settings-grid">
+<!-- Sidebar backdrop (mobile) -->
+<div class="sidebar-backdrop" id="sidebar-backdrop" data-action="toggle-sidebar"></div>
 
-        <!-- Appearance -->
-        <div class="settings-card">
-            <h2>Appearance</h2>
-            <form method="POST" id="ui-settings-form">
-                <div class="settings-row">
-                    <label class="form-check-label" for="dark-mode">Dark mode</label>
-                    <div class="form-check form-switch ms-auto">
-                        <input class="form-check-input" type="checkbox" id="dark-mode" name="dark-mode" value="1" {% if ui_settings.dark_mode %}checked{% endif %}>
-                    </div>
-                </div>
+<div class="app">
+    <!-- Sidebar -->
+    <nav class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <span class="sidebar-title">Settings</span>
+            <div class="sidebar-actions">
+                <button class="icon-btn" data-action="toggle-theme" title="Toggle theme">
+                    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
+                </button>
+            </div>
+        </div>
 
-                <div class="settings-row">
-                    <label for="font-size">Font size</label>
-                    <input name="font-size" id="font-size" class="form-control" type="number" min="10" max="32" value="{{ ui_settings.font_size }}" style="max-width:80px">
-                </div>
+        <div class="sidebar-nav">
+            <div class="sidebar-section-label">Navigation</div>
+            <a href="/notes" class="nav-item">
+                <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                Notes
+            </a>
+            <a href="/note/0" class="nav-item">
+                <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                New Note
+            </a>
+            <a href="/agenda" class="nav-item">
+                <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                Agenda
+            </a>
+            <a href="/settings" class="nav-item active">
+                <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+                Settings
+            </a>
+            {% if ai_enabled %}
+            <a href="/ai" class="nav-item">
+                <svg viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87L18.18 22 12 18.56 5.82 22 7 14.14l-5-4.87 6.91-1.01L12 2z"/></svg>
+                AI Chat
+            </a>
+            {% endif %}
+        </div>
 
-                <div class="settings-row">
-                    <label for="mobile-font-size">Mobile font size</label>
-                    <input name="mobile-font-size" id="mobile-font-size" class="form-control" type="number" min="10" max="32" value="{{ ui_settings.mobile_font_size }}" style="max-width:80px">
-                </div>
+        <div class="sidebar-footer">
+            <a href="/logout">Logout</a>
+        </div>
+    </nav>
 
-                <div class="settings-row">
-                    <label for="font-family">Font family</label>
-                    <input name="font-family" id="font-family" class="form-control" type="text" value="{{ ui_settings.font }}" placeholder="e.g. Inter, serif">
-                </div>
+    <!-- Main content -->
+    <div class="main">
+        <div class="toolbar">
+            <button class="icon-btn" data-action="toggle-sidebar" title="Toggle sidebar">
+                <svg viewBox="0 0 24 24"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+            </button>
+            <span class="toolbar-title">Settings</span>
+            <div class="toolbar-spacer"></div>
+            <button class="icon-btn" data-action="toggle-theme" title="Toggle theme">
+                <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
+            </button>
+        </div>
 
-                <div class="settings-row">
-                    <label class="form-check-label" for="hide-title">Hide title</label>
-                    <div class="form-check form-switch ms-auto">
-                        <input class="form-check-input" type="checkbox" id="hide-title" name="hide-title" value="1" {% if ui_settings.hide_title %}checked{% endif %}>
-                    </div>
-                </div>
+        <div class="content-area">
+            <div class="settings-grid">
 
-                <div class="settings-row">
-                    <label class="form-check-label" for="compact-mode">Compact mode</label>
-                    <div class="form-check form-switch ms-auto">
-                        <input class="form-check-input" type="checkbox" id="compact-mode" name="compact-mode" value="1" {% if ui_settings.compact_mode %}checked{% endif %}>
-                    </div>
-                </div>
+                <!-- UI settings (Appearance + Editor state share one form so a single
+                     submit persists all booleans — the handler resets missing fields
+                     to False, so splitting forms would wipe the other panel's toggles) -->
+                <form method="POST" id="ui-settings-form" style="display:contents">
 
-                <div class="settings-row">
-                    <label class="form-check-label" for="auto-save">Auto-save</label>
-                    <div class="form-check form-switch ms-auto">
-                        <input class="form-check-input" type="checkbox" id="auto-save" name="auto-save" value="1" {% if ui_settings.auto_save %}checked{% endif %}>
-                    </div>
-                </div>
-
-                <div class="settings-row">
-                    <label class="form-check-label" for="sidebar-collapsed">Sidebar collapsed</label>
-                    <div class="form-check form-switch ms-auto">
-                        <input class="form-check-input" type="checkbox" id="sidebar-collapsed" name="sidebar-collapsed" value="1" {% if ui_settings.sidebar_collapsed %}checked{% endif %}>
-                    </div>
-                </div>
-
-                <div class="settings-row">
-                    <label class="form-check-label" for="right-panel-collapsed">Right panel collapsed</label>
-                    <div class="form-check form-switch ms-auto">
-                        <input class="form-check-input" type="checkbox" id="right-panel-collapsed" name="right-panel-collapsed" value="1" {% if ui_settings.right_panel_collapsed %}checked{% endif %}>
-                    </div>
-                </div>
-
-                <div class="settings-row">
-                    <label class="form-check-label" for="properties-collapsed">Properties collapsed</label>
-                    <div class="form-check form-switch ms-auto">
-                        <input class="form-check-input" type="checkbox" id="properties-collapsed" name="properties-collapsed" value="1" {% if ui_settings.properties_collapsed %}checked{% endif %}>
-                    </div>
-                </div>
-
-                <div class="settings-row">
-                    <label class="form-check-label" for="preview-mode">Preview mode</label>
-                    <div class="form-check form-switch ms-auto">
-                        <input class="form-check-input" type="checkbox" id="preview-mode" name="preview-mode" value="1" {% if ui_settings.preview_mode %}checked{% endif %}>
-                    </div>
-                </div>
-
-                <div class="settings-row">
-                    <label for="notes-row-count">Notes row count</label>
-                    <input name="notes-row-count" id="notes-row-count" class="form-control" type="number" min="1" max="100" value="{{ ui_settings.notes_row_count }}" style="max-width:80px">
-                </div>
-
-                <div class="settings-row">
-                    <label for="notes-height">Notes height</label>
-                    <input name="notes-height" id="notes-height" class="form-control" type="number" min="50" max="2000" value="{{ ui_settings.notes_height }}" style="max-width:80px">
-                </div>
-
-                <!-- Panel widgets visibility -->
-                {% set widgets = panel_widgets %}
-                <div class="settings-row" style="flex-direction:column; align-items:stretch; gap:0.35rem">
-                    <label class="text-muted small" style="font-weight:600; text-transform:uppercase; letter-spacing:0.03em">Panel widgets</label>
-                    {% for widget in widgets %}
-                    <div style="display:flex; align-items:center; justify-content:space-between; padding:0.15rem 0">
-                        <label class="form-check-label" for="widget-{{ widget.id }}" style="font-size:0.9rem">{{ widget.label }}</label>
-                        <div class="form-check form-switch" style="padding-left:2.5em; margin:0">
-                            <input class="form-check-input" type="checkbox" id="widget-{{ widget.id }}" name="widget-{{ widget.id }}" value="1" {% if widget.visible %}checked{% endif %}>
+                <!-- Appearance -->
+                <div class="panel">
+                    <div class="panel-header">
+                        <div class="panel-title">
+                            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/></svg>
+                            Appearance
                         </div>
                     </div>
-                    {% endfor %}
+                    <div class="panel-body">
+                            <div class="setting-row">
+                                <span class="setting-label">Dark mode</span>
+                                <div class="setting-control">
+                                    <div class="toggle {% if ui_settings.dark_mode %}on{% endif %}" data-toggle="dark-mode">
+                                        <input type="checkbox" id="dark-mode" name="dark-mode" value="1" {% if ui_settings.dark_mode %}checked{% endif %}>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="setting-row">
+                                <span class="setting-label">Compact mode</span>
+                                <div class="setting-control">
+                                    <div class="toggle {% if ui_settings.compact_mode %}on{% endif %}" data-toggle="compact-mode">
+                                        <input type="checkbox" id="compact-mode" name="compact-mode" value="1" {% if ui_settings.compact_mode %}checked{% endif %}>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="setting-row">
+                                <span class="setting-label">Hide title</span>
+                                <div class="setting-control">
+                                    <div class="toggle {% if ui_settings.hide_title %}on{% endif %}" data-toggle="hide-title">
+                                        <input type="checkbox" id="hide-title" name="hide-title" value="1" {% if ui_settings.hide_title %}checked{% endif %}>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="setting-row">
+                                <span class="setting-label">Auto-save</span>
+                                <div class="setting-control">
+                                    <div class="toggle {% if ui_settings.auto_save %}on{% endif %}" data-toggle="auto-save">
+                                        <input type="checkbox" id="auto-save" name="auto-save" value="1" {% if ui_settings.auto_save %}checked{% endif %}>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="setting-row">
+                                <label class="setting-label" for="font-size">Font size</label>
+                                <div class="setting-control">
+                                    <input name="font-size" id="font-size" class="setting-input" type="number" min="10" max="32" value="{{ ui_settings.font_size }}">
+                                </div>
+                            </div>
+                            <div class="setting-row">
+                                <label class="setting-label" for="mobile-font-size">Mobile font size</label>
+                                <div class="setting-control">
+                                    <input name="mobile-font-size" id="mobile-font-size" class="setting-input" type="number" min="10" max="32" value="{{ ui_settings.mobile_font_size }}">
+                                </div>
+                            </div>
+                            <div class="setting-row">
+                                <label class="setting-label" for="font-family">Font family</label>
+                                <div class="setting-control" style="flex:1; max-width:240px;">
+                                    <input name="font-family" id="font-family" class="setting-input" type="text" value="{{ ui_settings.font }}" placeholder="e.g. Inter, serif" style="width:100%;">
+                                </div>
+                            </div>
+                            <div class="setting-row">
+                                <button name="update-ui-settings" class="btn-sm primary" type="submit">Save appearance</button>
+                            </div>
+                    </div>
                 </div>
 
-                <div class="settings-row mt-2">
-                    <button name="update-ui-settings" class="btn btn-primary" type="submit">Save</button>
-                </div>
-            </form>
-        </div>
+                <!-- Editor state -->
+                <div class="panel">
+                    <div class="panel-header">
+                        <div class="panel-title">
+                            <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="15" y1="3" x2="15" y2="21"/></svg>
+                            Editor state
+                        </div>
+                    </div>
+                    <div class="panel-body">
+                            <div class="setting-row">
+                                <span class="setting-label">Sidebar collapsed</span>
+                                <div class="setting-control">
+                                    <div class="toggle {% if ui_settings.sidebar_collapsed %}on{% endif %}" data-toggle="sidebar-collapsed">
+                                        <input type="checkbox" id="sidebar-collapsed" name="sidebar-collapsed" value="1" {% if ui_settings.sidebar_collapsed %}checked{% endif %}>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="setting-row">
+                                <span class="setting-label">Right panel collapsed</span>
+                                <div class="setting-control">
+                                    <div class="toggle {% if ui_settings.right_panel_collapsed %}on{% endif %}" data-toggle="right-panel-collapsed">
+                                        <input type="checkbox" id="right-panel-collapsed" name="right-panel-collapsed" value="1" {% if ui_settings.right_panel_collapsed %}checked{% endif %}>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="setting-row">
+                                <span class="setting-label">Properties collapsed</span>
+                                <div class="setting-control">
+                                    <div class="toggle {% if ui_settings.properties_collapsed %}on{% endif %}" data-toggle="properties-collapsed">
+                                        <input type="checkbox" id="properties-collapsed" name="properties-collapsed" value="1" {% if ui_settings.properties_collapsed %}checked{% endif %}>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="setting-row">
+                                <span class="setting-label">Preview mode</span>
+                                <div class="setting-control">
+                                    <div class="toggle {% if ui_settings.preview_mode %}on{% endif %}" data-toggle="preview-mode">
+                                        <input type="checkbox" id="preview-mode" name="preview-mode" value="1" {% if ui_settings.preview_mode %}checked{% endif %}>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="setting-row">
+                                <label class="setting-label" for="notes-row-count">Notes row count</label>
+                                <div class="setting-control">
+                                    <input name="notes-row-count" id="notes-row-count" class="setting-input" type="number" min="1" max="100" value="{{ ui_settings.notes_row_count }}">
+                                </div>
+                            </div>
+                            <div class="setting-row">
+                                <label class="setting-label" for="notes-height">Notes height</label>
+                                <div class="setting-control">
+                                    <input name="notes-height" id="notes-height" class="setting-input" type="number" min="50" max="2000" value="{{ ui_settings.notes_height }}">
+                                </div>
+                            </div>
 
-        <!-- Timezone -->
-        <div class="settings-card">
-            <h2>Timezone</h2>
-            <form method="POST">
-                <div class="settings-row">
-                    <select name="timezone" class="form-select">
-                        {% for tz in timezones %}
-                        <option value="{{ tz }}" {% if g.user.return_settings().timezone == tz %}selected{% endif %}>{{ tz }}</option>
+                            {% set widgets = panel_widgets %}
+                            <div class="sub-label">Panel widgets</div>
+                            {% for widget in widgets %}
+                            <div class="setting-row">
+                                <span class="setting-label">{{ widget.label }}</span>
+                                <div class="setting-control">
+                                    <div class="toggle {% if widget.visible %}on{% endif %}" data-toggle="widget-{{ widget.id }}">
+                                        <input type="checkbox" id="widget-{{ widget.id }}" name="widget-{{ widget.id }}" value="1" {% if widget.visible %}checked{% endif %}>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+
+                            <div class="setting-row">
+                                <button name="update-ui-settings" class="btn-sm primary" type="submit">Save editor state</button>
+                            </div>
+                    </div>
+                </div>
+
+                </form>
+
+                <!-- Timezone -->
+                <div class="panel">
+                    <div class="panel-header">
+                        <div class="panel-title">
+                            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+                            Timezone
+                        </div>
+                    </div>
+                    <div class="panel-body">
+                        <form method="POST">
+                            <div class="setting-row" style="border-top:none;">
+                                <select name="timezone" class="setting-input">
+                                    {% for tz in timezones %}
+                                    <option value="{{ tz }}" {% if g.user.return_settings().timezone == tz %}selected{% endif %}>{{ tz }}</option>
+                                    {% endfor %}
+                                </select>
+                                <button name="update-timezone" class="btn-sm primary" type="submit">Save</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Encryption -->
+                <div class="panel">
+                    <div class="panel-header">
+                        <div class="panel-title">
+                            <svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                            Encryption
+                        </div>
+                    </div>
+                    <div class="panel-body">
+                        <div class="setting-row">
+                            <span class="setting-label">
+                                <span class="badge badge-success">E2EE Enabled</span>
+                            </span>
+                            <span class="list-item-sub">Version {{ g.user.encryption_version }}</span>
+                        </div>
+
+                        <div class="sub-label">Change password</div>
+                        <div id="change-pw-form" style="padding: 0 16px;">
+                            <input type="password" id="current-password" class="setting-input password" placeholder="Current password" style="margin-bottom:6px;">
+                            <input type="password" id="new-password" class="setting-input password" placeholder="New password" style="margin-bottom:6px;">
+                            <input type="password" id="confirm-password" class="setting-input password" placeholder="Confirm new password" style="margin-bottom:8px;">
+                            <button class="btn-sm primary" id="change-pw-btn">Change Password</button>
+                            <div id="change-pw-status" style="margin-top:8px; font-size:12px;"></div>
+                        </div>
+
+                        <div class="sub-label">Recovery key</div>
+                        <div style="padding: 0 16px;">
+                            <p class="list-item-sub" style="margin-bottom:8px;">Generate a new recovery key. This replaces your existing one.</p>
+                            <button class="btn-sm warning" id="regen-recovery-btn">Regenerate Recovery Key</button>
+                            <div id="recovery-key-display" style="display:none; margin-top:8px;">
+                                <div class="callout callout-warning">
+                                    <strong>Save this recovery key now:</strong><br>
+                                    <code id="new-recovery-key"></code>
+                                </div>
+                            </div>
+                        </div>
+
+                        {% if g.user.password_hint %}
+                        <div class="sub-label">Password hint</div>
+                        <div style="padding: 0 16px;">
+                            <p class="setting-label">{{ g.user.password_hint }}</p>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- AI Integration -->
+                <div class="panel">
+                    <div class="panel-header">
+                        <div class="panel-title">
+                            <svg viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87L18.18 22 12 18.56 5.82 22 7 14.14l-5-4.87 6.91-1.01L12 2z"/></svg>
+                            AI Integration
+                        </div>
+                    </div>
+                    <div class="panel-body">
+                        <form method="POST">
+                            <input type="hidden" name="toggle-ai" value="1">
+                            <div class="setting-row">
+                                <span class="setting-label">AI enabled</span>
+                                <div class="setting-control">
+                                    <div class="toggle {% if ai_enabled %}on{% endif %}" data-toggle="ai-enabled">
+                                        <input type="checkbox" id="ai-toggle" name="ai-enabled" value="1" {% if ai_enabled %}checked{% endif %} onchange="this.form.submit()">
+                                    </div>
+                                </div>
+                            </div>
+                        </form>
+                        {% if ai_enabled %}
+                        <form method="POST">
+                            <div class="sub-label">Ollama settings</div>
+                            <div style="padding: 0 16px;">
+                                <label class="list-item-sub">API key</label>
+                                <input name="ollama-api-key" class="setting-input password" type="password" placeholder="••••••••" value="{{ ai_settings.ollama_api_key or '' }}" style="width:100%; margin-bottom:6px;">
+                                <label class="list-item-sub">Model</label>
+                                <input name="ollama-model" class="setting-input" type="text" value="{{ ai_settings.ollama_model or '' }}" style="width:100%; margin-bottom:6px;">
+                                <label class="list-item-sub">Base URL</label>
+                                <input name="ollama-base-url" class="setting-input" type="text" value="{{ ai_settings.ollama_base_url or '' }}" style="width:100%; margin-bottom:8px;">
+                                <div style="display:flex; gap:8px;">
+                                    <button name="update-ai-settings" class="btn-sm primary" type="submit">Save</button>
+                                    <button name="remove-ai-api-key" class="btn-sm danger" type="submit">Remove API Key</button>
+                                </div>
+                            </div>
+                        </form>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Obsidian Sync -->
+                <div class="panel">
+                    <div class="panel-header">
+                        <div class="panel-title">
+                            <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                            Obsidian Sync
+                        </div>
+                    </div>
+                    <div class="panel-body">
+                        <form method="POST">
+                            <input type="hidden" name="toggle-obsidian-sync" value="1">
+                            <div class="setting-row">
+                                <span class="setting-label">Sync enabled</span>
+                                <div class="setting-control">
+                                    <div class="toggle {% if sync_enabled %}on{% endif %}" data-toggle="sync-enabled">
+                                        <input type="checkbox" id="sync-toggle" name="sync-enabled" value="1" {% if sync_enabled %}checked{% endif %} onchange="this.form.submit()">
+                                    </div>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Export -->
+                <div class="panel">
+                    <div class="panel-header">
+                        <div class="panel-title">
+                            <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                            Export
+                        </div>
+                    </div>
+                    <div class="panel-body">
+                        <div class="setting-row">
+                            <span class="setting-label">Download all your notes as a .zip file.</span>
+                            <a href="/export" class="btn-sm primary">Export</a>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- API Tokens -->
+                <div class="panel full">
+                    <div class="panel-header">
+                        <div class="panel-title">
+                            <svg viewBox="0 0 24 24"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.778-7.778zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>
+                            API Tokens
+                        </div>
+                    </div>
+                    <div class="panel-body">
+                        <form method="POST">
+                            <div class="setting-row" style="border-top:none;">
+                                <input name="token-name" class="setting-input" type="text" placeholder="Token label (e.g. Obsidian Laptop)" style="flex:1; max-width:380px;">
+                                <button name="generate-api-token" class="btn-sm primary" type="submit">Generate</button>
+                            </div>
+                        </form>
+
+                        {% if new_token %}
+                        <div class="callout callout-danger">
+                            <strong>Copy this token now — it won't be shown again:</strong>
+                        </div>
+                        <div class="token-display">
+                            <input type="text" value="{{ new_token }}" readonly id="new-token-input">
+                            <button class="action-btn" data-action="copy-token" title="Copy">
+                                <svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                            </button>
+                        </div>
+                        {% endif %}
+
+                        {% if tokens %}
+                        {% for token in tokens %}
+                        <div class="list-item">
+                            <div class="list-item-left">
+                                <span class="list-item-label">{{ token.name }}</span>
+                                <span class="list-item-sub">Created {{ token.created_at.strftime('%Y-%m-%d') if token.created_at else '-' }}</span>
+                                <span class="list-item-sub">Last used {{ token.last_used_at.strftime('%Y-%m-%d %H:%M') if token.last_used_at else 'Never' }}</span>
+                            </div>
+                            <div class="list-item-right">
+                                <form method="POST" style="display:inline">
+                                    <input type="hidden" name="token-id" value="{{ token.id }}">
+                                    <button name="revoke-api-token" class="action-btn danger" type="submit" title="Revoke">
+                                        <svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
                         {% endfor %}
-                    </select>
-                    <button name="update-timezone" class="btn btn-primary" type="submit">Save</button>
-                </div>
-            </form>
-        </div>
-
-        <!-- Encryption -->
-        <div class="settings-card">
-            <h2>Encryption</h2>
-            <div class="mb-3">
-                <span class="badge bg-success">E2EE Enabled</span>
-                <small class="text-muted ms-2">Version {{ g.user.encryption_version }}</small>
-            </div>
-
-            <h5>Change Password</h5>
-            <div id="change-pw-form">
-                <input type="password" id="current-password" class="form-control mb-2" placeholder="Current password">
-                <input type="password" id="new-password" class="form-control mb-2" placeholder="New password">
-                <input type="password" id="confirm-password" class="form-control mb-2" placeholder="Confirm new password">
-                <button class="btn btn-primary" id="change-pw-btn">Change Password</button>
-                <div id="change-pw-status" class="mt-2"></div>
-            </div>
-
-            <h5 class="mt-4">Recovery Key</h5>
-            <p class="text-muted small mb-0">Generate a new recovery key. This replaces your existing one.</p>
-            <button class="btn btn-outline-warning" id="regen-recovery-btn">Regenerate Recovery Key</button>
-            <div id="recovery-key-display" style="display:none" class="mt-2">
-                <div class="alert-warning">
-                    <strong>Save this recovery key now:</strong><br>
-                    <code id="new-recovery-key" style="word-break:break-all"></code>
-                </div>
-            </div>
-
-            {% if g.user.password_hint %}
-            <h5 class="mt-4">Password Hint</h5>
-            <p>{{ g.user.password_hint }}</p>
-            {% endif %}
-        </div>
-
-        <div class="settings-card">
-            <h2>Export</h2>
-            <p style="margin-bottom:0.75rem;">Download all your notes as a .zip file.</p>
-            <a href="/export" class="btn btn-primary">Export Notes</a>
-        </div>
-
-        <!-- AI Integration -->
-        <div class="settings-card">
-            <h2>AI Integration</h2>
-            <form method="POST">
-                <div class="settings-row">
-                    <label class="form-check-label" for="ai-toggle">AI enabled</label>
-                    <div class="form-check form-switch ms-auto">
-                        <input class="form-check-input" type="checkbox" id="ai-toggle" name="toggle-ai" {% if ai_enabled %}checked{% endif %} onchange="this.form.submit()">
+                        {% else %}
+                        <div class="empty-state">No API tokens yet.</div>
+                        {% endif %}
                     </div>
                 </div>
-            </form>
-            {% if ai_enabled %}
-            <hr class="my-3">
-            <form method="POST">
-                <div class="mb-2">
-                    <label class="text-muted small">Ollama API Key</label>
-                    <input name="ollama-api-key" class="form-control" type="password" placeholder="••••••••" value="{{ ai_settings.ollama_api_key or '' }}">
-                </div>
-                <div class="mb-2">
-                    <label class="text-muted small">Model</label>
-                    <input name="ollama-model" class="form-control" type="text" value="{{ ai_settings.ollama_model or '' }}">
-                </div>
-                <div class="mb-2">
-                    <label class="text-muted small">Base URL</label>
-                    <input name="ollama-base-url" class="form-control" type="text" value="{{ ai_settings.ollama_base_url or '' }}">
-                </div>
-                <button name="update-ai-settings" class="btn btn-primary btn-sm" type="submit">Save</button>
-                <button name="remove-ai-api-key" class="btn btn-outline-danger btn-sm" type="submit">Remove API Key</button>
-            </form>
-            {% endif %}
-        </div>
 
-        <!-- Obsidian Sync -->
-        <div class="settings-card">
-            <h2>Obsidian Sync</h2>
-            <form method="POST">
-                <div class="settings-row">
-                    <label class="form-check-label" for="sync-toggle">Sync enabled</label>
-                    <div class="form-check form-switch ms-auto">
-                        <input class="form-check-input" type="checkbox" id="sync-toggle" name="toggle-obsidian-sync" {% if sync_enabled %}checked{% endif %} onchange="this.form.submit()">
+                <!-- Sync Conflicts -->
+                {% if conflicts %}
+                <div class="panel full">
+                    <div class="panel-header">
+                        <div class="panel-title">
+                            <svg viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                            Sync Conflicts
+                        </div>
+                    </div>
+                    <div class="panel-body">
+                        {% for conflict in conflicts %}
+                        <div class="list-item">
+                            <div class="list-item-left" style="flex-direction:column; align-items:flex-start; gap:2px;">
+                                <span class="list-item-label">Note ID: {{ conflict.note_id or '-' }}</span>
+                                <span class="list-item-sub">Local: {{ (conflict.local_title or '')[:40] }}</span>
+                                <span class="list-item-sub">Server: {{ (conflict.server_title or '')[:40] }}</span>
+                                <span class="list-item-sub">{{ conflict.conflict_date.strftime('%Y-%m-%d %H:%M') if conflict.conflict_date else '-' }}</span>
+                            </div>
+                            <div class="list-item-right">
+                                <form method="POST" style="display:inline">
+                                    <input type="hidden" name="conflict-id" value="{{ conflict.id }}">
+                                    <input type="hidden" name="resolution" value="local">
+                                    <button name="resolve-conflict" class="btn-sm primary" type="submit">Local</button>
+                                </form>
+                                <form method="POST" style="display:inline">
+                                    <input type="hidden" name="conflict-id" value="{{ conflict.id }}">
+                                    <input type="hidden" name="resolution" value="server">
+                                    <button name="resolve-conflict" class="btn-sm" type="submit">Server</button>
+                                </form>
+                            </div>
+                        </div>
+                        {% endfor %}
                     </div>
                 </div>
-            </form>
-        </div>
+                {% endif %}
 
-        <!-- API Tokens -->
-        <div class="settings-card settings-card-wide">
-            <h2>API Tokens</h2>
-            <form method="POST">
-                <div class="settings-row">
-                    <input name="token-name" class="form-control" type="text" placeholder="Token label (e.g. Obsidian Laptop)">
-                    <button name="generate-api-token" class="btn btn-primary" type="submit">Generate</button>
-                </div>
-            </form>
-
-            {% if new_token %}
-            <div class="alert-warning mt-2">
-                <small class="fw-bold">Copy this token now — it won't be shown again:</small>
-                <input type="text" class="form-control form-control-sm mt-1" value="{{ new_token }}" readonly id="new-token-input">
             </div>
-            {% endif %}
-
-            {% if tokens %}
-            <table class="table table-sm mt-3 mb-0">
-                <thead>
-                    <tr>
-                        <th>Name</th>
-                        <th>Created</th>
-                        <th>Last Used</th>
-                        <th></th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for token in tokens %}
-                    <tr>
-                        <td>{{ token.name }}</td>
-                        <td><small class="text-muted">{{ token.created_at.strftime('%Y-%m-%d') if token.created_at else '-' }}</small></td>
-                        <td><small class="text-muted">{{ token.last_used_at.strftime('%Y-%m-%d %H:%M') if token.last_used_at else 'Never' }}</small></td>
-                        <td class="text-end">
-                            <form method="POST" style="display:inline">
-                                <input type="hidden" name="token-id" value="{{ token.id }}">
-                                <button name="revoke-api-token" class="btn btn-sm btn-outline-danger" type="submit">Revoke</button>
-                            </form>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-            {% endif %}
         </div>
 
-        <!-- Sync Conflicts -->
-        {% if conflicts %}
-        <div class="settings-card settings-card-wide">
-            <h2>Sync Conflicts</h2>
-            <table class="table table-sm">
-                <thead>
-                    <tr>
-                        <th>Note ID</th>
-                        <th>Local</th>
-                        <th>Server</th>
-                        <th>Date</th>
-                        <th>Resolve</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for conflict in conflicts %}
-                    <tr>
-                        <td>{{ conflict.note_id or '-' }}</td>
-                        <td><small class="text-muted">{{ (conflict.local_title or '')[:40] }}</small></td>
-                        <td><small class="text-muted">{{ (conflict.server_title or '')[:40] }}</small></td>
-                        <td><small class="text-muted">{{ conflict.conflict_date.strftime('%Y-%m-%d %H:%M') if conflict.conflict_date else '-' }}</small></td>
-                        <td>
-                            <form method="POST" style="display:inline">
-                                <input type="hidden" name="conflict-id" value="{{ conflict.id }}">
-                                <input type="hidden" name="resolution" value="local">
-                                <button name="resolve-conflict" class="btn btn-sm btn-outline-primary" type="submit">Local</button>
-                            </form>
-                            <form method="POST" style="display:inline">
-                                <input type="hidden" name="conflict-id" value="{{ conflict.id }}">
-                                <input type="hidden" name="resolution" value="server">
-                                <button name="resolve-conflict" class="btn btn-sm btn-outline-secondary" type="submit">Server</button>
-                            </form>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+        <!-- Status bar -->
+        <div class="status-bar">
+            <span>Settings</span>
+            <div class="status-spacer"></div>
+            <span class="status-clickable" data-action="toggle-theme">
+                <span id="theme-label">{{ 'Dark' if ui_settings and ui_settings.dark_mode else 'Light' }}</span>
+            </span>
         </div>
-        {% endif %}
-
     </div>
 </div>
-<script nonce="{{ csp_nonce() }}">
-(function() {
-    var tokenInput = document.getElementById('new-token-input');
-    if (tokenInput) tokenInput.addEventListener('click', function() { this.select(); });
-})();
-</script>
+
 <script type="application/json" id="settings-encryption-data">
 {
     "username": {{ g.user.username|tojson }},
@@ -427,99 +832,173 @@
 </script>
 <script nonce="{{ csp_nonce() }}">
 (function() {
+    // ============ Sidebar ============
+    function toggleSidebar() {
+        const sidebar = document.getElementById('sidebar');
+        const backdrop = document.getElementById('sidebar-backdrop');
+        sidebar.classList.toggle('collapsed');
+        if (window.innerWidth <= 768) backdrop.classList.toggle('visible');
+    }
+    if (window.innerWidth <= 768) {
+        document.getElementById('sidebar').classList.add('collapsed');
+    }
+
+    // ============ Theme ============
+    function toggleTheme() {
+        const html = document.documentElement;
+        const isDark = html.getAttribute('data-theme') === 'dark';
+        html.setAttribute('data-theme', isDark ? 'light' : 'dark');
+        document.getElementById('theme-label').innerText = isDark ? 'Light' : 'Dark';
+        fetch('/api/save_dark_mode/' + (isDark ? '0' : '1'));
+    }
+
+    // ============ Toggle switches ============
+    function syncToggle(el) {
+        const input = el.querySelector('input');
+        if (!input) return;
+        el.classList.toggle('on', input.checked);
+    }
+    document.querySelectorAll('.toggle[data-toggle]').forEach(function(el) {
+        syncToggle(el);
+        el.addEventListener('click', function(e) {
+            e.preventDefault();
+            const input = el.querySelector('input');
+            if (!input) return;
+            if (e.target === input) return;
+            input.checked = !input.checked;
+            syncToggle(el);
+            if (input.getAttribute('onchange')) {
+                input.form.submit();
+            }
+        });
+    });
+
+    // ============ Token copy ============
+    var tokenInput = document.getElementById('new-token-input');
+    if (tokenInput) tokenInput.addEventListener('click', function() { this.select(); });
+
+    function showToast(message, type) {
+        type = type || 'success';
+        var container = document.getElementById('toast-container');
+        var toast = document.createElement('div');
+        toast.className = 'toast ' + type;
+        toast.innerText = message;
+        container.appendChild(toast);
+        setTimeout(function() { if (toast.parentElement) toast.remove(); }, 3000);
+    }
+
+    // ============ Event delegation ============
+    document.addEventListener('click', function(e) {
+        var el = e.target.closest('[data-action]');
+        if (!el) return;
+        var action = el.dataset.action;
+        switch (action) {
+            case 'toggle-sidebar': toggleSidebar(); break;
+            case 'toggle-theme': toggleTheme(); break;
+            case 'copy-token':
+                if (tokenInput) {
+                    tokenInput.select();
+                    document.execCommand('copy');
+                    showToast('Token copied to clipboard.');
+                }
+                break;
+        }
+    });
+
+    // ============ Change password / recovery key ============
     var settingsData = JSON.parse(document.getElementById('settings-encryption-data').textContent);
     document.getElementById('change-pw-btn').addEventListener('click', changeEncryptionPassword);
     document.getElementById('regen-recovery-btn').addEventListener('click', regenerateRecoveryKey);
 
-async function changeEncryptionPassword() {
-    var statusEl = document.getElementById('change-pw-status');
-    var currentPw = document.getElementById('current-password').value;
-    var newPw = document.getElementById('new-password').value;
-    var confirmPw = document.getElementById('confirm-password').value;
-    if (!currentPw || !newPw || !confirmPw) {
-        statusEl.innerHTML = '<span class="text-danger">All fields are required.</span>';
-        return;
-    }
-    if (newPw !== confirmPw) {
-        statusEl.innerHTML = '<span class="text-danger">New passwords do not match.</span>';
-        return;
-    }
-    if (newPw.length < 8) {
-        statusEl.innerHTML = '<span class="text-danger">Password must be at least 8 characters.</span>';
-        return;
-    }
-    statusEl.innerHTML = '<span class="text-muted">Deriving keys...</span>';
-    try {
-        var oldSalt = await FlaskyCrypto.fetchSalt(settingsData.username);
-        var oldKeys = await FlaskyCrypto.deriveKeys(currentPw, oldSalt);
-        var encSymKey = settingsData.encryptedSymKey;
-        var symKey;
+    async function changeEncryptionPassword() {
+        var statusEl = document.getElementById('change-pw-status');
+        var currentPw = document.getElementById('current-password').value;
+        var newPw = document.getElementById('new-password').value;
+        var confirmPw = document.getElementById('confirm-password').value;
+        if (!currentPw || !newPw || !confirmPw) {
+            statusEl.innerHTML = '<span style="color:var(--red)">All fields are required.</span>';
+            return;
+        }
+        if (newPw !== confirmPw) {
+            statusEl.innerHTML = '<span style="color:var(--red)">New passwords do not match.</span>';
+            return;
+        }
+        if (newPw.length < 8) {
+            statusEl.innerHTML = '<span style="color:var(--red)">Password must be at least 8 characters.</span>';
+            return;
+        }
+        statusEl.innerHTML = '<span style="color:var(--text-muted)">Deriving keys...</span>';
         try {
-            symKey = await FlaskyCrypto.unwrapSymmetricKey(encSymKey, oldKeys.kek);
+            var oldSalt = await FlaskyCrypto.fetchSalt(settingsData.username);
+            var oldKeys = await FlaskyCrypto.deriveKeys(currentPw, oldSalt);
+            var encSymKey = settingsData.encryptedSymKey;
+            var symKey;
+            try {
+                symKey = await FlaskyCrypto.unwrapSymmetricKey(encSymKey, oldKeys.kek);
+            } catch(e) {
+                statusEl.innerHTML = '<span style="color:var(--red)">Current password is incorrect.</span>';
+                return;
+            }
+            statusEl.innerHTML = '<span style="color:var(--text-muted)">Encrypting with new password...</span>';
+            var newKeySalt = FlaskyCrypto.generateSalt();
+            var newKeys = await FlaskyCrypto.deriveKeys(newPw, newKeySalt);
+            var newWrappedKey = await FlaskyCrypto.wrapSymmetricKey(symKey, newKeys.kek);
+            var resp = await fetch('/api/auth/change_password', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    new_auth_key: newKeys.authKeyHex,
+                    new_encrypted_sym_key: newWrappedKey,
+                    new_key_salt: newKeySalt
+                })
+            });
+            var data = await resp.json();
+            if (data.success) {
+                await FlaskyCrypto.storeSymmetricKey(symKey);
+                statusEl.innerHTML = '<span style="color:var(--green)">Password changed successfully.</span>';
+                document.getElementById('current-password').value = '';
+                document.getElementById('new-password').value = '';
+                document.getElementById('confirm-password').value = '';
+            } else {
+                statusEl.innerHTML = '<span style="color:var(--red)">Error: ' + escapeHtml(data.reason || 'Unknown error') + '</span>';
+            }
         } catch(e) {
-            statusEl.innerHTML = '<span class="text-danger">Current password is incorrect.</span>';
-            return;
+            statusEl.innerHTML = '<span style="color:var(--red)">Error: ' + escapeHtml(e.message) + '</span>';
         }
-        statusEl.innerHTML = '<span class="text-muted">Encrypting with new password...</span>';
-        var newKeySalt = FlaskyCrypto.generateSalt();
-        var newKeys = await FlaskyCrypto.deriveKeys(newPw, newKeySalt);
-        var newWrappedKey = await FlaskyCrypto.wrapSymmetricKey(symKey, newKeys.kek);
-        var resp = await fetch('/api/auth/change_password', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                new_auth_key: newKeys.authKeyHex,
-                new_encrypted_sym_key: newWrappedKey,
-                new_key_salt: newKeySalt
-            })
-        });
-        var data = await resp.json();
-        if (data.success) {
-            await FlaskyCrypto.storeSymmetricKey(symKey);
-            statusEl.innerHTML = '<span class="text-success">Password changed successfully.</span>';
-            document.getElementById('current-password').value = '';
-            document.getElementById('new-password').value = '';
-            document.getElementById('confirm-password').value = '';
-        } else {
-            statusEl.innerHTML = '<span class="text-danger">Error: ' + escapeHtml(data.reason || 'Unknown error') + '</span>';
-        }
-    } catch(e) {
-        statusEl.innerHTML = '<span class="text-danger">Error: ' + escapeHtml(e.message) + '</span>';
     }
-}
 
-async function regenerateRecoveryKey() {
-    try {
-        var symKey = await FlaskyCrypto.loadSymmetricKey();
-        if (!symKey) {
-            alert('Encryption key not loaded. Please unlock first.');
-            return;
+    async function regenerateRecoveryKey() {
+        try {
+            var symKey = await FlaskyCrypto.loadSymmetricKey();
+            if (!symKey) {
+                showToast('Encryption key not loaded. Please unlock first.', 'danger');
+                return;
+            }
+            var recovery = await FlaskyCrypto.generateRecoveryKey();
+            var wrappedKey = await FlaskyCrypto.wrapSymmetricKey(symKey, recovery.cryptoKey);
+            var recoveryHash = await FlaskyCrypto.recoveryKeyHash(recovery.keyBytes);
+            var resp = await fetch('/api/auth/update_recovery_key', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ recovery_encrypted_key: wrappedKey, recovery_key_hash: recoveryHash })
+            });
+            var data = await resp.json();
+            if (data.success) {
+                document.getElementById('new-recovery-key').textContent = recovery.displayString;
+                document.getElementById('recovery-key-display').style.display = '';
+            } else {
+                showToast('Error: ' + (data.reason || 'Unknown error'), 'danger');
+            }
+        } catch(e) {
+            showToast('Error: ' + e.message, 'danger');
         }
-        var recovery = await FlaskyCrypto.generateRecoveryKey();
-        var wrappedKey = await FlaskyCrypto.wrapSymmetricKey(symKey, recovery.cryptoKey);
-        var recoveryHash = await FlaskyCrypto.recoveryKeyHash(recovery.keyBytes);
-        var resp = await fetch('/api/auth/update_recovery_key', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ recovery_encrypted_key: wrappedKey, recovery_key_hash: recoveryHash })
-        });
-        var data = await resp.json();
-        if (data.success) {
-            document.getElementById('new-recovery-key').textContent = recovery.displayString;
-            document.getElementById('recovery-key-display').style.display = '';
-        } else {
-            alert('Error: ' + (data.reason || 'Unknown error'));
-        }
-    } catch(e) {
-        alert('Error: ' + e.message);
     }
-}
 
-function escapeHtml(s) {
-    return String(s).replace(/[&<>"']/g, function(c) {
-        return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
-    });
-}
+    function escapeHtml(s) {
+        return String(s).replace(/[&<>"']/g, function(c) {
+            return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+        });
+    }
 })();
 </script>
 </body>

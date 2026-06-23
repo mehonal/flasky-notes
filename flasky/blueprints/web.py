@@ -449,10 +449,10 @@ def settings_page():
                 db.session.delete(token)
                 db.session.commit()
         elif "toggle-obsidian-sync" in request.form:
-            settings.obsidian_sync_enabled = not settings.obsidian_sync_enabled
+            settings.obsidian_sync_enabled = "sync-enabled" in request.form
             db.session.commit()
         elif "toggle-ai" in request.form:
-            settings.ai_enabled = not settings.ai_enabled
+            settings.ai_enabled = "ai-enabled" in request.form
             if not settings.ai_enabled:
                 settings.ollama_api_key = None
             db.session.commit()
