@@ -1,44 +1,45 @@
 /**
- * Flasky Notes — E2EE Client-Side Search
- *
- * For encrypted users, search cannot happen server-side.
- * This module fetches all notes, decrypts titles+content, and provides
- * a client-side search index.
+ * Client-side search index.
+ * Fetches all notes, decrypts titles+content, provides search/backlinks/outbound links.
  */
+
 (function () {
     'use strict';
 
-    var _index = null; // Array of { id, title, content }
-    var _building = false;
+    var _index = null;
+    var _buildPromise = null;
 
-    /**
-     * Build the search index by fetching and decrypting all notes.
-     */
-    async function buildIndex() {
-        if (_building) return _index;
-        if (_index) return _index;
-        _building = true;
+    function buildIndex() {
+        if (_index) return Promise.resolve(_index);
+        if (_buildPromise) return _buildPromise;
+        if (typeof FlaskyE2EE === 'undefined' || !FlaskyE2EE.isReady()) {
+            return Promise.resolve([]);
+        }
+        _buildPromise = _doBuild();
+        return _buildPromise;
+    }
 
+    async function _doBuild() {
         try {
             var resp = await fetch('/api/get_all_notes');
             var notes = await resp.json();
             if (!Array.isArray(notes)) {
-                _building = false;
+                _buildPromise = null;
                 return [];
             }
 
             _index = [];
-            // Decrypt in batches to avoid blocking
             for (var i = 0; i < notes.length; i++) {
                 var n = notes[i];
-                var title = n.title || '';
-                var content = n.content || '';
+                var title = '';
+                var content = '';
                 try {
-                    title = await FlaskyE2EE.decryptField(title);
-                } catch (e) {}
+                    title = await FlaskyE2EE.decryptField(n.title || '');
+                } catch (e) { title = ''; }
                 try {
-                    content = await FlaskyE2EE.decryptField(content);
-                } catch (e) {}
+                    content = await FlaskyE2EE.decryptField(n.content || '');
+                } catch (e) { content = ''; }
+                if (!title && !content && (n.title || n.content)) continue;
                 _index.push({
                     id: n.id,
                     title: title || '',
@@ -49,17 +50,13 @@
             }
         } catch (e) {
             console.error('E2EE search: failed to build index', e);
-            _index = [];
+            _index = null;
         }
 
-        _building = false;
+        _buildPromise = null;
         return _index;
     }
 
-    /**
-     * Search the decrypted index for a query string.
-     * Returns array of { id, title, content, snippet }.
-     */
     async function search(query) {
         if (!_index) await buildIndex();
         if (!query || !_index) return [];
@@ -91,23 +88,19 @@
         return results;
     }
 
-    /**
-     * Invalidate the index (call after save/delete).
-     */
     function invalidate() {
         _index = null;
+        _buildPromise = null;
     }
 
-    /**
-     * Get the current index (null if not built yet).
-     */
     function getIndex() {
         return _index;
     }
 
-    /**
-     * Compute backlinks: notes whose content contains [[noteTitle]].
-     */
+    function isBuilding() {
+        return _buildPromise !== null;
+    }
+
     async function computeBacklinks(noteTitle) {
         if (!_index) await buildIndex();
         if (!noteTitle || !_index) return [];
@@ -123,9 +116,6 @@
         return results;
     }
 
-    /**
-     * Compute outbound links from note content.
-     */
     async function computeOutboundLinks(content) {
         if (!_index) await buildIndex();
         if (!content || !_index) return [];
@@ -149,6 +139,7 @@
         search: search,
         invalidate: invalidate,
         getIndex: getIndex,
+        isBuilding: isBuilding,
         computeBacklinks: computeBacklinks,
         computeOutboundLinks: computeOutboundLinks
     };
