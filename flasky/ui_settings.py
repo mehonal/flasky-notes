@@ -51,15 +51,12 @@ def _is_int_in_range(low: int, high: int) -> Callable[[Any], bool]:
 # Registry of all UI settings. To add a new setting, append a SettingDef here
 # and read/write it via get_setting()/set_setting(). No migration required.
 REGISTRY: dict[str, SettingDef] = {
-    "font": SettingDef("font", "sans-serif", str),
+    "font": SettingDef("font", "", str),
     "font_size": SettingDef("font_size", 16, int, _is_int_in_range(8, 40)),
-    "mobile_font_size": SettingDef("mobile_font_size", 15, int, _is_int_in_range(8, 40)),
     "dark_mode": SettingDef("dark_mode", False, bool),
     "compact_mode": SettingDef("compact_mode", False, bool),
     "spotlight_mode": SettingDef("spotlight_mode", False, bool),
     "hide_title": SettingDef("hide_title", False, bool),
-    "notes_row_count": SettingDef("notes_row_count", 3, int, _is_int_in_range(1, 100)),
-    "notes_height": SettingDef("notes_height", 150, int, _is_int_in_range(50, 2000)),
     "auto_save": SettingDef("auto_save", False, bool),
     "sidebar_collapsed": SettingDef("sidebar_collapsed", False, bool),
     "right_panel_collapsed": SettingDef("right_panel_collapsed", True, bool),

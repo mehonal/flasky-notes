@@ -367,13 +367,6 @@ def test_save_font_size(auth_client):
     assert r.json["font_size"] == 20
 
 
-def test_save_notes_row_count(auth_client):
-    client, creds = auth_client
-    r = client.get("/api/save_notes_row_count/5")
-    assert r.json["success"] is True
-    assert r.json["new_row_count"] == 5
-
-
 # === Validation (marshmallow) ===
 
 

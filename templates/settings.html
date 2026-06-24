@@ -461,6 +461,14 @@
                                 </div>
                             </div>
                             <div class="setting-row">
+                                <span class="setting-label">Spotlight mode</span>
+                                <div class="setting-control">
+                                    <div class="toggle {% if ui_settings.spotlight_mode %}on{% endif %}" data-toggle="spotlight-mode">
+                                        <input type="checkbox" id="spotlight-mode" name="spotlight-mode" value="1" {% if ui_settings.spotlight_mode %}checked{% endif %}>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="setting-row">
                                 <span class="setting-label">Hide title</span>
                                 <div class="setting-control">
                                     <div class="toggle {% if ui_settings.hide_title %}on{% endif %}" data-toggle="hide-title">
@@ -480,12 +488,6 @@
                                 <label class="setting-label" for="font-size">Font size</label>
                                 <div class="setting-control">
                                     <input name="font-size" id="font-size" class="setting-input" type="number" min="10" max="32" value="{{ ui_settings.font_size }}">
-                                </div>
-                            </div>
-                            <div class="setting-row">
-                                <label class="setting-label" for="mobile-font-size">Mobile font size</label>
-                                <div class="setting-control">
-                                    <input name="mobile-font-size" id="mobile-font-size" class="setting-input" type="number" min="10" max="32" value="{{ ui_settings.mobile_font_size }}">
                                 </div>
                             </div>
                             <div class="setting-row">
@@ -539,18 +541,6 @@
                                     <div class="toggle {% if ui_settings.preview_mode %}on{% endif %}" data-toggle="preview-mode">
                                         <input type="checkbox" id="preview-mode" name="preview-mode" value="1" {% if ui_settings.preview_mode %}checked{% endif %}>
                                     </div>
-                                </div>
-                            </div>
-                            <div class="setting-row">
-                                <label class="setting-label" for="notes-row-count">Notes row count</label>
-                                <div class="setting-control">
-                                    <input name="notes-row-count" id="notes-row-count" class="setting-input" type="number" min="1" max="100" value="{{ ui_settings.notes_row_count }}">
-                                </div>
-                            </div>
-                            <div class="setting-row">
-                                <label class="setting-label" for="notes-height">Notes height</label>
-                                <div class="setting-control">
-                                    <input name="notes-height" id="notes-height" class="setting-input" type="number" min="50" max="2000" value="{{ ui_settings.notes_height }}">
                                 </div>
                             </div>
 

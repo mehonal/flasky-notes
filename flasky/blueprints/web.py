@@ -363,13 +363,6 @@ def settings_page():
                     set_setting(g.user, "font_size", int(request.form["font-size"]))
                 except (ValueError, TypeError):
                     pass
-            if "mobile-font-size" in request.form:
-                try:
-                    set_setting(
-                        g.user, "mobile_font_size", int(request.form["mobile-font-size"])
-                    )
-                except (ValueError, TypeError):
-                    pass
             if "dark-mode" in request.form:
                 set_setting(g.user, "dark_mode", request.form["dark-mode"] == "1")
             else:
@@ -378,6 +371,10 @@ def settings_page():
                 set_setting(g.user, "compact_mode", request.form["compact-mode"] == "1")
             else:
                 set_setting(g.user, "compact_mode", False)
+            if "spotlight-mode" in request.form:
+                set_setting(g.user, "spotlight_mode", request.form["spotlight-mode"] == "1")
+            else:
+                set_setting(g.user, "spotlight_mode", False)
             if "auto-save" in request.form:
                 set_setting(g.user, "auto_save", request.form["auto-save"] == "1")
             else:
@@ -386,20 +383,6 @@ def settings_page():
                 set_setting(g.user, "hide_title", request.form["hide-title"] == "1")
             else:
                 set_setting(g.user, "hide_title", False)
-            if "notes-row-count" in request.form:
-                try:
-                    set_setting(
-                        g.user, "notes_row_count", int(request.form["notes-row-count"])
-                    )
-                except (ValueError, TypeError):
-                    pass
-            if "notes-height" in request.form:
-                try:
-                    set_setting(
-                        g.user, "notes_height", int(request.form["notes-height"])
-                    )
-                except (ValueError, TypeError):
-                    pass
             # UI state booleans
             for field in (
                 "sidebar_collapsed",

@@ -23,14 +23,6 @@ def save_font_size(font_size):
     return jsonify(success=True, font_size=font_size)
 
 
-@ui_state_bp.route("/save_mobile_font_size/<int:font_size>")
-@login_required
-def save_mobile_font_size(font_size):
-    set_setting(g.user, "mobile_font_size", font_size)
-    db.session.commit()
-    return jsonify(success=True, font_size=font_size)
-
-
 @ui_state_bp.route("/save_auto_save", methods=["POST"])
 @login_required
 def save_auto_save():
@@ -39,22 +31,6 @@ def save_auto_save():
     set_setting(g.user, "auto_save", auto_save)
     db.session.commit()
     return jsonify(success=True, new_auto_save_setting=auto_save)
-
-
-@ui_state_bp.route("/save_notes_row_count/<int:row_count>")
-@login_required
-def save_notes_row_count(row_count):
-    set_setting(g.user, "notes_row_count", row_count)
-    db.session.commit()
-    return jsonify(success=True, new_row_count=row_count)
-
-
-@ui_state_bp.route("/save_notes_height/<int:height>")
-@login_required
-def save_notes_height(height):
-    set_setting(g.user, "notes_height", height)
-    db.session.commit()
-    return jsonify(success=True, new_height=height)
 
 
 @ui_state_bp.route("/save_dark_mode/<int:dark_mode>")
@@ -103,20 +79,6 @@ def save_ui_state():
         set_panel_widgets(g.user, data["panel_widgets"])
     db.session.commit()
     return jsonify(success=True)
-
-
-@ui_state_bp.route("/save_font", methods=["POST"])
-@login_required
-def save_font():
-    # Body is raw text (the font family string), not JSON.
-    new_font = request.data.decode("utf-8")
-    if len(new_font) < 250:
-        set_setting(g.user, "font", new_font)
-        db.session.commit()
-        return jsonify(success=True, new_font=new_font)
-    return jsonify(
-        success=False, reason="Font exceeds max allowed character limit of 250."
-    )
 
 
 @ui_state_bp.route("/save_hide_title", methods=["POST"])

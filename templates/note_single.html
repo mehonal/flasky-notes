@@ -28,7 +28,7 @@
     <script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='vendor/hljs/highlight.min.js') }}"></script>
 
     <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
-    <style nonce="{{ csp_nonce() }}">:root { --font-size: {{ font_size or 15 }}px; }</style>
+    <style nonce="{{ csp_nonce() }}">:root { --font-size: {{ font_size or 15 }}px; {% if ui_settings.font %}--editor-font: {{ ui_settings.font }};{% endif %} }</style>
 </head>
 <body data-encrypted="true">
     {% if encrypted_note_data %}
