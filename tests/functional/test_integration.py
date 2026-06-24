@@ -156,9 +156,80 @@ def test_delete_category_reassigns_notes(auth_client):
 
     client.post("/api/delete_category", json={"categoryId": cat_id})
 
-    # Note should still be accessible (moved to main category)
+    # Note should still be accessible (moved to default category)
     note_check = client.get(f"/note/{note_id}")
     assert note_check.status_code == 200
+
+
+def test_default_category_applied_when_none(auth_client):
+    """create_note with no category honours the user's default_category_id."""
+    from flasky.models import User
+    from flasky.ui_settings import set_setting
+    from flasky.services.categories import get_or_create_default_category
+
+    client, creds = auth_client
+    cat_r = client.post("/api/add_category", json={"categoryName": enc(creds, "Inbox")})
+    inbox_id = cat_r.json["category"]
+
+    user = User.query.filter_by(username="testuser").first()
+    assert set_setting(user, "default_category_id", inbox_id)
+    from flasky import db
+    db.session.commit()
+
+    note_r = client.post(
+        "/api/save_note",
+        json={"noteId": 0, "title": enc(creds, "Defaulted"), "content": enc(creds, ""), "category": None},
+    )
+    assert note_r.json["success"] is True
+    assert note_r.json["note"]["category_id"] == inbox_id
+
+
+def test_default_category_falls_back_to_first_when_stale(auth_client):
+    """If default_category_id points at a category that no longer exists,
+    create_note falls back to the user's first category.
+    """
+    from flasky.models import User, UserNoteCategory
+    from flasky.ui_settings import set_setting
+    from flasky.services.categories import get_or_create_default_category
+
+    client, creds = auth_client
+    user = User.query.filter_by(username="testuser").first()
+    first_id = get_or_create_default_category(user).id
+
+    # Point the setting at a non-existent category id (simulates a stale
+    # setting after the configured folder was removed out-of-band).
+    set_setting(user, "default_category_id", 999999)
+    from flasky import db
+    db.session.commit()
+
+    note_r = client.post(
+        "/api/save_note",
+        json={"noteId": 0, "title": enc(creds, "Fallback"), "content": enc(creds, ""), "category": None},
+    )
+    assert note_r.json["success"] is True
+    assert note_r.json["note"]["category_id"] == first_id
+
+
+def test_default_category_zero_uses_main(auth_client):
+    """Unset default (0) falls back to the user's first category (legacy)."""
+    from flasky.models import User
+    from flasky.ui_settings import set_setting
+    from flasky.services.categories import get_or_create_default_category
+
+    client, creds = auth_client
+    user = User.query.filter_by(username="testuser").first()
+    set_setting(user, "default_category_id", 0)
+    from flasky import db
+    db.session.commit()
+
+    default_id = get_or_create_default_category(user).id
+
+    note_r = client.post(
+        "/api/save_note",
+        json={"noteId": 0, "title": enc(creds, "Plain"), "content": enc(creds, ""), "category": None},
+    )
+    assert note_r.json["success"] is True
+    assert note_r.json["note"]["category_id"] == default_id
 
 
 def test_move_category_with_renames(auth_client):
@@ -176,15 +247,15 @@ def test_move_category_with_renames(auth_client):
     assert r.json["success"] is True
 
 
-def test_cannot_delete_main_category(auth_client):
+def test_cannot_delete_default_category(auth_client):
     client, creds = auth_client
     from flasky.models import User
-    from flasky.services.categories import get_or_create_main_category
+    from flasky.services.categories import get_or_create_default_category
 
     user = User.query.filter_by(username="testuser").first()
-    main = get_or_create_main_category(user)
+    default = get_or_create_default_category(user)
 
-    r = client.post("/api/delete_category", json={"categoryId": main.id})
+    r = client.post("/api/delete_category", json={"categoryId": default.id})
     assert r.json["success"] is False
 
 

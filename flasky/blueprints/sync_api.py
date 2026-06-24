@@ -49,6 +49,7 @@ def sync_get_note(note_id):
         "content": note.content,
         "properties": note.properties,
         "category": note.get_category_name(),
+        "category_id": note.category_id,
         "content_hash": content_hash(note.content or ''),
         "icon": note.icon,
         "icon_color": note.icon_color,
@@ -66,11 +67,8 @@ def sync_create_note():
         return jsonify(error="Request body must be JSON"), 400
     title = data.get('title', '')
     content = data.get('content', '')
-    category = data.get('category', '')
+    category = data.get('category', '') or None
     from flasky.services.notes import create_note
-    from flasky.services.categories import get_or_create_main_category
-    if not category:
-        category = get_or_create_main_category(g.sync_user).id
     try:
         note = create_note(
             g.sync_user, title, content, category,
@@ -86,6 +84,7 @@ def sync_create_note():
         "content": note.content,
         "properties": note.properties,
         "category": note.get_category_name(),
+        "category_id": note.category_id,
         "content_hash": content_hash(note.content or ''),
         "icon": note.icon,
         "icon_color": note.icon_color,

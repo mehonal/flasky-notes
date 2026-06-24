@@ -439,6 +439,19 @@ def settings_page():
             ).first():
                 cat_id = 0
             set_setting(g.user, "daily_note_category_id", cat_id)
+            # Default category for new notes (mirror of daily-note-category-id:
+            # validate ownership, clear (0) if missing/foreign).
+            def_cat_id = 0
+            raw_def_cat = request.form.get("default-category-id", "0")
+            try:
+                def_cat_id = int(raw_def_cat)
+            except (ValueError, TypeError):
+                def_cat_id = 0
+            if def_cat_id and not UserNoteCategory.query.filter_by(
+                id=def_cat_id, user_id=g.user.id
+            ).first():
+                def_cat_id = 0
+            set_setting(g.user, "default_category_id", def_cat_id)
             db.session.commit()
         elif "generate-api-token" in request.form:
             token_name = request.form.get("token-name", "").strip()
@@ -643,6 +656,14 @@ def note_single_page(note_id):
             category = cat_obj.name
             if cat_obj.default_template_id:
                 default_template = NoteTemplate.query.get(cat_obj.default_template_id)
+    # For a new note with no explicit folder, fall back to the user's default
+    # category so the breadcrumb shows the folder new notes will land in.
+    default_category = None
+    if note_id == 0 and not category and not category_id:
+        default_category = g.user.get_default_category()
+        if default_category:
+            category = default_category.name
+            category_id = default_category.id
     panel_widgets = get_panel_widgets(g.user)
     # Embed encrypted note data as JSON for client-side decryption.
     # With mandatory E2EE this is always ciphertext; build it whenever a note exists.
@@ -663,9 +684,11 @@ def note_single_page(note_id):
         note_id=note_id,
         font_size=font_size,
         category=category,
+        category_id=category_id,
         ui_settings=ui_settings,
         category_tree=category_tree,
         default_template=default_template,
+        default_category_id=(default_category.id if default_category else 0),
         panel_widgets=panel_widgets,
         encrypted_note_data=encrypted_note_data,
         ai_settings=g.user.settings if g.user else None,

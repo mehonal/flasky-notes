@@ -37,6 +37,44 @@ def test_sync_create_note(sync_client):
     assert r.json["encrypted"] is True
 
 
+def test_sync_create_note_honors_default_category(sync_client):
+    """Creating a note via the sync API with no category lands in the user's
+    configured default_category_id (falling back to the first category when
+    unset/deleted).
+    """
+    from flasky.models import User, UserNoteCategory
+    from flasky.ui_settings import set_setting
+    from flasky import db
+
+    client, token, user, creds = sync_client
+    # Registration auto-sets default_category_id to the initial category, so
+    # an empty category lands there (= the user's first category by id).
+    r = client.post(
+        "/api/sync/note",
+        json={"title": enc(creds, "No Cat"), "content": enc(creds, ""), "category": ""},
+        headers=_headers(token),
+    )
+    assert r.status_code == 201
+    main_cat = UserNoteCategory.query.filter_by(user_id=user.id).order_by(UserNoteCategory.id).first()
+    assert r.json["category_id"] == main_cat.id
+
+
+    # Set a different default folder, sync-create again → should land there.
+    inbox = UserNoteCategory(user_id=user.id, name=enc(creds, "Inbox"))
+    db.session.add(inbox)
+    db.session.commit()
+    set_setting(user, "default_category_id", inbox.id)
+    db.session.commit()
+
+    r2 = client.post(
+        "/api/sync/note",
+        json={"title": enc(creds, "In Inbox"), "content": enc(creds, ""), "category": ""},
+        headers=_headers(token),
+    )
+    assert r2.status_code == 201
+    assert r2.json["category_id"] == inbox.id
+
+
 def test_sync_get_note(sync_client):
     client, token, user, creds = sync_client
     create_r = client.post(

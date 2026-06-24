@@ -27,15 +27,16 @@ def test_user_settings_generation():
     assert user.settings is not None
 
 
-def test_user_get_main_category_creates_if_missing():
-    """With mandatory E2EE, the main category is the first by id; get_main_category
-    returns None when no categories exist. The categories service creates one
-    on demand via get_or_create_main_category.
+def test_user_get_default_category_creates_if_missing():
+    """get_default_category returns None when no categories exist; the
+    categories service creates one on demand via
+    get_or_create_default_category. With no default_category_id set, it
+    falls back to first-by-id.
     """
-    from flasky.services.categories import get_or_create_main_category
+    from flasky.services.categories import get_or_create_default_category
     user = _make_user()
-    main = get_or_create_main_category(user)
-    assert main is not None
+    default = get_or_create_default_category(user)
+    assert default is not None
 
 
 def test_user_get_category_by_id():
@@ -47,12 +48,30 @@ def test_user_get_category_by_id():
     assert fetched.id == cat.id
 
 
-def test_user_get_category_none_returns_main():
-    from flasky.services.categories import get_or_create_main_category
+def test_user_get_category_none_returns_default():
+    from flasky.services.categories import get_or_create_default_category
     user = _make_user()
-    get_or_create_main_category(user)  # ensure a main category exists
+    get_or_create_default_category(user)  # ensure a default category exists
     cat = user.get_category(None)
     assert cat is not None
+
+
+def test_default_category_setting_is_honored():
+    """When default_category_id points at an existing category, that category
+    is returned by get_default_category / get_or_create_default_category
+    instead of the first-by-id fallback.
+    """
+    from flasky.services.categories import (
+        create_category, get_or_create_default_category,
+    )
+    from flasky.ui_settings import set_setting
+    user = _make_user()
+    first = get_or_create_default_category(user)  # creates + returns first
+    chosen = create_category(user, "opaque-ciphertext-2")
+    set_setting(user, "default_category_id", chosen.id)
+    assert user.get_default_category().id == chosen.id
+    assert get_or_create_default_category(user).id == chosen.id
+    assert user.get_default_category().id != first.id
 
 
 def test_user_category_tree():

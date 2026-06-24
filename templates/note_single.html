@@ -137,7 +137,9 @@
     <script nonce="{{ csp_nonce() }}" type="application/json" id="app-page-data">
     {
         "noteId": {{ note_id }},
-        "currentCategory": {% if note %}{{ note.get_category_name() | tojson }}{% elif category %}{{ category | tojson }}{% else %}"Main"{% endif %},
+        "currentCategory": {% if note %}{{ note.get_category_name() | tojson }}{% elif category %}{{ category | tojson }}{% else %}null{% endif %},
+        "currentCategoryId": {% if note and note.category_id %}{{ note.category_id }}{% elif category_id %}{{ category_id }}{% else %}null{% endif %},
+        "defaultCategoryId": {{ default_category_id or 0 }},
         "autoSaveEnabled": {% if ui_settings and ui_settings.auto_save %}true{% else %}false{% endif %},
         "editMode": {% if ui_settings and ui_settings.preview_mode %}false{% else %}true{% endif %},
         "currentFontSize": {{ font_size or 15 }},

@@ -56,6 +56,15 @@ def register_e2ee_user(username, email, auth_key, encrypted_sym_key,
     default_cat = UserNoteCategory(user_id=user.id, name=encrypted_main_category)
     db.session.add(default_cat)
     db.session.commit()
+    # Make this initial category the user's default for new notes. With
+    # mandatory E2EE the server can't create named categories on its own, so
+    # the client-supplied initial category is the only one guaranteed to
+    # exist; treating it as the default means the user's first folder is
+    # where new notes land until they reconfigure it.
+    from flasky.ui_settings import set_setting
+
+    set_setting(user, "default_category_id", default_cat.id)
+    db.session.commit()
     return user
 
 

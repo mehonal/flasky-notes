@@ -67,6 +67,29 @@ def test_e2ee_duplicate_username_rejected(app_context):
         register_e2ee_user(client, "dupuser", "anotherpassword123")
 
 
+def test_registration_auto_sets_default_category(app_context):
+    """Full E2EE registration creates one initial category and points the
+    user's default_category_id at it, so new notes land there by default.
+    """
+    from flasky.models import User, UserNoteCategory
+    from flasky.ui_settings import get_setting
+    client = app_context.test_client()
+    creds = make_e2ee_user(client, "defcatuser", "defpassword123")
+
+    user = User.query.filter_by(username="defcatuser").first()
+    cats = UserNoteCategory.query.filter_by(user_id=user.id).all()
+    assert len(cats) == 1
+    assert get_setting(user, "default_category_id") == cats[0].id
+
+    # A note created with no explicit category lands in that category.
+    r = client.post(
+        "/api/save_note",
+        json={"noteId": 0, "title": enc(creds, "Auto"), "content": enc(creds, ""), "category": None},
+    )
+    assert r.json["success"] is True
+    assert r.json["note"]["category_id"] == cats[0].id
+
+
 def test_e2ee_user_can_access_protected_routes_after_login(app_context):
     client = app_context.test_client()
     creds = make_e2ee_user(client, "protecteduser", "protectedpass123")

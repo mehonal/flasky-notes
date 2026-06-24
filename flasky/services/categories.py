@@ -11,17 +11,22 @@ class CategoryNotFound(LookupError):
     pass
 
 
-def get_or_create_main_category(user):
-    """Return the user's main category (first by id), creating an empty one
-    if the user has none. Used as the fallback when note/category operations
-    receive no explicit category.
+def get_or_create_default_category(user):
+    """Return the user's default category, creating an empty one if the user
+    has none. Used as the fallback when note/category operations receive no
+    explicit category. Resolution mirrors User.get_default_category: the
+    configured `default_category_id` if still valid, else first-by-id.
     """
-    cat = user.get_main_category()
+    cat = user.get_default_category()
     if cat is None:
         cat = UserNoteCategory(user_id=user.id, name="")
         db.session.add(cat)
         db.session.commit()
     return cat
+
+
+# Back-compat alias; new code should call get_or_create_default_category.
+get_or_create_main_category = get_or_create_default_category
 
 
 def _get_category(user, category_id):
@@ -64,11 +69,11 @@ def move_category(user, category_id, renames):
 
 def delete_category(user, category_id):
     cat = _get_category(user, category_id)
-    main = get_or_create_main_category(user)
-    if cat.id == main.id:
-        raise ValueError("Cannot delete the Main folder")
+    default = get_or_create_default_category(user)
+    if cat.id == default.id:
+        raise ValueError("Cannot delete your default folder")
     for note in UserNote.query.filter_by(category_id=category_id):
-        note.category_id = main.id
+        note.category_id = default.id
     db.session.commit()
     db.session.delete(cat)
     db.session.commit()

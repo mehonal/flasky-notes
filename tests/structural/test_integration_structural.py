@@ -20,12 +20,14 @@ def _make_user(username="testuser"):
 
 
 def test_note_category_cascading():
-    """Deleting a category should reassign notes to Main."""
+    """Deleting a category should reassign notes to the user's default folder."""
     from flasky.services.notes import create_note
-    from flasky.services.categories import create_category, delete_category, get_or_create_main_category
+    from flasky.services.categories import (
+        create_category, delete_category, get_or_create_default_category,
+    )
 
     user = _make_user()
-    main_category = get_or_create_main_category(user)
+    default_category = get_or_create_default_category(user)
     test_category = create_category(user, "opaque-ciphertext")
 
     note = create_note(user, "cipher-title", "cipher-content", test_category.id)
@@ -35,7 +37,7 @@ def test_note_category_cascading():
 
     db.session.refresh(note)
     assert note is not None
-    assert note.category_id == main_category.id
+    assert note.category_id == default_category.id
 
 
 def test_note_change_content_stores_previous():

@@ -2,7 +2,7 @@
 from datetime import datetime
 
 from flasky import db
-from flasky.models import UserNote
+from flasky.models import UserNote, UserNoteCategory
 
 
 class NoteNotFound(LookupError):
@@ -24,15 +24,33 @@ def get_owned_note(user, note_id):
     return note
 
 
+def resolve_default_category(user):
+    """Return the category id to use when no explicit category is given.
+
+    Honors the user's `default_category_id` UI setting if it points at an
+    existing category the user still owns; otherwise falls back to the
+    user's first category (creating one if none exists). Centralised so
+    the editor, external API, and sync API all honour the same default.
+    """
+    from flasky.ui_settings import get_setting
+    from flasky.services.categories import get_or_create_default_category
+
+    cat_id = get_setting(user, "default_category_id")
+    if cat_id and UserNoteCategory.query.filter_by(
+        id=cat_id, user_id=user.id
+    ).first():
+        return cat_id
+    return get_or_create_default_category(user).id
+
+
 def create_note(user, title, content, category, properties=None, icon=None, icon_color=None):
     """Create a note owned by `user`. category is an int id (or a string that
-    parses to one), or None/empty to use the user's main category. Returns the
-    new UserNote (committed).
+    parses to one), or None/empty to use the user's default category
+    (their configured default folder, falling back to the first category).
+    Returns the new UserNote (committed).
     """
-    from flasky.services.categories import get_or_create_main_category
-
     if category is None or category == "":
-        category = get_or_create_main_category(user).id
+        category = resolve_default_category(user)
     elif not isinstance(category, int):
         try:
             category = int(category)

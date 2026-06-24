@@ -10,7 +10,7 @@ from tests.e2ee_helpers import make_e2ee_user, enc, dec
 
 
 def test_note_category_reassignment_bug(app_context):
-    """Regression: when a category is deleted, notes are reassigned to Main."""
+    """Regression: when a category is deleted, notes are reassigned to the default category."""
     client = app_context.test_client()
     creds = make_e2ee_user(client, "bugtest", "testpassword123")
 
@@ -30,7 +30,7 @@ def test_note_category_reassignment_bug(app_context):
 
     client.post("/api/delete_category", json={"categoryId": category_id})
 
-    # Note should still be accessible (moved to main category)
+    # Note should still be accessible (moved to default category)
     note_check = client.get(f"/note/{note_id}")
     assert note_check.status_code == 200
 
@@ -76,8 +76,8 @@ def test_note_revert_preserves_previous(app_context):
 
 def test_subfolder_category_deletion(app_context):
     """Regression: deleting a parent category still leaves child notes accessible
-    (reassigned to Main). With mandatory E2EE, the client sends separate delete
-    requests for each child; this test only deletes the parent.
+    (reassigned to the default category). With mandatory E2EE, the client sends
+    separate delete requests for each child; this test only deletes the parent.
     """
     client = app_context.test_client()
     creds = make_e2ee_user(client, "subfoldertest", "testpassword123")

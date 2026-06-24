@@ -85,6 +85,12 @@ REGISTRY: dict[str, SettingDef] = {
         _is_int_in_range(0, 999999999),
     ),
     "daily_note_open_on_start": SettingDef("daily_note_open_on_start", False, bool),
+    # Default folder for new notes created outside a specific folder context
+    # (e.g. the "New note" toolbar button). 0 = unset → first category by id.
+    # Honored by create_note and the external/sync APIs when no category given.
+    "default_category_id": SettingDef(
+        "default_category_id", 0, int, _is_int_in_range(0, 999999999),
+    ),
 }
 
 

@@ -597,6 +597,16 @@
                                 </div>
                             </div>
 
+                            <div class="sub-label">New notes</div>
+                            <div class="setting-row has-desc">
+                                <label class="setting-label" for="default-category-id">Default folder</label>
+                                <div class="setting-control">
+                                    <select name="default-category-id" id="default-category-id" class="setting-input" data-selected="{{ ui_settings.default_category_id or 0 }}">
+                                    </select>
+                                </div>
+                                <div class="setting-desc">Where new notes are created when no folder is selected. The folder picker on a new note still overrides this.</div>
+                            </div>
+
                             {% set widgets = panel_widgets %}
                             <div class="sub-label">Panel widgets</div>
                             {% for widget in widgets %}
@@ -653,7 +663,7 @@
                                 <label class="setting-label" for="daily-note-category-id">Folder</label>
                                 <div class="setting-control">
                                     <select name="daily-note-category-id" id="daily-note-category-id" class="setting-input" data-selected="{{ ui_settings.daily_note_category_id or 0 }}">
-                                        <option value="0">Default</option>
+                                        <option value="0">Default folder</option>
                                     </select>
                                 </div>
                                 <div class="setting-desc">Where new daily notes are created.</div>
@@ -1210,6 +1220,30 @@
         } catch(e) {}
     }
 
+    async function populateDefaultCategorySelect() {
+        var sel = document.getElementById('default-category-id');
+        if (!sel) return;
+        var selectedId = parseInt(sel.dataset.selected || '0', 10) || 0;
+        try {
+            var resp = await fetch('/api/sidebar_tree_data');
+            var data = await resp.json();
+            if (!data || !data.success) return;
+            var cats = data.categories || [];
+            for (var i = 0; i < cats.length; i++) {
+                var c = cats[i];
+                var label = c.name || '';
+                if (typeof FlaskyE2EE !== 'undefined' && FlaskyE2EE.isEncrypted && FlaskyE2EE.isEncrypted() && c.name) {
+                    try { label = await FlaskyE2EE.decryptField(c.name); } catch(e) {}
+                }
+                var opt = document.createElement('option');
+                opt.value = c.id;
+                opt.textContent = label;
+                if (c.id === selectedId || (!selectedId && sel.options.length === 0)) opt.selected = true;
+                sel.appendChild(opt);
+            }
+        } catch(e) {}
+    }
+
     // Decrypt-ready gate: the e2ee layer needs its symmetric key loaded before
     // decryptField works. FlaskyE2EE.init() loads the key from sessionStorage
     // (or redirects to /unlock if absent) — same path the editor pages use.
@@ -1222,6 +1256,7 @@
     whenE2EEReady(function() {
         populateDailyTemplateSelect();
         populateDailyCategorySelect();
+        populateDefaultCategorySelect();
     });
 
     function escapeHtml(s) {

@@ -2,6 +2,8 @@
 var _pageData = JSON.parse(document.getElementById('app-page-data').textContent);
 var noteId = _pageData.noteId;
 var currentCategory = _pageData.currentCategory;
+var currentCategoryId = _pageData.currentCategoryId || null;
+var defaultCategoryId = _pageData.defaultCategoryId || 0;
 var autoSaveTimer = null;
 var autoSaveEnabled = _pageData.autoSaveEnabled;
 var editMode = _pageData.editMode;
@@ -82,8 +84,14 @@ async function openDailyNote() {
         var folderEl = document.querySelector('.folder[data-category-id="' + catId + '"]');
         catName = folderEl ? folderEl.dataset.path : '';
     }
+    // Fall back to the user's default folder when no daily category is set.
+    if (!catId && defaultCategoryId) {
+        catId = defaultCategoryId;
+        var defEl = document.querySelector('.folder[data-category-id="' + catId + '"]');
+        catName = defEl ? defEl.dataset.path : '';
+    }
     var proceed = function() {
-        loadNote(0, catName || 'Main', catId || undefined);
+        loadNote(0, catName || 'Default', catId || undefined);
         // Set the title field after the editor resets.
         setTimeout(function() {
             var titleEl = document.getElementById('note-title');
@@ -214,11 +222,14 @@ function refreshSidebar(callback) {
             // Group notes by category
             var catMap = {};
             cats.forEach(function(c) { catMap[c.id] = { cat: c, notes: [] }; });
-            // Ensure a "Main" bucket for uncategorized
-            var mainCat = cats.find(function(c) { return c.name === 'Main'; });
-            if (!mainCat) { mainCat = { id: 0, name: 'Main' }; catMap[0] = { cat: mainCat, notes: [] }; }
+            // Notes whose category is missing/unknown fall into the user's
+            // default folder, resolved by id.
+            var defaultCat = cats.find(function(c) { return c.id === defaultCategoryId; });
+            if (!defaultCat) {
+                defaultCat = { id: 0, name: 'Default' };
+            }
             notes.forEach(function(n) {
-                var cid = n.category_id || mainCat.id;
+                var cid = n.category_id || defaultCat.id;
                 if (!catMap[cid]) catMap[cid] = { cat: { id: cid, name: 'Unknown' }, notes: [] };
                 catMap[cid].notes.push(n);
             });
@@ -226,7 +237,7 @@ function refreshSidebar(callback) {
             var jesc = function(s) { return (s || '').replace(/\\/g,'\\\\').replace(/'/g,"\\'"); };
 
             // Build nested tree from path-based category names (e.g. "Work/Projects")
-            function buildCategoryTree(cats, notes, mainCat) {
+            function buildCategoryTree(cats, notes, defaultCat) {
                 var tree = {};
                 cats.sort(function(a, b) { return a.name.localeCompare(b.name); });
                 cats.forEach(function(cat) {
@@ -240,8 +251,8 @@ function refreshSidebar(callback) {
                 });
                 // Assign notes to their category leaf nodes
                 notes.forEach(function(n) {
-                    var cid = n.category_id || mainCat.id;
-                    var cat = cats.find(function(c) { return c.id === cid; }) || mainCat;
+                    var cid = n.category_id || defaultCat.id;
+                    var cat = cats.find(function(c) { return c.id === cid; }) || defaultCat;
                     var parts = cat.name.split('/');
                     var node = tree;
                     for (var i = 0; i < parts.length; i++) {
@@ -307,7 +318,7 @@ function refreshSidebar(callback) {
                 return html;
             }
 
-            var categoryTree = buildCategoryTree(cats, notes, mainCat);
+            var categoryTree = buildCategoryTree(cats, notes, defaultCat);
             var html = renderFolderTree(categoryTree, '');
             fileTree.insertAdjacentHTML('beforeend', html);
         } else {
@@ -340,8 +351,9 @@ function refreshSidebar(callback) {
                 }
             }
             if (!selectedCatId && data.categories.length > 0) {
-                var first = data.categories[0];
-                updateBreadcrumbCategory(first.name, first.id);
+                var def = data.categories.find(function(c) { return c.id === defaultCategoryId; });
+                if (!def) def = data.categories[0];
+                updateBreadcrumbCategory(def.name, def.id);
             }
         }
 
@@ -388,7 +400,8 @@ function loadNote(id, category, categoryId) {
         if (propsBody) {
             propsBody.querySelectorAll('.prop-row').forEach(function(r) { r.remove(); });
         }
-        currentCategory = category || 'Main';
+        currentCategory = category || 'Default';
+        currentCategoryId = categoryId || null;
         // Update breadcrumb category
         updateBreadcrumbCategory(currentCategory, categoryId);
         history.pushState({ noteId: 0 }, '', '/note/0');
@@ -488,7 +501,8 @@ function loadNote(id, category, categoryId) {
         updateNoteIconPreview(n.resolved_icon || n.icon, n.resolved_icon_color || n.icon_color);
 
         // Update category
-        currentCategory = n.category || 'Main';
+        currentCategory = n.category || 'Default';
+        currentCategoryId = n.category_id || null;
         updateBreadcrumbCategory(currentCategory, n.category_id);
 
         // Update status
@@ -532,10 +546,18 @@ function openNote(id) {
 
 function createNewNote() {
     if (isMobile) closeSidebar();
+    // Land the new note in the user's default folder when known, so the
+    // breadcrumb shows the real folder name instead of a placeholder.
+    var defCatId = defaultCategoryId || null;
+    var defCatName = '';
+    if (defCatId) {
+        var defEl = document.querySelector('.folder[data-category-id="' + defCatId + '"]');
+        defCatName = defEl ? defEl.dataset.path : '';
+    }
     if (isDirty) {
-        saveNote(function() { loadNote(0); });
+        saveNote(function() { loadNote(0, defCatName || null, defCatId); });
     } else {
-        loadNote(0);
+        loadNote(0, defCatName || null, defCatId);
     }
 }
 
@@ -942,11 +964,11 @@ function saveNote(callback) {
 
 async function _doSaveNote(titleVal, content, props, callback) {
     try {
-        var catValue = currentCategory;
+        var catValue = null;
         var folderLabel = document.getElementById('folder-picker-label');
         if (folderLabel) {
             var folderId = parseInt(folderLabel.dataset.categoryId);
-            if (!isNaN(folderId)) catValue = folderId;
+            if (!isNaN(folderId) && folderId > 0) catValue = folderId;
         }
         var payload = { noteId: noteId, title: titleVal, content: content, category: catValue };
         if (currentNoteIcon) {
@@ -1022,7 +1044,7 @@ function updateSidebarNoteTitle(id, title) {
 }
 
 function updateSidebarAfterSave(note) {
-    var catName = note.category || 'Main';
+    var catName = note.category || 'Default';
     var targetFolder = null;
     document.querySelectorAll('.folder').forEach(function(f) {
         if (f.querySelector('.folder-name').textContent.trim() === catName) targetFolder = f;
@@ -1095,7 +1117,7 @@ function getCurrentCategoryId() {
 function updateBreadcrumbCategory(name, id) {
     var label = document.getElementById('folder-picker-label');
     if (label) {
-        label.textContent = name || 'Main';
+        label.textContent = name || 'Default';
         if (id !== undefined && id !== null) label.dataset.categoryId = id;
     }
 }
@@ -1313,6 +1335,7 @@ async function deleteFolder(catId, catName) {
     var resp = await fetch('/api/delete_category', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ categoryId: catId }) });
     var data = await resp.json();
     if (data.success) { refreshSidebar(); }
+    else if (data.reason) { alert(data.reason); }
 }
 
 // ============ Drag and drop notes & folders ============
@@ -2725,7 +2748,7 @@ function renderSearchResults() {
     searchResults.forEach(function(note, i) {
         html += '<div class="search-result-item' + (i === searchSelectedIndex ? ' selected' : '') + '" data-action="search-result-click" data-note-id="' + note.id + '" data-result-index="' + i + '">';
         html += '<div class="search-result-title">' + escapeHtml(note.title || 'Untitled') + '</div>';
-        html += '<div class="search-result-category">' + escapeHtml(note.category || 'Main') + '</div></div>';
+        html += '<div class="search-result-category">' + escapeHtml(note.category || 'Default') + '</div></div>';
     });
     container.innerHTML = html;
 }
@@ -3679,7 +3702,7 @@ window.addEventListener('resize', function() { isMobile = window.innerWidth <= 7
                 console.error('E2EE page decrypt failed:', e);
             }
         }
-        try { currentCategory = await FlaskyE2EE.decryptField(currentCategory); } catch(e) {}
+        try { if (currentCategory) currentCategory = await FlaskyE2EE.decryptField(currentCategory); } catch(e) {}
         var folderLabel = document.getElementById('folder-picker-label');
         if (folderLabel) {
             try { folderLabel.textContent = await FlaskyE2EE.decryptField(folderLabel.textContent.trim()); } catch(e) {}

@@ -114,16 +114,33 @@ class User(db.Model):
                 return "UTC"
             return ZoneInfo("UTC")
 
-    def get_main_category(self):
-        """Return the user's primary category (first by id), or None if the
-        user has no categories. Callers that need a fallback should create one
-        via the categories service.
+    def get_default_category(self):
+        """Return the user's default category, or None if the user has none.
+
+        Resolution order: the `default_category_id` UI setting if it points
+        at an existing category the user owns; otherwise the first category
+        by id (used when the setting is unset, e.g. for users who never
+        configured a default). Callers that need a guaranteed non-None
+        fallback should use
+        ``flasky.services.categories.get_or_create_default_category``.
         """
+        from flasky.ui_settings import get_setting
+
+        cat_id = get_setting(self, "default_category_id")
+        if cat_id:
+            cat = UserNoteCategory.query.filter_by(
+                user_id=self.id, id=cat_id
+            ).first()
+            if cat is not None:
+                return cat
         return (
             UserNoteCategory.query.filter_by(user_id=self.id)
             .order_by(UserNoteCategory.id)
             .first()
         )
+
+    # Back-compat alias; new code should call get_default_category.
+    get_main_category = get_default_category
 
     def get_category(self, category):
         """Resolve a category reference to a UserNoteCategory instance.
@@ -132,7 +149,7 @@ class User(db.Model):
         The string form is parsed to int; if it can't be, None is returned.
         """
         if category is None:
-            return self.get_main_category()
+            return self.get_default_category()
         if isinstance(category, int):
             return UserNoteCategory.query.filter_by(
                 user_id=self.id, id=category
