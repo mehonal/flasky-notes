@@ -149,7 +149,16 @@
         "panelWidgets": {{ panel_widgets | tojson }},
         "aiEnabled": {% if g.user and g.user.settings and g.user.settings.ai_enabled %}true{% else %}false{% endif %},
         "aiModel": {% if ai_settings and ai_settings.ollama_model %}{{ ai_settings.ollama_model | tojson }}{% else %}"gpt-oss:120b"{% endif %},
-        "aiEndpoint": {% if ai_settings and ai_settings.ollama_endpoint %}{{ ai_settings.ollama_endpoint | tojson }}{% else %}""{% endif %}
+        "aiEndpoint": {% if ai_settings and ai_settings.ollama_endpoint %}{{ ai_settings.ollama_endpoint | tojson }}{% else %}""{% endif %},
+        "timezone": {{ timezone | tojson }},
+        "daily": {{ daily or 0 }},
+        "dailyNote": {
+            "enabled": {% if ui_settings and ui_settings.daily_note_enabled %}true{% else %}false{% endif %},
+            "titleFormat": {{ (ui_settings.daily_note_title_format if ui_settings else 'YYYY-MM-DD') | tojson }},
+            "templateId": {{ (ui_settings.daily_note_template_id if ui_settings else 0) or 0 }},
+            "categoryId": {{ (ui_settings.daily_note_category_id if ui_settings else 0) or 0 }},
+            "openOnStart": {% if ui_settings and ui_settings.daily_note_open_on_start %}true{% else %}false{% endif %}
+        }
     }
     </script>
     <script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='js/app.js') }}"></script>

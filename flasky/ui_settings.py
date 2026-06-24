@@ -63,6 +63,28 @@ REGISTRY: dict[str, SettingDef] = {
     "properties_collapsed": SettingDef("properties_collapsed", True, bool),
     "preview_mode": SettingDef("preview_mode", False, bool),
     "panel_widgets": SettingDef("panel_widgets", DEFAULT_PANEL_WIDGETS, list),
+    # Daily notes (optional). daily_note_template_id / daily_note_category_id
+    # use 0 to mean "none" so they stay plain ints (no nullable coercion needed).
+    "daily_note_enabled": SettingDef("daily_note_enabled", False, bool),
+    "daily_note_title_format": SettingDef(
+        "daily_note_title_format",
+        "YYYY-MM-DD",
+        str,
+        lambda v: bool(v) and len(v) <= 100,
+    ),
+    "daily_note_template_id": SettingDef(
+        "daily_note_template_id",
+        0,
+        int,
+        _is_int_in_range(0, 999999999),
+    ),
+    "daily_note_category_id": SettingDef(
+        "daily_note_category_id",
+        0,
+        int,
+        _is_int_in_range(0, 999999999),
+    ),
+    "daily_note_open_on_start": SettingDef("daily_note_open_on_start", False, bool),
 }
 
 

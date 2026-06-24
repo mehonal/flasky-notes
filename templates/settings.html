@@ -137,6 +137,10 @@
         width: 16px; height: 16px; stroke: currentColor; fill: none;
         stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; flex-shrink: 0;
     }
+    button.nav-item {
+        width: 100%; background: none; border: none; font: inherit;
+        font-size: 13px; text-align: left;
+    }
 
     .sidebar-footer {
         padding: 8px 12px; border-top: 1px solid var(--border);
@@ -168,10 +172,12 @@
     .content-area { flex: 1; overflow-y: auto; padding: 24px; }
 
     .settings-grid {
-        display: grid; grid-template-columns: 1fr 1fr; gap: 24px;
-        max-width: 1200px; margin: 0 auto; align-items: start;
+        max-width: 720px; margin: 0 auto;
     }
-    .settings-grid > .panel.full { grid-column: 1 / -1; }
+    .settings-grid > .panel,
+    .settings-grid > form > .panel { margin-bottom: 24px; }
+    .settings-grid > .panel[hidden],
+    .settings-grid > form > .panel[hidden] { display: none; }
 
     /* ============ Panels ============ */
     .panel {
@@ -199,6 +205,10 @@
         gap: 12px; padding: 8px 16px; transition: background 0.1s ease;
         min-height: 36px;
     }
+    .setting-row.has-desc {
+        flex-wrap: wrap; align-items: center;
+    }
+    .setting-row.has-desc .setting-desc { flex: 1 1 100%; }
     .setting-row:hover { background: var(--bg-hover); }
     .setting-row + .setting-row { border-top: 1px solid var(--border); }
 
@@ -359,7 +369,6 @@
         }
         .sidebar.collapsed { width: 0; min-width: 0; box-shadow: none; }
         .sidebar-backdrop.visible { display: block; }
-        .settings-grid { grid-template-columns: 1fr; }
         .content-area { padding: 16px; }
     }
     </style>
@@ -407,6 +416,50 @@
                 AI Chat
             </a>
             {% endif %}
+
+            <div class="sidebar-section-label">Settings</div>
+            <button type="button" class="nav-item nav-item-btn active" data-action="settings-tab" data-tab="appearance">
+                <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/></svg>
+                Appearance
+            </button>
+            <button type="button" class="nav-item nav-item-btn" data-action="settings-tab" data-tab="editor">
+                <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="15" y1="3" x2="15" y2="21"/></svg>
+                Editor state
+            </button>
+            <button type="button" class="nav-item nav-item-btn" data-action="settings-tab" data-tab="daily">
+                <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="16" y1="2" x2="16" y2="6"/></svg>
+                Daily notes
+            </button>
+            <button type="button" class="nav-item nav-item-btn" data-action="settings-tab" data-tab="timezone">
+                <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+                Timezone
+            </button>
+            <button type="button" class="nav-item nav-item-btn" data-action="settings-tab" data-tab="encryption">
+                <svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                Encryption
+            </button>
+            <button type="button" class="nav-item nav-item-btn" data-action="settings-tab" data-tab="ai">
+                <svg viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87L18.18 22 12 18.56 5.82 22 7 14.14l-5-4.87 6.91-1.01L12 2z"/></svg>
+                AI Integration
+            </button>
+            <button type="button" class="nav-item nav-item-btn" data-action="settings-tab" data-tab="sync">
+                <svg viewBox="0 0 24 24"><path d="M21 2v6h-6M3 12a9 9 0 0 1 15-6.7L21 8M3 22v-6h6M21 12a9 9 0 0 1-15 6.7L3 16"/></svg>
+                Obsidian Sync
+            </button>
+            <button type="button" class="nav-item nav-item-btn" data-action="settings-tab" data-tab="export">
+                <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                Export
+            </button>
+            <button type="button" class="nav-item nav-item-btn" data-action="settings-tab" data-tab="tokens">
+                <svg viewBox="0 0 24 24"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.778-7.778zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>
+                API Tokens
+            </button>
+            {% if conflicts %}
+            <button type="button" class="nav-item nav-item-btn" data-action="settings-tab" data-tab="conflicts">
+                <svg viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                Conflicts
+            </button>
+            {% endif %}
         </div>
 
         <div class="sidebar-footer">
@@ -436,7 +489,7 @@
                 <form method="POST" id="ui-settings-form" style="display:contents">
 
                 <!-- Appearance -->
-                <div class="panel">
+                <div class="panel" data-tab="appearance">
                     <div class="panel-header">
                         <div class="panel-title">
                             <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/></svg>
@@ -503,7 +556,7 @@
                 </div>
 
                 <!-- Editor state -->
-                <div class="panel">
+                <div class="panel" data-tab="editor" hidden>
                     <div class="panel-header">
                         <div class="panel-title">
                             <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="15" y1="3" x2="15" y2="21"/></svg>
@@ -563,10 +616,66 @@
                     </div>
                 </div>
 
+                <!-- Daily notes -->
+                <div class="panel" data-tab="daily" hidden>
+                    <div class="panel-header">
+                        <div class="panel-title">
+                            <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="16" y1="2" x2="16" y2="6"/></svg>
+                            Daily notes
+                        </div>
+                    </div>
+                    <div class="panel-body">
+                            <div class="setting-row">
+                                <label class="setting-label" for="daily-note-enabled">Enable daily notes</label>
+                                <div class="setting-control">
+                                    <div class="toggle {% if ui_settings.daily_note_enabled %}on{% endif %}" data-toggle="daily-note-enabled">
+                                        <input type="checkbox" id="daily-note-enabled" name="daily-note-enabled" value="1" {% if ui_settings.daily_note_enabled %}checked{% endif %}>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="setting-row has-desc">
+                                <label class="setting-label" for="daily-note-title-format">Title format</label>
+                                <div class="setting-control">
+                                    <input name="daily-note-title-format" id="daily-note-title-format" class="setting-input" type="text" value="{{ ui_settings.daily_note_title_format }}" placeholder="YYYY-MM-DD">
+                                </div>
+                                <div class="setting-desc">Tokens: <code>YYYY</code> <code>MM</code> <code>DD</code> <code>HH</code> <code>mm</code>. Preview: <span id="daily-note-preview">{{ ui_settings.daily_note_title_format }}</span></div>
+                            </div>
+                            <div class="setting-row has-desc">
+                                <label class="setting-label" for="daily-note-template-id">Template</label>
+                                <div class="setting-control">
+                                    <select name="daily-note-template-id" id="daily-note-template-id" class="setting-input" data-selected="{{ ui_settings.daily_note_template_id or 0 }}">
+                                        <option value="0">None</option>
+                                    </select>
+                                </div>
+                                <div class="setting-desc">Applied to new daily notes. Folder default still applies if None.</div>
+                            </div>
+                            <div class="setting-row has-desc">
+                                <label class="setting-label" for="daily-note-category-id">Folder</label>
+                                <div class="setting-control">
+                                    <select name="daily-note-category-id" id="daily-note-category-id" class="setting-input" data-selected="{{ ui_settings.daily_note_category_id or 0 }}">
+                                        <option value="0">Default</option>
+                                    </select>
+                                </div>
+                                <div class="setting-desc">Where new daily notes are created.</div>
+                            </div>
+                            <div class="setting-row">
+                                <label class="setting-label" for="daily-note-open-on-start">Open today's note on startup</label>
+                                <div class="setting-control">
+                                    <div class="toggle {% if ui_settings.daily_note_open_on_start %}on{% endif %}" data-toggle="daily-note-open-on-start">
+                                        <input type="checkbox" id="daily-note-open-on-start" name="daily-note-open-on-start" value="1" {% if ui_settings.daily_note_open_on_start %}checked{% endif %}>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="setting-row">
+                                <button name="update-ui-settings" class="btn-sm primary" type="submit">Save daily notes</button>
+                            </div>
+                    </div>
+                </div>
+
                 </form>
 
                 <!-- Timezone -->
-                <div class="panel">
+                <div class="panel" data-tab="timezone" hidden>
                     <div class="panel-header">
                         <div class="panel-title">
                             <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
@@ -588,7 +697,7 @@
                 </div>
 
                 <!-- Encryption -->
-                <div class="panel">
+                <div class="panel" data-tab="encryption" hidden>
                     <div class="panel-header">
                         <div class="panel-title">
                             <svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
@@ -634,7 +743,7 @@
                 </div>
 
                 <!-- AI Integration -->
-                <div class="panel">
+                <div class="panel" data-tab="ai" hidden>
                     <div class="panel-header">
                         <div class="panel-title">
                             <svg viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87L18.18 22 12 18.56 5.82 22 7 14.14l-5-4.87 6.91-1.01L12 2z"/></svg>
@@ -674,7 +783,7 @@
                 </div>
 
                 <!-- Obsidian Sync -->
-                <div class="panel">
+                <div class="panel" data-tab="sync" hidden>
                     <div class="panel-header">
                         <div class="panel-title">
                             <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
@@ -697,7 +806,7 @@
                 </div>
 
                 <!-- Export -->
-                <div class="panel">
+                <div class="panel" data-tab="export" hidden>
                     <div class="panel-header">
                         <div class="panel-title">
                             <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
@@ -713,7 +822,7 @@
                 </div>
 
                 <!-- API Tokens -->
-                <div class="panel full">
+                <div class="panel" data-tab="tokens" hidden>
                     <div class="panel-header">
                         <div class="panel-title">
                             <svg viewBox="0 0 24 24"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.778-7.778zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>
@@ -766,7 +875,7 @@
 
                 <!-- Sync Conflicts -->
                 {% if conflicts %}
-                <div class="panel full">
+                <div class="panel" data-tab="conflicts" hidden>
                     <div class="panel-header">
                         <div class="panel-title">
                             <svg viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
@@ -831,6 +940,41 @@
     }
     if (window.innerWidth <= 768) {
         document.getElementById('sidebar').classList.add('collapsed');
+    }
+
+    // ============ Settings tabs (sidebar nav) ============
+    var settingsTabs = document.querySelectorAll('[data-action="settings-tab"]');
+    var settingsPanels = document.querySelectorAll('.settings-grid .panel[data-tab]');
+
+    function activateTab(tab) {
+        if (!tab) return;
+        var name = tab.dataset.tab;
+        settingsTabs.forEach(function(t) { t.classList.toggle('active', t === tab); });
+        settingsPanels.forEach(function(p) {
+            if (p.dataset.tab === name) { p.removeAttribute('hidden'); }
+            else { p.setAttribute('hidden', ''); }
+        });
+        try { localStorage.setItem('flasky-settings-tab', name); } catch(e) {}
+        var area = document.querySelector('.content-area');
+        if (area) area.scrollTop = 0;
+        if (window.innerWidth <= 768) {
+            var sb = document.getElementById('sidebar');
+            var bd = document.getElementById('sidebar-backdrop');
+            if (sb) sb.classList.add('collapsed');
+            if (bd) bd.classList.remove('visible');
+        }
+    }
+
+    settingsTabs.forEach(function(tab) {
+        tab.addEventListener('click', function() { activateTab(tab); });
+    });
+
+    // Restore last active tab (default: appearance).
+    var savedTab = null;
+    try { savedTab = localStorage.getItem('flasky-settings-tab'); } catch(e) {}
+    if (savedTab) {
+        var match = document.querySelector('[data-action="settings-tab"][data-tab="' + savedTab + '"]');
+        if (match) activateTab(match);
     }
 
     // ============ Theme ============
@@ -983,6 +1127,102 @@
             showToast('Error: ' + e.message, 'danger');
         }
     }
+
+    // ============ Daily notes dropdowns + preview ============
+    var tzForPreview = {{ g.user.get_timezone(as_str=True) | tojson }};
+
+    function formatDailyTitle(fmt, date) {
+        var pad = function(n) { return n < 10 ? '0' + n : '' + n; };
+        return String(fmt || '')
+            .replace(/YYYY/g, date.getFullYear())
+            .replace(/MM/g, pad(date.getMonth() + 1))
+            .replace(/DD/g, pad(date.getDate()))
+            .replace(/HH/g, pad(date.getHours()))
+            .replace(/mm/g, pad(date.getMinutes()));
+    }
+
+    function updateDailyPreview() {
+        var fmt = document.getElementById('daily-note-title-format').value || 'YYYY-MM-DD';
+        var now = new Date();
+        if (tzForPreview && typeof Intl !== 'undefined') {
+            try {
+                var parts = new Intl.DateTimeFormat('en-US', {
+                    timeZone: tzForPreview, year: 'numeric', month: '2-digit',
+                    day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false
+                }).formatToParts(now);
+                var map = {};
+                parts.forEach(function(p) { map[p.type] = p.value; });
+                if (map.hour === '24') map.hour = '00';
+                now = new Date(map.year, map.month - 1, map.day, map.hour, map.minute);
+            } catch(e) {}
+        }
+        document.getElementById('daily-note-preview').textContent = formatDailyTitle(fmt, now);
+    }
+
+    var fmtInput = document.getElementById('daily-note-title-format');
+    if (fmtInput) fmtInput.addEventListener('input', updateDailyPreview);
+    updateDailyPreview();
+
+    async function populateDailyTemplateSelect() {
+        var sel = document.getElementById('daily-note-template-id');
+        if (!sel) return;
+        var selectedId = parseInt(sel.dataset.selected || '0', 10) || 0;
+        try {
+            var resp = await fetch('/api/templates');
+            var list = await resp.json();
+            if (!Array.isArray(list)) list = [];
+            for (var i = 0; i < list.length; i++) {
+                var t = list[i];
+                var name = t.name || '';
+                if (typeof FlaskyE2EE !== 'undefined' && FlaskyE2EE.isEncrypted && FlaskyE2EE.isEncrypted() && name) {
+                    try { name = await FlaskyE2EE.decryptField(name); } catch(e) {}
+                }
+                var opt = document.createElement('option');
+                opt.value = t.id;
+                opt.textContent = name || ('Template #' + t.id);
+                if (t.id === selectedId) opt.selected = true;
+                sel.appendChild(opt);
+            }
+        } catch(e) {}
+    }
+
+    async function populateDailyCategorySelect() {
+        var sel = document.getElementById('daily-note-category-id');
+        if (!sel) return;
+        var selectedId = parseInt(sel.dataset.selected || '0', 10) || 0;
+        try {
+            var resp = await fetch('/api/sidebar_tree_data');
+            var data = await resp.json();
+            if (!data || !data.success) return;
+            var cats = data.categories || [];
+            for (var i = 0; i < cats.length; i++) {
+                var c = cats[i];
+                var label = c.name || '';
+                if (typeof FlaskyE2EE !== 'undefined' && FlaskyE2EE.isEncrypted && FlaskyE2EE.isEncrypted() && c.name) {
+                    try { label = await FlaskyE2EE.decryptField(c.name); } catch(e) {}
+                }
+                var opt = document.createElement('option');
+                opt.value = c.id;
+                opt.textContent = label;
+                if (c.id === selectedId) opt.selected = true;
+                sel.appendChild(opt);
+            }
+        } catch(e) {}
+    }
+
+    // Decrypt-ready gate: the e2ee layer needs its symmetric key loaded before
+    // decryptField works. FlaskyE2EE.init() loads the key from sessionStorage
+    // (or redirects to /unlock if absent) — same path the editor pages use.
+    function whenE2EEReady(cb) {
+        if (typeof FlaskyE2EE === 'undefined' || typeof FlaskyE2EE.init !== 'function') { cb(); return; }
+        if (FlaskyE2EE.isReady && FlaskyE2EE.isReady()) { cb(); return; }
+        FlaskyE2EE.init().then(function(ok) { cb(); }).catch(function() { cb(); });
+    }
+
+    whenE2EEReady(function() {
+        populateDailyTemplateSelect();
+        populateDailyCategorySelect();
+    });
 
     function escapeHtml(s) {
         return String(s).replace(/[&<>"']/g, function(c) {

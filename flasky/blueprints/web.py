@@ -43,6 +43,7 @@ from flasky.utils import (
 )
 from flasky.ui_settings import (
     get_all_settings,
+    get_setting,
     set_setting,
     get_panel_widgets,
     set_panel_widgets,
@@ -402,6 +403,42 @@ def settings_page():
                 for w in widgets:
                     w["visible"] = ("widget-" + w["id"]) in request.form
                 set_panel_widgets(g.user, widgets)
+            # Daily notes settings
+            if "daily-note-enabled" in request.form:
+                set_setting(g.user, "daily_note_enabled", True)
+            else:
+                set_setting(g.user, "daily_note_enabled", False)
+            fmt = (request.form.get("daily-note-title-format") or "").strip()
+            if fmt:
+                set_setting(g.user, "daily_note_title_format", fmt)
+            if "daily-note-open-on-start" in request.form:
+                set_setting(g.user, "daily_note_open_on_start", True)
+            else:
+                set_setting(g.user, "daily_note_open_on_start", False)
+            # Template id: validate ownership, clear (0) if missing/foreign.
+            tmpl_id = 0
+            raw_tmpl = request.form.get("daily-note-template-id", "0")
+            try:
+                tmpl_id = int(raw_tmpl)
+            except (ValueError, TypeError):
+                tmpl_id = 0
+            if tmpl_id and not NoteTemplate.query.filter_by(
+                id=tmpl_id, user_id=g.user.id
+            ).first():
+                tmpl_id = 0
+            set_setting(g.user, "daily_note_template_id", tmpl_id)
+            # Category id: validate ownership, clear (0) if missing/foreign.
+            cat_id = 0
+            raw_cat = request.form.get("daily-note-category-id", "0")
+            try:
+                cat_id = int(raw_cat)
+            except (ValueError, TypeError):
+                cat_id = 0
+            if cat_id and not UserNoteCategory.query.filter_by(
+                id=cat_id, user_id=g.user.id
+            ).first():
+                cat_id = 0
+            set_setting(g.user, "daily_note_category_id", cat_id)
             db.session.commit()
         elif "generate-api-token" in request.form:
             token_name = request.form.get("token-name", "").strip()
@@ -521,7 +558,22 @@ def logout():
 @login_required_page
 def notes_page():
     # Single UI: no notes listing page — always go straight to the editor.
+    # If daily notes are enabled with open-on-start, signal the client to open
+    # today's daily note instead of a blank note.
+    if get_setting(g.user, "daily_note_enabled") and get_setting(
+        g.user, "daily_note_open_on_start"
+    ):
+        return redirect(url_for("web.note_single_page", note_id=0, daily=1))
     return redirect(url_for("web.note_single_page", note_id=0))
+
+
+@web_bp.route("/daily")
+@login_required_page
+def daily_page():
+    # Bookmarkable route: redirect into the editor with the daily flag set so
+    # the client opens (or creates) today's daily note. Note lookup is
+    # client-side because titles are E2EE ciphertext the server can't read.
+    return redirect(url_for("web.note_single_page", note_id=0, daily=1))
 
 
 @web_bp.route("/note/<int:note_id>", methods=["GET", "POST"])
@@ -617,6 +669,8 @@ def note_single_page(note_id):
         panel_widgets=panel_widgets,
         encrypted_note_data=encrypted_note_data,
         ai_settings=g.user.settings if g.user else None,
+        timezone=g.user.get_timezone(as_str=True),
+        daily=request.args.get("daily", type=int) or 0,
     )
 
 

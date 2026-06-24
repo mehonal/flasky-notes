@@ -19,6 +19,89 @@ var defaultTemplateProps = _pageData.defaultTemplateProps;
 var currentNoteIcon = _pageData.currentNoteIcon;
 var currentNoteIconColor = _pageData.currentNoteIconColor;
 
+// ============ Daily notes ============
+var dailyNoteConfig = _pageData.dailyNote || { enabled: false, titleFormat: 'YYYY-MM-DD', templateId: 0, categoryId: 0, openOnStart: false };
+var userTimezone = _pageData.timezone || 'UTC';
+
+function formatDailyTitle(fmt, date) {
+    var pad = function(n) { return n < 10 ? '0' + n : '' + n; };
+    return String(fmt || '')
+        .replace(/YYYY/g, String(date.getFullYear()))
+        .replace(/MM/g, pad(date.getMonth() + 1))
+        .replace(/DD/g, pad(date.getDate()))
+        .replace(/HH/g, pad(date.getHours()))
+        .replace(/mm/g, pad(date.getMinutes()));
+}
+
+function nowInUserTz() {
+    var now = new Date();
+    if (userTimezone && typeof Intl !== 'undefined') {
+        try {
+            var parts = new Intl.DateTimeFormat('en-US', {
+                timeZone: userTimezone, year: 'numeric', month: '2-digit',
+                day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false
+            }).formatToParts(now);
+            var map = {};
+            parts.forEach(function(p) { map[p.type] = p.value; });
+            if (map.hour === '24') map.hour = '00';
+            return new Date(map.year, map.month - 1, map.day, map.hour, map.minute);
+        } catch(e) {}
+    }
+    return now;
+}
+
+async function openDailyNote() {
+    if (!dailyNoteConfig.enabled) return;
+    var title = formatDailyTitle(dailyNoteConfig.titleFormat, nowInUserTz());
+    if (!title) return;
+    // Ensure the decrypted note index is available (titles are E2EE ciphertext).
+    var idx = [];
+    if (typeof FlaskySearch !== 'undefined') {
+        try { idx = await FlaskySearch.buildIndex(); } catch(e) { idx = []; }
+    }
+    if (!Array.isArray(idx)) idx = [];
+    // Find matching notes; pick the most recently changed on ties.
+    var matches = [];
+    for (var i = 0; i < idx.length; i++) {
+        if (idx[i].title === title) matches.push(idx[i]);
+    }
+    if (matches.length > 0) {
+        matches.sort(function(a, b) {
+            var at = a.date_last_changed ? Date.parse(a.date_last_changed) : 0;
+            var bt = b.date_last_changed ? Date.parse(b.date_last_changed) : 0;
+            return bt - at;
+        });
+        openNote(matches[0].id);
+        return;
+    }
+    // No existing daily note: create one in the configured folder, apply template.
+    if (isMobile) closeSidebar();
+    var catId = dailyNoteConfig.categoryId || 0;
+    var catName = '';
+    if (catId) {
+        var folderEl = document.querySelector('.folder[data-category-id="' + catId + '"]');
+        catName = folderEl ? folderEl.dataset.path : '';
+    }
+    var proceed = function() {
+        loadNote(0, catName || 'Main', catId || undefined);
+        // Set the title field after the editor resets.
+        setTimeout(function() {
+            var titleEl = document.getElementById('note-title');
+            if (titleEl) { titleEl.value = title; markDirty(); }
+            var bc = document.getElementById('breadcrumb-note-title');
+            if (bc) bc.textContent = title;
+            // Apply the configured daily template if any; otherwise the folder
+            // default template (if any) is already applied by loadNote's flow.
+            if (dailyNoteConfig.templateId) {
+                applyTemplate(dailyNoteConfig.templateId);
+            }
+            // Auto-save so the new daily note is persisted and addressable.
+            saveNote();
+        }, 60);
+    };
+    if (isDirty) { saveNote(proceed); } else { proceed(); }
+}
+
 function saveUiState(updates) {
     fetch('/api/save_ui_state', {
         method: 'POST',
@@ -2773,6 +2856,9 @@ document.addEventListener('keydown', function(e) {
     if (ctrl && e.shiftKey && e.key === 'O') { e.preventDefault(); toggleRightPanel(); }
     if (ctrl && e.shiftKey && e.key === 'A') { e.preventDefault(); toggleAIPanel(); }
     if (ctrl && e.shiftKey && (e.key === 'F' || e.key === 'f')) { e.preventDefault(); toggleSpotlightMode(); }
+    if (ctrl && e.shiftKey && (e.key === 'D' || e.key === 'd')) {
+        if (dailyNoteConfig.enabled) { e.preventDefault(); openDailyNote(); }
+    }
     if (ctrl && e.key === '/') { e.preventDefault(); toggleShortcutsModal(); }
     if (ctrl && e.key === 'b' && !editMode) { e.preventDefault(); toggleSidebar(); }
     if (e.key === 'Escape' && aiPanel && !aiPanel.classList.contains('collapsed')) { e.preventDefault(); closeAIPanel(); closeAIDropdown(); }
@@ -3608,6 +3694,13 @@ window.addEventListener('resize', function() { isMobile = window.innerWidth <= 7
             FlaskySearch.buildIndex();
         }
 
+        // Daily notes: if the daily flag is set and the feature is enabled,
+        // open (or create) today's daily note. The server sets daily=1 when
+        // visiting /daily or /notes with open-on-start enabled.
+        if (dailyNoteConfig.enabled && _pageData.daily && noteId === 0) {
+            openDailyNote();
+        }
+
         var rpLoad = document.getElementById('right-panel');
         if (rpLoad && !rpLoad.classList.contains('collapsed')) {
             refreshAllVisibleWidgets();
@@ -3662,6 +3755,7 @@ document.addEventListener('click', function(e) {
         case 'toggle-mode': toggleMode(); break;
         case 'exit-spotlight': toggleSpotlightMode(); break;
         case 'open-search': openSearchModal(); break;
+        case 'open-daily-note': openDailyNote(); break;
         case 'ask-ai':
             if (aiPanel && !aiPanel.classList.contains('collapsed')) {
                 closeAIPanel();
