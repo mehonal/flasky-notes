@@ -532,6 +532,18 @@ body {
 .backlinks-list a { color: var(--text-secondary); text-decoration: none; display: block; padding: 4px 6px; border-radius: 4px; transition: all 0.1s ease; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .backlinks-list a:hover { background: var(--bg-hover); color: var(--text-primary); }
 
+.link-graph-svg { width: 100%; height: 240px; display: block; }
+.link-graph-empty { color: var(--text-muted); font-size: 12px; font-style: italic; padding: 4px 6px; }
+.link-graph-edge { stroke: var(--text-muted); stroke-width: 1; opacity: 0.6; }
+.lg-arrowhead { fill: var(--text-muted); opacity: 0.6; }
+.link-graph-node circle { stroke: transparent; transition: stroke-width 0.1s ease; }
+.link-graph-node:hover circle { stroke: var(--text-primary); stroke-width: 2; }
+.link-graph-center circle { fill: var(--accent, #4a90d9); }
+.link-graph-in circle { fill: var(--text-primary); }
+.link-graph-out circle { fill: var(--text-secondary); }
+.link-graph-both circle { fill: var(--accent, #4a90d9); opacity: 0.7; }
+.link-graph-node text { fill: var(--text-secondary); font-size: 9px; pointer-events: none; }
+
 .right-panel-props { font-size: 12px; }
 .right-panel-prop { display: flex; padding: 3px 6px; gap: 6px; border-radius: 4px; }
 .right-panel-prop:hover { background: var(--bg-hover); }

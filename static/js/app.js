@@ -888,6 +888,7 @@ function enterPreviewMode() {
 
 var outboundLinksTimer = null;
 var outlineUpdateTimer = null;
+var linkGraphTimer = null;
 
 var hasBeenSavedOnce = _pageData.hasNote;
 
@@ -926,6 +927,8 @@ function markDirty() {
         outboundLinksTimer = setTimeout(updateOutboundLinksFromContent, 500);
         clearTimeout(outlineUpdateTimer);
         outlineUpdateTimer = setTimeout(updateOutline, 500);
+        clearTimeout(linkGraphTimer);
+        linkGraphTimer = setTimeout(loadLinkGraph, 500);
     }
 }
 
@@ -2179,6 +2182,7 @@ function refreshWidget(widgetId) {
     if (widgetId === 'outline') updateOutline();
     else if (widgetId === 'backlinks') loadBacklinks();
     else if (widgetId === 'outbound_links') loadOutboundLinks();
+    else if (widgetId === 'link_graph') loadLinkGraph();
     else if (widgetId === 'properties') updateRightPanelProps();
     else if (widgetId === 'todos') loadTodosWidget();
     else if (widgetId === 'events') loadEventsWidget();
@@ -2702,6 +2706,234 @@ function loadOutboundLinks() {
     updateOutboundLinksFromContent();
 }
 
+// ============ Link Graph ============
+
+function _isWidgetVisible(widgetId) {
+    var widget = document.getElementById('widget-' + widgetId);
+    if (!widget) return false;
+    if (widget.classList.contains('hidden-widget')) return false;
+    return true;
+}
+
+var LINK_GRAPH_W = 220, LINK_GRAPH_H = 240;
+
+async function loadLinkGraph() {
+    if (!noteId || noteId === 0) return;
+    var svg = document.getElementById('link-graph-svg');
+    var emptyMsg = document.getElementById('link-graph-empty');
+    if (!svg || !emptyMsg) return;
+    if (!_isWidgetVisible('link_graph')) return;
+
+    var title = document.getElementById('note-title');
+    var noteTitle = title ? title.value : '';
+    var content = getEditorContent();
+    if (!noteTitle) {
+        svg.style.display = 'none';
+        emptyMsg.style.display = '';
+        emptyMsg.textContent = 'No links';
+        return;
+    }
+
+    try {
+        if (typeof FlaskySearch !== 'undefined' && FlaskySearch.isBuilding()) {
+            svg.style.display = 'none';
+            emptyMsg.style.display = '';
+            emptyMsg.textContent = 'Loading graph...';
+            // Retry once index is built
+            FlaskySearch.buildIndex().then(function() { loadLinkGraph(); });
+            return;
+        }
+        var backlinks = await FlaskySearch.computeBacklinks(noteTitle);
+        var outbound = await FlaskySearch.computeOutboundLinks(content || '');
+
+        // Build node map: center + neighbors. A note may appear in both lists.
+        var nodes = {};
+        nodes[noteId] = { id: noteId, title: noteTitle, type: 'center' };
+        backlinks.forEach(function(n) {
+            if (!nodes[n.id]) nodes[n.id] = { id: n.id, title: n.title || 'Untitled', type: 'in' };
+        });
+        outbound.forEach(function(n) {
+            if (!nodes[n.id]) {
+                nodes[n.id] = { id: n.id, title: n.title || 'Untitled', type: 'out' };
+            } else if (nodes[n.id].type === 'in') {
+                nodes[n.id].type = 'both';
+            }
+        });
+
+        var edges = [];
+        backlinks.forEach(function(n) { edges.push({ from: n.id, to: noteId }); });
+        outbound.forEach(function(n) { edges.push({ from: noteId, to: n.id }); });
+
+        var nodeArr = Object.values(nodes);
+        if (edges.length === 0) {
+            svg.style.display = 'none';
+            emptyMsg.style.display = '';
+            emptyMsg.textContent = 'No links';
+            return;
+        }
+
+        emptyMsg.style.display = 'none';
+        svg.style.display = '';
+
+        _layoutAndRenderGraph(svg, nodeArr, edges);
+    } catch(e) {
+        svg.style.display = 'none';
+        emptyMsg.style.display = '';
+        emptyMsg.textContent = 'Failed to load graph';
+    }
+}
+
+function _layoutAndRenderGraph(svg, nodes, edges) {
+    var cx = LINK_GRAPH_W / 2, cy = LINK_GRAPH_H / 2;
+    // Initialize positions: center node in middle, others on a circle
+    var n = nodes.length;
+    nodes.forEach(function(node, i) {
+        if (node.type === 'center') {
+            node.x = cx; node.y = cy;
+        } else {
+            var angle = (i / (n - 1)) * Math.PI * 2;
+            node.x = cx + Math.cos(angle) * 70;
+            node.y = cy + Math.sin(angle) * 70;
+        }
+        node.vx = 0; node.vy = 0;
+    });
+
+    // Simple force simulation: repulsion + edge attraction + centering
+    var repulsion = 600;
+    var edgeLen = 60;
+    var attraction = 0.05;
+    var centering = 0.01;
+    var damping = 0.85;
+    for (var tick = 0; tick < 60; tick++) {
+        // Repulsion between all pairs
+        for (var i = 0; i < n; i++) {
+            for (var j = i + 1; j < n; j++) {
+                var dx = nodes[i].x - nodes[j].x;
+                var dy = nodes[i].y - nodes[j].y;
+                var dist2 = dx * dx + dy * dy;
+                if (dist2 < 1) dist2 = 1;
+                var force = repulsion / dist2;
+                var dist = Math.sqrt(dist2);
+                var fx = (dx / dist) * force;
+                var fy = (dy / dist) * force;
+                nodes[i].vx += fx; nodes[i].vy += fy;
+                nodes[j].vx -= fx; nodes[j].vy -= fy;
+            }
+        }
+        // Edge attraction (Hooke)
+        edges.forEach(function(e) {
+            var a = null, b = null;
+            for (var k = 0; k < n; k++) {
+                if (nodes[k].id === e.from) a = nodes[k];
+                if (nodes[k].id === e.to) b = nodes[k];
+            }
+            if (!a || !b) return;
+            var dx = b.x - a.x, dy = b.y - a.y;
+            var dist = Math.sqrt(dx * dx + dy * dy) || 1;
+            var force = (dist - edgeLen) * attraction;
+            var fx = (dx / dist) * force, fy = (dy / dist) * force;
+            a.vx += fx; a.vy += fy;
+            b.vx -= fx; b.vy -= fy;
+        });
+        // Centering + integrate
+        nodes.forEach(function(node) {
+            if (node.type !== 'center') {
+                node.vx += (cx - node.x) * centering;
+                node.vy += (cy - node.y) * centering;
+            }
+            node.vx *= damping; node.vy *= damping;
+            if (node.type === 'center') { node.x = cx; node.y = cy; return; }
+            node.x += node.vx; node.y += node.vy;
+            // Keep inside bounds with padding
+            var pad = 18;
+            node.x = Math.max(pad, Math.min(LINK_GRAPH_W - pad, node.x));
+            node.y = Math.max(pad, Math.min(LINK_GRAPH_H - pad, node.y));
+        });
+    }
+
+    // Render SVG
+    var ns = 'http://www.w3.org/2000/svg';
+    while (svg.firstChild) svg.removeChild(svg.firstChild);
+
+    // Arrow marker definition
+    var defs = document.createElementNS(ns, 'defs');
+    var marker = document.createElementNS(ns, 'marker');
+    marker.setAttribute('id', 'lg-arrow');
+    marker.setAttribute('viewBox', '0 0 10 10');
+    marker.setAttribute('refX', '9');
+    marker.setAttribute('refY', '5');
+    marker.setAttribute('markerWidth', '5');
+    marker.setAttribute('markerHeight', '5');
+    marker.setAttribute('orient', 'auto');
+    var arrowPath = document.createElementNS(ns, 'path');
+    arrowPath.setAttribute('d', 'M0,0 L10,5 L0,10 Z');
+    arrowPath.setAttribute('class', 'lg-arrowhead');
+    marker.appendChild(arrowPath);
+    defs.appendChild(marker);
+    svg.appendChild(defs);
+
+    var nodeById = {};
+    nodes.forEach(function(node) { nodeById[node.id] = node; });
+
+    // Edges
+    edges.forEach(function(e) {
+        var a = nodeById[e.from], b = nodeById[e.to];
+        if (!a || !b) return;
+        // Shorten line so it ends at circle edge, not center
+        var dx = b.x - a.x, dy = b.y - a.y;
+        var dist = Math.sqrt(dx * dx + dy * dy) || 1;
+        var r = 8;
+        var x1 = a.x + (dx / dist) * r;
+        var y1 = a.y + (dy / dist) * r;
+        var x2 = b.x - (dx / dist) * r;
+        var y2 = b.y - (dy / dist) * r;
+        var line = document.createElementNS(ns, 'line');
+        line.setAttribute('x1', x1); line.setAttribute('y1', y1);
+        line.setAttribute('x2', x2); line.setAttribute('y2', y2);
+        line.setAttribute('class', 'link-graph-edge');
+        line.setAttribute('marker-end', 'url(#lg-arrow)');
+        svg.appendChild(line);
+    });
+
+    // Nodes
+    nodes.forEach(function(node) {
+        var a = document.createElementNS(ns, 'a');
+        a.setAttribute('class', 'link-graph-node link-graph-' + node.type);
+        a.setAttribute('href', '/note/' + node.id);
+        a.setAttribute('data-action', 'open-note-link');
+        a.setAttribute('data-note-id', node.id);
+
+        var circle = document.createElementNS(ns, 'circle');
+        circle.setAttribute('cx', node.x);
+        circle.setAttribute('cy', node.y);
+        circle.setAttribute('r', node.type === 'center' ? 8 : 6);
+        a.appendChild(circle);
+
+        var text = document.createElementNS(ns, 'text');
+        text.setAttribute('x', node.x);
+        text.setAttribute('y', node.y - (node.type === 'center' ? 12 : 10));
+        text.setAttribute('text-anchor', 'middle');
+        text.textContent = _truncate(node.title, 18);
+        a.appendChild(text);
+
+        // Transparent hit area so the whole node is clickable, not just the stroke
+        var hit = document.createElementNS(ns, 'rect');
+        hit.setAttribute('x', node.x - 12);
+        hit.setAttribute('y', node.y - 12);
+        hit.setAttribute('width', 24);
+        hit.setAttribute('height', 24);
+        hit.setAttribute('fill', 'transparent');
+        a.appendChild(hit);
+
+        svg.appendChild(a);
+    });
+}
+
+function _truncate(s, len) {
+    if (!s) return '';
+    return s.length > len ? s.slice(0, len - 1) + '\u2026' : s;
+}
+
 // ============ Search Modal ============
 
 function openSearchModal() {
@@ -3033,6 +3265,8 @@ function acceptWikiAutocomplete(index) {
     if (panel && !panel.classList.contains('collapsed')) {
         clearTimeout(outboundLinksTimer);
         updateOutboundLinksFromContent();
+        clearTimeout(linkGraphTimer);
+        loadLinkGraph();
     }
 }
 

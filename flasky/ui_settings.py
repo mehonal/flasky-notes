@@ -35,6 +35,7 @@ DEFAULT_PANEL_WIDGETS = [
     {"id": "todos", "label": "To-dos", "visible": False},
     {"id": "events", "label": "Events", "visible": False},
     {"id": "quick_settings", "label": "Quick Settings", "visible": False},
+    {"id": "link_graph", "label": "Link Graph", "visible": False},
 ]
 
 
