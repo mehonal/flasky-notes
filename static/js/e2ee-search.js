@@ -1,6 +1,15 @@
 /**
  * Client-side search index.
  * Fetches all notes, decrypts titles+content, provides search/backlinks/outbound links.
+ *
+ * Ranking (descending priority):
+ *   - Title starts-with query token    (+1000)
+ *   - Title word-prefix match           (+400)
+ *   - Title substring                    (+150)
+ *   - Content match                       (+30)
+ *   - "Both" bonus per token              (+10)
+ * Recency tiebreaker: notes edited in last 7 days +50, last 30 days +20.
+ * Multi-word queries use AND semantics across title+content combined.
  */
 
 (function () {
@@ -8,6 +17,9 @@
 
     var _index = null;
     var _buildPromise = null;
+
+    var MAX_RESULTS = 50;
+    var SNIPPET_RADIUS = 40;
 
     function buildIndex() {
         if (_index) return Promise.resolve(_index);
@@ -29,24 +41,44 @@
             }
 
             _index = [];
+            var undecrypted = 0;
             for (var i = 0; i < notes.length; i++) {
                 var n = notes[i];
+                var encTitle = n.title || '';
+                var encContent = n.content || '';
+                var encCategory = n.category || '';
                 var title = '';
                 var content = '';
-                try {
-                    title = await FlaskyE2EE.decryptField(n.title || '');
-                } catch (e) { title = ''; }
-                try {
-                    content = await FlaskyE2EE.decryptField(n.content || '');
-                } catch (e) { content = ''; }
-                if (!title && !content && (n.title || n.content)) continue;
+                var category = '';
+                try { title = await FlaskyE2EE.decryptField(encTitle); } catch (e) { title = ''; }
+                try { content = await FlaskyE2EE.decryptField(encContent); } catch (e) { content = ''; }
+                try { category = await FlaskyE2EE.decryptField(encCategory); } catch (e) { category = ''; }
+                // decryptField falls back to the raw ciphertext on failure
+                // rather than throwing. Treat an unchanged value as a failed
+                // decrypt so we never index ciphertext as plaintext.
+                if (encTitle && title === encTitle) title = '';
+                if (encContent && content === encContent) content = '';
+                if (encCategory && category === encCategory) category = '';
+                if (!title && !content) {
+                    if (encTitle || encContent) undecrypted++;
+                    continue;
+                }
                 _index.push({
                     id: n.id,
                     title: title || '',
                     content: content || '',
-                    category: n.category || '',
+                    category: category || '',
                     date_last_changed: n.date_last_changed
                 });
+            }
+            // If every note failed to decrypt, the key likely wasn't ready
+            // (e.g. built before unlock). Don't cache an empty index — let
+            // the next search() retry so we recover after unlock.
+            if (notes.length > 0 && undecrypted === notes.length) {
+                console.warn('E2EE search: no notes decrypted — not caching index');
+                _index = null;
+                _buildPromise = null;
+                return [];
             }
         } catch (e) {
             console.error('E2EE search: failed to build index', e);
@@ -57,35 +89,130 @@
         return _index;
     }
 
+    function _tokenize(query) {
+        return query.toLowerCase().split(/\s+/).filter(Boolean);
+    }
+
+    function _scoreToken(token, titleLower, contentLower) {
+        var hit = { score: 0, inTitle: false, inContent: false, titlePos: -1, contentPos: -1 };
+
+        var tp = titleLower.indexOf(token);
+        if (tp !== -1) {
+            hit.inTitle = true;
+            hit.titlePos = tp;
+            if (tp === 0) hit.score += 1000;
+            else if (_isWordPrefix(titleLower, token, tp)) hit.score += 400;
+            else hit.score += 150;
+        }
+
+        var cp = contentLower.indexOf(token);
+        if (cp !== -1) {
+            hit.inContent = true;
+            hit.contentPos = cp;
+            if (!hit.inTitle) hit.score += 30;
+            else hit.score += 10;
+        }
+        return hit;
+    }
+
+    function _isWordPrefix(text, token, pos) {
+        if (pos === 0) return true;
+        var prev = text.charAt(pos - 1);
+        return /\s|\p{P}/u.test(prev);
+    }
+
+    function _snippet(content, contentLower, tokens) {
+        if (!content) return '';
+        var bestPos = -1;
+        for (var i = 0; i < tokens.length; i++) {
+            var p = contentLower.indexOf(tokens[i]);
+            if (p !== -1 && (bestPos === -1 || p < bestPos)) bestPos = p;
+        }
+        if (bestPos === -1) return '';
+        var start = Math.max(0, bestPos - SNIPPET_RADIUS);
+        var end = Math.min(content.length, bestPos + SNIPPET_RADIUS);
+        var prefix = start > 0 ? '\u2026' : '';
+        var suffix = end < content.length ? '\u2026' : '';
+        var text = content.substring(start, end).replace(/\s+/g, ' ').trim();
+        return prefix + text + suffix;
+    }
+
+    function _recencyBonus(dateLastChanged) {
+        if (!dateLastChanged) return 0;
+        var ts = Date.parse(dateLastChanged);
+        if (isNaN(ts)) return 0;
+        var days = (Date.now() - ts) / 86400000;
+        if (days < 7) return 50;
+        if (days < 30) return 20;
+        return 0;
+    }
+
+    function _relativeDate(dateLastChanged) {
+        if (!dateLastChanged) return '';
+        var ts = Date.parse(dateLastChanged);
+        if (isNaN(ts)) return '';
+        var days = Math.floor((Date.now() - ts) / 86400000);
+        if (days <= 0) return 'today';
+        if (days === 1) return 'yesterday';
+        if (days < 7) return days + 'd ago';
+        if (days < 30) return Math.floor(days / 7) + 'w ago';
+        if (days < 365) return Math.floor(days / 30) + 'mo ago';
+        return Math.floor(days / 365) + 'y ago';
+    }
+
     async function search(query) {
         if (!_index) await buildIndex();
         if (!query || !_index) return [];
 
-        var q = query.toLowerCase();
-        var results = [];
+        var tokens = _tokenize(query);
+        if (tokens.length === 0) return [];
+
+        var scored = [];
         for (var i = 0; i < _index.length; i++) {
             var n = _index[i];
-            var titleMatch = (n.title || '').toLowerCase().indexOf(q) !== -1;
-            var contentMatch = (n.content || '').toLowerCase().indexOf(q) !== -1;
-            if (titleMatch || contentMatch) {
-                var snippet = '';
-                if (contentMatch) {
-                    var idx = n.content.toLowerCase().indexOf(q);
-                    var start = Math.max(0, idx - 40);
-                    var end = Math.min(n.content.length, idx + query.length + 40);
-                    snippet = (start > 0 ? '...' : '') + n.content.substring(start, end) + (end < n.content.length ? '...' : '');
-                }
-                results.push({
-                    id: n.id,
-                    title: n.title,
-                    content: n.content,
-                    snippet: snippet,
-                    titleMatch: titleMatch,
-                    contentMatch: contentMatch
-                });
+            var titleLower = (n.title || '').toLowerCase();
+            var contentLower = (n.content || '').toLowerCase();
+
+            var totalScore = 0;
+            var matchedInTitle = false;
+            var matchedInContent = false;
+            var allTokensHit = true;
+
+            for (var t = 0; t < tokens.length; t++) {
+                var hit = _scoreToken(tokens[t], titleLower, contentLower);
+                if (hit.score === 0) { allTokensHit = false; break; }
+                totalScore += hit.score;
+                if (hit.inTitle) matchedInTitle = true;
+                if (hit.inContent) matchedInContent = true;
             }
+
+            if (!allTokensHit) continue;
+
+            totalScore += _recencyBonus(n.date_last_changed);
+
+            var matchedIn = matchedInTitle && matchedInContent ? 'both'
+                          : matchedInTitle ? 'title'
+                          : 'content';
+
+            scored.push({
+                id: n.id,
+                title: n.title || '',
+                category: n.category || '',
+                snippet: _snippet(n.content || '', contentLower, tokens),
+                score: totalScore,
+                matchedIn: matchedIn,
+                date_last_changed: n.date_last_changed,
+                relativeDate: _relativeDate(n.date_last_changed)
+            });
         }
-        return results;
+
+        scored.sort(function (a, b) {
+            if (b.score !== a.score) return b.score - a.score;
+            return (a.title || '').localeCompare(b.title || '', undefined, { sensitivity: 'base' });
+        });
+
+        if (scored.length > MAX_RESULTS) scored.length = MAX_RESULTS;
+        return scored;
     }
 
     function invalidate() {

@@ -11,9 +11,6 @@ var isDirty = false;
 var isSaving = false;
 var cmEditor = null;
 var currentFontSize = _pageData.currentFontSize;
-var searchTimer = null;
-var searchSelectedIndex = -1;
-var searchResults = [];
 var pinnedNotes = JSON.parse(localStorage.getItem('flasky-pinned') || '[]');
 var isMobile = window.innerWidth <= 768;
 var defaultTemplateContent = _pageData.defaultTemplateContent;
@@ -2934,58 +2931,23 @@ function _truncate(s, len) {
     return s.length > len ? s.slice(0, len - 1) + '\u2026' : s;
 }
 
-// ============ Search Modal ============
-
-function openSearchModal() {
-    document.getElementById('search-overlay').classList.add('visible');
-    var input = document.getElementById('search-modal-input');
-    input.value = '';
-    input.focus();
-    document.getElementById('search-results').innerHTML = '';
-    searchSelectedIndex = -1;
-    searchResults = [];
-}
-
-function closeSearchModal() { document.getElementById('search-overlay').classList.remove('visible'); }
-
-function performSearch(query) {
-    clearTimeout(searchTimer);
-    if (!query || query.length < 2) { document.getElementById('search-results').innerHTML = ''; searchResults = []; searchSelectedIndex = -1; return; }
-    document.getElementById('search-results').innerHTML = '<div style="padding:16px;text-align:center;color:var(--text-muted);font-size:13px">Searching...</div>';
-    searchTimer = setTimeout(async function() {
-        if (typeof FlaskyE2EE !== 'undefined' && FlaskyE2EE.isEncrypted()) {
-            try {
-                var results = await FlaskySearch.search(query);
-                searchResults = results.map(function(r) {
-                    return { id: r.id, title: r.title, category: '' };
-                });
-                searchSelectedIndex = searchResults.length > 0 ? 0 : -1;
-                renderSearchResults();
-            } catch(e) {
-                document.getElementById('search-results').innerHTML = '<div style="padding:16px;text-align:center;color:var(--text-muted);font-size:13px">Search failed</div>';
-            }
-        } else {
-            fetch('/api/search_notes', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ query: query }) })
-            .then(function(r) { return r.json(); })
-            .then(function(data) { searchResults = data; searchSelectedIndex = data.length > 0 ? 0 : -1; renderSearchResults(); })
-            .catch(function() { document.getElementById('search-results').innerHTML = '<div style="padding:16px;text-align:center;color:var(--text-muted);font-size:13px">Search failed</div>'; });
-        }
-    }, 200);
-}
-
-function renderSearchResults() {
-    var container = document.getElementById('search-results');
-    if (searchResults.length === 0) { container.innerHTML = '<div style="padding:16px;text-align:center;color:var(--text-muted);font-size:13px">No results</div>'; return; }
-    var html = '';
-    searchResults.forEach(function(note, i) {
-        html += '<div class="search-result-item' + (i === searchSelectedIndex ? ' selected' : '') + '" data-action="search-result-click" data-note-id="' + note.id + '" data-result-index="' + i + '">';
-        html += '<div class="search-result-title">' + escapeHtml(note.title || 'Untitled') + '</div>';
-        html += '<div class="search-result-category">' + escapeHtml(note.category || 'Default') + '</div></div>';
-    });
-    container.innerHTML = html;
-}
-
 // ============ Shortcuts Modal ============
+
+function openPalette() {
+    if (typeof FlaskySearchModal === 'undefined') return;
+    FlaskySearchModal.open({
+        editor: cmEditor,
+        aiEnabled: !!(typeof _pageData !== 'undefined' && _pageData.aiEnabled),
+        insertCallback: function (title) {
+            if (!cmEditor) return;
+            var cursor = cmEditor.getCursor();
+            var text = '[[' + title + ']]';
+            cmEditor.replaceRange(text, cursor);
+            cmEditor.setCursor({ line: cursor.line, ch: cursor.ch + text.length });
+            cmEditor.focus();
+        }
+    });
+}
 
 function toggleShortcutsModal() {
     var o = document.getElementById('shortcuts-overlay');
@@ -3072,12 +3034,9 @@ function onPropChanged() {
 // ============ Keyboard shortcuts ============
 
 document.addEventListener('keydown', function(e) {
-    // Search modal
-    if (document.getElementById('search-overlay').classList.contains('visible')) {
-        if (e.key === 'Escape') { e.preventDefault(); closeSearchModal(); return; }
-        if (e.key === 'ArrowDown') { e.preventDefault(); searchSelectedIndex = (searchSelectedIndex + 1) % searchResults.length; renderSearchResults(); return; }
-        if (e.key === 'ArrowUp') { e.preventDefault(); searchSelectedIndex = (searchSelectedIndex - 1 + searchResults.length) % searchResults.length; renderSearchResults(); return; }
-        if (e.key === 'Enter' && searchSelectedIndex >= 0) { e.preventDefault(); closeSearchModal(); openNote(searchResults[searchSelectedIndex].id); return; }
+    // Command palette
+    if (typeof FlaskySearchModal !== 'undefined' && FlaskySearchModal.isOpen()) {
+        if (e.key === 'Escape') { e.preventDefault(); FlaskySearchModal.close(); }
         return;
     }
     // Shortcuts modal
@@ -3100,7 +3059,7 @@ document.addEventListener('keydown', function(e) {
     if (ctrl && e.key === 'n') { e.preventDefault(); createNewNote(); }
     if (ctrl && e.key === 'e') { e.preventDefault(); if (editMode) enterPreviewMode(); else enterEditMode(); }
     if (e.key === 'Escape' && editMode && !document.activeElement.closest('.cm-editor')) { enterPreviewMode(); }
-    if (ctrl && e.key === 'k') { e.preventDefault(); openSearchModal(); }
+    if (ctrl && e.key === 'k') { e.preventDefault(); if (!FlaskySearchModal.isOpen()) openPalette(); }
     if (ctrl && e.key === 'p' && !editMode) {
         e.preventDefault();
         var sidebar = document.getElementById('sidebar');
@@ -3365,6 +3324,10 @@ function processCallouts(html) {
 }
 
 // ============ Slash Commands ============
+//
+// Inline editor popup. Shares the command registry with the command palette
+// (commands.js) so the two stay in sync. The slash popup shows only
+// editor-context commands; the palette's `>` mode adds global commands too.
 
 var slashPopup = null;
 var slashSelectedIndex = -1;
@@ -3372,33 +3335,11 @@ var slashFilteredCommands = [];
 var slashTriggerLine = -1;
 var slashTriggerCh = -1;
 
-var slashCommands = [
-    { label: 'Heading 1', icon: 'H1', insert: '# ' },
-    { label: 'Heading 2', icon: 'H2', insert: '## ' },
-    { label: 'Heading 3', icon: 'H3', insert: '### ' },
-    { label: 'Callout', icon: '!', insert: '> [!note] \n> ' },
-    { label: 'Code block', icon: '{}', insert: '```\n\n```', cursorBack: 4 },
-    { label: 'Divider', icon: '--', insert: '---\n' },
-    { label: 'Table', icon: '||', insert: '| Column 1 | Column 2 |\n| --- | --- |\n|  |  |\n' },
-    { label: 'Checkbox list', icon: '[]', insert: '- [ ] ' },
-    { label: 'Bullet list', icon: '-', insert: '- ' },
-    { label: 'Numbered list', icon: '1.', insert: '1. ' },
-    { label: 'Date (today)', icon: 'D', insert: '__DATE__' },
-    { label: 'Insert template', icon: 'T', action: 'template' },
-    { label: 'Save as template', icon: 'S', action: 'save_template' },
-    { label: 'New from template', icon: 'N', action: 'new_from_template' },
-    { label: 'Manage templates', icon: 'M', action: 'manage_templates' },
-];
-if (typeof _pageData !== 'undefined' && _pageData.aiEnabled) {
-    slashCommands.push(
-        { label: 'AI: Ask', icon: '?', action: 'ai_ask' },
-        { label: 'AI: Summarize', icon: '\u2261', action: 'ai_summarize' },
-        { label: 'AI: Rewrite', icon: '\u270E', action: 'ai_rewrite' },
-        { label: 'AI: Expand', icon: '+', action: 'ai_expand' },
-        { label: 'AI: Fix grammar', icon: 'Aa', action: 'ai_fix_grammar' },
-        { label: 'AI: Explain', icon: '\u2139', action: 'ai_explain' },
-        { label: 'AI: Bullet points', icon: '\u2022', action: 'ai_bullets' }
-    );
+function _slashAllCommands() {
+    if (typeof FlaskyCommands === 'undefined') return [];
+    var aiEnabled = !!(typeof _pageData !== 'undefined' && _pageData.aiEnabled);
+    var all = FlaskyCommands.getCommands('editor', { aiEnabled: aiEnabled });
+    return all.filter(function (cmd) { return cmd.editorOnly; });
 }
 
 function showSlashCommands(cm) {
@@ -3415,7 +3356,8 @@ function showSlashCommands(cm) {
     slashTriggerLine = cursor.line;
     slashTriggerCh = cursor.ch - slashMatch[0].length + (slashMatch[1] ? 1 : 0);
 
-    slashFilteredCommands = slashCommands.filter(function(cmd) {
+    var all = _slashAllCommands();
+    slashFilteredCommands = all.filter(function (cmd) {
         return cmd.label.toLowerCase().indexOf(query) > -1;
     });
 
@@ -3464,7 +3406,7 @@ function renderSlashCommands() {
     if (!slashPopup) return;
     var html = '';
     slashFilteredCommands.forEach(function(cmd, i) {
-        var isAi = cmd.action && cmd.action.startsWith('ai_');
+        var isAi = cmd.label.indexOf('AI:') === 0;
         html += '<div class="slash-command-item' + (i === slashSelectedIndex ? ' selected' : '') + (isAi ? ' ai-command' : '') + '" data-index="' + i + '">';
         html += '<span class="slash-command-icon">' + cmd.icon + '</span>';
         html += '<span>' + cmd.label + '</span>';
@@ -3499,60 +3441,11 @@ function acceptSlashCommand(index) {
 
     hideSlashCommands();
 
-    if (cmd.action === 'template') {
-        cmEditor.replaceRange('', { line: cursor.line, ch: slashStart }, cursor);
-        openTemplatePicker('insert');
-        return;
+    // Erase the `/query` trigger text, then run the command via the registry.
+    cmEditor.replaceRange('', { line: cursor.line, ch: slashStart }, cursor);
+    if (typeof cmd.run === 'function') {
+        cmd.run({ editor: cmEditor, page: 'editor' });
     }
-    if (cmd.action === 'save_template') {
-        cmEditor.replaceRange('', { line: cursor.line, ch: slashStart }, cursor);
-        saveCurrentAsTemplate();
-        return;
-    }
-    if (cmd.action === 'new_from_template') {
-        cmEditor.replaceRange('', { line: cursor.line, ch: slashStart }, cursor);
-        openTemplatePicker('new');
-        return;
-    }
-    if (cmd.action === 'manage_templates') {
-        cmEditor.replaceRange('', { line: cursor.line, ch: slashStart }, cursor);
-        openManageTemplates();
-        return;
-    }
-
-    var aiActions = {
-        'ai_ask': null,
-        'ai_summarize': 'Summarize this note',
-        'ai_rewrite': 'Rewrite this note more clearly',
-        'ai_expand': 'Expand on this note with more detail',
-        'ai_fix_grammar': 'Fix the grammar and spelling in this note',
-        'ai_explain': 'Explain this in simple terms',
-        'ai_bullets': 'Convert this into bullet points'
-    };
-    if (cmd.action in aiActions) {
-        cmEditor.replaceRange('', { line: cursor.line, ch: slashStart }, cursor);
-        cmEditor.focus();
-        if (cmd.action === 'ai_ask') {
-            openAIPanelWithPrompt(null, null, false);
-        } else {
-            openAIPanelWithPrompt(cmd.label.replace('AI: ', ''), aiActions[cmd.action], true);
-        }
-        return;
-    }
-
-    var text = cmd.insert;
-    if (text === '__DATE__') {
-        text = new Date().toISOString().split('T')[0];
-    }
-
-    cmEditor.replaceRange(text, { line: cursor.line, ch: slashStart }, cursor);
-
-    if (cmd.cursorBack) {
-        var newCursor = cmEditor.getCursor();
-        cmEditor.setCursor({ line: newCursor.line, ch: newCursor.ch - cmd.cursorBack });
-    }
-
-    cmEditor.focus();
 }
 
 // ============ Template Picker ============
@@ -4011,7 +3904,7 @@ document.addEventListener('click', function(e) {
         case 'toggle-sidebar': toggleSidebar(); break;
         case 'toggle-mode': toggleMode(); break;
         case 'exit-spotlight': toggleSpotlightMode(); break;
-        case 'open-search': openSearchModal(); break;
+        case 'open-search': openPalette(); break;
         case 'open-daily-note': openDailyNote(); break;
         case 'ask-ai':
             if (aiPanel && !aiPanel.classList.contains('collapsed')) {
@@ -4098,10 +3991,6 @@ document.addEventListener('click', function(e) {
             e.preventDefault();
             scrollToHeading(parseInt(el.dataset.headingIndex));
             break;
-        case 'search-result-click':
-            closeSearchModal();
-            openNote(parseInt(el.dataset.noteId));
-            break;
         case 'apply-template':
             applyTemplate(parseInt(el.dataset.templateId));
             break;
@@ -4167,26 +4056,9 @@ document.addEventListener('input', function(e) {
     var action = el.dataset.action;
     switch (action) {
         case 'filter-notes': filterNotes(el.value); break;
-        case 'perform-search': performSearch(el.value); break;
         case 'folder-picker-search': refreshFolderPicker(); break;
     }
 });
-
-// Mouseenter delegation for search results (capture phase since mouseenter doesn't bubble)
-document.addEventListener('mouseenter', function(e) {
-    if (!e.target || !e.target.closest) return;
-    var el = e.target.closest('[data-action="search-result-click"]');
-    if (el) {
-        var newIdx = parseInt(el.dataset.resultIndex);
-        if (newIdx !== searchSelectedIndex) {
-            var container = document.getElementById('search-results');
-            var prev = container ? container.querySelector('.search-result-item.selected') : null;
-            if (prev) prev.classList.remove('selected');
-            searchSelectedIndex = newIdx;
-            el.classList.add('selected');
-        }
-    }
-}, true);
 
 // Drag event delegation
 document.addEventListener('dragstart', function(e) {
