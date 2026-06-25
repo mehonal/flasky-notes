@@ -1743,6 +1743,7 @@ document.addEventListener('click', function(e) {
 document.addEventListener('keydown', function(e) {
     if (e.key === 'Escape') hideContextMenu();
     if (aiDropdown && aiDropdown.classList.contains('open')) { closeAIDropdown(); }
+    if (exportDropdown && exportDropdown.classList.contains('open')) { closeExportDropdown(); }
 });
 
 // Extract context info from a sidebar element
@@ -4067,6 +4068,11 @@ document.addEventListener('click', function(e) {
         case 'toggle-dark-mode': toggleDarkMode(); break;
         case 'toggle-shortcuts': toggleShortcutsModal(); break;
         case 'delete-current-note': deleteCurrentNote(); break;
+        case 'export-current-note': toggleExportDropdown(); break;
+        case 'export-note-md': closeExportDropdown(); exportCurrentNote('md'); break;
+        case 'export-note-txt': closeExportDropdown(); exportCurrentNote('txt'); break;
+        case 'export-note-pdf': closeExportDropdown(); exportCurrentNote('pdf'); break;
+        case 'export-note-web': closeExportDropdown(); exportCurrentNote('web'); break;
         case 'open-note-icon-picker': openNoteIconPicker(); break;
         case 'toggle-props-panel': togglePropsPanel(); break;
         case 'add-prop-row': addPropRow(); break;
@@ -4322,6 +4328,257 @@ function closeAIDropdown() {
 function closeAIDropdownOnOutsideClick(e) {
     if (aiDropdown && !aiDropdown.contains(e.target)) {
         closeAIDropdown();
+    }
+}
+
+// ============ Note Export ============
+
+var exportDropdown = document.getElementById('export-dropdown');
+
+function toggleExportDropdown() {
+    if (!exportDropdown) return;
+    if (exportDropdown.classList.contains('open')) {
+        closeExportDropdown();
+    } else {
+        exportDropdown.classList.add('open');
+        setTimeout(function() {
+            document.addEventListener('click', closeExportDropdownOnOutsideClick, { capture: true });
+        }, 0);
+    }
+}
+
+function closeExportDropdown() {
+    if (!exportDropdown) return;
+    exportDropdown.classList.remove('open');
+    document.removeEventListener('click', closeExportDropdownOnOutsideClick, { capture: true });
+}
+
+function closeExportDropdownOnOutsideClick(e) {
+    if (exportDropdown && !exportDropdown.contains(e.target)) {
+        closeExportDropdown();
+    }
+}
+
+function _getNoteTitle() {
+    var titleEl = document.getElementById('note-title');
+    return (titleEl && titleEl.value.trim()) ? titleEl.value.trim() : 'Untitled';
+}
+
+function _sanitizeFilename(name) {
+    return name.replace(/[<>:"|?*\\\/]/g, '_').trim() || 'Untitled';
+}
+
+function _buildFrontmatter(properties) {
+    if (!properties) return '';
+    var props;
+    try {
+        props = (typeof properties === 'string') ? JSON.parse(properties) : properties;
+    } catch (e) {
+        return '';
+    }
+    if (!props || typeof props !== 'object' || Object.keys(props).length === 0) return '';
+    var lines = ['---'];
+    for (var key in props) {
+        if (!Object.prototype.hasOwnProperty.call(props, key)) continue;
+        var val = props[key];
+        if (Array.isArray(val)) {
+            lines.push(key + ':');
+            for (var i = 0; i < val.length; i++) lines.push('  - ' + val[i]);
+        } else {
+            lines.push(key + ': ' + val);
+        }
+    }
+    lines.push('---');
+    return lines.join('\n') + '\n';
+}
+
+function _renderNoteHtml(content) {
+    var html = (typeof marked !== 'undefined') ? marked(content || '') : (content || '');
+    if (typeof sanitizeMarkdown === 'function') html = sanitizeMarkdown(html);
+    if (typeof processCallouts === 'function') html = processCallouts(html);
+    return html;
+}
+
+function _buildStandaloneHtml(title, content, options) {
+    var opts = options || {};
+    var body = _renderNoteHtml(content);
+    var isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+    var hljsHref = isDark
+        ? '/static/vendor/hljs/styles/github-dark.min.css'
+        : '/static/vendor/hljs/styles/github.min.css';
+
+    // CSS variables mirror flasky/static/css/app.css (Catppuccin Mocha / light)
+    var vars = isDark
+        ? ':root{'
+            + '--bg-primary:#1e1e2e;--bg-secondary:#181825;--bg-hover:rgba(255,255,255,0.05);'
+            + '--text-primary:#cdd6f4;--text-secondary:#bac2de;--text-muted:#585b70;'
+            + '--accent:#b4befe;--accent-dim:rgba(180,190,254,0.1);'
+            + '--border:rgba(255,255,255,0.06);--border-light:rgba(255,255,255,0.1);'
+            + '--green:#a6e3a1;--red:#f38ba8;--yellow:#f9e2af;--blue:#89b4fa;'
+            + '}'
+        : ':root{'
+            + '--bg-primary:#f8f9fc;--bg-secondary:#eff1f5;--bg-hover:rgba(0,0,0,0.06);'
+            + '--text-primary:#1a1a2e;--text-secondary:#2d2d44;--text-muted:#555770;'
+            + '--accent:#5a6fe0;--accent-dim:rgba(90,111,224,0.16);'
+            + '--border:rgba(0,0,0,0.12);--border-light:rgba(0,0,0,0.18);'
+            + '--green:#2d8a1a;--red:#c40d33;--yellow:#c47a10;--blue:#1556d4;'
+            + '}';
+
+    // Print-friendly typography + element styles (mirrors .editor-preview)
+    var css = vars
+        + 'html,body{background:var(--bg-primary);color:var(--text-primary);}'
+        + 'body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;'
+        +   'max-width:780px;margin:0 auto;padding:2rem 1rem;line-height:1.7;font-size:16px;'
+        +   '-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;}'
+        + 'article{overflow-wrap:break-word;word-wrap:break-word;}'
+        + 'h1,h2,h3,h4,h5,h6{color:var(--text-primary);line-height:1.3;margin:1.4em 0 0.4em;font-weight:600;}'
+        + 'h1:first-child,h2:first-child,h3:first-child{margin-top:0;}'
+        + 'h1{font-size:1.8em;font-weight:700;border-bottom:1px solid var(--border-light);padding-bottom:0.3em;}'
+        + 'h2{font-size:1.4em;}'
+        + 'h3{font-size:1.15em;}'
+        + 'h4,h5,h6{font-size:1em;}'
+        + 'p{margin:0.7em 0;}'
+        + 'a{color:var(--accent);text-decoration:none;}'
+        + 'a:hover{text-decoration:underline;}'
+        + 'strong{font-weight:600;}'
+        + 'code{background:var(--bg-hover);padding:2px 6px;border-radius:4px;font-size:0.88em;'
+        +   'font-family:"JetBrains Mono","Fira Code","SF Mono",ui-monospace,Menlo,Consolas,monospace;}'
+        + 'pre{background:var(--bg-secondary);border:1px solid var(--border);border-radius:8px;'
+        +   'padding:14px 18px;overflow-x:auto;margin:1em 0;line-height:1.5;}'
+        + 'pre code{background:none;padding:0;font-size:13px;color:inherit;}'
+        + 'blockquote{border-left:3px solid var(--accent);padding-left:16px;color:var(--text-secondary);'
+        +   'margin:0.8em 0;font-style:italic;}'
+        + 'ul,ol{padding-left:1.6em;margin:0.5em 0;}'
+        + 'li{margin:0.2em 0;}'
+        + 'li>ul,li>ol{margin:0;}'
+        + 'img{max-width:100%;border-radius:8px;margin:0.5em 0;}'
+        + 'hr{border:none;border-top:1px solid var(--border-light);margin:1.8em 0;}'
+        + 'table{border-collapse:collapse;width:100%;margin:1em 0;font-size:14px;}'
+        + 'th,td{border:1px solid var(--border);padding:8px 12px;text-align:left;}'
+        + 'th{background:var(--bg-secondary);font-weight:600;}'
+        + 'tr:nth-child(even){background:var(--bg-hover);}'
+        + 'input[type="checkbox"]{margin-right:6px;accent-color:var(--accent);}'
+        + 'kbd{display:inline-block;padding:2px 6px;background:var(--bg-hover);border:1px solid var(--border-light);'
+        +   'border-radius:4px;font-size:12px;font-family:inherit;color:var(--text-secondary);}'
+        // Callouts (Obsidian-style)
+        + '.callout{border-left:4px solid var(--accent);border-radius:6px;background:var(--accent-dim);'
+        +   'padding:12px 16px;margin:0.8em 0;}'
+        + '.callout-title{font-weight:600;font-size:0.95em;margin-bottom:4px;display:flex;align-items:center;gap:6px;}'
+        + '.callout-title-icon{font-size:1.1em;}'
+        + '.callout-content{color:var(--text-secondary);}'
+        + '.callout-content p{margin:0.3em 0;}'
+        + '.callout-content p:first-child{margin-top:0;}'
+        + '.callout[data-callout="info"],.callout[data-callout="note"]{border-left-color:var(--blue);background:rgba(137,180,250,0.08);}'
+        + '.callout[data-callout="tip"],.callout[data-callout="hint"]{border-left-color:#94e2d5;background:rgba(148,226,213,0.08);}'
+        + '.callout[data-callout="warning"],.callout[data-callout="caution"],.callout[data-callout="attention"]{border-left-color:var(--yellow);background:rgba(249,226,175,0.08);}'
+        + '.callout[data-callout="danger"],.callout[data-callout="error"],.callout[data-callout="failure"],.callout[data-callout="fail"],.callout[data-callout="missing"]{border-left-color:var(--red);background:rgba(243,139,168,0.08);}'
+        + '.callout[data-callout="success"],.callout[data-callout="check"],.callout[data-callout="done"]{border-left-color:var(--green);background:rgba(166,227,161,0.08);}'
+        + '.callout[data-callout="question"],.callout[data-callout="help"],.callout[data-callout="faq"]{border-left-color:#fab387;background:rgba(250,179,135,0.08);}'
+        + '.callout[data-callout="example"]{border-left-color:#cba6f7;background:rgba(203,166,247,0.08);}'
+        + '.callout[data-callout="quote"],.callout[data-callout="cite"]{border-left-color:var(--text-muted);background:var(--bg-hover);}'
+        + '.callout[data-callout="abstract"],.callout[data-callout="summary"],.callout[data-callout="tldr"]{border-left-color:#74c7ec;background:rgba(116,199,236,0.08);}'
+        + '.callout[data-callout="bug"]{border-left-color:#f38ba8;background:rgba(243,139,168,0.08);}'
+        + '.callout[data-callout="todo"]{border-left-color:var(--accent);background:var(--accent-dim);}'
+        // Print rules — zero @page margin (content padding handled by body),
+        // preserve theme via print-color-adjust so dark backgrounds render.
+        + '@page{margin:0;}'
+        + 'html,body{-webkit-print-color-adjust:exact;print-color-adjust:exact;}'
+        + '@media print{'
+        +   'body{max-width:none;margin:0;padding:1.5cm 2cm;}'
+        +   'pre,blockquote,table,.callout,tr,img{page-break-inside:avoid;}'
+        +   'h1,h2,h3,h4,h5,h6{page-break-after:avoid;}'
+        +   'pre{white-space:pre-wrap;word-wrap:break-word;}'
+        +   '.no-print{display:none!important;}'
+        + '}';
+
+    // Optional print hint banner (hidden in print) — only shown for PDF preview
+    var printHint = '';
+    var hljsScript = '';
+    if (opts.forPrint) {
+        printHint = '<div class="no-print" style="position:fixed;top:0;left:0;right:0;background:var(--accent);color:#fff;'
+            +   'padding:8px 16px;font-size:13px;text-align:center;z-index:9999;">'
+            +   'Use your browser\'s "Save as PDF" option in the print dialog to export this note.'
+            +   '<button type="button" onclick="this.parentNode.remove()" style="float:right;background:none;border:none;color:#fff;font-size:16px;cursor:pointer;">\u00d7</button>'
+            + '</div>';
+        hljsScript = '<script src="/static/vendor/hljs/highlight.min.js"></' + 'script>';
+    }
+
+    return ''
+        + '<!DOCTYPE html>\n<html lang="en" data-theme="' + (isDark ? 'dark' : 'light') + '">\n<head>\n'
+        + '<meta charset="UTF-8">\n'
+        + '<meta name="viewport" content="width=device-width, initial-scale=1.0">\n'
+        + '<title>' + escapeHtml(title) + ' — Flasky Notes</title>\n'
+        + '<link rel="stylesheet" href="' + hljsHref + '">\n'
+        + '<style>' + css + '</style>\n'
+        + '</head>\n<body>\n'
+        + printHint
+        + '<h1>' + escapeHtml(title) + '</h1>\n'
+        + '<article>\n' + body + '\n</article>\n'
+        + hljsScript
+        + '</body>\n</html>';
+}
+
+function _downloadBlob(filename, blob) {
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(function() { URL.revokeObjectURL(a.href); }, 1000);
+}
+
+function _downloadText(filename, text, mime) {
+    _downloadBlob(filename, new Blob([text], { type: mime || 'text/plain;charset=utf-8' }));
+}
+
+function exportCurrentNote(format) {
+    var title = _getNoteTitle();
+    var content = getEditorContent() || '';
+    var props = collectProperties();
+    var fileBase = _sanitizeFilename(title);
+
+    if (format === 'md') {
+        var fm = _buildFrontmatter(props);
+        _downloadText(fileBase + '.md', fm + content, 'text/markdown;charset=utf-8');
+        return;
+    }
+
+    if (format === 'txt') {
+        _downloadText(fileBase + '.txt', content, 'text/plain;charset=utf-8');
+        return;
+    }
+
+    if (format === 'web') {
+        _downloadText(fileBase + '.html', _buildStandaloneHtml(title, content), 'text/html;charset=utf-8');
+        return;
+    }
+
+    if (format === 'pdf') {
+        var html = _buildStandaloneHtml(title, content, { forPrint: true });
+        var printWin = window.open('', '_blank');
+        if (!printWin) {
+            alert('Pop-up blocked. Please allow pop-ups to export as PDF.');
+            return;
+        }
+        // Highlight code blocks then trigger the print dialog once the
+        // document (and its hljs <script>) has loaded. Attach onload before
+        // writing so we don't miss the load event on fast/synchronous parses.
+        printWin.onload = function() {
+            try {
+                if (printWin.hljs) {
+                    printWin.document.querySelectorAll('pre code').forEach(function(block) {
+                        printWin.hljs.highlightElement(block);
+                    });
+                }
+            } catch (e) { /* hljs optional */ }
+            printWin.setTimeout(function() { printWin.print(); }, 200);
+        };
+        printWin.document.open();
+        printWin.document.write(html);
+        printWin.document.close();
+        printWin.focus();
+        return;
     }
 }
 

@@ -1474,6 +1474,26 @@ body[data-encrypted="true"] .prop-value-input { visibility: hidden; }
 .ai-dropdown-item svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; flex-shrink: 0; }
 .ai-dropdown-divider { height: 1px; background: var(--border-light); margin: 4px 0; }
 
+/* Export Dropdown Menu */
+.export-dropdown-wrap {
+    position: relative;
+}
+.export-dropdown {
+    display: none; position: absolute; top: 100%; right: 0; z-index: 500;
+    background: var(--bg-sidebar); border: 1px solid var(--border);
+    border-radius: 8px; padding: 4px; min-width: 180px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+}
+.export-dropdown.open { display: block; }
+.export-dropdown-item {
+    display: flex; align-items: center; gap: 8px; width: 100%;
+    padding: 7px 10px; border: none; background: none; color: var(--text-secondary);
+    font-size: 13px; font-family: inherit; cursor: pointer; border-radius: 6px;
+    transition: all 0.1s; text-align: left;
+}
+.export-dropdown-item:hover { background: var(--bg-hover); color: var(--text-primary); }
+.export-dropdown-item svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; flex-shrink: 0; }
+
 /* Editor Selection AI Toolbar */
 .ai-sel-bar {
     position: absolute; z-index: 600; display: none;

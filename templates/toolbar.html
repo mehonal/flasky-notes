@@ -111,6 +111,29 @@
 
                     {% if note %}
                     <div class="toolbar-divider"></div>
+                    <div class="export-dropdown-wrap">
+                        <button class="icon-btn" data-action="export-current-note" title="Export note" aria-label="Export note">
+                            <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                        </button>
+                        <div class="export-dropdown" id="export-dropdown">
+                            <button class="export-dropdown-item" data-action="export-note-md">
+                                <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                                Markdown (.md)
+                            </button>
+                            <button class="export-dropdown-item" data-action="export-note-txt">
+                                <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                                Plain text (.txt)
+                            </button>
+                            <button class="export-dropdown-item" data-action="export-note-pdf">
+                                <svg viewBox="0 0 24 24"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+                                PDF (rendered)
+                            </button>
+                            <button class="export-dropdown-item" data-action="export-note-web">
+                                <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+                                Web (.html)
+                            </button>
+                        </div>
+                    </div>
                     <button class="icon-btn danger" data-action="delete-current-note" title="Delete note" aria-label="Delete note">
                         <svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
                     </button>
