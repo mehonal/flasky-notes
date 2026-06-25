@@ -676,6 +676,16 @@
                                     </div>
                                 </div>
                             </div>
+                            <div class="setting-row has-desc">
+                                <label class="setting-label" for="calendar-placement">Calendar placement</label>
+                                <div class="setting-control">
+                                    <select name="calendar-placement" id="calendar-placement" class="setting-input">
+                                        <option value="left" {% if ui_settings.calendar_placement == 'left' %}selected{% endif %}>Left sidebar</option>
+                                        <option value="right" {% if ui_settings.calendar_placement == 'right' %}selected{% endif %}>Right panel</option>
+                                    </select>
+                                </div>
+                                <div class="setting-desc">Where the daily-notes calendar widget appears.</div>
+                            </div>
                             <div class="setting-row">
                                 <button name="update-ui-settings" class="btn-sm primary" type="submit">Save daily notes</button>
                             </div>

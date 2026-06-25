@@ -156,6 +156,7 @@
         "aiEndpoint": {% if ai_settings and ai_settings.ollama_endpoint %}{{ ai_settings.ollama_endpoint | tojson }}{% else %}""{% endif %},
         "timezone": {{ timezone | tojson }},
         "daily": {{ daily or 0 }},
+        "calendarPlacement": {{ (ui_settings.calendar_placement if ui_settings else 'left') | tojson }},
         "dailyNote": {
             "enabled": {% if ui_settings and ui_settings.daily_note_enabled %}true{% else %}false{% endif %},
             "titleFormat": {{ (ui_settings.daily_note_title_format if ui_settings else 'YYYY-MM-DD') | tojson }},

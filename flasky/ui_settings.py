@@ -37,6 +37,9 @@ DEFAULT_PANEL_WIDGETS = [
     {"id": "quick_settings", "label": "Quick Settings", "visible": False},
     {"id": "link_graph", "label": "Link Graph", "visible": False},
 ]
+# Note: the calendar widget is NOT in this shared default list because its
+# presence is conditional on the per-user daily_note_enabled setting. It is
+# injected per-user by get_panel_widgets() below.
 
 
 def _is_int_in_range(low: int, high: int) -> Callable[[Any], bool]:
@@ -86,6 +89,13 @@ REGISTRY: dict[str, SettingDef] = {
         _is_int_in_range(0, 999999999),
     ),
     "daily_note_open_on_start": SettingDef("daily_note_open_on_start", False, bool),
+    # Where the daily-notes calendar widget renders. "left" places it in the
+    # left sidebar; "right" in the right-panel widget stack alongside the
+    # other widgets. Honored by applyWidgetLayout() on the client.
+    "calendar_placement": SettingDef(
+        "calendar_placement", "left", str,
+        lambda v: v in ("left", "right"),
+    ),
     # Default folder for new notes created outside a specific folder context
     # (e.g. the "New note" toolbar button). 0 = unset → first category by id.
     # Honored by create_note and the external/sync APIs when no category given.
@@ -203,13 +213,25 @@ def get_panel_widgets(user) -> list[dict]:
     """
     widgets = get_setting(user, "panel_widgets")
     if not isinstance(widgets, list):
-        return [dict(w) for w in DEFAULT_PANEL_WIDGETS]
+        widgets = [dict(w) for w in DEFAULT_PANEL_WIDGETS]
     # Strip retired widget ids (e.g. "agenda" was removed in an earlier version)
     cleaned = [w for w in widgets if isinstance(w, dict) and w.get("id") != "agenda"]
+    daily_enabled = bool(get_setting(user, "daily_note_enabled"))
+    # The calendar widget only makes sense when daily notes are enabled.
+    # Strip it for users who haven't turned daily notes on so the config
+    # panel doesn't offer a no-op toggle.
+    if not daily_enabled:
+        cleaned = [w for w in cleaned if w.get("id") != "calendar"]
     saved_ids = [w.get("id") for w in cleaned]
     for default_w in DEFAULT_PANEL_WIDGETS:
         if default_w["id"] not in saved_ids:
             cleaned.append(dict(default_w))
+    # Inject the calendar widget (conditional on daily notes; not in the
+    # shared default list because its presence is per-user). On first
+    # appearance it defaults to visible when daily notes are enabled; once
+    # the user has saved a choice, that is honored on subsequent reads.
+    if daily_enabled and "calendar" not in saved_ids:
+        cleaned.append({"id": "calendar", "label": "Calendar", "visible": True})
     return cleaned
 
 

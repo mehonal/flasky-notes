@@ -19,6 +19,14 @@
                 <input type="text" id="search-input" placeholder="Filter..." data-action="filter-notes">
             </div>
 
+            {% if ui_settings and ui_settings.daily_note_enabled %}
+            <!-- Calendar widget slot (left sidebar). When placement is "left",
+                 applyWidgetLayout() moves #widget-calendar here from the right
+                 panel. The widget DOM lives in right_panel.html to avoid
+                 duplicating it; this empty slot is the mount target. -->
+            <div class="sidebar-calendar-slot" id="sidebar-calendar-slot"></div>
+            {% endif %}
+
             <div class="pinned-section" id="pinned-section">
                 <div class="pinned-header">
                     <svg viewBox="0 0 24 24"><path d="M12 2L15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26z" fill="currentColor" stroke="none"/></svg>

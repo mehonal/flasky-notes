@@ -415,6 +415,10 @@ def settings_page():
                 set_setting(g.user, "daily_note_open_on_start", True)
             else:
                 set_setting(g.user, "daily_note_open_on_start", False)
+            placement = request.form.get("calendar-placement", "left")
+            if placement not in ("left", "right"):
+                placement = "left"
+            set_setting(g.user, "calendar_placement", placement)
             # Template id: validate ownership, clear (0) if missing/foreign.
             tmpl_id = 0
             raw_tmpl = request.form.get("daily-note-template-id", "0")

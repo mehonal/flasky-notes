@@ -144,6 +144,36 @@ body {
 .pinned-header svg { width: 12px; height: 12px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .pinned-divider { height: 1px; background: var(--border); margin: 4px 8px; }
 
+/* Sidebar calendar widget */
+.sidebar-calendar-widget { padding: 8px 12px; }
+.sidebar-calendar-widget .widget-header { padding: 4px 4px 6px; }
+.sidebar-calendar-widget .widget-header svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.sidebar-calendar-nav {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 4px; padding: 2px 0 6px;
+}
+.sidebar-calendar-title { flex: 1; text-align: center; font-size: 12px; font-weight: 600; color: var(--text-secondary); }
+.sidebar-calendar-nav .icon-btn { padding: 2px; }
+.sidebar-calendar-nav .icon-btn svg { width: 14px; height: 14px; }
+.sidebar-cal-weekdays { display: grid; grid-template-columns: repeat(7, 1fr); margin-bottom: 2px; }
+.sidebar-cal-wd {
+    text-align: center; font-size: 10px; font-weight: 600; color: var(--text-muted);
+    text-transform: uppercase; padding: 2px 0;
+}
+.sidebar-cal-days { display: grid; grid-template-columns: repeat(7, 1fr); gap: 1px; }
+.sidebar-cal-empty { aspect-ratio: 1; }
+.sidebar-cal-day {
+    aspect-ratio: 1; display: flex; align-items: center; justify-content: center;
+    font-size: 11px; color: var(--text-secondary); cursor: pointer;
+    border-radius: 6px; position: relative; transition: background 0.12s ease;
+}
+.sidebar-cal-day:hover { background: var(--bg-hover); color: var(--text-primary); }
+.sidebar-cal-day.is-today { font-weight: 700; color: var(--accent); }
+.sidebar-cal-day.has-daily-note::after {
+    content: ''; position: absolute; bottom: 2px; left: 50%; transform: translateX(-50%);
+    width: 4px; height: 4px; border-radius: 50%; background: var(--accent);
+}
+
 .file-tree { flex: 1; overflow-y: auto; padding: 2px 8px; }
 
 .folder { user-select: none; margin-bottom: 2px; }

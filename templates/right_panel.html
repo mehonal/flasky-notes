@@ -124,6 +124,32 @@
                             </div>
                         </div>
 
+                        {% if ui_settings and ui_settings.daily_note_enabled %}
+                        <!-- Calendar widget (daily notes). Default-visible when
+                             daily notes are on; placement (left sidebar vs right
+                             panel) controlled by calendar_placement setting and
+                             applied by applyWidgetLayout(). -->
+                        <div class="panel-widget sidebar-calendar-widget" data-widget-id="calendar" id="widget-calendar">
+                            <div class="right-panel-section-header widget-header" data-action="toggle-widget-collapse" data-widget-id="calendar">
+                                <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                                <span class="widget-label">Calendar</span>
+                                <svg class="widget-chevron" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
+                            </div>
+                            <div class="widget-body">
+                                <div class="sidebar-calendar-nav">
+                                    <button class="icon-btn" data-action="cal-prev-month" title="Previous month" aria-label="Previous month">
+                                        <svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
+                                    </button>
+                                    <span class="sidebar-calendar-title" id="sidebar-calendar-title"></span>
+                                    <button class="icon-btn" data-action="cal-next-month" title="Next month" aria-label="Next month">
+                                        <svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
+                                    </button>
+                                </div>
+                                <div class="sidebar-calendar-grid" id="sidebar-calendar-grid"></div>
+                            </div>
+                        </div>
+                        {% endif %}
+
                         <!-- Quick Settings widget -->
                         <div class="panel-widget" data-widget-id="quick_settings" id="widget-quick_settings">
                             <div class="right-panel-section-header widget-header" data-action="toggle-widget-collapse" data-widget-id="quick_settings">

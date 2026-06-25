@@ -20,6 +20,7 @@ var currentNoteIconColor = _pageData.currentNoteIconColor;
 
 // ============ Daily notes ============
 var dailyNoteConfig = _pageData.dailyNote || { enabled: false, titleFormat: 'YYYY-MM-DD', templateId: 0, categoryId: 0, openOnStart: false };
+var calendarPlacement = _pageData.calendarPlacement || 'left';
 var userTimezone = _pageData.timezone || 'UTC';
 
 function formatDailyTitle(fmt, date) {
@@ -49,9 +50,11 @@ function nowInUserTz() {
     return now;
 }
 
-async function openDailyNote() {
+async function openDailyNote() { return openDailyNoteFor(nowInUserTz()); }
+
+async function openDailyNoteFor(date) {
     if (!dailyNoteConfig.enabled) return;
-    var title = formatDailyTitle(dailyNoteConfig.titleFormat, nowInUserTz());
+    var title = formatDailyTitle(dailyNoteConfig.titleFormat, date);
     if (!title) return;
     // Ensure the decrypted note index is available (titles are E2EE ciphertext).
     var idx = [];
@@ -412,6 +415,7 @@ function loadNote(id, category, categoryId) {
         // Refresh right panel
         var rp = document.getElementById('right-panel');
         if (rp && !rp.classList.contains('collapsed')) refreshAllVisibleWidgets();
+        refreshCalendarWidget();
         // Check for folder default template
         if (categoryId) {
             fetch('/api/folder_default_template/' + categoryId)
@@ -514,6 +518,7 @@ function loadNote(id, category, categoryId) {
         refreshSidebar();
         var rp = document.getElementById('right-panel');
         if (rp && !rp.classList.contains('collapsed')) refreshAllVisibleWidgets();
+        refreshCalendarWidget();
     });
 }
 
@@ -2052,10 +2057,20 @@ var panelWidgets = _pageData.panelWidgets;
 function applyWidgetLayout() {
     var container = document.getElementById('right-panel-widgets');
     if (!container) return;
+    // The calendar widget can render in the left sidebar (placement="left") or
+    // the right-panel stack (placement="right"). For left placement it moves
+    // into a dedicated slot in the sidebar template; for right placement it
+    // behaves like any other panel widget. Visibility/reorder config still
+    // applies either way.
+    var sidebarSlot = document.getElementById('sidebar-calendar-slot');
     panelWidgets.forEach(function(w) {
         var el = document.getElementById('widget-' + w.id);
         if (!el) return;
-        container.appendChild(el); // reorder
+        if (w.id === 'calendar' && calendarPlacement === 'left') {
+            if (sidebarSlot) sidebarSlot.appendChild(el);
+        } else {
+            container.appendChild(el); // reorder
+        }
         if (w.visible) {
             el.classList.remove('hidden-widget');
         } else {
@@ -2184,12 +2199,133 @@ function refreshWidget(widgetId) {
     else if (widgetId === 'todos') loadTodosWidget();
     else if (widgetId === 'events') loadEventsWidget();
     else if (widgetId === 'quick_settings') syncQuickSettingsState();
+    else if (widgetId === 'calendar') renderSidebarCalendar();
 }
 
 function refreshAllVisibleWidgets() {
     panelWidgets.forEach(function(w) {
         if (w.visible) refreshWidget(w.id);
     });
+}
+
+// The calendar widget can live in the left sidebar (independent of the right
+// panel open/closed state), so refresh it on save regardless of right-panel
+// visibility. No-op if the widget is hidden or daily notes are disabled.
+function refreshCalendarWidget() {
+    var w = panelWidgets.find(function(x) { return x.id === 'calendar'; });
+    if (w && w.visible) renderSidebarCalendar();
+}
+
+// ============ Sidebar calendar widget ============
+// Renders a month grid in the left sidebar. Days that have a daily note are
+// marked with a dot; clicking a day opens (or creates) that day's daily note.
+// Marking is computed client-side from the decrypted note index because note
+// titles are E2EE ciphertext the server cannot read.
+var sidebarCalendarState = { year: null, month: null };
+var CALENDAR_WEEK_START = 1; // 0 = Sunday, 1 = Monday
+
+function _ensureCalendarState() {
+    var today = nowInUserTz();
+    if (sidebarCalendarState.year === null) {
+        sidebarCalendarState.year = today.getFullYear();
+        sidebarCalendarState.month = today.getMonth();
+    }
+}
+
+function _monthLabel(year, month) {
+    var names = ['January','February','March','April','May','June',
+                 'July','August','September','October','November','December'];
+    return names[month] + ' ' + year;
+}
+
+async function _buildDailyNoteMarkSet(year, month) {
+    // Returns a Set of day-numbers (1-31) that have a daily note in the given
+    // month. Matching is against the user's daily-note title format, computed
+    // client-side from the decrypted note index (titles are E2EE ciphertext).
+    var fmt = dailyNoteConfig.titleFormat || 'YYYY-MM-DD';
+    var idx = [];
+    if (typeof FlaskySearch !== 'undefined') {
+        try { idx = await FlaskySearch.buildIndex(); } catch(e) { idx = []; }
+    }
+    if (!Array.isArray(idx)) idx = [];
+    var titleSet = {};
+    for (var i = 0; i < idx.length; i++) {
+        if (idx[i] && idx[i].title) titleSet[idx[i].title] = true;
+    }
+    var marked = new Set();
+    var daysInMonth = new Date(year, month + 1, 0).getDate();
+    for (var d = 1; d <= daysInMonth; d++) {
+        var title = formatDailyTitle(fmt, new Date(year, month, d));
+        if (titleSet[title]) marked.add(d);
+    }
+    return marked;
+}
+
+async function renderSidebarCalendar() {
+    var grid = document.getElementById('sidebar-calendar-grid');
+    var titleEl = document.getElementById('sidebar-calendar-title');
+    if (!grid || !titleEl) return;
+    var widget = document.getElementById('widget-calendar');
+    if (widget && widget.classList.contains('hidden-widget')) return;
+    if (!dailyNoteConfig.enabled) return;
+    _ensureCalendarState();
+    var year = sidebarCalendarState.year;
+    var month = sidebarCalendarState.month;
+    titleEl.textContent = _monthLabel(year, month);
+
+    var daysInMonth = new Date(year, month + 1, 0).getDate();
+    var firstWeekday = new Date(year, month, 1).getDay();
+    // Shift for week start (0=Sun, 1=Mon).
+    var leadOffset = (firstWeekday - CALENDAR_WEEK_START + 7) % 7;
+    var today = nowInUserTz();
+    var weekdayLabels = CALENDAR_WEEK_START === 1
+        ? ['M','T','W','T','F','S','S']
+        : ['S','M','T','W','T','F','S'];
+    var html = '<div class="sidebar-cal-weekdays">';
+    for (var w = 0; w < 7; w++) html += '<span class="sidebar-cal-wd">' + weekdayLabels[w] + '</span>';
+    html += '</div><div class="sidebar-cal-days">';
+    for (var c = 0; c < leadOffset; c++) html += '<span class="sidebar-cal-empty"></span>';
+    for (var d = 1; d <= daysInMonth; d++) {
+        var classes = 'sidebar-cal-day';
+        if (year === today.getFullYear() && month === today.getMonth() && d === today.getDate()) classes += ' is-today';
+        html += '<span class="' + classes + '" data-cal-day="' + d + '" data-action="cal-open-day">' + d + '</span>';
+    }
+    html += '</div>';
+    grid.innerHTML = html;
+
+    // Mark days that have a daily note (client-side, E2EE-aware).
+    _buildDailyNoteMarkSet(year, month).then(function(marked) {
+        marked.forEach(function(d) {
+            var el = grid.querySelector('.sidebar-cal-day[data-cal-day="' + d + '"]');
+            if (el) el.classList.add('has-daily-note');
+        });
+    });
+}
+
+function sidebarCalendarPrev() {
+    _ensureCalendarState();
+    sidebarCalendarState.month -= 1;
+    if (sidebarCalendarState.month < 0) {
+        sidebarCalendarState.month = 11;
+        sidebarCalendarState.year -= 1;
+    }
+    renderSidebarCalendar();
+}
+
+function sidebarCalendarNext() {
+    _ensureCalendarState();
+    sidebarCalendarState.month += 1;
+    if (sidebarCalendarState.month > 11) {
+        sidebarCalendarState.month = 0;
+        sidebarCalendarState.year += 1;
+    }
+    renderSidebarCalendar();
+}
+
+function sidebarCalendarOpenDay(dayNum) {
+    _ensureCalendarState();
+    var date = new Date(sidebarCalendarState.year, sidebarCalendarState.month, dayNum);
+    openDailyNoteFor(date);
 }
 
 // Todos widget
@@ -3855,6 +3991,9 @@ window.addEventListener('resize', function() { isMobile = window.innerWidth <= 7
         if (rpLoad && !rpLoad.classList.contains('collapsed')) {
             refreshAllVisibleWidgets();
         }
+        // The calendar widget may live in the left sidebar, so render it
+        // independently of the right-panel open/closed state.
+        refreshCalendarWidget();
     });
 
     document.addEventListener('visibilitychange', function() {
@@ -3890,7 +4029,7 @@ document.addEventListener('click', function(e) {
     var stopPropActions = {
         'new-note-in-folder':1,'move-folder':1,'new-subfolder':1,'delete-folder':1,
         'delete-sidebar-note':1,'toggle-pin':1,'open-add-todo':1,'open-add-event':1,
-        'complete-todo-widget':1
+        'complete-todo-widget':1,'cal-prev-month':1,'cal-next-month':1,'cal-open-day':1
     };
     if (stopPropActions[action]) e.stopPropagation();
 
@@ -3906,6 +4045,9 @@ document.addEventListener('click', function(e) {
         case 'exit-spotlight': toggleSpotlightMode(); break;
         case 'open-search': openPalette(); break;
         case 'open-daily-note': openDailyNote(); break;
+        case 'cal-prev-month': sidebarCalendarPrev(); break;
+        case 'cal-next-month': sidebarCalendarNext(); break;
+        case 'cal-open-day': sidebarCalendarOpenDay(parseInt(el.dataset.calDay, 10)); break;
         case 'ask-ai':
             if (aiPanel && !aiPanel.classList.contains('collapsed')) {
                 closeAIPanel();
