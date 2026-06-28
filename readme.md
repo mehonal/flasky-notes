@@ -23,8 +23,9 @@ Ciphertext format: `base64(0x01 || IV[12] || ciphertext || GCM-tag[16])`.
 - **Todos and events** with due dates, reminders, and archive
 - **Note templates** with per-folder default templates
 - **Attachments** (stored as encrypted blobs)
+- **Drawings** — full-screen canvas, embedded in notes as `.fldraw` vector files, editable inline, exportable to PNG/JPG (opt-in via settings)
 - **Client-side search** (server can't read ciphertext to search)
-- **AI chat** (Ollama) with SSE streaming, conversation history, and note-context inclusion
+- **AI chat** (Ollama, opt-in via settings) with SSE streaming, conversation history, and note-context inclusion
 - **Obsidian sync** via a standalone sync client
 - **Export** to decrypted or encrypted .zip
 - **Dark mode**, adjustable font size/family, responsive mobile layout
