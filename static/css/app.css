@@ -338,6 +338,7 @@ body {
 
 .toolbar-spacer { flex: 1; }
 .toolbar-actions { display: flex; gap: 2px; align-items: center; }
+.note-actions-wrap { display: flex; gap: 2px; align-items: center; }
 .toolbar-actions .icon-btn { padding: 6px; }
 .toolbar-actions .icon-btn.active { color: var(--accent); background: var(--accent-dim); }
 .toolbar-actions .icon-btn.danger:hover { color: var(--red); }

@@ -412,6 +412,8 @@ function loadNote(id, category, categoryId) {
         if (!editMode) renderPreview();
         refreshSidebar();
         document.getElementById('note-title').focus();
+        var naWrap = document.getElementById('note-actions-wrap');
+        if (naWrap) naWrap.style.display = 'none';
         // Refresh right panel
         var rp = document.getElementById('right-panel');
         if (rp && !rp.classList.contains('collapsed')) refreshAllVisibleWidgets();
@@ -516,6 +518,8 @@ function loadNote(id, category, categoryId) {
 
         // Refresh sidebar and right panel
         refreshSidebar();
+        var naWrap = document.getElementById('note-actions-wrap');
+        if (naWrap) naWrap.style.display = '';
         var rp = document.getElementById('right-panel');
         if (rp && !rp.classList.contains('collapsed')) refreshAllVisibleWidgets();
         refreshCalendarWidget();
