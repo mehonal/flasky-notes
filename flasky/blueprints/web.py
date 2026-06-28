@@ -478,6 +478,7 @@ def settings_page():
                 panel_widgets=get_panel_widgets(g.user),
                 ai_enabled=settings.ai_enabled,
                 ai_settings=settings,
+                drawing_enabled=get_setting(g.user, "drawing_enabled"),
             )
         elif "revoke-api-token" in request.form:
             token_id = request.form.get("token-id")
@@ -492,6 +493,9 @@ def settings_page():
             settings.ai_enabled = "ai-enabled" in request.form
             if not settings.ai_enabled:
                 settings.ollama_api_key = None
+            db.session.commit()
+        elif "toggle-drawing" in request.form:
+            set_setting(g.user, "drawing_enabled", "drawing-enabled" in request.form)
             db.session.commit()
         elif "update-ai-settings" in request.form:
             api_key = request.form.get("ollama-api-key", "").strip()
@@ -547,6 +551,7 @@ def settings_page():
         panel_widgets=get_panel_widgets(g.user),
         ai_enabled=settings.ai_enabled,
         ai_settings=settings,
+        drawing_enabled=get_setting(g.user, "drawing_enabled"),
     )
 
 

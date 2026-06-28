@@ -102,6 +102,9 @@ REGISTRY: dict[str, SettingDef] = {
     "default_category_id": SettingDef(
         "default_category_id", 0, int, _is_int_in_range(0, 999999999),
     ),
+    # Drawing integration (canvas .fldraw). Disabled by default; the toolbar
+    # button and slash command are hidden unless this is on.
+    "drawing_enabled": SettingDef("drawing_enabled", False, bool),
 }
 
 

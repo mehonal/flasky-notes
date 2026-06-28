@@ -23,6 +23,7 @@
         { label: 'Divider', icon: '--', editorOnly: true, run: _insert('---\n') },
         { label: 'Table', icon: '||', editorOnly: true, run: _insert('| Column 1 | Column 2 |\n| --- | --- |\n|  |  |\n') },
         { label: 'Checkbox list', icon: '[]', editorOnly: true, run: _insert('- [ ] ') },
+        { label: 'Drawing', icon: '\u270F', editorOnly: true, run: function () { _call('openDrawingForNew'); } },
         { label: 'Bullet list', icon: '-', editorOnly: true, run: _insert('- ') },
         { label: 'Numbered list', icon: '1.', editorOnly: true, run: _insert('1. ') },
         { label: 'Date (today)', icon: 'D', editorOnly: true, run: _insertDate },
@@ -95,6 +96,9 @@
         var list = [];
         if (context === 'editor') {
             list = list.concat(_editorCommands);
+            if (!opts.drawingEnabled) {
+                list = list.filter(function (cmd) { return cmd.label !== 'Drawing'; });
+            }
             if (opts.aiEnabled) list = list.concat(_aiCommands);
         }
         list = list.concat(_globalCommands);

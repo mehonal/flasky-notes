@@ -69,6 +69,31 @@ def upload_attachment_bytes(user, filename, data):
     return attachment, True
 
 
+def replace_attachment(user, attachment_id, file_storage, display_filename=None):
+    """Replace an existing attachment's bytes in place, keeping its id and
+    filename stable. Used for round-trip editing of .fldraw drawings (and any
+    other attachment the client wants to overwrite). No dedup — overwrite
+    semantics. Raises AttachmentNotFound if the attachment doesn't exist or
+    isn't owned by `user`.
+    """
+    a = get_attachment(user, attachment_id)
+    old_disk = a.disk_path()
+    data = file_storage.read()
+    file_hash = hashlib.sha256(data).hexdigest()
+    a.file_hash = file_hash
+    a.file_size = len(data)
+    if display_filename:
+        a.filename = display_filename
+    db.session.commit()
+    if os.path.exists(old_disk):
+        try:
+            os.remove(old_disk)
+        except OSError:
+            pass
+    _write_to_disk(user.id, a, data)
+    return a
+
+
 def _write_to_disk(user_id, attachment, data):
     attachment_dir = current_app.config["ATTACHMENT_DIR"]
     user_dir = os.path.join(attachment_dir, str(user_id))

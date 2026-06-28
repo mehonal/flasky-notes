@@ -1704,3 +1704,21 @@ body[data-encrypted="true"] .prop-value-input { visibility: hidden; }
     100% { background: transparent; color: var(--green); }
 }
 [data-spotlight="true"] .spotlight-controls { display: flex; }
+
+/* ============ Drawing takeover (.fldraw) ============ */
+.drawing-takeover { display:none; position:fixed; inset:0; z-index:9998; background:var(--bg-primary); flex-direction:column; }
+.drawing-takeover.visible { display:flex; }
+.drawing-bar { display:flex; align-items:center; justify-content:space-between; padding:6px 12px; background:var(--bg-secondary); border-bottom:1px solid var(--border); height:48px; flex-shrink:0; }
+.drawing-bar-left { display:flex; align-items:center; gap:8px; }
+.drawing-bar-right { display:flex; align-items:center; gap:4px; }
+.drawing-title { font-size:13px; color:var(--text-muted); font-weight:500; }
+.drawing-close-btn { font-size:22px; line-height:1; }
+.drawing-save-btn.primary { background:var(--accent); color:var(--bg-primary); }
+.drawing-save-btn.primary:hover { background:var(--accent-hover); color:var(--bg-primary); }
+.drawing-canvas-wrap { flex:1; display:flex; align-items:center; justify-content:center; overflow:hidden; background:var(--bg-primary); cursor:crosshair; }
+.drawing-canvas { display:block; background:#ffffff; touch-action:none; box-shadow:0 2px 16px rgba(0,0,0,0.25); }
+
+/* Embedded .fldraw render in note preview */
+.fldraw-render { display:inline-block; max-width:100%; margin:8px 0; cursor:pointer; border:1px solid var(--border); border-radius:6px; padding:4px; background:var(--bg-secondary); }
+.fldraw-render:hover { border-color:var(--accent); }
+.fldraw-render canvas { display:block; max-width:100%; height:auto; background:#ffffff; border-radius:4px; }

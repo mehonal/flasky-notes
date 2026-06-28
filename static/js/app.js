@@ -757,7 +757,7 @@ function getEditorContent() {
 async function uploadFileToNote(file) {
     if (!file || !noteId) return;
     var formData = new FormData();
-    var filename = file.name;
+    var filename = file.name || ('upload-' + Date.now());
 
     if (typeof FlaskyE2EE !== 'undefined' && FlaskyE2EE.isEncrypted()) {
         // Encrypt file data
@@ -814,6 +814,44 @@ async function uploadFileToNote(file) {
         }
     });
 })();
+
+// ============ Drawing (.fldraw) ============
+
+function openDrawingForNew() {
+    if (typeof window.openDrawingModal !== 'function') return;
+    var name = 'drawing-' + (Date.now().toString(36)) + '.fldraw';
+    window.openDrawingModal({ attachmentId: null, filename: name, onSave: uploadFileToNote });
+}
+
+function openDrawingForEdit(el) {
+    if (typeof window.openDrawingModal !== 'function') return;
+    var attId = parseInt(el.dataset.attId, 10);
+    var filename = el.dataset.attFilename || 'drawing.fldraw';
+    if (!attId) return;
+    window.openDrawingModal({
+        attachmentId: attId,
+        filename: filename,
+        onSave: function (blob, fname) { updateExistingDrawing(attId, blob, fname); }
+    });
+}
+
+async function updateExistingDrawing(attachmentId, blob, filename) {
+    if (!attachmentId || typeof FlaskyE2EE === 'undefined' || !FlaskyE2EE.isEncrypted()) return;
+    var arrayBuf = await blob.arrayBuffer();
+    var encryptedData = await FlaskyE2EE.encryptBlob(arrayBuf);
+    var encFilename = await FlaskyE2EE.encryptField(filename);
+    var formData = new FormData();
+    formData.append('file', new Blob([encryptedData]), 'encrypted');
+    formData.append('filename', encFilename);
+    try {
+        var resp = await fetch('/api/attachment/' + attachmentId, { method: 'PUT', body: formData });
+        if (!resp.ok) { console.error('drawing update failed', resp.status); return; }
+        if (window._invalidateNoteMap) window._invalidateNoteMap();
+        if (typeof renderPreview === 'function') renderPreview();
+    } catch (e) {
+        console.error('drawing update failed:', e);
+    }
+}
 
 // ============ Edit / Preview ============
 
@@ -3155,6 +3193,7 @@ function openPalette() {
     FlaskySearchModal.open({
         editor: cmEditor,
         aiEnabled: !!(typeof _pageData !== 'undefined' && _pageData.aiEnabled),
+        drawingEnabled: !!(typeof _pageData !== 'undefined' && _pageData.drawingEnabled),
         insertCallback: function (title) {
             if (!cmEditor) return;
             var cursor = cmEditor.getCursor();
@@ -3259,6 +3298,13 @@ document.addEventListener('keydown', function(e) {
     // Shortcuts modal
     if (document.getElementById('shortcuts-overlay').classList.contains('visible')) {
         if (e.key === 'Escape') { e.preventDefault(); closeShortcutsModal(); return; }
+        return;
+    }
+    // Drawing takeover
+    var drawingEl = document.querySelector('.drawing-takeover.visible');
+    if (drawingEl) {
+        if (e.key === 'Escape') { e.preventDefault(); if (window.closeDrawingModal) window.closeDrawingModal(); return; }
+        if ((e.ctrlKey || e.metaKey) && e.key === 'z') { e.preventDefault(); var ub = drawingEl.querySelector('.drawing-undo-btn'); if (ub) ub.click(); return; }
         return;
     }
     // Template modals
@@ -3555,7 +3601,8 @@ var slashTriggerCh = -1;
 function _slashAllCommands() {
     if (typeof FlaskyCommands === 'undefined') return [];
     var aiEnabled = !!(typeof _pageData !== 'undefined' && _pageData.aiEnabled);
-    var all = FlaskyCommands.getCommands('editor', { aiEnabled: aiEnabled });
+    var drawingEnabled = !!(typeof _pageData !== 'undefined' && _pageData.drawingEnabled);
+    var all = FlaskyCommands.getCommands('editor', { aiEnabled: aiEnabled, drawingEnabled: drawingEnabled });
     return all.filter(function (cmd) { return cmd.editorOnly; });
 }
 
@@ -4127,6 +4174,7 @@ document.addEventListener('click', function(e) {
         case 'exit-spotlight': toggleSpotlightMode(); break;
         case 'open-search': openPalette(); break;
         case 'open-daily-note': openDailyNote(); break;
+        case 'open-drawing': openDrawingForNew(); break;
         case 'cal-prev-month': sidebarCalendarPrev(); break;
         case 'cal-next-month': sidebarCalendarNext(); break;
         case 'cal-open-day': sidebarCalendarOpenDay(parseInt(el.dataset.calDay, 10)); break;
@@ -4239,6 +4287,7 @@ document.addEventListener('click', function(e) {
                 if (closeFn && typeof window[closeFn] === 'function') window[closeFn]();
             }
             break;
+        case 'edit-fldraw': openDrawingForEdit(el); break;
         // Context menu actions
         case 'ctx-rename-note': ctxRenameNote(); break;
         case 'ctx-move-note': ctxMoveNote(); break;

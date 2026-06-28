@@ -197,7 +197,7 @@
     function searchCommands(query) {
         if (typeof FlaskyCommands === 'undefined') return [];
         var context = openCtx.editor ? 'editor' : 'other';
-        var all = FlaskyCommands.getCommands(context, { aiEnabled: !!openCtx.aiEnabled });
+        var all = FlaskyCommands.getCommands(context, { aiEnabled: !!openCtx.aiEnabled, drawingEnabled: !!openCtx.drawingEnabled });
         var filtered = FlaskyCommands.filter(all, query);
         return filtered.map(function (cmd) {
             return { kind: 'command', id: cmd.id, label: cmd.label, icon: cmd.icon, hint: cmd.hint, run: cmd.run };

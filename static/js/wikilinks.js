@@ -88,6 +88,8 @@
                     return '<audio controls data-encrypted-src="' + url + '" class="e2ee-attachment"></audio>';
                 } else if (att.filename.match(/\.pdf$/i)) {
                     return '<a href="' + url + '" target="_blank">' + name + '</a>';
+                } else if (att.filename.match(/\.fldraw$/i)) {
+                    return '<div class="fldraw-render" data-encrypted-src="' + url + '" data-att-id="' + att.id + '" data-att-filename="' + att.filename + '" data-action="edit-fldraw"></div>';
                 }
                 return '<a href="' + url + '">' + name + '</a>';
             }
@@ -136,6 +138,32 @@
                 el.src = URL.createObjectURL(blob);
             } catch (e) {
                 console.warn('E2EE: failed to decrypt attachment', url, e);
+            }
+        }
+        // .fldraw render elements — decrypt, parse JSON, draw to canvas.
+        // The placeholder is a bare <div> (DOMPurify strips <canvas>); we
+        // create the canvas here once the bytes are available.
+        var fldraws = (container || document).querySelectorAll('.fldraw-render[data-encrypted-src]');
+        for (var k = 0; k < fldraws.length; k++) {
+            var fEl = fldraws[k];
+            var fUrl = fEl.getAttribute('data-encrypted-src');
+            if (!fUrl) continue;
+            fEl.removeAttribute('data-encrypted-src');
+            try {
+                var fResp = await fetch(fUrl);
+                var fEnc = await fResp.arrayBuffer();
+                var fDec = await FlaskyE2EE.decryptBlob(new Uint8Array(fEnc));
+                var fText = new TextDecoder().decode(new Uint8Array(fDec));
+                var doc = window._parseFldraw ? window._parseFldraw(fText) : JSON.parse(fText);
+                if (doc && doc.strokes) {
+                    var cEl = document.createElement('canvas');
+                    fEl.appendChild(cEl);
+                    if (window._renderFldrawToCanvas) {
+                        window._renderFldrawToCanvas(cEl, doc.strokes, doc.w || 0, doc.h || 0);
+                    }
+                }
+            } catch (e) {
+                console.warn('E2EE: failed to decrypt .fldraw', fUrl, e);
             }
         }
     }

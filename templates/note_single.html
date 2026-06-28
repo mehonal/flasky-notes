@@ -25,6 +25,7 @@
     <script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='js/search-modal.js') }}"></script>
     <script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='js/wikilinks.js') }}"></script>
     <script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='js/icon-picker.js') }}"></script>
+    <script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='js/drawing.js') }}"></script>
     <link rel="stylesheet" href="{{ url_for('static', filename='vendor/hljs/styles/github-dark.min.css') }}" id="hljs-dark">
     <link rel="stylesheet" href="{{ url_for('static', filename='vendor/hljs/styles/github.min.css') }}" id="hljs-light" disabled>
     <script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='vendor/hljs/highlight.min.js') }}"></script>
@@ -152,6 +153,7 @@
         "currentNoteIconColor": {% if note and note.icon_color %}{{ note.icon_color | tojson }}{% else %}null{% endif %},
         "panelWidgets": {{ panel_widgets | tojson }},
         "aiEnabled": {% if g.user and g.user.settings and g.user.settings.ai_enabled %}true{% else %}false{% endif %},
+        "drawingEnabled": {% if ui_settings and ui_settings.drawing_enabled %}true{% else %}false{% endif %},
         "aiModel": {% if ai_settings and ai_settings.ollama_model %}{{ ai_settings.ollama_model | tojson }}{% else %}"gpt-oss:120b"{% endif %},
         "aiEndpoint": {% if ai_settings and ai_settings.ollama_endpoint %}{{ ai_settings.ollama_endpoint | tojson }}{% else %}""{% endif %},
         "timezone": {{ timezone | tojson }},
