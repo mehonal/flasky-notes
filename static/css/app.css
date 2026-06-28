@@ -636,6 +636,13 @@ body {
 .widget-config-toggle input:checked + .wc-slider { background: var(--accent-dim); }
 .widget-config-toggle input:checked + .wc-slider::before { transform: translateX(12px); background: var(--accent); }
 
+/* Right-panel widget header drag-drop reorder */
+.panel-widget.dragging { opacity: 0.4; }
+.panel-widget.drag-over { border-top: 2px solid var(--accent); }
+.panel-widget .widget-header { cursor: grab; }
+.panel-widget .widget-header:active { cursor: grabbing; }
+.panel-widget .widget-add-btn { cursor: pointer; }
+
 /* Agenda widget */
 .agenda-widget-content { font-size: 12px; }
 .agenda-widget-filter {

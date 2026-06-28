@@ -2090,6 +2090,79 @@ function toggleWidgetConfig() {
     if (panel.classList.contains('visible')) renderWidgetConfigList();
 }
 
+// Drag-drop reorder of right-panel widgets by grabbing their section headers.
+// Mirrors the widget-config-list reorder pattern but operates directly on the
+// rendered widgets. Order is persisted via the same panel_widgets setting.
+function initWidgetHeaderDrag() {
+    if (isMobile) return;
+    var container = document.getElementById('right-panel-widgets');
+    if (!container) return;
+    panelWidgets.forEach(function(w) {
+        if (!w.visible) return;
+        if (w.id === 'calendar' && calendarPlacement === 'left') return; // lives in sidebar slot
+        var widgetEl = document.getElementById('widget-' + w.id);
+        if (!widgetEl) return;
+        var header = widgetEl.querySelector('.widget-header');
+        if (!header) return;
+
+        // Buttons inside the header must not initiate a drag so their click
+        // handlers (add-todo/add-event) still fire normally.
+        var addBtn = header.querySelector('.widget-add-btn');
+        if (addBtn) addBtn.setAttribute('draggable', 'false');
+
+        if (header.dataset.dragBound === '1') return;  // avoid double-binding on re-init
+        header.dataset.dragBound = '1';
+        header.setAttribute('draggable', 'true');
+
+        header.addEventListener('dragstart', function(e) {
+            e.dataTransfer.setData('text/plain', 'widget:' + w.id);
+            e.dataTransfer.effectAllowed = 'move';
+            widgetEl.classList.add('dragging');
+            e.stopPropagation();   // keep separate from sidebar note/folder drag system
+        });
+        header.addEventListener('dragend', function() {
+            widgetEl.classList.remove('dragging');
+            container.querySelectorAll('.panel-widget').forEach(function(el) {
+                el.classList.remove('drag-over');
+            });
+        });
+        // Drop zone is the whole widget so hovering the body works too. Guard
+        // against sidebar note/folder drags via the module-level dragType flag.
+        widgetEl.addEventListener('dragover', function(e) {
+            if (dragType) return;
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+            widgetEl.classList.add('drag-over');
+            e.stopPropagation();
+        });
+        widgetEl.addEventListener('dragleave', function(e) {
+            if (e.relatedTarget && widgetEl.contains(e.relatedTarget)) return;
+            widgetEl.classList.remove('drag-over');
+        });
+        widgetEl.addEventListener('drop', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            widgetEl.classList.remove('drag-over');
+            if (dragType) return;
+            var raw = e.dataTransfer.getData('text/plain') || '';
+            if (raw.indexOf('widget:') !== 0) return;
+            var fromId = raw.slice(7);
+            var toId = w.id;
+            if (fromId === toId) return;
+            var fromIdx = -1, toIdx = -1;
+            for (var i = 0; i < panelWidgets.length; i++) {
+                if (panelWidgets[i].id === fromId) fromIdx = i;
+                if (panelWidgets[i].id === toId) toIdx = i;
+            }
+            if (fromIdx === -1 || toIdx === -1) return;
+            var moved = panelWidgets.splice(fromIdx, 1)[0];
+            panelWidgets.splice(toIdx, 0, moved);
+            applyWidgetLayout();   // appendChild moves nodes — listeners survive, no re-init needed
+            saveWidgetConfig();
+        });
+    });
+}
+
 function renderWidgetConfigList() {
     var list = document.getElementById('widget-config-list');
     list.innerHTML = '';
@@ -2183,7 +2256,10 @@ function toggleWidgetVisibility(idx, visible) {
     applyWidgetLayout();
     saveWidgetConfig();
     // Load data for newly visible widgets
-    if (visible) refreshWidget(panelWidgets[idx].id);
+    if (visible) {
+        refreshWidget(panelWidgets[idx].id);
+        initWidgetHeaderDrag();
+    }
 }
 
 function toggleWidgetCollapse(widgetId) {
@@ -3920,6 +3996,7 @@ window.addEventListener('resize', function() { isMobile = window.innerWidth <= 7
 
     // Apply widget layout from saved config
     applyWidgetLayout();
+    initWidgetHeaderDrag();
     syncQuickSettingsState();
 
     FlaskyE2EE.init().then(async function(ok) {
