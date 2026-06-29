@@ -31,7 +31,9 @@
     <script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='vendor/hljs/highlight.min.js') }}"></script>
 
     <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/customize.css') }}">
     <style nonce="{{ csp_nonce() }}">:root { --font-size: {{ font_size or 15 }}px; {% if ui_settings.font %}--editor-font: {{ ui_settings.font }};{% endif %} }</style>
+    {% include '_custom_theme.html' %}
 </head>
 <body data-encrypted="true">
     {% if encrypted_note_data %}
@@ -136,6 +138,7 @@
     </div>
 
     {% include 'modals.html' %}
+    {% include 'customize_modal.html' %}
 
     <script nonce="{{ csp_nonce() }}" type="application/json" id="app-page-data">
     {
@@ -159,6 +162,8 @@
         "timezone": {{ timezone | tojson }},
         "daily": {{ daily or 0 }},
         "calendarPlacement": {{ (ui_settings.calendar_placement if ui_settings else 'left') | tojson }},
+        "customColors": {{ custom_colors | tojson }},
+        "customCss": {{ custom_css | tojson }},
         "dailyNote": {
             "enabled": {% if ui_settings and ui_settings.daily_note_enabled %}true{% else %}false{% endif %},
             "titleFormat": {{ (ui_settings.daily_note_title_format if ui_settings else 'YYYY-MM-DD') | tojson }},
@@ -169,5 +174,6 @@
     }
     </script>
     <script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='js/app.js') }}"></script>
+    <script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='js/customize.js') }}"></script>
 </body>
 </html>

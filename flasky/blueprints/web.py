@@ -47,6 +47,7 @@ from flasky.ui_settings import (
     set_setting,
     get_panel_widgets,
     set_panel_widgets,
+    get_effective_colors,
 )
 
 # Paths exempt from CSRF validation (pre-auth or token-auth endpoints)
@@ -468,13 +469,16 @@ def settings_page():
             db.session.add(new_token)
             db.session.commit()
             tokens = ApiToken.query.filter_by(user_id=g.user.id).all()
+            ui_settings = get_all_settings(g.user)
             return render_template(
                 "settings.html",
                 timezones=available_timezones(),
                 tokens=tokens,
                 new_token=plaintext,
                 sync_enabled=settings.obsidian_sync_enabled,
-                ui_settings=get_all_settings(g.user),
+                ui_settings=ui_settings,
+                custom_colors=get_effective_colors(ui_settings.custom_colors),
+                custom_css=ui_settings.custom_css,
                 panel_widgets=get_panel_widgets(g.user),
                 ai_enabled=settings.ai_enabled,
                 ai_settings=settings,
@@ -541,13 +545,16 @@ def settings_page():
         .order_by(SyncConflict.conflict_date.desc())
         .all()
     )
+    ui_settings = get_all_settings(g.user)
     return render_template(
         "settings.html",
         timezones=available_timezones(),
         tokens=tokens,
         conflicts=conflicts,
         sync_enabled=settings.obsidian_sync_enabled,
-        ui_settings=get_all_settings(g.user),
+        ui_settings=ui_settings,
+        custom_colors=get_effective_colors(ui_settings.custom_colors),
+        custom_css=ui_settings.custom_css,
         panel_widgets=get_panel_widgets(g.user),
         ai_enabled=settings.ai_enabled,
         ai_settings=settings,
@@ -695,6 +702,8 @@ def note_single_page(note_id):
         category=category,
         category_id=category_id,
         ui_settings=ui_settings,
+        custom_colors=get_effective_colors(ui_settings.custom_colors),
+        custom_css=ui_settings.custom_css,
         category_tree=category_tree,
         default_template=default_template,
         default_category_id=(default_category.id if default_category else 0),
@@ -745,6 +754,8 @@ def agenda_page():
         ai_enabled=settings.ai_enabled if settings else False,
         ai_settings=settings,
         ui_settings=ui_settings,
+        custom_colors=get_effective_colors(ui_settings.custom_colors),
+        custom_css=ui_settings.custom_css,
     )
 
 
@@ -788,12 +799,15 @@ def export_page():
     note_count = UserNote.query.filter_by(userid=g.user.id).count()
     category_count = UserNoteCategory.query.filter_by(user_id=g.user.id).count()
     attachment_count = Attachment.query.filter_by(user_id=g.user.id).count()
+    ui_settings = get_all_settings(g.user)
     return render_template(
         "export.html",
         note_count=note_count,
         category_count=category_count,
         attachment_count=attachment_count,
-        ui_settings=get_all_settings(g.user),
+        ui_settings=ui_settings,
+        custom_colors=get_effective_colors(ui_settings.custom_colors),
+        custom_css=ui_settings.custom_css,
     )
 
 

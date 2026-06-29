@@ -12,6 +12,7 @@ writes go through set_setting(user, key, value) which enforces the
 SettingDef validator.
 """
 
+import json
 from dataclasses import dataclass
 from typing import Any, Callable, Optional
 
@@ -105,7 +106,85 @@ REGISTRY: dict[str, SettingDef] = {
     # Drawing integration (canvas .fldraw). Disabled by default; the toolbar
     # button and slash command are hidden unless this is on.
     "drawing_enabled": SettingDef("drawing_enabled", False, bool),
+    # Per-user theme customization. custom_colors is a dict mapping theme
+    # mode ("dark"/"light") to {css_var: value} overrides for the ~10
+    # customizable CSS variables. custom_css is raw user CSS appended after
+    # the variable overrides. Both are injected into a <style> block that
+    # comes after app.css / page inline styles so it wins the cascade.
+    "custom_colors": SettingDef(
+        "custom_colors", {}, dict,
+        lambda v: isinstance(v, dict) and len(json.dumps(v)) <= 20000,
+    ),
+    "custom_css": SettingDef(
+        "custom_css", "", str,
+        lambda v: isinstance(v, str) and len(v) <= 50000,
+    ),
 }
+
+# The CSS variables exposed in the customize UI (curated subset). The dark
+# and light defaults below MUST stay in sync with app.css :root /
+# [data-theme="light"] so the customize UI can show the current value and
+# reset to default. rgba vars (border/border-light) use text inputs in the UI.
+CUSTOMIZABLE_VARS = [
+    "--bg-primary", "--bg-secondary", "--bg-sidebar",
+    "--text-primary", "--text-secondary", "--text-muted",
+    "--accent", "--accent-hover",
+    "--border", "--border-light",
+]
+
+DEFAULT_COLORS = {
+    "dark": {
+        "--bg-primary": "#1e1e2e",
+        "--bg-secondary": "#181825",
+        "--bg-sidebar": "#11111b",
+        "--text-primary": "#cdd6f4",
+        "--text-secondary": "#bac2de",
+        "--text-muted": "#585b70",
+        "--accent": "#b4befe",
+        "--accent-hover": "#cba6f7",
+        "--border": "rgba(255,255,255,0.06)",
+        "--border-light": "rgba(255,255,255,0.1)",
+    },
+    "light": {
+        "--bg-primary": "#f8f9fc",
+        "--bg-secondary": "#eff1f5",
+        "--bg-sidebar": "#e6e9ef",
+        "--text-primary": "#4c4f69",
+        "--text-secondary": "#5c5f77",
+        "--text-muted": "#9ca0b0",
+        "--accent": "#7287fd",
+        "--accent-hover": "#8839ef",
+        "--border": "rgba(0,0,0,0.06)",
+        "--border-light": "rgba(0,0,0,0.1)",
+    },
+}
+
+
+def get_effective_colors(custom_colors: dict | None) -> dict:
+    """Return the merged color overrides for both themes.
+
+    Only overrides the user has actually set are included (empty value =
+    reset to default). This lets the injected <style> block stay small and
+    lets missing keys fall through to app.css defaults naturally.
+
+    Takes the raw ``custom_colors`` dict (as stored in ui_settings) so the
+    caller can pass the already-loaded value from get_all_settings() —
+    avoiding a redundant JSON re-parse per page render.
+    """
+    if not isinstance(custom_colors, dict):
+        return {}
+    out = {}
+    for mode in ("dark", "light"):
+        mode_overrides = {}
+        raw = custom_colors.get(mode)
+        if isinstance(raw, dict):
+            for var in CUSTOMIZABLE_VARS:
+                val = raw.get(var)
+                if isinstance(val, str) and val.strip():
+                    mode_overrides[var] = val.strip()
+        if mode_overrides:
+            out[mode] = mode_overrides
+    return out
 
 
 class AttrDict(dict):

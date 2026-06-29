@@ -1,0 +1,177 @@
+/* ============ Customize appearance modal + settings tab ============
+   Loaded by note_single.html (which loads app.css) and settings.html
+   (which does NOT load app.css — it has its own inline variables). This
+   shared file ensures the customize UI is styled consistently on both
+   pages. It uses the same CSS variables (--bg-*, --text-*, --accent,
+   --border, etc.) that both pages define. */
+
+.customize-overlay {
+    background: rgba(0,0,0,0.15);
+    padding-top: 0;
+    justify-content: flex-end;
+    z-index: 1100;
+}
+.customize-overlay.visible { display: flex; }
+.customize-modal {
+    width: 380px;
+    max-width: 90vw;
+    height: 100vh;
+    height: 100dvh;
+    background: var(--bg-secondary);
+    border-left: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    box-shadow: -4px 0 24px rgba(0,0,0,0.2);
+    overflow: hidden;
+}
+.customize-modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+}
+.customize-modal-title { font-weight: 600; color: var(--text-primary); }
+.customize-modal-body { flex: 1; overflow-y: auto; padding: 12px 16px; }
+.customize-modal-footer {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 16px;
+    border-top: 1px solid var(--border);
+    flex-shrink: 0;
+}
+.customize-save-status { color: var(--green); font-size: 0.85rem; margin-right: auto; }
+
+.customize-content { padding: 0 16px 8px; }
+
+.customize-tabs {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 12px;
+    border-bottom: 1px solid var(--border);
+}
+.customize-tab-btn {
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    color: var(--text-secondary);
+    padding: 8px 12px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    border-radius: 0;
+}
+.customize-tab-btn:hover { color: var(--text-primary); }
+.customize-tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+.customize-panel { display: flex; flex-direction: column; gap: 10px; }
+.customize-panel[hidden] { display: none; }
+
+.customize-theme-subtabs { display: flex; gap: 6px; margin-bottom: 8px; }
+.customize-theme-btn {
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--text-secondary);
+    padding: 4px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.8rem;
+}
+.customize-theme-btn:hover { border-color: var(--accent); color: var(--text-primary); }
+.customize-theme-btn.active { background: var(--accent); color: var(--bg-primary); border-color: var(--accent); }
+
+.color-picker-grid { display: flex; flex-direction: column; gap: 8px; }
+.color-picker-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+.color-picker-label { color: var(--text-secondary); font-size: 0.85rem; flex: 1; }
+.color-picker-control { display: flex; align-items: center; gap: 6px; }
+.color-input { width: 36px; height: 28px; border: 1px solid var(--border); border-radius: 4px; cursor: pointer; background: none; padding: 1px; }
+.color-input::-webkit-color-swatch-wrapper { padding: 0; }
+.color-input::-webkit-color-swatch { border: none; border-radius: 3px; }
+.color-text-input {
+    width: 130px; padding: 4px 8px; font-size: 0.8rem;
+    background: var(--bg-input); color: var(--text-primary);
+    border: 1px solid var(--border); border-radius: 4px;
+}
+.color-reset-btn {
+    background: none; border: 1px solid var(--border); color: var(--text-muted);
+    width: 24px; height: 24px; border-radius: 4px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center; font-size: 0.9rem;
+    line-height: 1; padding: 0;
+}
+.color-reset-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+.customize-actions { display: flex; gap: 8px; margin-top: 8px; }
+.customize-field { display: flex; flex-direction: column; gap: 4px; }
+.customize-label { color: var(--text-secondary); font-size: 0.85rem; }
+.customize-input {
+    padding: 6px 10px; font-size: 0.9rem;
+    background: var(--bg-input); color: var(--text-primary);
+    border: 1px solid var(--border); border-radius: 4px;
+    width: 100%;
+}
+.customize-css-textarea, .customize-prompt-textarea, .ai-css-output {
+    width: 100%;
+    min-height: 140px;
+    padding: 8px 10px;
+    font-family: 'SF Mono', 'Monaco', 'Menlo', 'Consolas', monospace;
+    font-size: 0.8rem;
+    background: var(--bg-input); color: var(--text-primary);
+    border: 1px solid var(--border); border-radius: 4px;
+    resize: vertical;
+    line-height: 1.5;
+}
+.ai-css-output { min-height: 180px; }
+.ai-css-result { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
+.ai-css-result[hidden] { display: none; }
+.ai-css-status { font-size: 0.8rem; color: var(--text-secondary); }
+.ai-css-status.ai-css-ok { color: var(--green); }
+.ai-css-status.ai-css-warn { color: var(--yellow); }
+.ai-css-status.ai-css-error { color: var(--red); }
+.customize-checkbox-row { display: flex; flex-direction: column; gap: 6px; }
+.customize-checkbox-label { display: flex; align-items: center; gap: 6px; color: var(--text-secondary); font-size: 0.82rem; cursor: pointer; }
+.customize-checkbox-label input { cursor: pointer; }
+.customize-apply-mode { display: flex; gap: 14px; align-items: center; margin-right: auto; }
+.customize-radio-label { display: flex; align-items: center; gap: 4px; color: var(--text-secondary); font-size: 0.82rem; cursor: pointer; }
+.customize-radio-label input { cursor: pointer; }
+.customize-hint { color: var(--text-muted); font-size: 0.8rem; margin-bottom: 8px; padding: 0 16px; }
+
+/* Buttons used inside the customize UI — mirror the app.css .btn-sm style
+   since settings.html may not define .btn-sm (it does, but keep this
+   self-sufficient). */
+.customize-actions .btn-sm, .customize-modal-footer .btn-sm {
+    padding: 6px 14px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    cursor: pointer;
+    font-size: 0.85rem;
+}
+.customize-actions .btn-sm:hover, .customize-modal-footer .btn-sm:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+}
+.customize-actions .btn-sm.primary, .customize-modal-footer .btn-sm.primary {
+    background: var(--accent);
+    color: var(--bg-primary);
+    border-color: var(--accent);
+}
+.customize-actions .btn-sm.primary:hover, .customize-modal-footer .btn-sm.primary:hover {
+    background: var(--accent-hover);
+    border-color: var(--accent-hover);
+}
+
+/* Quick-settings customize button */
+.qs-customize-btn {
+    display: flex; align-items: center; gap: 6px;
+    width: 100%; background: none; border: 1px solid var(--border);
+    color: var(--text-secondary); padding: 6px 8px; border-radius: 4px;
+    cursor: pointer; font-size: 0.8rem; margin-bottom: 8px;
+}
+.qs-customize-btn:hover { border-color: var(--accent); color: var(--accent); }
+.qs-customize-btn svg { flex-shrink: 0; }

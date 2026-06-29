@@ -372,6 +372,8 @@
         .content-area { padding: 16px; }
     }
     </style>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/customize.css') }}">
+    {% include '_custom_theme.html' %}
 </head>
 <body data-encrypted="true">
 
@@ -421,6 +423,10 @@
             <button type="button" class="nav-item nav-item-btn active" data-action="settings-tab" data-tab="appearance">
                 <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/></svg>
                 Appearance
+            </button>
+            <button type="button" class="nav-item nav-item-btn" data-action="settings-tab" data-tab="customize">
+                <svg viewBox="0 0 24 24"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>
+                Customize
             </button>
             <button type="button" class="nav-item nav-item-btn" data-action="settings-tab" data-tab="editor">
                 <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="15" y1="3" x2="15" y2="21"/></svg>
@@ -542,20 +548,27 @@
                                 </div>
                             </div>
                             <div class="setting-row">
-                                <label class="setting-label" for="font-size">Font size</label>
-                                <div class="setting-control">
-                                    <input name="font-size" id="font-size" class="setting-input" type="number" min="10" max="32" value="{{ ui_settings.font_size }}">
-                                </div>
-                            </div>
-                            <div class="setting-row">
-                                <label class="setting-label" for="font-family">Font family</label>
-                                <div class="setting-control" style="flex:1; max-width:240px;">
-                                    <input name="font-family" id="font-family" class="setting-input" type="text" value="{{ ui_settings.font }}" placeholder="e.g. Inter, serif" style="width:100%;">
-                                </div>
-                            </div>
-                            <div class="setting-row">
                                 <button name="update-ui-settings" class="btn-sm primary" type="submit">Save appearance</button>
                             </div>
+                    </div>
+                </div>
+
+                <!-- Customize (theme colors, font, custom CSS, AI generate) -->
+                <div class="panel" data-tab="customize" hidden>
+                    <div class="panel-header">
+                        <div class="panel-title">
+                            <svg viewBox="0 0 24 24"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>
+                            Customize
+                        </div>
+                    </div>
+                    <div class="panel-body">
+                        <div class="customize-hint">Changes apply live. Click Save to persist.</div>
+                        {% with scope="settings" %}
+                            {% include '_customize_content.html' %}
+                        {% endwith %}
+                        <div class="setting-row">
+                            <button type="button" class="btn-sm primary" data-action="save-customize" data-scope="settings">Save</button>
+                        </div>
                     </div>
                 </div>
 
@@ -1303,5 +1316,16 @@
     }
 })();
 </script>
+<script nonce="{{ csp_nonce() }}" type="application/json" id="customize-page-data">
+{
+    "customColors": {{ custom_colors | tojson }},
+    "customCss": {{ custom_css | tojson }},
+    "aiEnabled": {% if ai_enabled %}true{% else %}false{% endif %},
+    "aiModel": {% if ai_settings and ai_settings.ollama_model %}{{ ai_settings.ollama_model | tojson }}{% else %}"gpt-oss:120b"{% endif %},
+    "fontFamily": {{ ui_settings.font | tojson }},
+    "fontSize": {{ ui_settings.font_size }}
+}
+</script>
+<script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='js/customize.js') }}"></script>
 </body>
 </html>

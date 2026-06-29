@@ -1,0 +1,23 @@
+{# Customize appearance modal — semi-transparent backdrop so the editor behind
+   it stays visible and updates live as colors/fonts/CSS are tweaked. Included
+   only in note_single.html. #}
+<div class="modal-overlay customize-overlay" id="customize-overlay"
+     data-action="close-modal-self" data-modal-close="closeCustomizeModal">
+  <div class="customize-modal">
+    <div class="customize-modal-header">
+      <span class="customize-modal-title">Customize Appearance</span>
+      <button type="button" class="icon-btn" data-action="close-customize-modal" title="Close" aria-label="Close">
+        <svg viewBox="0 0 24 24" width="18" height="18"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="customize-modal-body">
+      {% with scope="modal" %}
+        {% include '_customize_content.html' %}
+      {% endwith %}
+    </div>
+    <div class="customize-modal-footer">
+      <button type="button" class="btn-sm primary" data-action="save-customize" data-scope="modal">Save</button>
+      <button type="button" class="btn-sm" data-action="close-customize-modal">Cancel</button>
+    </div>
+  </div>
+</div>

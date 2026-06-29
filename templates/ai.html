@@ -22,6 +22,7 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/ai.css') }}">
     <style nonce="{{ csp_nonce() }}">:root { --font-size: {{ font_size or 15 }}px; }</style>
+    {% include '_custom_theme.html' %}
 </head>
 <body data-encrypted="true">
 

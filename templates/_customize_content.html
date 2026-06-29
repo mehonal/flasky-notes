@@ -1,0 +1,91 @@
+{# Shared customize UI: colors, font, custom CSS, AI generate tabs.
+   Included by customize_modal.html (scope="modal") and the settings page
+   Customize tab (scope="settings"). The scope suffix namespaces element IDs
+   so both instances can coexist on the settings page (which renders the
+   modal too, though it's only visible on the editor page). JS in customize.js
+   targets elements via [data-customize-scope="{{ scope }}"] to find the
+   right instance. #}
+{% set s = scope %}
+{% set _ai_on = ai_enabled if ai_enabled is defined else (g.user and g.user.settings and g.user.settings.ai_enabled) %}
+<div class="customize-content" data-customize-scope="{{ s }}">
+  <div class="customize-tabs">
+    <button type="button" class="customize-tab-btn active" data-action="customize-tab" data-scope="{{ s }}" data-tab="colors">Colors</button>
+    <button type="button" class="customize-tab-btn" data-action="customize-tab" data-scope="{{ s }}" data-tab="font">Font</button>
+    <button type="button" class="customize-tab-btn" data-action="customize-tab" data-scope="{{ s }}" data-tab="css">Custom CSS</button>
+    {% if _ai_on %}<button type="button" class="customize-tab-btn" data-action="customize-tab" data-scope="{{ s }}" data-tab="ai">AI Generate</button>{% endif %}
+  </div>
+
+  <!-- Colors tab -->
+  <div class="customize-panel" data-customize-panel="{{ s }}-colors">
+    <div class="customize-theme-subtabs">
+      <button type="button" class="customize-theme-btn active" data-action="customize-color-theme" data-scope="{{ s }}" data-theme="dark">Dark</button>
+      <button type="button" class="customize-theme-btn" data-action="customize-color-theme" data-scope="{{ s }}" data-theme="light">Light</button>
+    </div>
+    <div class="color-picker-grid" id="color-grid-{{ s }}"></div>
+    <div class="customize-actions">
+      <button type="button" class="btn-sm" data-action="reset-all-colors" data-scope="{{ s }}">Reset all colors</button>
+    </div>
+  </div>
+
+  <!-- Font tab -->
+  <div class="customize-panel" data-customize-panel="{{ s }}-font" hidden>
+    <div class="customize-field">
+      <label class="customize-label" for="cust-font-family-{{ s }}">Font family</label>
+      <input type="text" id="cust-font-family-{{ s }}" class="customize-input" placeholder="e.g. Inter, sans-serif">
+    </div>
+    <div class="customize-field">
+      <label class="customize-label" for="cust-font-size-{{ s }}">Font size (px)</label>
+      <input type="number" id="cust-font-size-{{ s }}" class="customize-input" min="8" max="40">
+    </div>
+  </div>
+
+  <!-- Custom CSS tab -->
+  <div class="customize-panel" data-customize-panel="{{ s }}-css" hidden>
+    <textarea id="cust-css-input-{{ s }}" class="customize-css-textarea" placeholder="/* Custom CSS — applied live */" spellcheck="false"></textarea>
+    <div class="customize-actions">
+      <button type="button" class="btn-sm primary" data-action="apply-custom-css" data-scope="{{ s }}">Apply</button>
+    </div>
+  </div>
+
+  <!-- AI Generate tab -->
+  {% if _ai_on %}
+  <div class="customize-panel" data-customize-panel="{{ s }}-ai" hidden>
+    <div class="customize-field">
+      <label class="customize-label" for="ai-css-model-{{ s }}">Model</label>
+      <select id="ai-css-model-{{ s }}" class="customize-input ai-css-model-select"></select>
+    </div>
+    <div class="customize-field customize-checkbox-row">
+      <label class="customize-checkbox-label">
+        <input type="checkbox" id="ai-css-include-css-{{ s }}" class="ai-css-include-css">
+        Include current custom CSS
+      </label>
+      <label class="customize-checkbox-label">
+        <input type="checkbox" id="ai-css-include-colors-{{ s }}" class="ai-css-include-colors">
+        Include current color overrides
+      </label>
+    </div>
+    <textarea id="ai-css-prompt-{{ s }}" class="customize-prompt-textarea" placeholder="Describe the changes you want, e.g. &#34;make the sidebar darker and use a green accent&#34;" spellcheck="false"></textarea>
+    <div class="customize-actions">
+      <button type="button" class="btn-sm primary" data-action="ai-generate-css" data-scope="{{ s }}">Generate CSS</button>
+    </div>
+    <div id="ai-css-result-{{ s }}" class="ai-css-result" hidden>
+      <div class="ai-css-status" id="ai-css-status-{{ s }}"></div>
+      <textarea id="ai-css-output-{{ s }}" class="ai-css-output" readonly spellcheck="false"></textarea>
+      <div class="customize-actions">
+        <div class="customize-apply-mode">
+          <label class="customize-radio-label">
+            <input type="radio" name="ai-css-apply-mode-{{ s }}" value="append" class="ai-css-apply-mode" checked>
+            Append to Custom CSS
+          </label>
+          <label class="customize-radio-label">
+            <input type="radio" name="ai-css-apply-mode-{{ s }}" value="replace" class="ai-css-apply-mode">
+            Replace Custom CSS
+          </label>
+        </div>
+        <button type="button" class="btn-sm" data-action="copy-ai-css" data-scope="{{ s }}">Copy</button>
+        <button type="button" class="btn-sm primary" data-action="apply-ai-css" data-scope="{{ s }}" id="apply-ai-css-btn-{{ s }}" disabled>Apply to Custom CSS</button>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+</div>

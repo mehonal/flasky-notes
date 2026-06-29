@@ -5,14 +5,33 @@ registry in flasky/ui_settings.py. Adding a new UI setting requires no
 migration — only a new SettingDef entry in REGISTRY. These endpoints persist
 single keys.
 """
+import re
+
 from flask import Blueprint, request, g, jsonify
 
 from flasky import db
 from flasky.utils import login_required
-from flasky.ui_settings import set_setting, set_panel_widgets
-
+from flasky.ui_settings import (
+    set_setting, set_panel_widgets, CUSTOMIZABLE_VARS,
+)
 
 ui_state_bp = Blueprint("ui_state", __name__, url_prefix="/api")
+
+# Accept hex colors (#rgb / #rrggbb / #rrggbbaa / #rrrrggggbbbb), CSS named
+# colors, and rgba()/rgb() function calls. Empty string means "reset to
+# default" and is allowed.
+_COLOR_RE = re.compile(
+    r"^(#[0-9a-fA-F]{3,8}|rgba?\([^)]*\)|[a-zA-Z-]+)$"
+)
+
+
+def _is_valid_color_value(val):
+    if not isinstance(val, str):
+        return False
+    val = val.strip()
+    if not val:
+        return True
+    return bool(_COLOR_RE.match(val))
 
 
 @ui_state_bp.route("/save_font_size/<int:font_size>")
@@ -89,3 +108,64 @@ def save_hide_title():
     set_setting(g.user, "hide_title", hide_title)
     db.session.commit()
     return jsonify(success=True, new_hide_title_setting=hide_title)
+
+
+@ui_state_bp.route("/save_font_family", methods=["POST"])
+@login_required
+def save_font_family():
+    data = request.get_json(silent=True) or {}
+    font = (data.get("font") or "").strip()
+    if len(font) > 200:
+        return jsonify(success=False, reason="Font family too long."), 400
+    set_setting(g.user, "font", font)
+    db.session.commit()
+    return jsonify(success=True, font=font)
+
+
+@ui_state_bp.route("/save_custom_colors", methods=["POST"])
+@login_required
+def save_custom_colors():
+    data = request.get_json(silent=True) or {}
+    colors = data.get("colors")
+    if not isinstance(colors, dict):
+        return jsonify(success=False, reason="colors must be an object."), 400
+    # Validate structure: {"dark": {var: val}, "light": {var: val}}
+    cleaned = {}
+    for mode in ("dark", "light"):
+        mode_colors = colors.get(mode)
+        if mode_colors is None:
+            continue
+        if not isinstance(mode_colors, dict):
+            return jsonify(
+                success=False, reason=f"{mode} must be an object."
+            ), 400
+        cleaned_mode = {}
+        for var, val in mode_colors.items():
+            if var not in CUSTOMIZABLE_VARS:
+                continue
+            if not _is_valid_color_value(val):
+                return jsonify(
+                    success=False, reason=f"Invalid color for {var}."
+                ), 400
+            stripped = val.strip()
+            if stripped:
+                cleaned_mode[var] = stripped
+        if cleaned_mode:
+            cleaned[mode] = cleaned_mode
+    set_setting(g.user, "custom_colors", cleaned)
+    db.session.commit()
+    return jsonify(success=True, colors=cleaned)
+
+
+@ui_state_bp.route("/save_custom_css", methods=["POST"])
+@login_required
+def save_custom_css():
+    data = request.get_json(silent=True) or {}
+    css = data.get("css")
+    if not isinstance(css, str):
+        return jsonify(success=False, reason="css must be a string."), 400
+    if len(css) > 50000:
+        return jsonify(success=False, reason="CSS too long."), 400
+    set_setting(g.user, "custom_css", css)
+    db.session.commit()
+    return jsonify(success=True)

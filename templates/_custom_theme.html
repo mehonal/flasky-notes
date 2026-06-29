@@ -1,0 +1,15 @@
+{# Per-user theme override block. Injected AFTER app.css / page inline styles
+   in every top-level template so it wins the cascade regardless of the
+   divergent inline palettes some pages define. custom_colors is a dict like
+   {"dark": {"--accent": "#ff0000"}, "light": {...}} — only set vars are
+   emitted; missing vars fall through to app.css defaults. custom_css is raw
+   user CSS appended verbatim. #}
+{% set _has_colors = custom_colors and (custom_colors.get('dark') or custom_colors.get('light')) %}
+{% if _has_colors or custom_css %}
+<style nonce="{{ csp_nonce() }}" id="custom-theme-override">
+{% if _has_colors %}{% for mode, vars in custom_colors.items() %}{% if vars %}{% if mode == 'dark' %}:root{% else %}[data-theme="light"]{% endif %} {
+{% for k, v in vars.items() %}  {{ k }}: {{ v }};
+{% endfor %}}
+{% endif %}{% endfor %}{% endif %}{% if custom_css %}{{ custom_css }}
+{% endif %}</style>
+{% endif %}

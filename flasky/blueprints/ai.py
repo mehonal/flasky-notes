@@ -11,10 +11,14 @@ from flask import (
 )
 import json
 import logging
+import re
 
 from flasky import db
 from flasky.models import AiConversation, AiMessage
-from flasky.ui_settings import get_setting
+from flasky.ui_settings import (
+    get_setting, get_all_settings, get_effective_colors,
+    DEFAULT_COLORS, CUSTOMIZABLE_VARS,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -88,6 +92,7 @@ def ai_page():
     font_size = get_setting(g.user, "font_size") if g.user else 15
     dark_mode = get_setting(g.user, "dark_mode") if g.user else False
     if not ai_enabled:
+        ui_settings = get_all_settings(g.user) if g.user else None
         return render_template(
             "ai.html",
             ai_enabled=False,
@@ -98,6 +103,8 @@ def ai_page():
             current_theme_dark=dark_mode,
             font_size=font_size,
             models=OLLAMA_CLOUD_MODELS,
+            custom_colors=get_effective_colors(ui_settings.custom_colors) if ui_settings else {},
+            custom_css=ui_settings.custom_css if ui_settings else "",
         )
     conversations = (
         AiConversation.query.filter_by(user_id=g.user.id)
@@ -113,6 +120,7 @@ def ai_page():
     current_conversation_json = (
         json.dumps(current_conversation.return_json()) if current_conversation else "null"
     )
+    ui_settings = get_all_settings(g.user)
     return render_template(
         "ai.html",
         ai_enabled=True,
@@ -123,6 +131,8 @@ def ai_page():
         current_theme_dark=dark_mode,
         font_size=font_size,
         models=OLLAMA_CLOUD_MODELS,
+        custom_colors=get_effective_colors(ui_settings.custom_colors),
+        custom_css=ui_settings.custom_css,
     )
 
 
@@ -391,3 +401,191 @@ def create_note_from_ai():
 
     note = create_note(g.user, note_title, note_content, None)
     return jsonify(success=True, note_id=note.id, title=note_title)
+
+
+# ---------------------------------------------------------------------------
+# AI CSS generation (non-streaming). Used by the Customize modal to generate
+# custom CSS from a natural-language prompt. CSS is UI state (not E2EE note
+# content), so it is not encrypted and does not require a conversation.
+# ---------------------------------------------------------------------------
+
+AI_CSS_SYSTEM_PROMPT = (
+    "You are a CSS expert helping a user redesign the appearance of their "
+    "note-taking app. You will be given the current CSS custom property "
+    "values for the active theme and a minimal HTML skeleton of the app "
+    "layout with the real class names.\n\n"
+    "Rules:\n"
+    "1. Return ONLY valid CSS. No explanations, no markdown fences, no HTML.\n"
+    "2. You may override the provided CSS custom properties (e.g. "
+    "``--accent: #ff0000;``) and/or write rules targeting the provided class "
+    "names (e.g. ``.sidebar { ... }``).\n"
+    "3. Do NOT use @import, url(), expression(), javascript:, or any "
+    "external resource fetch. Do not include <style> tags.\n"
+    "4. Keep the output concise and focused on the user's request.\n"
+    "5. Prefer overriding the CSS custom properties for color/background "
+    "changes; use class-based rules only for layout/spacing/borders.\n"
+)
+
+_CSS_SKELETON = """\
+<div class="app">
+  <aside class="sidebar">
+    <div class="sidebar-header">...</div>
+    <div class="sidebar-nav">
+      <a class="nav-item">...</a>
+      <button class="nav-item nav-item-btn">...</button>
+    </div>
+    <div class="sidebar-footer">...</div>
+  </aside>
+  <div class="main">
+    <div class="toolbar">
+      <button class="icon-btn">...</button>
+      <span class="breadcrumb">...</span>
+      <button class="icon-btn" id="theme-toggle">...</button>
+    </div>
+    <div class="editor-area">
+      <div class="editor-wrap">
+        <div class="cm-editor">CodeMirror editor</div>
+        <div class="editor-preview">markdown preview</div>
+      </div>
+      <aside class="right-panel">
+        <div class="right-panel-top-bar">...</div>
+        <div class="right-panel-widgets">
+          <div class="panel-widget">...</div>
+        </div>
+      </aside>
+    </div>
+    <div class="status-bar">
+      <span class="status-item">...</span>
+    </div>
+  </div>
+</div>"""
+
+# Patterns that must never appear in generated CSS (CSP/safety guards).
+_FORBIDDEN_CSS_RE = re.compile(
+    r"@import|expression\(|url\(|javascript:|<script|</script|<style|</style",
+    re.IGNORECASE,
+)
+
+
+def _build_css_context(
+    theme: str,
+    current_css: str = "",
+    color_overrides: dict | None = None,
+) -> str:
+    """Build the minimal context string sent to the model.
+
+    By default only the theme defaults are sent (so the model knows the
+    baseline). When ``color_overrides`` is provided, the user's actual
+    overrides are merged on top of the defaults so the model sees the
+    current effective palette. When ``current_css`` is provided, the
+    user's existing custom CSS is included so the model can modify or
+    extend it instead of starting from scratch.
+    """
+    defaults = DEFAULT_COLORS.get(theme, DEFAULT_COLORS["dark"])
+    effective = dict(defaults)
+    if color_overrides:
+        theme_overrides = color_overrides.get(theme, {})
+        if isinstance(theme_overrides, dict):
+            for var in CUSTOMIZABLE_VARS:
+                val = theme_overrides.get(var)
+                if isinstance(val, str) and val.strip():
+                    effective[var] = val.strip()
+    var_lines = "\n".join(
+        f"  {var}: {effective.get(var, 'unset')};"
+        for var in CUSTOMIZABLE_VARS
+    )
+    parts = [
+        f"Active theme: {theme}",
+        f"Current CSS custom properties ({theme}):",
+        f":root {{\n{var_lines}\n}}",
+        f"HTML skeleton (use these class names):\n{_CSS_SKELETON}",
+    ]
+    if current_css:
+        parts.append(
+            "User's current custom CSS (modify/extend this as requested, "
+            "do not repeat unchanged rules):\n" + current_css
+        )
+    return "\n\n".join(parts) + "\n"
+
+
+def _strip_code_fence(text: str) -> str:
+    text = text.strip()
+    if text.startswith("```"):
+        lines = text.splitlines()
+        if lines[0].startswith("```"):
+            lines = lines[1:]
+        if lines and lines[-1].strip() == "```":
+            lines = lines[:-1]
+        text = "\n".join(lines).strip()
+    return text
+
+
+def _validate_css(css: str) -> bool:
+    if not css or not css.strip():
+        return False
+    if _FORBIDDEN_CSS_RE.search(css):
+        return False
+    # "<" has no valid use in CSS and can break out of a <style> element; the
+    # HTML auto-escaping in the template neutralizes it, but reject anyway as
+    # a defense-in-depth guard. ">" (child combinator) is valid CSS, so allow it.
+    if "<" in css:
+        return False
+    open_braces = css.count("{")
+    close_braces = css.count("}")
+    if open_braces != close_braces:
+        return False
+    return True
+
+
+@ai_bp.route("/api/generate_css", methods=["POST"])
+def generate_css():
+    err = _check_ai_enabled()
+    if err:
+        return err
+    settings = g.user.return_settings()
+    if not settings.ollama_api_key:
+        return jsonify(error="Ollama API key not configured. Set it in Settings."), 400
+    data = request.get_json(silent=True) or {}
+    prompt = (data.get("prompt") or "").strip()
+    if not prompt:
+        return jsonify(error="Prompt is required."), 400
+    theme = data.get("theme", "dark")
+    if theme not in ("dark", "light"):
+        theme = "dark"
+    model = (data.get("model") or "").strip() or settings.ollama_model or "gpt-oss:120b"
+    include_current_css = bool(data.get("include_current_css"))
+    include_color_overrides = bool(data.get("include_color_overrides"))
+
+    ui_settings = get_all_settings(g.user)
+    current_css = ui_settings.custom_css if (include_current_css and ui_settings) else ""
+    color_overrides = (
+        get_effective_colors(ui_settings.custom_colors)
+        if (include_color_overrides and ui_settings)
+        else None
+    )
+
+    context = _build_css_context(theme, current_css, color_overrides)
+    messages = [
+        {"role": "system", "content": AI_CSS_SYSTEM_PROMPT},
+        {"role": "user", "content": f"Prompt: {prompt}\n\nContext:\n{context}"},
+    ]
+    try:
+        client = _get_ollama_client(settings)
+        resp = client.chat(
+            model=model,
+            messages=messages,
+            stream=False,
+        )
+    except Exception as e:
+        logger.error("Ollama generate_css error: %s", e)
+        return jsonify(
+            error="An error occurred while generating CSS. Please try again."
+        ), 500
+    css = ""
+    try:
+        css = resp.get("message", {}).get("content", "") or ""
+    except (AttributeError, TypeError):
+        css = ""
+    css = _strip_code_fence(css)
+    valid = _validate_css(css)
+    return jsonify(css=css, valid=valid)
