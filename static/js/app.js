@@ -666,6 +666,7 @@ function initCodeMirror() {
     cmEditor = FlaskyEditor.create(wrapper, {
         initialContent: textarea ? textarea.value : '',
         renderEmbeds: !!_pageData.renderEmbedsInEditMode,
+        livePreview: !!_pageData.livePreview,
         onChange: function() { markDirty(); },
         onInputRead: function(cm) {
             showWikiAutocomplete(cm);
@@ -2749,6 +2750,7 @@ function syncQuickSettingsState() {
     var compactEl = document.getElementById('qs-compact-mode');
     var spotlightEl = document.getElementById('qs-spotlight-mode');
     var renderEmbedsEl = document.getElementById('qs-render-embeds');
+    var livePreviewEl = document.getElementById('qs-live-preview');
     if (darkEl) darkEl.checked = document.documentElement.getAttribute('data-theme') === 'dark';
     if (previewEl) previewEl.checked = !editMode;
     if (hideTitleEl) {
@@ -2760,6 +2762,7 @@ function syncQuickSettingsState() {
     if (compactEl) compactEl.checked = document.documentElement.getAttribute('data-compact') === 'true';
     if (spotlightEl) spotlightEl.checked = document.documentElement.getAttribute('data-spotlight') === 'true';
     if (renderEmbedsEl) renderEmbedsEl.checked = !!_pageData.renderEmbedsInEditMode;
+    if (livePreviewEl) livePreviewEl.checked = !!_pageData.livePreview;
 }
 
 function toggleRenderEmbeds() {
@@ -2767,6 +2770,13 @@ function toggleRenderEmbeds() {
     _pageData.renderEmbedsInEditMode = enabled;
     if (cmEditor && cmEditor.setRenderEmbeds) cmEditor.setRenderEmbeds(enabled);
     saveUiState({ render_embeds_in_edit_mode: enabled ? 1 : 0 });
+}
+
+function toggleLivePreview() {
+    var enabled = !_pageData.livePreview;
+    _pageData.livePreview = enabled;
+    if (cmEditor && cmEditor.setLivePreview) cmEditor.setLivePreview(enabled);
+    saveUiState({ live_preview: enabled ? 1 : 0 });
 }
 
 function toggleAutoSave() {
@@ -3538,6 +3548,10 @@ function getCalloutIcon(type) {
     };
     return '<span class="callout-title-icon">' + (icons[iconName] || icons['info']) + '</span>';
 }
+
+// Exposed for reuse by the CM6 live-preview callout widget so the icon set
+// stays in one place.
+window._getCalloutIcon = getCalloutIcon;
 
 function processCallouts(html) {
     // Transform blockquotes with [!TYPE] into callout divs
@@ -4344,6 +4358,7 @@ document.addEventListener('change', function(e) {
         case 'qs-toggle-dark-mode': toggleDarkMode(); break;
         case 'qs-toggle-mode': toggleMode(); break;
         case 'qs-toggle-render-embeds': toggleRenderEmbeds(); break;
+        case 'qs-toggle-live-preview': toggleLivePreview(); break;
         case 'qs-toggle-hide-title': toggleHideTitle(); break;
         case 'qs-toggle-props-collapsed': togglePropsPanel(); break;
         case 'qs-toggle-auto-save': toggleAutoSave(); break;

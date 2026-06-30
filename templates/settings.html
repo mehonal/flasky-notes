@@ -608,6 +608,15 @@
                                 </div>
                                 <div class="setting-desc">Show <code>![[image]]</code> and <code>![[drawing.fldraw]]</code> embeds inline while editing. The source text is preserved; only the display changes.</div>
                             </div>
+                            <div class="setting-row has-desc">
+                                <span class="setting-label">Live rendering in edit mode</span>
+                                <div class="setting-control">
+                                    <div class="toggle {% if ui_settings.live_preview %}on{% endif %}" data-toggle="live-preview">
+                                        <input type="checkbox" id="live-preview" name="live-preview" value="1" {% if ui_settings.live_preview %}checked{% endif %}>
+                                    </div>
+                                </div>
+                                <div class="setting-desc">Render headings, <strong>bold</strong>, <em>italics</em>, links, code blocks, callouts, and lists as styled output while editing. The raw markdown is shown only on the line you're editing. The source text is preserved.</div>
+                            </div>
                             <div class="setting-row">
                                 <span class="setting-label">Hide title</span>
                                 <div class="setting-control">

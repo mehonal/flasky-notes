@@ -179,6 +179,11 @@
                                         <span class="qs-toggle-slider"></span>
                                     </label>
                                     <label class="quick-setting-toggle">
+                                        <span>Live rendering</span>
+                                        <input type="checkbox" id="qs-live-preview" data-action="qs-toggle-live-preview" {% if ui_settings and ui_settings.live_preview %}checked{% endif %}>
+                                        <span class="qs-toggle-slider"></span>
+                                    </label>
+                                    <label class="quick-setting-toggle">
                                         <span>Hide title</span>
                                         <input type="checkbox" id="qs-hide-title" data-action="qs-toggle-hide-title" {% if ui_settings and ui_settings.hide_title %}checked{% endif %}>
                                         <span class="qs-toggle-slider"></span>

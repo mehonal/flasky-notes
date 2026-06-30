@@ -71,6 +71,11 @@ REGISTRY: dict[str, SettingDef] = {
     # (CM6 widget decoration replaces the ![[...]] text visually without
     # altering the underlying document). Off by default — opt-in.
     "render_embeds_in_edit_mode": SettingDef("render_embeds_in_edit_mode", False, bool),
+    # Live rendering in edit mode: hide markdown syntax (#, **, [](), etc.)
+    # and render headings, emphasis, links, code blocks, callouts, and lists
+    # as styled output. The raw source is revealed on the line holding the
+    # cursor so it stays editable. Off by default — opt-in.
+    "live_preview": SettingDef("live_preview", False, bool),
     "panel_widgets": SettingDef("panel_widgets", DEFAULT_PANEL_WIDGETS, list),
     # Daily notes (optional). daily_note_template_id / daily_note_category_id
     # use 0 to mean "none" so they stay plain ints (no nullable coercion needed).

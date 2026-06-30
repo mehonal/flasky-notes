@@ -392,6 +392,7 @@ def settings_page():
                 "properties_collapsed",
                 "preview_mode",
                 "render_embeds_in_edit_mode",
+                "live_preview",
             ):
                 form_key = field.replace("_", "-")
                 if form_key in request.form:

@@ -1,9 +1,9 @@
-import { EditorState, Compartment, Prec } from '@codemirror/state';
+import { EditorState, Compartment, Prec, StateField } from '@codemirror/state';
 import { EditorView, keymap, highlightActiveLine, drawSelection, rectangularSelection, lineNumbers, Decoration, ViewPlugin, MatchDecorator, WidgetType } from '@codemirror/view';
 import { defaultKeymap, history, historyKeymap, indentWithTab } from '@codemirror/commands';
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown';
 import { GFM } from '@lezer/markdown';
-import { syntaxHighlighting, HighlightStyle, defaultHighlightStyle, bracketMatching } from '@codemirror/language';
+import { syntaxHighlighting, HighlightStyle, defaultHighlightStyle, bracketMatching, syntaxTree } from '@codemirror/language';
 import { closeBrackets, closeBracketsKeymap } from '@codemirror/autocomplete';
 import { tags } from '@lezer/highlight';
 // Not importing @codemirror/language-data — it adds ~1MB for fenced code block
@@ -106,6 +106,26 @@ const flaskyTheme = EditorView.theme({
   '.cm6-wikilink, .cm6-wikilink *': {
     color: 'var(--accent) !important',
   },
+  // --- Live-preview content styling (applied via Decoration.mark) ---
+  '.cm6-h1': { fontWeight: '700', fontSize: '1.6em', lineHeight: '1.4' },
+  '.cm6-h2': { fontWeight: '700', fontSize: '1.35em', lineHeight: '1.4' },
+  '.cm6-h3': { fontWeight: '700', fontSize: '1.15em', lineHeight: '1.5' },
+  '.cm6-h4': { fontWeight: '700', fontSize: '1.05em' },
+  '.cm6-h5': { fontWeight: '700' },
+  '.cm6-h6': { fontWeight: '700' },
+  // Code block widget (block-level replace)
+  '.cm6-codeblock': {
+    background: 'var(--bg-secondary)',
+    border: '1px solid var(--border)',
+    borderRadius: '8px',
+    padding: '16px 20px',
+    overflowX: 'auto',
+    margin: '0.5em 0',
+    fontFamily: '"JetBrains Mono", "Fira Code", "SF Mono", monospace',
+    fontSize: '13px',
+    lineHeight: '1.6',
+  },
+  '.cm6-codeblock code': { background: 'none', padding: '0', fontFamily: 'inherit', fontSize: 'inherit' },
 });
 
 // Wikilink decoration: styles [[...]] brackets and content consistently
@@ -276,6 +296,358 @@ function makeEmbedPlugin() {
 }
 
 
+// ---------------------------------------------------------------------------
+// Live preview: hide markdown syntax and render styled output while editing.
+// Gated behind adapter.setLivePreview() (driven by the `live_preview` UI
+// setting). The raw source is revealed on the line holding the cursor so it
+// stays editable — same approach as the embed plugin above.
+//
+// The plugin walks the Lezer markdown syntax tree (kept in sync with the
+// document by @codemirror/lang-markdown) and emits:
+//   - Decoration.replace { widget } for whole-block widgets (code blocks,
+//     callouts) — replaces the entire source span with a rendered DOM node.
+//   - Decoration.replace {} (no widget) for inline markers (#, **, `, etc.)
+//     — hides the marker text without collapsing the line.
+//   - Decoration.mark { class } for the *content* of inline constructs —
+//     styles the visible text (e.g. heading text becomes big/bold, link text
+//     gets the accent color).
+//
+// Any node that overlaps the cursor's line is left untouched so the user can
+// see and edit the raw markdown there.
+// ---------------------------------------------------------------------------
+
+// Node names in the @lezer/markdown tree that carry the leading marker
+// characters we want to hide (the `#`, `>`, `` ` `` etc.). The helpers below
+// (_hideFirstMark, _hideMarkChildren, _hideQuoteMarks, _styleListMarkers)
+// walk the relevant node's children and emit Decoration.replace ranges for
+// the marker nodes, leaving the content visible.
+
+// Heading level → marker node name + content class. ATX headings ("# Title")
+// have a HeaderMark first child followed by the heading text. Setext headings
+// (underlined with ===/---) are not common in notes; we leave them as-is.
+var HEADING_NODES = {
+  ATXHeading1: { level: 1, cls: 'cm6-h1' },
+  ATXHeading2: { level: 2, cls: 'cm6-h2' },
+  ATXHeading3: { level: 3, cls: 'cm6-h3' },
+  ATXHeading4: { level: 4, cls: 'cm6-h4' },
+  ATXHeading5: { level: 5, cls: 'cm6-h5' },
+  ATXHeading6: { level: 6, cls: 'cm6-h6' },
+};
+
+// Fenced code block widget: replaces ```lang\n...\n``` with a styled <pre>.
+// Reuses the page's hljs (already loaded for preview mode) for syntax
+// highlighting. Falls back to plain monospace when hljs isn't available.
+class CodeBlockWidget extends WidgetType {
+  constructor(lang, code) {
+    super();
+    this.lang = lang;
+    this.code = code;
+  }
+
+  eq(other) {
+    return other && other.lang === this.lang && other.code === this.code;
+  }
+
+  toDOM() {
+    var pre = document.createElement('pre');
+    pre.className = 'cm6-codeblock';
+    var code = document.createElement('code');
+    code.textContent = this.code;
+    if (this.lang) code.className = 'language-' + this.lang;
+    pre.appendChild(code);
+    if (window.hljs) {
+      try { window.hljs.highlightElement(code); } catch (e) { /* ignore */ }
+    }
+    return pre;
+  }
+
+  ignoreEvent() { return false; }
+}
+
+// Callout widget: replaces an Obsidian-style `> [!type] title` blockquote
+// (possibly multi-line) with a styled callout box. Reuses window._getCalloutIcon
+// and the .callout CSS classes from app.css so the look matches preview mode.
+class CalloutWidget extends WidgetType {
+  constructor(type, title, bodyLines) {
+    super();
+    this.type = type;
+    this.title = title;
+    this.bodyLines = bodyLines;
+  }
+
+  eq(other) {
+    return other && other.type === this.type && other.title === this.title &&
+      other.bodyLines.join('\n') === this.bodyLines.join('\n');
+  }
+
+  toDOM() {
+    var callout = document.createElement('div');
+    callout.className = 'callout';
+    callout.setAttribute('data-callout', this.type);
+
+    var titleDiv = document.createElement('div');
+    titleDiv.className = 'callout-title';
+    var iconHtml = window._getCalloutIcon
+      ? window._getCalloutIcon(this.type)
+      : '';
+    titleDiv.innerHTML = iconHtml + '<span>' + _escapeHtml(this.title) + '</span>';
+    callout.appendChild(titleDiv);
+
+    if (this.bodyLines.length) {
+      var contentDiv = document.createElement('div');
+      contentDiv.className = 'callout-content';
+      // Render the body as simple paragraphs separated by blank lines. We
+      // intentionally don't run the full marked pipeline here (the body is
+      // a fragment, not a full document) — inline markdown is left as text,
+      // matching the "reveal on active line" contract: the user edits the
+      // raw source on the callout's line and sees it rendered when they
+      // leave it.
+      var paragraphs = this.bodyLines.join('\n').split(/\n{2,}/);
+      for (var i = 0; i < paragraphs.length; i++) {
+        var p = document.createElement('p');
+        p.textContent = paragraphs[i].replace(/\n/g, ' ');
+        contentDiv.appendChild(p);
+      }
+      callout.appendChild(contentDiv);
+    }
+    return callout;
+  }
+
+  ignoreEvent() { return false; }
+}
+
+function _escapeHtml(s) {
+  return s.replace(/[&<>"']/g, function(c) {
+    return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+  });
+}
+
+// Build the decoration set for the live-preview plugin. Walks the syntax tree
+// top-down; for each recognized node decides whether to emit hide/mark/widget
+// decorations. Nodes overlapping the active line are skipped.
+function _buildLivePreview(state) {
+  var builder = [];
+  var sel = state.selection.main;
+  var headLine = state.doc.lineAt(sel.head).number;
+  var doc = state.doc;
+
+  function nodeOnActiveLine(from, to) {
+    var startLine = doc.lineAt(from).number;
+    var endLine = doc.lineAt(to).number;
+    return headLine >= startLine && headLine <= endLine;
+  }
+
+  return _walkTree(state, builder, nodeOnActiveLine);
+}
+
+function _walkTree(state, builder, nodeOnActiveLine) {
+  var tree = syntaxTree(state);
+  var doc = state.doc;
+
+  tree.iterate({
+    enter: function(node) {
+      var name = node.name;
+      var from = node.from, to = node.to;
+
+      // --- Block-level widgets (replace whole span) ---
+
+      // Fenced code block: ```lang \n code \n ```
+      if (name === 'FencedCode') {
+        if (nodeOnActiveLine(from, to)) return;
+        // Parse from raw text — the @lezer/markdown child structure for the
+        // info string varies across versions, so slicing the source is more
+        // robust. Format: ```lang\n code \n```  (fence may be ~~~ too).
+        var raw = doc.sliceString(from, to);
+        var fenceMatch = raw.match(/^([`~]{3,})(\w*)\n([\s\S]*?)\n?[`~]{3,}$/);
+        var lang, codeText;
+        if (fenceMatch) {
+          lang = fenceMatch[2] || '';
+          codeText = fenceMatch[3] || '';
+        } else {
+          var lines = raw.split('\n');
+          lang = (lines[0] || '').replace(/^[`~]{3,}/, '').trim();
+          codeText = lines.slice(1, lines.length - 1).join('\n');
+        }
+        builder.push(Decoration.replace({
+          widget: new CodeBlockWidget(lang, codeText),
+        }).range(from, to));
+        return false;
+      }
+
+      // Callout: a Blockquote whose first line starts with [!type]
+      if (name === 'Blockquote') {
+        if (nodeOnActiveLine(from, to)) return;
+        var blockText = doc.sliceString(from, to);
+        var calloutParsed = _parseCallout(blockText);
+        if (calloutParsed) {
+          builder.push(Decoration.replace({
+            widget: new CalloutWidget(calloutParsed.type, calloutParsed.title, calloutParsed.bodyLines),
+          }).range(from, to));
+          return false;
+        }
+        // Not a callout — style the `>` markers on each line as dimmed.
+        _hideQuoteMarks(node, builder);
+        return false;
+      }
+
+      // --- Headings: hide the leading # marks, style the content ---
+      var h = HEADING_NODES[name];
+      if (h) {
+        if (nodeOnActiveLine(from, to)) return;
+        _hideFirstMark(node, builder);
+        builder.push(Decoration.mark({ class: h.cls }).range(from, to));
+        return false;
+      }
+
+      // --- Inline emphasis / strikethrough: hide the delim markers ---
+      if (name === 'Emphasis' || name === 'StrongEmphasis' || name === 'Strikethrough') {
+        if (nodeOnActiveLine(from, to)) return;
+        _hideMarkChildren(node, builder);
+        return false;
+      }
+
+      // --- Inline code: hide the backticks, style the content ---
+      if (name === 'InlineCode') {
+        if (nodeOnActiveLine(from, to)) return;
+        _hideMarkChildren(node, builder);
+        builder.push(Decoration.mark({ class: 'cm6-code' }).range(from, to));
+        return false;
+      }
+
+      // --- Links: hide [ ] ( ) and the URL, style the link text ---
+      if (name === 'Link') {
+        if (nodeOnActiveLine(from, to)) return;
+        _hideLinkMarkers(node, builder);
+        return false;
+      }
+
+      // --- Images: ![alt](url) — leave as-is on non-active lines too,
+      // the embed plugin handles ![[...]] embeds. Standard markdown images
+      // are rare in notes; we just hide the leading ! and the URL. ---
+      if (name === 'Image') {
+        if (nodeOnActiveLine(from, to)) return;
+        _hideLinkMarkers(node, builder);
+        return false;
+      }
+
+      // --- List markers: `-`, `*`, `+`, `1.` — dim rather than hide so the
+      // list structure stays readable. Task markers [ ] / [x] are hidden. ---
+      if (name === 'ListItem') {
+        if (nodeOnActiveLine(from, to)) return;
+        _styleListMarkers(node, builder);
+        return false;
+      }
+    },
+  });
+
+  return Decoration.set(builder, true);
+}
+
+// Parse a blockquote's raw text for an Obsidian-style callout. Returns
+// { type, title, bodyLines } or null if it's a plain blockquote.
+// Format:
+//   > [!type] Optional title
+//   > body line 1
+//   > body line 2
+function _parseCallout(blockText) {
+  var lines = blockText.split('\n');
+  var stripped = [];
+  for (var i = 0; i < lines.length; i++) {
+    stripped.push(lines[i].replace(/^\s*>\s?/, ''));
+  }
+  var firstLine = stripped[0] || '';
+  var m = firstLine.match(/^\[!(\w+)\]\s*(.*)/);
+  if (!m) return null;
+  var type = m[1].toLowerCase();
+  var title = m[2] || type.charAt(0).toUpperCase() + type.slice(1);
+  var bodyLines = stripped.slice(1);
+  // Trim a single leading blank line (common when title is alone on line 1).
+  while (bodyLines.length && bodyLines[0].trim() === '') bodyLines.shift();
+  while (bodyLines.length && bodyLines[bodyLines.length - 1].trim() === '') bodyLines.pop();
+  return { type: type, title: title, bodyLines: bodyLines };
+}
+
+// Hide the first child of a node (used for ATX heading HeaderMark).
+function _hideFirstMark(node, builder) {
+  var child = node.node.firstChild;
+  if (child && child.name === 'HeaderMark') {
+    builder.push(Decoration.replace({}).range(child.from, child.to));
+  }
+}
+
+// Hide all *Mark children of a node (EmphasisMark, StrikethroughMark, CodeMark).
+function _hideMarkChildren(node, builder) {
+  var child = node.node.firstChild;
+  while (child) {
+    if (/Mark$/.test(child.name) || child.name === 'CodeMark') {
+      builder.push(Decoration.replace({}).range(child.from, child.to));
+    }
+    child = child.nextSibling;
+  }
+}
+
+// Hide the `>` quote markers on each line of a blockquote.
+function _hideQuoteMarks(node, builder) {
+  var child = node.node.firstChild;
+  while (child) {
+    if (child.name === 'QuoteMark') {
+      builder.push(Decoration.replace({}).range(child.from, child.to));
+    }
+    child = child.nextSibling;
+  }
+}
+
+// For a Link node: hide [ ] ( ) and the URL inside, keep the link text styled.
+// Link children: LinkMark, LinkLabel (the [text]), LinkMark, URL, LinkMark, ...
+// We hide LinkMark nodes and the URL node, and mark the LinkLabel content.
+function _hideLinkMarkers(node, builder) {
+  var child = node.node.firstChild;
+  while (child) {
+    if (child.name === 'LinkMark' || child.name === 'URL' || child.name === 'LinkTitle') {
+      builder.push(Decoration.replace({}).range(child.from, child.to));
+    } else if (child.name === 'LinkLabel') {
+      builder.push(Decoration.mark({ class: 'cm6-link' }).range(child.from, child.to));
+    }
+    child = child.nextSibling;
+  }
+}
+
+// Dim list markers and hide task markers ([ ] / [x]).
+function _styleListMarkers(node, builder) {
+  var child = node.node.firstChild;
+  while (child) {
+    if (child.name === 'ListMark') {
+      builder.push(Decoration.mark({ class: 'cm6-list-marker' }).range(child.from, child.to));
+    } else if (child.name === 'TaskMarker') {
+      builder.push(Decoration.replace({}).range(child.from, child.to));
+    }
+    child = child.nextSibling;
+  }
+}
+
+// Live preview is a StateField (not a ViewPlugin) because CM6 only permits
+// Decoration.replace ranges that span line breaks from state fields. The
+// code-block and callout widgets cover multiple lines, so a ViewPlugin would
+// throw "Decorations that replace line breaks may not be specified via
+// plugins". Recompute on doc or selection changes — covers typing, cursor
+// movement, and programmatic edits. CM6 diffs the old and new decoration
+// sets so only affected ranges are re-rendered in the DOM.
+function makeLivePreviewPlugin() {
+  return StateField.define({
+    create(state) {
+      return _buildLivePreview(state);
+    },
+    update(value, tr) {
+      if (tr.docChanged || tr.selection) return _buildLivePreview(tr.state);
+      return value;
+    },
+    provide(field) {
+      return EditorView.decorations.from(field);
+    },
+  });
+}
+
+
 /**
  * Create a CM6 editor with a CM5-compatible adapter API.
  *
@@ -308,6 +680,10 @@ export function create(parentElement, options) {
   var embedCompartment = new Compartment();
   var embedsEnabled = !!options.renderEmbeds;
 
+  // Compartment for the live-preview plugin (hide markdown syntax, render
+  // styled output). Toggled at runtime via adapter.setLivePreview().
+  var livePreviewCompartment = new Compartment();
+
   var extensions = [
     // Core
     history(),
@@ -332,6 +708,9 @@ export function create(parentElement, options) {
 
     // Inline embed rendering (gated by Compartment; off by default)
     embedCompartment.of(options.renderEmbeds ? makeEmbedPlugin() : []),
+
+    // Live preview (gated by Compartment; off by default)
+    livePreviewCompartment.of(options.livePreview ? makeLivePreviewPlugin() : []),
 
     // Keybindings (order matters — custom first, then markdown, then defaults)
     keymap.of(customKeys),
@@ -501,6 +880,13 @@ export function create(parentElement, options) {
     if (!embedsEnabled) return;
     view.dispatch({
       effects: embedCompartment.reconfigure(makeEmbedPlugin()),
+    });
+  };
+
+  // Toggle live-preview rendering at runtime without rebuilding the editor.
+  adapter.setLivePreview = function(enabled) {
+    view.dispatch({
+      effects: livePreviewCompartment.reconfigure(enabled ? makeLivePreviewPlugin() : []),
     });
   };
 

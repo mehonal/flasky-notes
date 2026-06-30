@@ -91,6 +91,7 @@ def save_ui_state():
         "properties_collapsed",
         "preview_mode",
         "render_embeds_in_edit_mode",
+        "live_preview",
     )
     for key in allowed:
         if key in data:
