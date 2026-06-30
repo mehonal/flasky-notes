@@ -1,4 +1,4 @@
-import { EditorState, Compartment, Prec, StateField } from '@codemirror/state';
+import { EditorState, Compartment, Prec, StateField, EditorSelection } from '@codemirror/state';
 import { EditorView, keymap, highlightActiveLine, drawSelection, rectangularSelection, lineNumbers, Decoration, ViewPlugin, MatchDecorator, WidgetType } from '@codemirror/view';
 import { defaultKeymap, history, historyKeymap, indentWithTab } from '@codemirror/commands';
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown';
@@ -69,6 +69,13 @@ const flaskyTheme = EditorView.theme({
     backgroundColor: 'var(--bg-hover)',
   },
   '.cm-gutters': {
+    display: 'none',
+  },
+  // Block widgets (code blocks, callouts) use `block: true` and don't
+  // produce buffer spacers. Inline widgets that render block-level content
+  // (embed holders) do — collapse the default 1em buffer so spacing comes
+  // from the widget's own margin instead of stacking both.
+  '.cm-widgetBuffer': {
     display: 'none',
   },
   // Markdown token styling via classes
@@ -469,6 +476,7 @@ function _walkTree(state, builder, nodeOnActiveLine) {
           codeText = lines.slice(1, lines.length - 1).join('\n');
         }
         builder.push(Decoration.replace({
+          block: true,
           widget: new CodeBlockWidget(lang, codeText),
         }).range(from, to));
         return false;
@@ -481,6 +489,7 @@ function _walkTree(state, builder, nodeOnActiveLine) {
         var calloutParsed = _parseCallout(blockText);
         if (calloutParsed) {
           builder.push(Decoration.replace({
+            block: true,
             widget: new CalloutWidget(calloutParsed.type, calloutParsed.title, calloutParsed.bodyLines),
           }).range(from, to));
           return false;
@@ -632,19 +641,119 @@ function _styleListMarkers(node, builder) {
 // plugins". Recompute on doc or selection changes — covers typing, cursor
 // movement, and programmatic edits. CM6 diffs the old and new decoration
 // sets so only affected ranges are re-rendered in the DOM.
+// Live preview is a StateField (not a ViewPlugin) because CM6 only permits
+// Decoration.replace ranges that span line breaks from state fields. The
+// code-block and callout widgets cover multiple lines, so a ViewPlugin would
+// throw "Decorations that replace line breaks may not be specified via
+// plugins". Recompute on doc or selection changes — covers typing, cursor
+// movement, and programmatic edits. CM6 diffs the old and new decoration
+// sets so only affected ranges are re-rendered in the DOM.
+var livePreviewField = StateField.define({
+  create(state) {
+    return _buildLivePreview(state);
+  },
+  update(value, tr) {
+    if (tr.docChanged || tr.selection) return _buildLivePreview(tr.state);
+    return value;
+  },
+  provide(field) {
+    return EditorView.decorations.from(field);
+  },
+});
+
 function makeLivePreviewPlugin() {
-  return StateField.define({
-    create(state) {
-      return _buildLivePreview(state);
-    },
-    update(value, tr) {
-      if (tr.docChanged || tr.selection) return _buildLivePreview(tr.state);
-      return value;
-    },
-    provide(field) {
-      return EditorView.decorations.from(field);
-    },
+  return livePreviewField;
+}
+
+// When live preview is active, block widgets (code blocks, callouts) replace
+// entire line ranges. CM6's default ArrowUp/ArrowDown skips over these ranges
+// entirely — the cursor jumps from the line above to the line below without
+// ever landing on the widget's first/last line. That prevents the user from
+// entering the block to edit its raw source (our active-line reveal only
+// triggers when the cursor is on the block's line). These handlers intercept
+// vertical movement: if the default destination lands inside a block widget,
+// snap the cursor to the widget's boundary line instead so the user can
+// "enter" the block and see its raw markdown.
+function _livePreviewBlockRanges(view) {
+  var field = view.state.field(livePreviewField, false);
+  if (!field) return null;
+  var decos = view.state.field(livePreviewField);
+  if (!decos || !decos.size) return null;
+  var ranges = [];
+  decos.between(0, view.state.doc.length, function(from, to, deco) {
+    if (deco.spec.block) ranges.push({ from: from, to: to });
   });
+  return ranges.length ? ranges : null;
+}
+
+function _moveIntoBlock(view, dir) {
+  var ranges = _livePreviewBlockRanges(view);
+  if (!ranges) return false;
+  var head = view.state.selection.main.head;
+  var line = view.state.doc.lineAt(head);
+
+  // Only intercept when the cursor is on the line *immediately adjacent*
+  // to a block widget — that's the only case where CM6's default arrow
+  // handler would skip over the block. When the cursor is already inside
+  // a block (on the active line) or further away, default movement is fine.
+  if (dir < 0) {
+    // ArrowUp: the block must end on the line immediately above (line.number - 1).
+    var target = null;
+    for (var i = 0; i < ranges.length; i++) {
+      var r = ranges[i];
+      var blockLastLine = view.state.doc.lineAt(r.to);
+      var lastLineNum = blockLastLine.number;
+      // Block replace ranges are exclusive at `to` — when `to` is at a line
+      // start, the block's last line is the one before it.
+      if (r.to === blockLastLine.from && blockLastLine.number > 1) {
+        lastLineNum = blockLastLine.number - 1;
+      }
+      if (lastLineNum === line.number - 1) {
+        target = view.state.doc.line(lastLineNum);
+        break;
+      }
+    }
+    if (target) {
+      var col = head - line.from;
+      var pos = Math.min(target.from + col, target.to);
+      view.dispatch({
+        selection: EditorSelection.single(pos),
+        scrollIntoView: true,
+      });
+      return true;
+    }
+  } else {
+    // ArrowDown: the block must start on the line immediately below (line.number + 1).
+    var target2 = null;
+    for (var j = 0; j < ranges.length; j++) {
+      var r2 = ranges[j];
+      var blockFirstLine = view.state.doc.lineAt(r2.from);
+      if (blockFirstLine.number === line.number + 1) {
+        target2 = blockFirstLine;
+        break;
+      }
+    }
+    if (target2) {
+      var col2 = head - line.from;
+      var pos2 = Math.min(target2.from + col2, target2.to);
+      view.dispatch({
+        selection: EditorSelection.single(pos2),
+        scrollIntoView: true,
+      });
+      return true;
+    }
+  }
+  return false;
+}
+
+function arrowUpLivePreview(view) {
+  if (_moveIntoBlock(view, -1)) return true;
+  return false;
+}
+
+function arrowDownLivePreview(view) {
+  if (_moveIntoBlock(view, 1)) return true;
+  return false;
 }
 
 
@@ -714,6 +823,14 @@ export function create(parentElement, options) {
 
     // Keybindings (order matters — custom first, then markdown, then defaults)
     keymap.of(customKeys),
+    // Live-preview arrow interception: when the cursor would skip over a
+    // block widget (code block / callout), snap to its boundary line instead
+    // so the user can enter the block and edit raw markdown. Handlers are
+    // no-ops (return false) when live preview is off, so default arrows run.
+    keymap.of([
+      { key: 'ArrowUp', run: arrowUpLivePreview },
+      { key: 'ArrowDown', run: arrowDownLivePreview },
+    ]),
     keymap.of([
       { key: 'Enter', run: insertNewlineContinueMarkup },
       { key: 'Backspace', run: deleteMarkupBackward },
