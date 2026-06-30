@@ -90,6 +90,7 @@ def save_ui_state():
         "right_panel_collapsed",
         "properties_collapsed",
         "preview_mode",
+        "render_embeds_in_edit_mode",
     )
     for key in allowed:
         if key in data:

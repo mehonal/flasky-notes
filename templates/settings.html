@@ -599,6 +599,15 @@
                                     </div>
                                 </div>
                             </div>
+                            <div class="setting-row has-desc">
+                                <span class="setting-label">Render images in edit mode</span>
+                                <div class="setting-control">
+                                    <div class="toggle {% if ui_settings.render_embeds_in_edit_mode %}on{% endif %}" data-toggle="render-embeds-in-edit-mode">
+                                        <input type="checkbox" id="render-embeds-in-edit-mode" name="render-embeds-in-edit-mode" value="1" {% if ui_settings.render_embeds_in_edit_mode %}checked{% endif %}>
+                                    </div>
+                                </div>
+                                <div class="setting-desc">Show <code>![[image]]</code> and <code>![[drawing.fldraw]]</code> embeds inline while editing. The source text is preserved; only the display changes.</div>
+                            </div>
                             <div class="setting-row">
                                 <span class="setting-label">Hide title</span>
                                 <div class="setting-control">

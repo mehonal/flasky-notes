@@ -1,5 +1,5 @@
-import { EditorState, Prec } from '@codemirror/state';
-import { EditorView, keymap, highlightActiveLine, drawSelection, rectangularSelection, lineNumbers, Decoration, ViewPlugin, MatchDecorator } from '@codemirror/view';
+import { EditorState, Compartment, Prec } from '@codemirror/state';
+import { EditorView, keymap, highlightActiveLine, drawSelection, rectangularSelection, lineNumbers, Decoration, ViewPlugin, MatchDecorator, WidgetType } from '@codemirror/view';
 import { defaultKeymap, history, historyKeymap, indentWithTab } from '@codemirror/commands';
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown';
 import { GFM } from '@lezer/markdown';
@@ -124,6 +124,158 @@ const wikilinkPlugin = ViewPlugin.fromClass(class {
 }, { decorations: v => v.decorations });
 
 
+// Inline embed rendering for edit mode. Replaces ![[file.png]] /
+// ![[drawing.fldraw]] text with the rendered image/drawing, without altering
+// the underlying document. Gated behind a Compartment so it can be toggled at
+// runtime via adapter.setRenderEmbeds(). Resolution + decryption is delegated
+// to the existing client pipeline (window._getAttachmentMap and
+// window._decryptAttachments) so the server never sees plaintext.
+const IMAGE_EXT = /\.(png|jpg|jpeg|gif|svg|webp|bmp)$/i;
+const FLDRAW_EXT = /\.fldraw$/i;
+
+class EmbedWidget extends WidgetType {
+  constructor(name, att, fallbackText) {
+    super();
+    this.name = name;
+    this.att = att; // { id, filename } or null when unresolved
+    this.fallbackText = fallbackText;
+  }
+
+  eq(other) {
+    // Compare by name AND attachment id. When the attachment map isn't ready
+    // on first render, the widget is created with att=null (unresolved text).
+    // Once the map loads, refreshEmbeds() rebuilds with a populated att — the
+    // id changes from undefined to a number, so eq() returns false and CM6
+    // discards the old DOM and calls toDOM() again with the resolved att.
+    return other && other.name === this.name &&
+      (other.att ? other.att.id : null) === (this.att ? this.att.id : null);
+  }
+
+  toDOM() {
+    if (!this.att) {
+      // Unresolved embed: render the raw source text so the user still sees
+      // what's in the document and can edit/correct it.
+      var span = document.createElement('span');
+      span.className = 'cm6-embed-unresolved';
+      span.textContent = this.fallbackText;
+      return span;
+    }
+
+    var url = '/attachment/' + this.att.id + '/' + encodeURIComponent(this.att.filename);
+    var filename = this.att.filename;
+
+    // Wrapper is needed because window._decryptAttachments(container) uses
+    // container.querySelectorAll() — it only inspects descendants, not the
+    // container itself. The embeddable element must live inside this wrapper.
+    var holder = document.createElement('div');
+    holder.className = 'cm6-embed-holder';
+
+    if (FLDRAW_EXT.test(filename)) {
+      var wrap = document.createElement('div');
+      wrap.className = 'fldraw-render cm6-embed';
+      wrap.setAttribute('data-encrypted-src', url);
+      wrap.setAttribute('data-att-id', String(this.att.id));
+      wrap.setAttribute('data-att-filename', filename);
+      wrap.setAttribute('data-action', 'edit-fldraw');
+      holder.appendChild(wrap);
+      if (window._decryptAttachments) window._decryptAttachments(holder);
+      return holder;
+    }
+
+    if (IMAGE_EXT.test(filename)) {
+      var img = document.createElement('img');
+      img.className = 'e2ee-attachment cm6-embed';
+      img.setAttribute('data-encrypted-src', url);
+      img.setAttribute('data-att-filename', filename);
+      img.setAttribute('alt', this.name);
+      img.style.maxWidth = '100%';
+      img.style.cursor = 'pointer';
+      holder.appendChild(img);
+      if (window._decryptAttachments) window._decryptAttachments(holder);
+      return holder;
+    }
+
+    // Non-image/non-fldraw embeds fall back to a link (matches preview mode).
+    var a = document.createElement('a');
+    a.href = url;
+    a.textContent = this.name;
+    holder.appendChild(a);
+    return holder;
+  }
+
+  // Let clicks pass through to the attachment handlers wired up in app.js
+  // (.fldraw click opens the drawing modal via data-action delegation).
+  ignoreEvent(event) {
+    return false;
+  }
+}
+
+const EMBED_RE = /!\[\[[^\]]+\]\]/g;
+
+// Build the Decoration.replace widget for a single ![[...]] match, or null
+// when the attachment is unresolved / non-embeddable (falls back to text).
+function _embedDeco(raw) {
+  var name = raw.slice(3, -2);
+  var maps = window._getAttachmentMap ? window._getAttachmentMap() : null;
+  var att = null;
+  if (maps && maps.attachments) {
+    att = maps.attachments[name.toLowerCase().trim()];
+  }
+  if (att) {
+    if (!IMAGE_EXT.test(att.filename) && !FLDRAW_EXT.test(att.filename)) {
+      att = null;
+    }
+  }
+  if (!att) return null;
+  return Decoration.replace({
+    widget: new EmbedWidget(name, att, raw),
+  });
+}
+
+// ViewPlugin that scans visible lines for ![[...]] embeds and replaces them
+// with inline widgets — EXCEPT on the line holding the cursor. There the raw
+// source text is shown so the user can edit it. Decorations are rebuilt on
+// every doc/viewport/selection change; CM6 diffs the DecorationSet so only
+// affected widgets are torn down / re-created.
+function makeEmbedPlugin() {
+  return ViewPlugin.fromClass(class {
+    constructor(view) {
+      this.decorations = this._build(view);
+    }
+    update(update) {
+      if (update.docChanged || update.viewportChanged || update.selectionSet) {
+        this.decorations = this._build(update.view);
+      }
+    }
+    _build(view) {
+      var builder = [];
+      var sel = view.state.selection.main;
+      // Active line range (cursor may span a selection; use the head's line).
+      var headLine = view.state.doc.lineAt(sel.head).number;
+      for (var r = 0; r < view.visibleRanges.length; r++) {
+        var range = view.visibleRanges[r];
+        var fromLine = view.state.doc.lineAt(range.from).number;
+        var toLine = view.state.doc.lineAt(range.to).number;
+        for (var n = fromLine; n <= toLine; n++) {
+          var line = view.state.doc.line(n);
+          // Skip decoration on the cursor's line so the ![[...]] text stays
+          // editable there.
+          if (n === headLine) continue;
+          var text = line.text;
+          var m;
+          EMBED_RE.lastIndex = 0;
+          while ((m = EMBED_RE.exec(text)) !== null) {
+            var deco = _embedDeco(m[0]);
+            if (deco) builder.push(deco.range(line.from + m.index, line.from + m.index + m[0].length));
+          }
+        }
+      }
+      return Decoration.set(builder, true);
+    }
+  }, { decorations: v => v.decorations });
+}
+
+
 /**
  * Create a CM6 editor with a CM5-compatible adapter API.
  *
@@ -151,6 +303,11 @@ export function create(parentElement, options) {
   // The adapter object (forward-declared so listeners can reference it)
   var adapter = {};
 
+  // Compartment for the inline-embed plugin so it can be toggled at runtime
+  // without rebuilding the editor. Initial state is set from options.renderEmbeds.
+  var embedCompartment = new Compartment();
+  var embedsEnabled = !!options.renderEmbeds;
+
   var extensions = [
     // Core
     history(),
@@ -172,6 +329,9 @@ export function create(parentElement, options) {
     syntaxHighlighting(flaskyHighlight),
     syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
     wikilinkPlugin,
+
+    // Inline embed rendering (gated by Compartment; off by default)
+    embedCompartment.of(options.renderEmbeds ? makeEmbedPlugin() : []),
 
     // Keybindings (order matters — custom first, then markdown, then defaults)
     keymap.of(customKeys),
@@ -321,6 +481,27 @@ export function create(parentElement, options) {
 
   adapter.getView = function() {
     return view;
+  };
+
+  // Toggle inline embed rendering at runtime without rebuilding the editor.
+  // A fresh plugin instance is created each time so CM6 actually re-runs the
+  // decoration pass (re-using the same instance reference is a no-op).
+  adapter.setRenderEmbeds = function(enabled) {
+    embedsEnabled = !!enabled;
+    view.dispatch({
+      effects: embedCompartment.reconfigure(enabled ? makeEmbedPlugin() : []),
+    });
+  };
+
+  // Force the embed decorations to rebuild — called from app.js after the
+  // attachment map becomes available (wikiLinksReady / noteMapUpdated).
+  // Reconfiguring with a fresh plugin instance tears down the old decorations
+  // and re-runs _build()/toDOM(), now with a populated attachment map.
+  adapter.refreshEmbeds = function() {
+    if (!embedsEnabled) return;
+    view.dispatch({
+      effects: embedCompartment.reconfigure(makeEmbedPlugin()),
+    });
   };
 
   // Internal: convert {line, ch} to absolute offset

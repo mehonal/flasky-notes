@@ -150,6 +150,7 @@
         "defaultCategoryId": {{ default_category_id or 0 }},
         "autoSaveEnabled": {% if ui_settings and ui_settings.auto_save %}true{% else %}false{% endif %},
         "editMode": {% if ui_settings and ui_settings.preview_mode %}false{% else %}true{% endif %},
+        "renderEmbedsInEditMode": {% if ui_settings and ui_settings.render_embeds_in_edit_mode %}true{% else %}false{% endif %},
         "currentFontSize": {{ font_size or 15 }},
         "hasNote": {{ 'true' if note else 'false' }},
         "defaultTemplateContent": {% if default_template %}{{ default_template.content | tojson }}{% else %}null{% endif %},

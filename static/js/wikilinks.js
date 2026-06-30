@@ -176,6 +176,13 @@
     window._decryptAttachments = decryptAttachmentElements;
     window._flushPendingNoteMap = _flushPending;
 
+    // Expose the resolved attachment/note maps so the CM6 edit-mode embed
+    // widget can resolve ![[file]] to an attachment id+url without re-fetching
+    // and re-decrypting the whole map. Returns null until the map is built.
+    window._getAttachmentMap = function () {
+        return attachmentMap ? { attachments: attachmentMap, notes: noteMap } : null;
+    };
+
     window._invalidateNoteMap = function() {
         noteMap = null;
         attachmentMap = null;

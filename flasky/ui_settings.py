@@ -67,6 +67,10 @@ REGISTRY: dict[str, SettingDef] = {
     "right_panel_collapsed": SettingDef("right_panel_collapsed", True, bool),
     "properties_collapsed": SettingDef("properties_collapsed", True, bool),
     "preview_mode": SettingDef("preview_mode", False, bool),
+    # Render ![[image]] and ![[drawing.fldraw]] embeds inline while editing
+    # (CM6 widget decoration replaces the ![[...]] text visually without
+    # altering the underlying document). Off by default — opt-in.
+    "render_embeds_in_edit_mode": SettingDef("render_embeds_in_edit_mode", False, bool),
     "panel_widgets": SettingDef("panel_widgets", DEFAULT_PANEL_WIDGETS, list),
     # Daily notes (optional). daily_note_template_id / daily_note_category_id
     # use 0 to mean "none" so they stay plain ints (no nullable coercion needed).

@@ -1722,3 +1722,12 @@ body[data-encrypted="true"] .prop-value-input { visibility: hidden; }
 .fldraw-render { display:inline-block; max-width:100%; margin:8px 0; cursor:pointer; border:1px solid var(--border); border-radius:6px; padding:4px; background:var(--bg-secondary); }
 .fldraw-render:hover { border-color:var(--accent); }
 .fldraw-render canvas { display:block; max-width:100%; height:auto; background:#ffffff; border-radius:4px; }
+
+/* Inline embed widgets in CM6 edit mode. The widget visually replaces the
+   ![[file]] source text via Decoration.replace; the underlying text is
+   preserved on save. The holder wraps the img/fldraw div because
+   _decryptAttachments uses querySelectorAll (descendants only). */
+.cm6-embed-holder { display:block; margin:6px 0; }
+.cm6-embed { display:block; max-width:100%; border-radius:6px; }
+.cm6-embed.fldraw-render { min-height:40px; }
+.cm6-embed-unresolved { color:var(--text-muted); font-style:italic; }

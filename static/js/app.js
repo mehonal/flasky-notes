@@ -665,6 +665,7 @@ function initCodeMirror() {
 
     cmEditor = FlaskyEditor.create(wrapper, {
         initialContent: textarea ? textarea.value : '',
+        renderEmbeds: !!_pageData.renderEmbedsInEditMode,
         onChange: function() { markDirty(); },
         onInputRead: function(cm) {
             showWikiAutocomplete(cm);
@@ -2747,6 +2748,7 @@ function syncQuickSettingsState() {
     var autoSaveEl = document.getElementById('qs-auto-save');
     var compactEl = document.getElementById('qs-compact-mode');
     var spotlightEl = document.getElementById('qs-spotlight-mode');
+    var renderEmbedsEl = document.getElementById('qs-render-embeds');
     if (darkEl) darkEl.checked = document.documentElement.getAttribute('data-theme') === 'dark';
     if (previewEl) previewEl.checked = !editMode;
     if (hideTitleEl) {
@@ -2757,6 +2759,14 @@ function syncQuickSettingsState() {
     if (autoSaveEl) autoSaveEl.checked = autoSaveEnabled;
     if (compactEl) compactEl.checked = document.documentElement.getAttribute('data-compact') === 'true';
     if (spotlightEl) spotlightEl.checked = document.documentElement.getAttribute('data-spotlight') === 'true';
+    if (renderEmbedsEl) renderEmbedsEl.checked = !!_pageData.renderEmbedsInEditMode;
+}
+
+function toggleRenderEmbeds() {
+    var enabled = !_pageData.renderEmbedsInEditMode;
+    _pageData.renderEmbedsInEditMode = enabled;
+    if (cmEditor && cmEditor.setRenderEmbeds) cmEditor.setRenderEmbeds(enabled);
+    saveUiState({ render_embeds_in_edit_mode: enabled ? 1 : 0 });
 }
 
 function toggleAutoSave() {
@@ -3993,6 +4003,20 @@ window.addEventListener('resize', function() { isMobile = window.innerWidth <= 7
         if (editMode) {
             initCodeMirror();
             setTimeout(function() { if (cmEditor) cmEditor.refresh(); }, 20);
+            // Refresh inline embeds once the attachment map is ready, so
+            // ![[image]] widgets resolve after the first note load. Also
+            // listen for noteMapUpdated (fires on subsequent note loads).
+            if (cmEditor && cmEditor.refreshEmbeds) {
+                var refreshFn = function() {
+                    if (cmEditor && cmEditor.refreshEmbeds) cmEditor.refreshEmbeds();
+                };
+                if (window._wikiLinksReady) {
+                    refreshFn();
+                } else {
+                    document.addEventListener('wikiLinksReady', refreshFn, { once: true });
+                }
+                document.addEventListener('noteMapUpdated', refreshFn);
+            }
         } else {
             if (window._wikiLinksReady) {
                 renderPreview();
@@ -4319,6 +4343,7 @@ document.addEventListener('change', function(e) {
             break;
         case 'qs-toggle-dark-mode': toggleDarkMode(); break;
         case 'qs-toggle-mode': toggleMode(); break;
+        case 'qs-toggle-render-embeds': toggleRenderEmbeds(); break;
         case 'qs-toggle-hide-title': toggleHideTitle(); break;
         case 'qs-toggle-props-collapsed': togglePropsPanel(); break;
         case 'qs-toggle-auto-save': toggleAutoSave(); break;
