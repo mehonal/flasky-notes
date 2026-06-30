@@ -532,22 +532,6 @@
                                 </div>
                             </div>
                             <div class="setting-row">
-                                <span class="setting-label">Hide title</span>
-                                <div class="setting-control">
-                                    <div class="toggle {% if ui_settings.hide_title %}on{% endif %}" data-toggle="hide-title">
-                                        <input type="checkbox" id="hide-title" name="hide-title" value="1" {% if ui_settings.hide_title %}checked{% endif %}>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="setting-row">
-                                <span class="setting-label">Auto-save</span>
-                                <div class="setting-control">
-                                    <div class="toggle {% if ui_settings.auto_save %}on{% endif %}" data-toggle="auto-save">
-                                        <input type="checkbox" id="auto-save" name="auto-save" value="1" {% if ui_settings.auto_save %}checked{% endif %}>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="setting-row">
                                 <button name="update-ui-settings" class="btn-sm primary" type="submit">Save appearance</button>
                             </div>
                     </div>
@@ -610,6 +594,22 @@
                                 <div class="setting-control">
                                     <div class="toggle {% if ui_settings.preview_mode %}on{% endif %}" data-toggle="preview-mode">
                                         <input type="checkbox" id="preview-mode" name="preview-mode" value="1" {% if ui_settings.preview_mode %}checked{% endif %}>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="setting-row">
+                                <span class="setting-label">Hide title</span>
+                                <div class="setting-control">
+                                    <div class="toggle {% if ui_settings.hide_title %}on{% endif %}" data-toggle="hide-title">
+                                        <input type="checkbox" id="hide-title" name="hide-title" value="1" {% if ui_settings.hide_title %}checked{% endif %}>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="setting-row">
+                                <span class="setting-label">Auto-save</span>
+                                <div class="setting-control">
+                                    <div class="toggle {% if ui_settings.auto_save %}on{% endif %}" data-toggle="auto-save">
+                                        <input type="checkbox" id="auto-save" name="auto-save" value="1" {% if ui_settings.auto_save %}checked{% endif %}>
                                     </div>
                                 </div>
                             </div>
