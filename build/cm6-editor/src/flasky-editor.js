@@ -666,14 +666,14 @@ function makeLivePreviewPlugin() {
 }
 
 // When live preview is active, block widgets (code blocks, callouts) replace
-// entire line ranges. CM6's default ArrowUp/ArrowDown skips over these ranges
-// entirely — the cursor jumps from the line above to the line below without
-// ever landing on the widget's first/last line. That prevents the user from
-// entering the block to edit its raw source (our active-line reveal only
-// triggers when the cursor is on the block's line). These handlers intercept
-// vertical movement: if the default destination lands inside a block widget,
-// snap the cursor to the widget's boundary line instead so the user can
-// "enter" the block and see its raw markdown.
+// entire line ranges. CM6's default ArrowUp/ArrowDown uses *visual* line
+// movement, which skips over block widgets — the cursor jumps from the line
+// above to the line below without ever landing on the widget's first/last
+// line. That prevents the user from entering the block to edit its raw source
+// (our active-line reveal only triggers when the cursor is on the block's
+// line). These handlers replace the default vertical movement entirely when
+// live preview is on: move one *document* line at a time. If the destination
+// line is inside a block widget, snap to the block's boundary line instead.
 function _livePreviewBlockRanges(view) {
   var field = view.state.field(livePreviewField, false);
   if (!field) return null;
@@ -686,74 +686,69 @@ function _livePreviewBlockRanges(view) {
   return ranges.length ? ranges : null;
 }
 
-function _moveIntoBlock(view, dir) {
-  var ranges = _livePreviewBlockRanges(view);
-  if (!ranges) return false;
+// Find the block widget whose line range contains the given line number.
+// Returns {from, to} or null.
+function _blockAtLine(blocks, view, lineNum) {
+  for (var i = 0; i < blocks.length; i++) {
+    var r = blocks[i];
+    var fromLine = view.state.doc.lineAt(r.from).number;
+    var toLine = _blockLastLineNum(view.state.doc, r);
+    if (lineNum >= fromLine && lineNum <= toLine) return r;
+  }
+  return null;
+}
+
+// Block replace ranges are exclusive at `to` — when `to` falls on a line
+// start, the block's last content line is the one before it.
+function _blockLastLineNum(doc, block) {
+  var toLine = doc.lineAt(block.to);
+  if (block.to === toLine.from && toLine.number > 1) return toLine.number - 1;
+  return toLine.number;
+}
+
+function _moveVertically(view, dir) {
+  var blocks = _livePreviewBlockRanges(view);
   var head = view.state.selection.main.head;
   var line = view.state.doc.lineAt(head);
+  var col = head - line.from;
+  var doc = view.state.doc;
 
-  // Only intercept when the cursor is on the line *immediately adjacent*
-  // to a block widget — that's the only case where CM6's default arrow
-  // handler would skip over the block. When the cursor is already inside
-  // a block (on the active line) or further away, default movement is fine.
-  if (dir < 0) {
-    // ArrowUp: the block must end on the line immediately above (line.number - 1).
-    var target = null;
-    for (var i = 0; i < ranges.length; i++) {
-      var r = ranges[i];
-      var blockLastLine = view.state.doc.lineAt(r.to);
-      var lastLineNum = blockLastLine.number;
-      // Block replace ranges are exclusive at `to` — when `to` is at a line
-      // start, the block's last line is the one before it.
-      if (r.to === blockLastLine.from && blockLastLine.number > 1) {
-        lastLineNum = blockLastLine.number - 1;
-      }
-      if (lastLineNum === line.number - 1) {
-        target = view.state.doc.line(lastLineNum);
-        break;
-      }
-    }
-    if (target) {
-      var col = head - line.from;
-      var pos = Math.min(target.from + col, target.to);
-      view.dispatch({
-        selection: EditorSelection.single(pos),
-        scrollIntoView: true,
-      });
-      return true;
-    }
-  } else {
-    // ArrowDown: the block must start on the line immediately below (line.number + 1).
-    var target2 = null;
-    for (var j = 0; j < ranges.length; j++) {
-      var r2 = ranges[j];
-      var blockFirstLine = view.state.doc.lineAt(r2.from);
-      if (blockFirstLine.number === line.number + 1) {
-        target2 = blockFirstLine;
-        break;
-      }
-    }
-    if (target2) {
-      var col2 = head - line.from;
-      var pos2 = Math.min(target2.from + col2, target2.to);
-      view.dispatch({
-        selection: EditorSelection.single(pos2),
-        scrollIntoView: true,
-      });
-      return true;
+  if (!blocks) {
+    // No block widgets — let the default handler run.
+    return false;
+  }
+
+  var targetLineNum = dir < 0 ? line.number - 1 : line.number + 1;
+  if (targetLineNum < 1 || targetLineNum > doc.lines) return false;
+
+  // If the target line is inside a block widget, snap to the block's
+  // boundary line (first line for ArrowDown, last line for ArrowUp).
+  var block = _blockAtLine(blocks, view, targetLineNum);
+  if (block) {
+    if (dir < 0) {
+      // Moving up into a block — land on the block's last line.
+      targetLineNum = _blockLastLineNum(doc, block);
+    } else {
+      // Moving down into a block — land on the block's first line.
+      targetLineNum = doc.lineAt(block.from).number;
     }
   }
-  return false;
+
+  var target = doc.line(targetLineNum);
+  var pos = Math.min(target.from + col, target.to);
+  view.dispatch({
+    selection: EditorSelection.single(pos),
+    scrollIntoView: true,
+  });
+  return true;
 }
 
 function arrowUpLivePreview(view) {
-  if (_moveIntoBlock(view, -1)) return true;
-  return false;
+  return _moveVertically(view, -1);
 }
 
 function arrowDownLivePreview(view) {
-  if (_moveIntoBlock(view, 1)) return true;
-  return false;
+  return _moveVertically(view, 1);
 }
 
 
