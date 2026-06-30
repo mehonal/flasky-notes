@@ -1,0 +1,60 @@
+/* Cross-document View Transitions (Chromium/Safari) */
+@view-transition {
+    navigation: cleanup;
+}
+
+::view-transition-old(root),
+::view-transition-new(root) {
+    animation-duration: 220ms;
+    animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* JS progress bar (complements View Transitions; covers pre-swap + decrypt gap) */
+.flasky-nav-progress {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 4px;
+    width: 100%;
+    pointer-events: none;
+    z-index: 2147483647;
+    transform: scaleX(0);
+    transform-origin: left center;
+    opacity: 0;
+    background: linear-gradient(90deg, #6d8fd8 0%, #a78bfa 50%, #6d8fd8 100%);
+    box-shadow: 0 0 10px rgba(167, 139, 250, 0.85), 0 0 4px rgba(109, 143, 216, 0.6);
+}
+
+.flasky-nav-progress.is-loading {
+    opacity: 1;
+    animation: flasky-nav-slide 900ms ease-in-out infinite;
+}
+
+.flasky-nav-progress.is-done {
+    opacity: 1;
+    transform: scaleX(1);
+    transition: opacity 300ms ease-out 80ms;
+    animation: none;
+}
+
+.flasky-nav-progress.is-hiding {
+    opacity: 0;
+}
+
+@keyframes flasky-nav-slide {
+    0%   { transform: scaleX(0);    transform-origin: left center; }
+    50%  { transform: scaleX(0.75); transform-origin: left center; }
+    51%  { transform: scaleX(0.75); transform-origin: right center; }
+    100% { transform: scaleX(0);    transform-origin: right center; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    ::view-transition-old(root),
+    ::view-transition-new(root) {
+        animation-duration: 0.01ms;
+    }
+    .flasky-nav-progress.is-loading {
+        animation: none;
+        transform: scaleX(1);
+    }
+}
