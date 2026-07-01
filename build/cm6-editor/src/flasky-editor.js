@@ -14,12 +14,12 @@ import { insertNewlineContinueMarkup, deleteMarkupBackward } from '@codemirror/l
 
 // Custom highlight style that reads from CSS variables
 const flaskyHighlight = HighlightStyle.define([
-  { tag: tags.heading1, fontWeight: '700', fontSize: '1.6em', lineHeight: '1.4' },
-  { tag: tags.heading2, fontWeight: '700', fontSize: '1.35em', lineHeight: '1.4' },
-  { tag: tags.heading3, fontWeight: '700', fontSize: '1.15em', lineHeight: '1.5' },
-  { tag: tags.heading4, fontWeight: '700', fontSize: '1.05em' },
-  { tag: tags.heading5, fontWeight: '700' },
-  { tag: tags.heading6, fontWeight: '700' },
+  { tag: tags.heading1, fontWeight: '700', fontSize: '1.6em', lineHeight: '1.3' },
+  { tag: tags.heading2, fontWeight: '600', fontSize: '1.3em', lineHeight: '1.3' },
+  { tag: tags.heading3, fontWeight: '600', fontSize: '1.1em', lineHeight: '1.3' },
+  { tag: tags.heading4, fontWeight: '700', lineHeight: '1.3' },
+  { tag: tags.heading5, fontWeight: '700', lineHeight: '1.3' },
+  { tag: tags.heading6, fontWeight: '700', lineHeight: '1.3' },
   { tag: tags.strong, fontWeight: '700' },
   { tag: tags.emphasis, fontStyle: 'italic' },
   { tag: tags.strikethrough, textDecoration: 'line-through' },
@@ -114,10 +114,10 @@ const flaskyTheme = EditorView.theme({
     color: 'var(--accent) !important',
   },
   // --- Live-preview content styling (applied via Decoration.mark) ---
-  '.cm6-h1': { fontWeight: '700', fontSize: '1.6em', lineHeight: '1.4' },
-  '.cm6-h2': { fontWeight: '700', fontSize: '1.35em', lineHeight: '1.4' },
-  '.cm6-h3': { fontWeight: '700', fontSize: '1.15em', lineHeight: '1.5' },
-  '.cm6-h4': { fontWeight: '700', fontSize: '1.05em' },
+  '.cm6-h1': { fontWeight: '700' },
+  '.cm6-h2': { fontWeight: '600' },
+  '.cm6-h3': { fontWeight: '600' },
+  '.cm6-h4': { fontWeight: '700' },
   '.cm6-h5': { fontWeight: '700' },
   '.cm6-h6': { fontWeight: '700' },
   // Code block widget (block-level replace)
