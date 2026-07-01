@@ -236,10 +236,14 @@
     function trigger() {
         if (selectedIndex < 0 || !items[selectedIndex]) return;
         var item = items[selectedIndex];
-        var ctx = { editor: openCtx.editor, page: openCtx.editor ? 'editor' : 'other', insertCallback: openCtx.insertCallback };
+        var ctx = { editor: openCtx.editor, page: openCtx.editor ? 'editor' : 'other', insertCallback: openCtx.insertCallback, onOpenNote: openCtx.onOpenNote };
         if (item.kind === 'note') {
             close();
-            window.location.href = '/note/' + item.id;
+            if (typeof ctx.onOpenNote === 'function') {
+                ctx.onOpenNote(item.id);
+            } else {
+                window.location.href = '/note/' + item.id;
+            }
         } else if (item.kind === 'command') {
             close();
             if (typeof item.run === 'function') item.run(ctx);

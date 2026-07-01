@@ -3214,6 +3214,7 @@ function openPalette() {
         editor: cmEditor,
         aiEnabled: !!(typeof _pageData !== 'undefined' && _pageData.aiEnabled),
         drawingEnabled: !!(typeof _pageData !== 'undefined' && _pageData.drawingEnabled),
+        onOpenNote: function (id) { openNote(id); },
         insertCallback: function (title) {
             if (!cmEditor) return;
             var cursor = cmEditor.getCursor();
