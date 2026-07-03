@@ -459,6 +459,10 @@ def settings_page():
             ).first():
                 def_cat_id = 0
             set_setting(g.user, "default_category_id", def_cat_id)
+            set_setting(g.user, "drawing_enabled", "drawing-enabled" in request.form)
+            for field in ("attachment_max_width", "drawing_max_width"):
+                form_key = field.replace("_", "-")
+                set_setting(g.user, field, request.form.get(form_key, ""))
             db.session.commit()
         elif "generate-api-token" in request.form:
             token_name = request.form.get("token-name", "").strip()
@@ -500,9 +504,6 @@ def settings_page():
             if not settings.ai_enabled:
                 settings.ollama_api_key = None
             db.session.commit()
-        elif "toggle-drawing" in request.form:
-            set_setting(g.user, "drawing_enabled", "drawing-enabled" in request.form)
-            db.session.commit()
         elif "update-ai-settings" in request.form:
             api_key = request.form.get("ollama-api-key", "").strip()
             model = request.form.get("ollama-model", "").strip()
@@ -540,7 +541,7 @@ def settings_page():
                                         content=conflict.server_content)
                 conflict.resolved = True
                 db.session.commit()
-        return redirect(url_for("web.settings_page"))
+        return redirect(url_for("web.settings_page") + "?saved=1")
     tokens = ApiToken.query.filter_by(user_id=g.user.id).all()
     conflicts = (
         SyncConflict.query.filter_by(user_id=g.user.id, resolved=False)

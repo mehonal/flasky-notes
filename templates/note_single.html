@@ -162,6 +162,8 @@
         "panelWidgets": {{ panel_widgets | tojson }},
         "aiEnabled": {% if g.user and g.user.settings and g.user.settings.ai_enabled %}true{% else %}false{% endif %},
         "drawingEnabled": {% if ui_settings and ui_settings.drawing_enabled %}true{% else %}false{% endif %},
+        "attachmentMaxWidth": {{ (ui_settings.attachment_max_width if ui_settings else '') | tojson }},
+        "drawingMaxWidth": {{ (ui_settings.drawing_max_width if ui_settings else '') | tojson }},
         "aiModel": {% if ai_settings and ai_settings.ollama_model %}{{ ai_settings.ollama_model | tojson }}{% else %}"gpt-oss:120b"{% endif %},
         "aiEndpoint": {% if ai_settings and ai_settings.ollama_endpoint %}{{ ai_settings.ollama_endpoint | tojson }}{% else %}""{% endif %},
         "timezone": {{ timezone | tojson }},

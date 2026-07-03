@@ -134,3 +134,35 @@ def test_ui_settings_defaults_on_missing_key():
     assert get_setting(user, "font_size") == 16  # registry default
     assert get_setting(user, "dark_mode") is False  # registry default
     assert get_setting(user, "compact_mode") is False  # registry default
+
+
+def test_attachment_drawing_max_width_round_trip():
+    """attachment_max_width / drawing_max_width persist and read back."""
+    from flasky.ui_settings import set_setting, get_setting
+    user = _make_user("widthuser", "testpass", "width@test.com")
+    # Default is empty string (full width).
+    assert get_setting(user, "attachment_max_width") == ""
+    assert get_setting(user, "drawing_max_width") == ""
+    # Valid values persist.
+    assert set_setting(user, "attachment_max_width", "300") is True
+    assert get_setting(user, "attachment_max_width") == "300"
+    assert set_setting(user, "drawing_max_width", "250px") is True
+    assert get_setting(user, "drawing_max_width") == "250px"
+    assert set_setting(user, "attachment_max_width", "50%") is True
+    assert get_setting(user, "attachment_max_width") == "50%"
+
+
+def test_attachment_drawing_max_width_validation():
+    """Validator accepts valid width strings and rejects invalid ones."""
+    from flasky.ui_settings import set_setting, get_setting
+    user = _make_user("widthvalid", "testpass", "widthvalid@test.com")
+    # Accepted: empty, "0", bare number, "Npx", "N%".
+    for ok in ("", "0", "300", "300px", "50%", "1%", "100%", "4000px"):
+        assert set_setting(user, "attachment_max_width", ok) is True, ok
+    # Rejected: negative, over range, bad percent, non-numeric, wrong type,
+    # whitespace inside the value, signed numbers, wrong unit casing.
+    for bad in ("-5", "4001px", "5000", "0%", "150%", "abc", "12.5px", "30em",
+                "300 px", "+300", "300PX", "0x10", "1e3", True):
+        assert set_setting(user, "attachment_max_width", bad) is False, bad
+        # On rejection the previously stored value is preserved.
+        assert get_setting(user, "attachment_max_width") == "4000px"

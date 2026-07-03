@@ -13,6 +13,7 @@ SettingDef validator.
 """
 
 import json
+import re
 from dataclasses import dataclass
 from typing import Any, Callable, Optional
 
@@ -41,6 +42,24 @@ DEFAULT_PANEL_WIDGETS = [
 # Note: the calendar widget is NOT in this shared default list because its
 # presence is conditional on the per-user daily_note_enabled setting. It is
 # injected per-user by get_panel_widgets() below.
+
+
+_WIDTH_RE = re.compile(r"^([1-9]\d{0,3})(px|%)?$")
+
+
+def _is_valid_width(v: Any) -> bool:
+    if not isinstance(v, str):
+        return False
+    v = v.strip()
+    if v == "" or v == "0":
+        return True
+    m = _WIDTH_RE.match(v)
+    if not m:
+        return False
+    num, unit = int(m.group(1)), m.group(2)
+    if unit == "%":
+        return 1 <= num <= 100
+    return 1 <= num <= 4000
 
 
 def _is_int_in_range(low: int, high: int) -> Callable[[Any], bool]:
@@ -128,6 +147,11 @@ REGISTRY: dict[str, SettingDef] = {
         "custom_css", "", str,
         lambda v: isinstance(v, str) and len(v) <= 50000,
     ),
+    # Max render width for embedded attachments (images + videos) and .fldraw
+    # drawings. Accepts "N", "Npx", "N%"; empty / "0" = full width. Bare
+    # numbers get "px" appended client-side. Audio/PDF/links unaffected.
+    "attachment_max_width": SettingDef("attachment_max_width", "", str, _is_valid_width),
+    "drawing_max_width": SettingDef("drawing_max_width", "", str, _is_valid_width),
 }
 
 # The CSS variables exposed in the customize UI (curated subset). The dark

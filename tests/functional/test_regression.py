@@ -100,3 +100,53 @@ def test_subfolder_category_deletion(app_context):
     # Note should still exist (reassigned to main)
     note_check = client.get(f"/note/{note_id}")
     assert note_check.status_code == 200
+
+
+def test_settings_attachments_panel_and_persistence(app_context):
+    """The Attachments/Drawing settings tabs render and persist max-width values."""
+    from flasky.ui_settings import get_setting
+    from flasky.models import User
+    client = app_context.test_client()
+    creds = make_e2ee_user(client, "attachsettings", "testpassword123")
+
+    # The settings page should render both panels + nav buttons.
+    r = client.get("/settings")
+    assert r.status_code == 200
+    body = r.get_data(as_text=True)
+    assert 'data-tab="attachments"' in body
+    assert 'name="attachment-max-width"' in body
+    assert 'data-tab="drawing"' in body
+    assert 'name="drawing-max-width"' in body
+
+    # POST the shared ui-settings form with the two fields + drawing toggle.
+    r = client.post(
+        "/settings",
+        data={
+            "update-ui-settings": "Save settings",
+            "drawing-enabled": "1",
+            "attachment-max-width": "300",
+            "drawing-max-width": "250px",
+        },
+        follow_redirects=True,
+    )
+    assert r.status_code == 200
+
+    user = User.query.filter_by(username="attachsettings").first()
+    assert get_setting(user, "attachment_max_width") == "300"
+    assert get_setting(user, "drawing_max_width") == "250px"
+    assert get_setting(user, "drawing_enabled") is True
+
+    # Bad input is rejected and does not crash or overwrite the stored value.
+    r = client.post(
+        "/settings",
+        data={
+            "update-ui-settings": "Save settings",
+            "attachment-max-width": "abc",
+            "drawing-max-width": "150%",
+        },
+        follow_redirects=True,
+    )
+    assert r.status_code == 200
+    # "abc" rejected → previous "300" preserved; "150%" rejected → "250px" preserved.
+    assert get_setting(user, "attachment_max_width") == "300"
+    assert get_setting(user, "drawing_max_width") == "250px"

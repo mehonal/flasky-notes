@@ -22,6 +22,9 @@ var currentNoteIconColor = _pageData.currentNoteIconColor;
 var dailyNoteConfig = _pageData.dailyNote || { enabled: false, titleFormat: 'YYYY-MM-DD', templateId: 0, categoryId: 0, openOnStart: false };
 var calendarPlacement = _pageData.calendarPlacement || 'left';
 var userTimezone = _pageData.timezone || 'UTC';
+if (typeof window._setEmbedMaxWidths === 'function') {
+    window._setEmbedMaxWidths(_pageData.attachmentMaxWidth, _pageData.drawingMaxWidth);
+}
 
 function formatDailyTitle(fmt, date) {
     var pad = function(n) { return n < 10 ? '0' + n : '' + n; };

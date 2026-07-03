@@ -10,6 +10,28 @@
     var _originalMarked = window.marked;
     var _pendingBuild = null;
 
+    // Max render widths for embedded attachments / drawings. Set from app.js
+    // via _setEmbedMaxWidths() using values from the page-data block. Values
+    // are normalized CSS strings ("300px", "50%") or null (= full width).
+    var _attachmentMaxWidth = null;
+    var _drawingMaxWidth = null;
+
+    function _resolveWidth(val) {
+        val = String(val || '').trim();
+        if (!val || val === '0') return null;
+        if (val.endsWith('%')) return val;
+        if (val.endsWith('px')) return val;
+        return val + 'px';
+    }
+
+    window._setEmbedMaxWidths = function (img, draw) {
+        _attachmentMaxWidth = _resolveWidth(img);
+        _drawingMaxWidth = _resolveWidth(draw);
+    };
+    window._getEmbedMaxWidths = function () {
+        return { img: _attachmentMaxWidth, draw: _drawingMaxWidth };
+    };
+
     function loadNoteMap(callback) {
         if (noteMap !== null) {
             callback();
@@ -81,15 +103,15 @@
             if (att) {
                 var url = '/attachment/' + att.id + '/' + encodeURIComponent(att.filename);
                 if (att.filename.match(/\.(png|jpg|jpeg|gif|svg|webp|bmp)$/i)) {
-                    return '<img data-encrypted-src="' + url + '" data-att-filename="' + att.filename + '" alt="' + name + '" style="max-width:100%" class="e2ee-attachment">';
+                    return '<img data-encrypted-src="' + url + '" data-att-filename="' + att.filename + '" alt="' + name + '" style="max-width:' + (_attachmentMaxWidth || '100%') + '" class="e2ee-attachment">';
                 } else if (att.filename.match(/\.(mp4|webm|ogg)$/i)) {
-                    return '<video controls data-encrypted-src="' + url + '" class="e2ee-attachment" style="max-width:100%"></video>';
+                    return '<video controls data-encrypted-src="' + url + '" class="e2ee-attachment" style="max-width:' + (_attachmentMaxWidth || '100%') + '"></video>';
                 } else if (att.filename.match(/\.(mp3|wav|flac|m4a)$/i)) {
                     return '<audio controls data-encrypted-src="' + url + '" class="e2ee-attachment"></audio>';
                 } else if (att.filename.match(/\.pdf$/i)) {
                     return '<a href="' + url + '" target="_blank">' + name + '</a>';
                 } else if (att.filename.match(/\.fldraw$/i)) {
-                    return '<div class="fldraw-render" data-encrypted-src="' + url + '" data-att-id="' + att.id + '" data-att-filename="' + att.filename + '" data-action="edit-fldraw"></div>';
+                    return '<div class="fldraw-render" data-encrypted-src="' + url + '" data-att-id="' + att.id + '" data-att-filename="' + att.filename + '" data-action="edit-fldraw" style="max-width:' + (_drawingMaxWidth || '100%') + '"></div>';
                 }
                 return '<a href="' + url + '">' + name + '</a>';
             }

@@ -204,6 +204,8 @@ class EmbedWidget extends WidgetType {
       wrap.setAttribute('data-att-id', String(this.att.id));
       wrap.setAttribute('data-att-filename', filename);
       wrap.setAttribute('data-action', 'edit-fldraw');
+      var drawMw = window._getEmbedMaxWidths ? window._getEmbedMaxWidths().draw : null;
+      wrap.style.maxWidth = drawMw || '100%';
       holder.appendChild(wrap);
       if (window._decryptAttachments) window._decryptAttachments(holder);
       return holder;
@@ -215,7 +217,8 @@ class EmbedWidget extends WidgetType {
       img.setAttribute('data-encrypted-src', url);
       img.setAttribute('data-att-filename', filename);
       img.setAttribute('alt', this.name);
-      img.style.maxWidth = '100%';
+      var imgMw = window._getEmbedMaxWidths ? window._getEmbedMaxWidths().img : null;
+      img.style.maxWidth = imgMw || '100%';
       img.style.cursor = 'pointer';
       holder.appendChild(img);
       if (window._decryptAttachments) window._decryptAttachments(holder);
