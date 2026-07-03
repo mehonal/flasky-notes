@@ -377,35 +377,6 @@ def settings_page():
                 set_setting(g.user, "spotlight_mode", request.form["spotlight-mode"] == "1")
             else:
                 set_setting(g.user, "spotlight_mode", False)
-            if "auto-save" in request.form:
-                set_setting(g.user, "auto_save", request.form["auto-save"] == "1")
-            else:
-                set_setting(g.user, "auto_save", False)
-            if "hide-title" in request.form:
-                set_setting(g.user, "hide_title", request.form["hide-title"] == "1")
-            else:
-                set_setting(g.user, "hide_title", False)
-            # UI state booleans
-            for field in (
-                "sidebar_collapsed",
-                "right_panel_collapsed",
-                "properties_collapsed",
-                "preview_mode",
-                "render_embeds_in_edit_mode",
-                "live_preview",
-            ):
-                form_key = field.replace("_", "-")
-                if form_key in request.form:
-                    set_setting(g.user, field, request.form[form_key] == "1")
-                else:
-                    set_setting(g.user, field, False)
-            # Panel widgets visibility
-            widget_keys = [k for k in request.form if k.startswith("widget-")]
-            if widget_keys:
-                widgets = get_panel_widgets(g.user)
-                for w in widgets:
-                    w["visible"] = ("widget-" + w["id"]) in request.form
-                set_panel_widgets(g.user, widgets)
             # Daily notes settings
             if "daily-note-enabled" in request.form:
                 set_setting(g.user, "daily_note_enabled", True)
@@ -446,8 +417,23 @@ def settings_page():
             ).first():
                 cat_id = 0
             set_setting(g.user, "daily_note_category_id", cat_id)
-            # Default category for new notes (mirror of daily-note-category-id:
-            # validate ownership, clear (0) if missing/foreign).
+            set_setting(g.user, "drawing_enabled", "drawing-enabled" in request.form)
+            for field in ("attachment_max_width", "drawing_max_width"):
+                form_key = field.replace("_", "-")
+                set_setting(g.user, field, request.form.get(form_key, ""))
+            db.session.commit()
+        elif "save-editing" in request.form:
+            for field in (
+                "preview_mode",
+                "render_embeds_in_edit_mode",
+                "live_preview",
+                "hide_title",
+                "auto_save",
+            ):
+                form_key = field.replace("_", "-")
+                set_setting(g.user, field, form_key in request.form and request.form[form_key] == "1")
+            # Default folder for new notes (validate ownership, clear 0 if
+            # missing/foreign).
             def_cat_id = 0
             raw_def_cat = request.form.get("default-category-id", "0")
             try:
@@ -459,10 +445,21 @@ def settings_page():
             ).first():
                 def_cat_id = 0
             set_setting(g.user, "default_category_id", def_cat_id)
-            set_setting(g.user, "drawing_enabled", "drawing-enabled" in request.form)
-            for field in ("attachment_max_width", "drawing_max_width"):
+            db.session.commit()
+        elif "save-layout" in request.form:
+            for field in (
+                "sidebar_collapsed",
+                "right_panel_collapsed",
+                "properties_collapsed",
+            ):
                 form_key = field.replace("_", "-")
-                set_setting(g.user, field, request.form.get(form_key, ""))
+                set_setting(g.user, field, form_key in request.form and request.form[form_key] == "1")
+            db.session.commit()
+        elif "save-widgets" in request.form:
+            widgets = get_panel_widgets(g.user)
+            for w in widgets:
+                w["visible"] = ("widget-" + w["id"]) in request.form
+            set_panel_widgets(g.user, widgets)
             db.session.commit()
         elif "generate-api-token" in request.form:
             token_name = request.form.get("token-name", "").strip()
