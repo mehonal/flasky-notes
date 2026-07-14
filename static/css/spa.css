@@ -71,3 +71,100 @@ body.app-view-open {
 .export-progress .bar-fill { height: 100%; background: #3b82f6; width: 0%; transition: width 0.2s; }
 #export-status { font-size: 0.85rem; color: #6b7280; }
 [data-theme="dark"] #export-status { color: #9ca3af; }
+
+/* ============ Unlock view ============ */
+.unlock-view {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    min-height: 100dvh;
+    padding: 2rem 1rem;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    color: var(--text-primary, #1f2329);
+}
+[data-theme="dark"] .unlock-view { color: #e6e6e6; }
+
+.unlock-card {
+    max-width: 400px;
+    width: 100%;
+    text-align: center;
+}
+.unlock-logo { margin-bottom: 1.5rem; }
+.unlock-logo img { border-radius: 16px; }
+.unlock-title {
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin: 0 0 0.25rem;
+}
+.unlock-subtitle {
+    font-size: 0.85rem;
+    color: var(--text-muted, #6b7280);
+    margin: 0 0 1.5rem;
+}
+[data-theme="dark"] .unlock-subtitle { color: #9ca3af; }
+.unlock-hint {
+    font-size: 0.8rem;
+    color: var(--text-muted, #6b7280);
+    margin: 0 0 1rem;
+    font-style: italic;
+}
+[data-theme="dark"] .unlock-hint { color: #9ca3af; }
+
+.unlock-input {
+    width: 100%;
+    padding: 10px 14px;
+    font-size: 0.95rem;
+    border: 1px solid var(--border, #d1d5db);
+    border-radius: 8px;
+    background: var(--bg-input, #fff);
+    color: var(--text-primary, #1f2329);
+    outline: none;
+    box-sizing: border-box;
+    margin-bottom: 0.75rem;
+}
+.unlock-input:focus { border-color: var(--accent, #3b82f6); }
+[data-theme="dark"] .unlock-input { background: #1e1e2e; border-color: #2a2a3a; color: #e6e6e6; }
+
+.unlock-error {
+    color: #ef4444;
+    font-size: 0.85rem;
+    padding: 0.5rem 0;
+    text-align: center;
+}
+.unlock-status {
+    color: var(--text-muted, #6b7280);
+    font-size: 0.85rem;
+    text-align: center;
+    padding: 0.5rem 0;
+}
+[data-theme="dark"] .unlock-status { color: #9ca3af; }
+
+.unlock-btn {
+    width: 100%;
+    padding: 10px 16px;
+    font-size: 0.95rem;
+    font-weight: 500;
+    border: none;
+    border-radius: 8px;
+    background: var(--accent, #3b82f6);
+    color: #fff;
+    cursor: pointer;
+    transition: background 0.15s;
+    margin-top: 0.5rem;
+}
+.unlock-btn:hover { background: var(--accent-hover, #2563eb); }
+.unlock-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+[data-theme="dark"] .unlock-btn { color: var(--bg-primary, #14141f); }
+
+.unlock-logout {
+    display: block;
+    text-align: center;
+    margin-top: 1rem;
+    font-size: 0.8rem;
+    color: var(--text-muted, #6b7280);
+    text-decoration: none;
+}
+.unlock-logout:hover { color: var(--text-primary, #1f2329); }
+[data-theme="dark"] .unlock-logout { color: #9ca3af; }
+[data-theme="dark"] .unlock-logout:hover { color: #e6e6e6; }

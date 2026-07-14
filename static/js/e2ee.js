@@ -10,11 +10,14 @@
     var _symKey = null;
     var _ready = false;
     var _encrypted = false;
+    var _unlockShown = false;
 
     /**
      * Initialize E2EE. Call on page load.
      * Checks if encryption is enabled, loads key from sessionStorage.
-     * Redirects to /unlock if key is missing.
+     * If key is missing, shows the unlock view inside the SPA shell
+     * (instead of redirecting to /unlock). After unlock, call
+     * afterUnlockReinit() to re-run init.
      */
     async function init() {
         // Latch the encrypted state on first init (before revealContent removes the attribute)
@@ -28,13 +31,23 @@
         }
         _symKey = await FlaskyCrypto.loadSymmetricKey();
         if (!_symKey) {
-            // Redirect to unlock page (save current URL for redirect back)
-            var returnUrl = window.location.pathname + window.location.search;
-            window.location.href = '/unlock?next=' + encodeURIComponent(returnUrl);
+            if (_unlockShown) return false;
+            _unlockShown = true;
+            await _showUnlockView();
             return false;
         }
         _ready = true;
+        _unlockShown = false;
         return true;
+    }
+
+    async function _showUnlockView() {
+        if (!window.FlaskyRouter || typeof window.FlaskyRouter.navigate !== 'function') {
+            var returnUrl = window.location.pathname + window.location.search;
+            window.location.href = '/unlock?next=' + encodeURIComponent(returnUrl);
+            return;
+        }
+        window.FlaskyRouter.navigate('/unlock', { noPushState: true });
     }
 
     /**

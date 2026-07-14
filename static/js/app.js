@@ -537,6 +537,17 @@ function loadNote(id, category, categoryId) {
 // Handle browser back/forward
 window.addEventListener('popstate', function(e) {
     _inPopState = true;
+
+    // If E2EE is enabled but the key hasn't been loaded yet (unlock overlay
+    // was showing), a full reload is the safest path: the server re-renders
+    // the correct note's encrypted data and init() re-shows the unlock view.
+    // Without this, loadNote would decrypt with a null key and show ciphertext.
+    if (typeof FlaskyE2EE !== 'undefined' && FlaskyE2EE.isEncrypted() && !FlaskyE2EE.isReady()) {
+        _inPopState = false;
+        window.location.reload();
+        return;
+    }
+
     var st = e.state;
     var id = 0;
     if (st && st.flasky && st.flasky.view === 'note') {
@@ -4100,7 +4111,7 @@ window.addEventListener('resize', function() { isMobile = window.innerWidth <= 7
     initWidgetHeaderDrag();
     syncQuickSettingsState();
 
-    FlaskyE2EE.init().then(async function(ok) {
+    async function _postE2EEInit(ok) {
         if (!ok) return;
         var dataEl = document.getElementById('encrypted-note-data');
         if (dataEl) {
@@ -4117,7 +4128,7 @@ window.addEventListener('resize', function() { isMobile = window.innerWidth <= 7
                 }
                 var titleEl = document.getElementById('note-title');
                 if (titleEl) titleEl.value = title || '';
-                if (cmEditor) cmEditor.setValue(content || '');
+                if (cmEditor) { cmEditor.setValue(content || ''); cmEditor.refresh(); }
                 else {
                     var ta = document.getElementById('note-content');
                     if (ta) ta.value = content || '';
@@ -4177,7 +4188,13 @@ window.addEventListener('resize', function() { isMobile = window.innerWidth <= 7
         // The calendar widget may live in the left sidebar, so render it
         // independently of the right-panel open/closed state.
         refreshCalendarWidget();
-    });
+    }
+
+    FlaskyE2EE.init().then(_postE2EEInit);
+
+    window.afterUnlockReinit = function() {
+        FlaskyE2EE.init().then(_postE2EEInit);
+    };
 
     document.addEventListener('visibilitychange', function() {
         if (document.visibilityState === 'visible' && !document.hidden) {

@@ -208,7 +208,7 @@
         }
 
         destroyCurrentView();
-        if (!opts.popstate) history.pushState({ flasky: { view: 'page', path: path } }, '', path);
+        if (!opts.popstate && !opts.noPushState) history.pushState({ flasky: { view: 'page', path: path } }, '', path);
         openOverlay(html, viewMatch ? viewMatch.module : null);
         finishBar();
     }

@@ -1,0 +1,36 @@
+{# Unlock view — rendered inside the SPA shell when the symmetric key is
+   missing from sessionStorage. The user re-enters their password to
+   re-derive the KEK and unwrap the stored symmetric key. No server call
+   is needed (the wrapped key + salt are injected below). #}
+<div class="unlock-view" id="unlock-root">
+  <div class="unlock-card">
+    <div class="unlock-logo">
+      <img src="/static/images/amazing_logo.png" alt="Flasky Notes" width="96" height="96">
+    </div>
+    <h4 class="unlock-title">Vault Locked</h4>
+    <p class="unlock-subtitle">Re-enter your password to decrypt your notes.</p>
+
+    {% if password_hint %}
+    <p class="unlock-hint">Hint: {{ password_hint }}</p>
+    {% endif %}
+
+    <form id="unlock-form" autocomplete="on">
+      <input type="password"
+             class="unlock-input"
+             id="unlock-password"
+             placeholder="Password..."
+             autocomplete="current-password"
+             autofocus required>
+
+      <div class="unlock-error" id="unlock-error" style="display:none"></div>
+      <div class="unlock-status" id="unlock-status" style="display:none">Deriving keys...</div>
+
+      <button class="unlock-btn" type="submit" id="unlock-btn">Unlock</button>
+      <a href="/logout" class="unlock-logout">Log out instead</a>
+    </form>
+  </div>
+
+  <script type="application/json" id="unlock-data">
+    {"encrypted_sym_key": {{ encrypted_sym_key|tojson }}, "key_salt": {{ key_salt|tojson }}}
+  </script>
+</div>

@@ -331,8 +331,13 @@
                 var existing = sessionStorage.getItem('flasky_sym_key');
                 if (!existing) {
                     sessionStorage.setItem('flasky_sym_key', e.data.key);
-                    // If we're on the unlock page, redirect
-                    if (window.location.pathname === '/unlock') {
+                    if (window.FlaskyRouter && typeof window.FlaskyRouter.closeOverlay === 'function'
+                        && !window.FlaskyRouter.isEditorActive()) {
+                        window.FlaskyRouter.closeOverlay();
+                        if (typeof window.afterUnlockReinit === 'function') {
+                            window.afterUnlockReinit();
+                        }
+                    } else if (window.location.pathname === '/unlock') {
                         window.location.href = '/notes';
                     }
                 }

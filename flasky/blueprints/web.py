@@ -294,6 +294,14 @@ def api_auth_recovery_info():
 @login_required_page
 def unlock_page():
     """Password re-entry page for E2EE users whose sessionStorage key was lost."""
+    if request.args.get("_fragment") == "1":
+        return render_template(
+            "_unlock_view.html",
+            encrypted_sym_key=g.user.encrypted_symmetric_key,
+            password_hint=g.user.password_hint or "",
+            username=g.user.username,
+            key_salt=g.user.key_salt or "",
+        )
     return render_template(
         "unlock.html",
         encrypted_sym_key=g.user.encrypted_symmetric_key,
