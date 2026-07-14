@@ -230,7 +230,10 @@
         var url;
         try { url = new URL(a.href, window.location.href); } catch (e) { return; }
         var path = url.pathname + url.search;
-        if (isNoteLink(path)) return;
+        if (isNoteLink(path)) {
+            if (!isEditorActive()) { e.preventDefault(); navigate(path); }
+            return;
+        }
         if (!matchView(path)) return;
         e.preventDefault();
         navigate(path);
@@ -243,7 +246,10 @@
         if (!a || !isInternalLink(a)) return;
         var url;
         try { url = new URL(a.href, window.location.href); } catch (e) { return; }
-        if (isNoteLink(url.pathname)) return;
+        if (isNoteLink(url.pathname)) {
+            if (!isEditorActive()) showBar();
+            return;
+        }
         if (!matchView(url.pathname)) return;
         showBar();
     }

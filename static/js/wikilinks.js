@@ -113,7 +113,7 @@
                 } else if (att.filename.match(/\.fldraw$/i)) {
                     return '<div class="fldraw-render" data-encrypted-src="' + url + '" data-att-id="' + att.id + '" data-att-filename="' + att.filename + '" data-action="edit-fldraw" style="max-width:' + (_drawingMaxWidth || '100%') + '"></div>';
                 }
-                return '<a href="' + url + '">' + name + '</a>';
+                return '<a href="' + url + '" target="_blank">' + name + '</a>';
             }
             return match;
         });
