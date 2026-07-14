@@ -65,8 +65,8 @@ def test_note_revert_preserves_previous(app_context):
         json={"noteId": note_id, "title": enc(creds, "Revert Note"), "content": enc(creds, "Version 2"), "category": None},
     )
 
-    # Revert via the form (note_single_page POST handler)
-    client.post(f"/note/{note_id}", data={"revert_to_last_version": True}, follow_redirects=True)
+    # Revert via the API
+    client.post("/api/revert_note", json={"noteId": note_id})
 
     # Fetch the note via the API and decrypt to verify content is back to v1
     note_r = client.get(f"/api/note/{note_id}")
@@ -109,8 +109,8 @@ def test_settings_attachments_panel_and_persistence(app_context):
     client = app_context.test_client()
     creds = make_e2ee_user(client, "attachsettings", "testpassword123")
 
-    # The settings page should render both panels + nav buttons.
-    r = client.get("/settings")
+    # The settings fragment should render both panels + nav buttons.
+    r = client.get("/settings?_fragment=1")
     assert r.status_code == 200
     body = r.get_data(as_text=True)
     assert 'data-tab="attachments"' in body

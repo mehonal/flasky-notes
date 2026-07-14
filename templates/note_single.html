@@ -190,7 +190,8 @@
             "templateId": {{ (ui_settings.daily_note_template_id if ui_settings else 0) or 0 }},
             "categoryId": {{ (ui_settings.daily_note_category_id if ui_settings else 0) or 0 }},
             "openOnStart": {% if ui_settings and ui_settings.daily_note_open_on_start %}true{% else %}false{% endif %}
-        }
+        },
+        "initialView": {{ initial_view|tojson if initial_view else 'null' }}
     }
     </script>
     <script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='js/app.js') }}"></script>

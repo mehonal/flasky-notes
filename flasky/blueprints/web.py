@@ -356,6 +356,39 @@ def index_page():
     return redirect(url_for("web.notes_page"))
 
 
+def _render_shell(initial_view=None):
+    """Render the SPA shell (note_single.html) with a blank note.
+
+    Used by /agenda, /settings, /ai, /export when accessed directly (no
+    _fragment). The router reads initialView from _pageData and auto-
+    navigates to the correct view after the shell loads.
+    """
+    ui_settings = get_all_settings(g.user)
+    category_tree = g.user.get_category_tree()
+    default_category = g.user.get_default_category()
+    panel_widgets = get_panel_widgets(g.user)
+    return render_template(
+        "note_single.html",
+        note=None,
+        note_id=0,
+        font_size=ui_settings.font_size,
+        category=default_category.name if default_category else None,
+        category_id=default_category.id if default_category else None,
+        ui_settings=ui_settings,
+        custom_colors=get_effective_colors(ui_settings.custom_colors),
+        custom_css=ui_settings.custom_css,
+        category_tree=category_tree,
+        default_template=None,
+        default_category_id=(default_category.id if default_category else 0),
+        panel_widgets=panel_widgets,
+        encrypted_note_data=None,
+        ai_settings=g.user.settings if g.user else None,
+        timezone=g.user.get_timezone(as_str=True),
+        daily=0,
+        initial_view=initial_view,
+    )
+
+
 @web_bp.route("/settings", methods=["GET", "POST"])
 @login_required_page
 def settings_page():
@@ -503,22 +536,7 @@ def settings_page():
                     ai_settings=settings,
                     drawing_enabled=get_setting(g.user, "drawing_enabled"),
                 )
-            tokens = ApiToken.query.filter_by(user_id=g.user.id).all()
-            ui_settings = get_all_settings(g.user)
-            return render_template(
-                "settings.html",
-                timezones=available_timezones(),
-                tokens=tokens,
-                new_token=plaintext,
-                sync_enabled=settings.obsidian_sync_enabled,
-                ui_settings=ui_settings,
-                custom_colors=get_effective_colors(ui_settings.custom_colors),
-                custom_css=ui_settings.custom_css,
-                panel_widgets=get_panel_widgets(g.user),
-                ai_enabled=settings.ai_enabled,
-                ai_settings=settings,
-                drawing_enabled=get_setting(g.user, "drawing_enabled"),
-            )
+            return redirect(url_for("web.settings_page") + "?saved=1")
         elif "revoke-api-token" in request.form:
             token_id = request.form.get("token-id")
             token = ApiToken.query.filter_by(id=token_id, user_id=g.user.id).first()
@@ -570,51 +588,29 @@ def settings_page():
                                         content=conflict.server_content)
                 conflict.resolved = True
                 db.session.commit()
-        if is_fragment:
-            tokens = ApiToken.query.filter_by(user_id=g.user.id).all()
-            conflicts = (
-                SyncConflict.query.filter_by(user_id=g.user.id, resolved=False)
-                .order_by(SyncConflict.conflict_date.desc())
-                .all()
-            )
-            ui_settings = get_all_settings(g.user)
-            return render_template(
-                "_settings_view.html",
-                timezones=available_timezones(),
-                tokens=tokens,
-                conflicts=conflicts,
-                sync_enabled=settings.obsidian_sync_enabled,
-                ui_settings=ui_settings,
-                custom_colors=get_effective_colors(ui_settings.custom_colors),
-                custom_css=ui_settings.custom_css,
-                panel_widgets=get_panel_widgets(g.user),
-                ai_enabled=settings.ai_enabled,
-                ai_settings=settings,
-                drawing_enabled=get_setting(g.user, "drawing_enabled"),
-            )
-        return redirect(url_for("web.settings_page") + "?saved=1")
-    tokens = ApiToken.query.filter_by(user_id=g.user.id).all()
-    conflicts = (
-        SyncConflict.query.filter_by(user_id=g.user.id, resolved=False)
-        .order_by(SyncConflict.conflict_date.desc())
-        .all()
-    )
-    ui_settings = get_all_settings(g.user)
-    template_name = "_settings_view.html" if is_fragment else "settings.html"
-    return render_template(
-        template_name,
-        timezones=available_timezones(),
-        tokens=tokens,
-        conflicts=conflicts,
-        sync_enabled=settings.obsidian_sync_enabled,
-        ui_settings=ui_settings,
-        custom_colors=get_effective_colors(ui_settings.custom_colors),
-        custom_css=ui_settings.custom_css,
-        panel_widgets=get_panel_widgets(g.user),
-        ai_enabled=settings.ai_enabled,
-        ai_settings=settings,
-        drawing_enabled=get_setting(g.user, "drawing_enabled"),
-    )
+    if is_fragment:
+        tokens = ApiToken.query.filter_by(user_id=g.user.id).all()
+        conflicts = (
+            SyncConflict.query.filter_by(user_id=g.user.id, resolved=False)
+            .order_by(SyncConflict.conflict_date.desc())
+            .all()
+        )
+        ui_settings = get_all_settings(g.user)
+        return render_template(
+            "_settings_view.html",
+            timezones=available_timezones(),
+            tokens=tokens,
+            conflicts=conflicts,
+            sync_enabled=settings.obsidian_sync_enabled,
+            ui_settings=ui_settings,
+            custom_colors=get_effective_colors(ui_settings.custom_colors),
+            custom_css=ui_settings.custom_css,
+            panel_widgets=get_panel_widgets(g.user),
+            ai_enabled=settings.ai_enabled,
+            ai_settings=settings,
+            drawing_enabled=get_setting(g.user, "drawing_enabled"),
+        )
+    return _render_shell(initial_view="/settings")
 
 
 @web_bp.route("/register", methods=["GET"])
@@ -660,7 +656,7 @@ def daily_page():
     return redirect(url_for("web.note_single_page", note_id=0, daily=1))
 
 
-@web_bp.route("/note/<int:note_id>", methods=["GET", "POST"])
+@web_bp.route("/note/<int:note_id>", methods=["GET"])
 @login_required_page
 def note_single_page(note_id):
     ui_settings = get_all_settings(g.user)
@@ -669,47 +665,6 @@ def note_single_page(note_id):
     if note and note is not None:
         if g.user != note.user:
             return "You do not own this note. Click here to go to your <a href='/notes'>notes</a>."
-    if request.method == "POST":
-        from flasky.services.notes import create_note, update_note, delete_note, revert_note
-        if note_id == 0:
-            if "update-note" in request.form:
-                note_title = request.form["title"]
-                note_content = request.form["content"]
-                try:
-                    note_category = request.form["category"]
-                except KeyError:
-                    note_category = ""
-                if len(note_title) < 1:
-                    note_title = None
-                if len(note_content) < 1:
-                    note_content = None
-                if len(note_category) < 1:
-                    note_category = None
-                note = create_note(g.user, note_title, note_content, note_category)
-                return redirect(url_for("web.note_single_page", note_id=note.id))
-        else:
-            if "revert_to_last_version" in request.form:
-                revert_note(g.user, note_id)
-                return redirect(url_for("web.note_single_page", note_id=note.id))
-            elif "delete_note" in request.form:
-                delete_note(g.user, note_id)
-                return redirect(url_for("web.notes_page"))
-            elif "update-note" in request.form:
-                note_title = request.form["title"]
-                note_content = request.form["content"]
-                try:
-                    note_category = request.form["category"]
-                except KeyError:
-                    note_category = ""
-                if len(note_title) < 1:
-                    note_title = None
-                if len(note_content) < 1:
-                    note_content = None
-                if len(note_category) < 1:
-                    note_category = None
-                update_note(g.user, note_id, title=note_title,
-                            content=note_content, category=note_category)
-            return redirect(url_for("web.note_single_page", note_id=note.id))
     category = request.args.get("category")
     category_id = request.args.get("category_id", type=int)
     category_tree = g.user.get_category_tree()
@@ -767,6 +722,7 @@ def note_single_page(note_id):
         ai_settings=g.user.settings if g.user else None,
         timezone=g.user.get_timezone(as_str=True),
         daily=request.args.get("daily", type=int) or 0,
+        initial_view=None,
     )
 
 
@@ -782,27 +738,27 @@ def search_page():
 @web_bp.route("/agenda")
 @login_required_page
 def agenda_page():
-    settings = g.user.return_settings()
-    ai_enabled = settings.ai_enabled if settings else False
-    events = (
-        UserEvent.query.filter_by(userid=g.user.id)
-        .filter(UserEvent.date_of_event > (datetime.utcnow() - timedelta(days=1)))
-        .order_by(UserEvent.date_of_event.asc())
-        .all()
-    )
-    events += UserEvent.query.filter_by(userid=g.user.id, date_of_event=None).all()
-    todos = (
-        UserTodo.query.filter_by(userid=g.user.id, archived=False)
-        .filter(UserTodo.date_due != None)
-        .order_by(UserTodo.date_due.asc())
-        .all()
-    )
-    todos += (
-        UserTodo.query.filter_by(userid=g.user.id, archived=False)
-        .filter(UserTodo.date_due == None)
-        .all()
-    )
     if request.args.get("_fragment") == "1":
+        settings = g.user.return_settings()
+        ai_enabled = settings.ai_enabled if settings else False
+        events = (
+            UserEvent.query.filter_by(userid=g.user.id)
+            .filter(UserEvent.date_of_event > (datetime.utcnow() - timedelta(days=1)))
+            .order_by(UserEvent.date_of_event.asc())
+            .all()
+        )
+        events += UserEvent.query.filter_by(userid=g.user.id, date_of_event=None).all()
+        todos = (
+            UserTodo.query.filter_by(userid=g.user.id, archived=False)
+            .filter(UserTodo.date_due != None)
+            .order_by(UserTodo.date_due.asc())
+            .all()
+        )
+        todos += (
+            UserTodo.query.filter_by(userid=g.user.id, archived=False)
+            .filter(UserTodo.date_due == None)
+            .all()
+        )
         return render_template(
             "_agenda_view.html",
             todos=todos,
@@ -810,30 +766,12 @@ def agenda_page():
             ai_enabled=ai_enabled,
             ai_settings=settings,
         )
-    ui_settings = get_all_settings(g.user)
-    return render_template(
-        "agenda.html",
-        todos=todos,
-        events=events,
-        ai_enabled=ai_enabled,
-        ai_settings=settings,
-        ui_settings=ui_settings,
-        custom_colors=get_effective_colors(ui_settings.custom_colors),
-        custom_css=ui_settings.custom_css,
-    )
+    return _render_shell(initial_view="/agenda")
 
 
 @web_bp.route("/manifest.json")
 def manifest_json():
-    page = request.args.get("page")
-    if page not in ["agenda", "ai", "notes"]:
-        page = "notes"
-    if page == "notes":
-        return redirect("/static/script/manifest.json")
-    elif page == "agenda":
-        return redirect("/static/script/manifest-agenda.json")
-    elif page == "ai":
-        return redirect("/static/script/manifest-ai.json")
+    return redirect("/static/script/manifest.json")
 
 
 @web_bp.route("/attachment/<int:attachment_id>/<filename>")
@@ -860,21 +798,9 @@ def serve_attachment(attachment_id, filename):
 @web_bp.route("/export")
 @login_required_page
 def export_page():
-    ui_settings = get_all_settings(g.user)
     if request.args.get("_fragment") == "1":
         return render_template("_export_view.html")
-    note_count = UserNote.query.filter_by(userid=g.user.id).count()
-    category_count = UserNoteCategory.query.filter_by(user_id=g.user.id).count()
-    attachment_count = Attachment.query.filter_by(user_id=g.user.id).count()
-    return render_template(
-        "export.html",
-        note_count=note_count,
-        category_count=category_count,
-        attachment_count=attachment_count,
-        ui_settings=ui_settings,
-        custom_colors=get_effective_colors(ui_settings.custom_colors),
-        custom_css=ui_settings.custom_css,
-    )
+    return _render_shell(initial_view="/export")
 
 
 @web_bp.route("/api/export/notes")

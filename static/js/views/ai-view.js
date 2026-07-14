@@ -2,10 +2,9 @@
  * Flasky Notes — AI chat view module (SPA).
  *
  * Rendered inside #app-view by the router after fetching _ai_view.html.
- * Extracted from the inline <script> in templates/ai.html. Reads its
- * conversation data from the #ai-view-data JSON block injected by the
- * fragment template. Document-level listeners are tracked for removal
- * in destroy().
+ * Reads its conversation data from the #ai-view-data JSON block injected
+ * by the fragment template. Document-level listeners are tracked for
+ * removal in destroy().
  */
 (function () {
     'use strict';

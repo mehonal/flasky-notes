@@ -1,8 +1,6 @@
 /* ============ Customize appearance modal + settings tab ============
-   Loaded by note_single.html (which loads app.css) and settings.html
-   (which does NOT load app.css — it has its own inline variables). This
-   shared file ensures the customize UI is styled consistently on both
-   pages. It uses the same CSS variables (--bg-*, --text-*, --accent,
+   Loaded by the SPA shell (note_single.html). Ensures the customize UI
+   is styled consistently. It uses the same CSS variables (--bg-*, --text-*,
    --border, etc.) that both pages define. */
 
 .customize-overlay {
@@ -142,7 +140,6 @@
 .customize-hint { color: var(--text-muted); font-size: 0.8rem; margin-bottom: 8px; padding: 0 16px; }
 
 /* Buttons used inside the customize UI — mirror the app.css .btn-sm style
-   since settings.html may not define .btn-sm (it does, but keep this
    self-sufficient). */
 .customize-actions .btn-sm, .customize-modal-footer .btn-sm {
     padding: 6px 14px;

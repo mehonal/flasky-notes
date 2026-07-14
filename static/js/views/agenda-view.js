@@ -2,9 +2,8 @@
  * Flasky Notes — Agenda view module (SPA).
  *
  * Rendered inside #app-view by the router after fetching _agenda_view.html.
- * Extracted from the inline <script> in templates/agenda.html. All
- * document-level listeners are bound to the view container so they can be
- * removed on destroy(). The {% if ai_enabled %} Jinja guard becomes a
+ * All document-level listeners are bound to the view container so they can
+ * be removed on destroy(). The {% if ai_enabled %} Jinja guard becomes a
  * runtime check on whether #aiPanel exists in the container.
  */
 (function () {

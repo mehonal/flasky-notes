@@ -2,8 +2,8 @@
  * Flasky Notes — Settings view module (SPA).
  *
  * Rendered inside #app-view by the router after fetching _settings_view.html.
- * Extracted from the inline <script> in templates/settings.html, plus form-
- * submit interception so settings save via fetch + fragment swap (no reload).
+ * Form-submit interception so settings save via fetch + fragment swap
+ * (no reload).
  *
  * Form handling: forms tagged [data-spa-form] are intercepted on submit. The
  * form is POSTed to /settings?_fragment=1 as urlencoded data; the server

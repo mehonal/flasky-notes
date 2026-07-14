@@ -102,13 +102,16 @@ def test_customize_override_renders_on_settings(auth_client):
     client.post("/api/save_custom_colors", json={
         "colors": {"dark": {"--accent": "#a1b2c3"}}
     })
+    # The shell (served for /settings) contains the custom theme override.
     r = client.get("/settings")
     assert r.status_code == 200
     body = r.data.decode()
     assert "custom-theme-override" in body
     assert "--accent: #a1b2c3" in body
-    # The Customize tab nav button should be present
-    assert 'data-tab="customize"' in body
+    # The settings fragment has the Customize tab nav button.
+    r2 = client.get("/settings?_fragment=1")
+    assert r2.status_code == 200
+    assert 'data-tab="customize"' in r2.data.decode()
 
 
 def test_generate_css_requires_ai_enabled(auth_client):

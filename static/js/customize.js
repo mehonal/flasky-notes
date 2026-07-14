@@ -1,8 +1,8 @@
 /* Flasky Notes — Customize appearance (colors, font, custom CSS, AI generate).
-   Loaded on the editor page (note_single.html) and the settings page
-   (settings.html). Self-contained: registers its own delegated listeners
-   for data-action="customize-*" / "open-customize" / "save-customize" / etc.
-   so it does not need to be wired into app.js's central switch. */
+   Loaded in the SPA shell (note_single.html). Self-contained: registers its
+   own delegated listeners for data-action="customize-*" / "open-customize" /
+   "save-customize" / etc. so it does not need to be wired into app.js's
+   central switch. */
 (function() {
     'use strict';
 

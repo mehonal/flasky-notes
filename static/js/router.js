@@ -266,6 +266,23 @@
         var container = getContainer();
         if (container) container.setAttribute('hidden', '');
 
+        // If the shell was loaded for a non-editor page (e.g. direct URL to
+        // /agenda), auto-navigate to that view after the shell finishes
+        // loading. The server injects initialView into _pageData.
+        var initialView = window._pageData && window._pageData.initialView;
+        if (initialView && matchView(initialView)) {
+            // Replace the note state (set by app.js) with a page state so
+            // the back button works correctly. No pushState — the URL already
+            // matches and we don't want a duplicate history entry.
+            history.replaceState(
+                { flasky: { view: 'page', path: initialView } },
+                '',
+                initialView
+            );
+            navigate(initialView, { noPushState: true });
+            return;
+        }
+
         if (!history.state || !history.state.flasky) {
             history.replaceState(
                 { flasky: { view: 'note', noteId: window._pageData ? window._pageData.noteId : 0 } },

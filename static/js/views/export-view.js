@@ -2,8 +2,8 @@
  * Flasky Notes — Export view module (SPA).
  *
  * Rendered inside #app-view by the router after fetching _export_view.html.
- * Mirrors the logic that lived inline in templates/export.html. Depends on
- * FlaskyE2EE (loaded in the shell) and JSZip (loaded in the shell).
+ * Depends on FlaskyE2EE (loaded in the shell) and JSZip (loaded in the
+ * shell).
  */
 (function () {
     'use strict';

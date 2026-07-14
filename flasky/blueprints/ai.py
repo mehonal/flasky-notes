@@ -19,6 +19,7 @@ from flasky.ui_settings import (
     get_setting, get_all_settings, get_effective_colors,
     DEFAULT_COLORS, CUSTOMIZABLE_VARS,
 )
+from flasky.blueprints.web import _render_shell
 
 logger = logging.getLogger(__name__)
 
@@ -89,9 +90,11 @@ def ai_page():
         return "You must be logged in to access this page.", 401
     settings = g.user.return_settings()
     ai_enabled = settings.ai_enabled if settings else False
+    is_fragment = request.args.get("_fragment") == "1"
+    if not is_fragment:
+        return _render_shell(initial_view="/ai")
     font_size = get_setting(g.user, "font_size") if g.user else 15
     dark_mode = get_setting(g.user, "dark_mode") if g.user else False
-    is_fragment = request.args.get("_fragment") == "1"
     if not ai_enabled:
         ui_settings = get_all_settings(g.user) if g.user else None
         ctx = dict(
@@ -106,7 +109,7 @@ def ai_page():
             custom_colors=get_effective_colors(ui_settings.custom_colors) if ui_settings else {},
             custom_css=ui_settings.custom_css if ui_settings else "",
         )
-        return render_template("_ai_view.html" if is_fragment else "ai.html", **ctx)
+        return render_template("_ai_view.html", **ctx)
     conversations = (
         AiConversation.query.filter_by(user_id=g.user.id)
         .order_by(AiConversation.updated_at.desc())
@@ -134,7 +137,7 @@ def ai_page():
         custom_colors=get_effective_colors(ui_settings.custom_colors),
         custom_css=ui_settings.custom_css,
     )
-    return render_template("_ai_view.html" if is_fragment else "ai.html", **ctx)
+    return render_template("_ai_view.html", **ctx)
 
 
 @ai_bp.route("/api/conversations", methods=["GET"])
