@@ -1,20 +1,13 @@
 /**
  * Flasky Notes — SPA router.
  *
- * The note editor page (note_single.html) is the persistent shell. All JS/CSS
- * is loaded there once. Cross-page navigation to /agenda, /settings, /ai,
- * /export, etc. is done in-place:
- *
- *   1. Intercept same-origin <a> clicks (except note links + #note-preview).
- *   2. history.pushState + fetch the URL with ?_fragment=1.
- *   3. The server returns just the inner view HTML (no <html>/<head>/<body>).
- *   4. Swap it into the #app-view overlay (full-screen, above the editor).
- *   5. Call the registered view module's init(), if any.
+ * note_single.html is the persistent shell — all JS/CSS is loaded there once.
+ * Cross-page navigation fetches the URL with ?_fragment=1, swaps the returned
+ * HTML into #app-view, and calls the registered view module's init().
  *
  * Note-to-note navigation (/note/<id>) is NOT handled here — app.js's loadNote
- * owns that (it fetches JSON, decrypts, updates DOM in place). The router only
- * steps in when leaving the editor for another page, and when returning from
- * another page back to a note (closes the overlay and resumes the editor).
+ * owns that. The router only steps in when leaving the editor for another
+ * page, and when returning from another page back to a note.
  *
  * View modules register themselves: FlaskyRouter.registerView('/export', {
  *   init(container) {...}, destroy() {...}
@@ -33,7 +26,7 @@
     var _bar = null;
     var _hideTimer = null;
 
-    // ---- progress bar (kept from page-transition.js) ----
+    // ---- progress bar ----
     function ensureBar() {
         if (_bar) return _bar;
         _bar = document.createElement('div');

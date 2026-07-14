@@ -1,5 +1,4 @@
-/* Settings view styles — scoped under #settings-root to avoid leaking
-   into the editor page. Loaded in the SPA shell (note_single.html). */
+/* Settings view styles — scoped under #settings-root. */
 
 #settings-root .app { display: flex; height: 100vh; height: 100dvh; }
 

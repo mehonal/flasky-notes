@@ -1,15 +1,11 @@
 /**
- * Flasky Notes — Settings view module (SPA).
+ * Flasky Notes — Settings view module.
  *
- * Rendered inside #app-view by the router after fetching _settings_view.html.
- * Form-submit interception so settings save via fetch + fragment swap
- * (no reload).
- *
- * Form handling: forms tagged [data-spa-form] are intercepted on submit. The
- * form is POSTed to /settings?_fragment=1 as urlencoded data; the server
- * processes it and returns a freshly-rendered _settings_view.html fragment,
- * which is swapped back into the container. The server's existing form
- * handler is reused unchanged — no new JSON endpoints needed.
+ * Forms tagged [data-spa-form] are intercepted on submit. The form is POSTed
+ * to /settings?_fragment=1; the server processes it and returns a freshly-
+ * rendered _settings_view.html fragment, which is swapped back into the
+ * container. The server's existing form handler is reused unchanged — no
+ * new JSON endpoints needed.
  */
 (function () {
     'use strict';
@@ -370,15 +366,10 @@
             populateDefaultCategorySelect();
         });
 
-        // ============ Customize (handled by customize.js document-level delegation) ============
-        // customize.js runs once on shell load and uses document-level delegated
-        // listeners for data-action="customize-*"/"save-customize"/"open-customize".
-        // Those persist across fragment swaps. The "settings" scope init
-        // (populateFields) only runs once on initial settings render; after a
-        // fragment swap the customize color-picker fields won't repopulate, but
-        // saving custom colors/CSS still works via customize.js's own AJAX.
-        // This is a known limitation — the customize tab is rarely involved in
-        // settings form swaps (appearance/daily/etc. don't touch customize).
+        // Customize tab is handled by customize.js (document-level delegation
+        // that persists across fragment swaps). Known limitation: the customize
+        // color-picker fields won't repopulate after a fragment swap, but
+        // saving still works via customize.js's own AJAX.
     }
 
     function destroy() {

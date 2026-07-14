@@ -1,8 +1,8 @@
 /**
- * Unlock view module — rendered inside the SPA shell when the symmetric
- * key is missing from sessionStorage. Derives keys from the password,
- * unwraps the stored symmetric key, stores it, then closes the overlay
- * and re-initializes E2EE so the editor can decrypt notes.
+ * Unlock view module — shown when the symmetric key is missing from
+ * sessionStorage. Derives keys from the password, unwraps the stored
+ * symmetric key, stores it, then closes the overlay and re-initializes
+ * E2EE so the editor can decrypt notes.
  */
 (function () {
     'use strict';

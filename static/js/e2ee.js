@@ -15,8 +15,7 @@
     /**
      * Initialize E2EE. Call on page load.
      * Checks if encryption is enabled, loads key from sessionStorage.
-     * If key is missing, shows the unlock view inside the SPA shell
-     * (instead of redirecting to /unlock). After unlock, call
+     * If key is missing, shows the unlock view. After unlock, call
      * afterUnlockReinit() to re-run init.
      */
     async function init() {

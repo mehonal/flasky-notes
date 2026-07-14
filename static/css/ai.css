@@ -1,6 +1,5 @@
 /* ============ AI Chat Page — Flasky Notes ============
-   Scoped under #ai-root to avoid leaking into the editor page.
-   Loaded in the SPA shell (note_single.html). */
+   Scoped under #ai-root. */
 
 /* E2EE: hide content until decrypted */
 #ai-root[data-encrypted="true"] .ai-message-content,

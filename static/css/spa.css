@@ -1,6 +1,5 @@
 /* SPA shell overlay — the #app-view container that hosts non-editor views.
-   The editor's .app is detached from the DOM while a view is active, so
-   this container is the sole top-level content (not a stacked overlay). */
+   The editor's .app is detached from the DOM while a view is active. */
 .app-view-overlay {
     position: fixed;
     inset: 0;
@@ -19,7 +18,7 @@ body.app-view-open {
     background: #14141f;
 }
 
-/* Export view (first SPA-routed view) */
+/* Export view */
 .export-view {
     max-width: 600px;
     margin: 0 auto;

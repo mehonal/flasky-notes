@@ -1,5 +1,4 @@
-/* Agenda view styles — scoped under #agenda-root to avoid leaking
-   into the editor page. Loaded in the SPA shell (note_single.html). */
+/* Agenda view styles — scoped under #agenda-root. */
 
 #agenda-root .app { display: flex; height: 100vh; height: 100dvh; }
 

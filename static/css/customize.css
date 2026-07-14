@@ -1,7 +1,6 @@
 /* ============ Customize appearance modal + settings tab ============
-   Loaded by the SPA shell (note_single.html). Ensures the customize UI
-   is styled consistently. It uses the same CSS variables (--bg-*, --text-*,
-   --border, etc.) that both pages define. */
+   Uses the same CSS variables (--bg-*, --text-*, --border, etc.) that
+   app.css defines. */
 
 .customize-overlay {
     display: none;
