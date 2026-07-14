@@ -9,6 +9,7 @@
     'use strict';
 
     var _bound = [];
+    var _abortController = null;
 
     function on(sel, ev, fn) {
         var el = document.querySelector(sel);
@@ -32,6 +33,7 @@
     }
 
     function destroy() {
+        if (_abortController) { try { _abortController.abort(); } catch (e) {} _abortController = null; }
         unbindAll();
     }
 
@@ -46,13 +48,15 @@
         status.textContent = 'Fetching notes...';
         bar.style.width = '10%';
 
+        _abortController = new AbortController();
+
         try {
             if (decrypt) {
                 var ready = await FlaskyE2EE.init();
                 if (!ready) return;
             }
 
-            var resp = await fetch('/api/export/notes');
+            var resp = await fetch('/api/export/notes', { signal: _abortController.signal });
             var data = await resp.json();
             if (data.error) throw new Error(data.error);
 
@@ -89,7 +93,7 @@
                 for (var i = 0; i < attachments.length; i++) {
                     var att = attachments[i];
                     try {
-                        var attResp = await fetch('/attachment/' + att.id + '/' + encodeURIComponent(att.filename));
+                        var attResp = await fetch('/attachment/' + att.id + '/' + encodeURIComponent(att.filename), { signal: _abortController.signal });
                         if (attResp.ok) {
                             var blob = await attResp.arrayBuffer();
                             var fileData = blob;
@@ -128,9 +132,11 @@
             document.body.removeChild(a);
             URL.revokeObjectURL(a.href);
         } catch (e) {
+            if (e.name === 'AbortError') { status.textContent = 'Export cancelled.'; return; }
             status.textContent = 'Export failed: ' + e.message;
             console.error('Export error:', e);
         } finally {
+            _abortController = null;
             buttons.forEach(function (b) { b.disabled = false; });
         }
     }

@@ -14,6 +14,7 @@
     var _bound = [];
     var _docBound = [];
     var _autosaveTimer = null;
+    var _summaryObserver = null;
     var _aiSlashDropdown = null;
     var _aiAbortController = null;
 
@@ -37,7 +38,6 @@
         _root = container.querySelector('#agenda-root');
         if (!_root) return;
 
-        var autosaveTimer = null;
         var lastSavedContent = document.getElementById('agenda-notes').value;
         var currentFilter = 'all';
         var aiConversationId = null;
@@ -147,9 +147,9 @@
 
         // ============ Autosave ============
         bind(document.getElementById('agenda-notes'), 'input', function () {
-            if (autosaveTimer) clearTimeout(autosaveTimer);
+            if (_autosaveTimer) clearTimeout(_autosaveTimer);
             document.getElementById('autosave-status').innerText = 'Unsaved changes...';
-            autosaveTimer = setTimeout(function () {
+            _autosaveTimer = setTimeout(function () {
                 var currentContent = document.getElementById('agenda-notes').value;
                 if (currentContent !== lastSavedContent) saveNotes(true);
             }, 3000);
@@ -774,14 +774,15 @@
         (function () {
             var origDecrypted = _root.classList.contains('e2ee-decrypted');
             if (!origDecrypted && typeof FlaskyE2EE !== 'undefined') {
-                var observer = new MutationObserver(function () {
+                _summaryObserver = new MutationObserver(function () {
                     if (_root.classList.contains('e2ee-decrypted')) {
-                        observer.disconnect();
+                        if (_summaryObserver) _summaryObserver.disconnect();
+                        _summaryObserver = null;
                         updateSummaryBar();
                     }
                 });
-                observer.observe(_root, { attributes: true, attributeFilter: ['class'] });
-                setTimeout(function () { observer.disconnect(); updateSummaryBar(); }, 3000);
+                _summaryObserver.observe(_root, { attributes: true, attributeFilter: ['class'] });
+                setTimeout(function () { if (_summaryObserver) { _summaryObserver.disconnect(); _summaryObserver = null; } updateSummaryBar(); }, 3000);
             } else {
                 updateSummaryBar();
             }
@@ -1194,6 +1195,8 @@
 
     function destroy() {
         if (_aiAbortController) { try { _aiAbortController.abort(); } catch (e) {} _aiAbortController = null; }
+        if (_autosaveTimer) { clearTimeout(_autosaveTimer); _autosaveTimer = null; }
+        if (_summaryObserver) { _summaryObserver.disconnect(); _summaryObserver = null; }
         if (_aiSlashDropdown && _aiSlashDropdown.parentNode) _aiSlashDropdown.parentNode.removeChild(_aiSlashDropdown);
         _aiSlashDropdown = null;
         unbindAll();
