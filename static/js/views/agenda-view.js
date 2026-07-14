@@ -13,6 +13,7 @@
     var _docBound = [];
     var _autosaveTimer = null;
     var _summaryObserver = null;
+    var _summaryTimer = null;
     var _aiSlashDropdown = null;
     var _aiAbortController = null;
 
@@ -692,6 +693,7 @@
 
         // ============ Summary bar ============
         function updateSummaryBar() {
+            if (!_root) return;
             var overdue = 0, today = 0, pending = 0, events = 0, done = 0;
             _root.querySelectorAll('#todo-list .todo-item').forEach(function (item) {
                 if (item.dataset.completed === 'true') { done++; return; }
@@ -780,7 +782,7 @@
                     }
                 });
                 _summaryObserver.observe(_root, { attributes: true, attributeFilter: ['class'] });
-                setTimeout(function () { if (_summaryObserver) { _summaryObserver.disconnect(); _summaryObserver = null; } updateSummaryBar(); }, 3000);
+                _summaryTimer = setTimeout(function () { _summaryTimer = null; if (_summaryObserver) { _summaryObserver.disconnect(); _summaryObserver = null; } updateSummaryBar(); }, 3000);
             } else {
                 updateSummaryBar();
             }
@@ -790,7 +792,7 @@
         var aiPanelEl = document.getElementById('aiPanel');
 
         if (aiPanelEl) {
-            if (typeof marked !== 'undefined') marked.setOptions({ breaks: true, gfm: true });
+            if (typeof marked !== 'undefined' && typeof marked.setOptions === 'function') marked.setOptions({ breaks: true, gfm: true });
 
             (function () {
                 var select = document.getElementById('aiModelSelect');
@@ -1194,6 +1196,7 @@
     function destroy() {
         if (_aiAbortController) { try { _aiAbortController.abort(); } catch (e) {} _aiAbortController = null; }
         if (_autosaveTimer) { clearTimeout(_autosaveTimer); _autosaveTimer = null; }
+        if (_summaryTimer) { clearTimeout(_summaryTimer); _summaryTimer = null; }
         if (_summaryObserver) { _summaryObserver.disconnect(); _summaryObserver = null; }
         if (_aiSlashDropdown && _aiSlashDropdown.parentNode) _aiSlashDropdown.parentNode.removeChild(_aiSlashDropdown);
         _aiSlashDropdown = null;

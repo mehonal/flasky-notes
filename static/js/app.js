@@ -4221,6 +4221,7 @@ function _findAction(el) {
 
 // Click delegation
 document.addEventListener('click', function(e) {
+    if (document.body.classList.contains('app-view-open')) return;
     var el = _findAction(e.target);
     if (!el) return;
     var action = el.dataset.action;

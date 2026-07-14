@@ -91,7 +91,7 @@
 #agenda-root .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; min-width: 0; }
 
 #agenda-root .toolbar {
-    display: flex; align-items: center; background: var(--bg-secondary);
+    display: flex; flex-direction: row; align-items: center; background: var(--bg-secondary);
     border-bottom: 1px solid var(--border); padding: 0 12px;
     height: 42px; gap: 8px; flex-shrink: 0;
 }
@@ -446,6 +446,7 @@
     }
     #agenda-root .sidebar.collapsed { width: 0; min-width: 0; box-shadow: none; }
     #agenda-root .sidebar-backdrop.visible { display: block; }
+    #agenda-root .sidebar .icon-btn { padding: 6px; min-width: 36px; min-height: 36px; }
 
     #agenda-root .content-grid { grid-template-columns: 1fr; }
 

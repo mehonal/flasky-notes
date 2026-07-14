@@ -172,17 +172,18 @@
             var match = path.match(NOTE_PATH_RE);
             var noteId = parseInt(match[1], 10);
             closeOverlay();
-            // loadNote owns the pushState for note-to-note navigation.
             if (typeof window.loadNote === 'function') {
                 window.loadNote(noteId);
             } else {
                 window.location.href = path;
             }
+            finishBar();
             return;
         }
 
         var viewMatch = matchView(path);
         if (!viewMatch) {
+            finishBar();
             window.location.href = path;
             return;
         }
@@ -194,6 +195,7 @@
         } catch (e) {
             if (e.name === 'AbortError') return;
             console.error('router fetch failed', e);
+            finishBar();
             window.location.href = path;
             return;
         } finally {
