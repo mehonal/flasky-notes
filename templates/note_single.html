@@ -34,7 +34,19 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/search-modal.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/customize.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/page-transition.css') }}">
-    <script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='js/page-transition.js') }}"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/spa.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/agenda.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/ai.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/settings.css') }}">
+    <!-- SPA router (owns navigation + progress bar; page-transition.js is NOT
+         loaded in the shell since it expects full-page reloads to finish the bar) -->
+    <script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='js/router.js') }}"></script>
+    <!-- SPA view modules (registered with FlaskyRouter) -->
+    <script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='js/lib/jszip.min.js') }}"></script>
+    <script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='js/views/export-view.js') }}"></script>
+    <script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='js/views/agenda-view.js') }}"></script>
+    <script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='js/views/ai-view.js') }}"></script>
+    <script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='js/views/settings-view.js') }}"></script>
     <style nonce="{{ csp_nonce() }}">:root { --font-size: {{ font_size or 15 }}px; {% if ui_settings.font %}--editor-font: {{ ui_settings.font }};{% endif %} }</style>
     {% include '_custom_theme.html' %}
 </head>
@@ -182,5 +194,29 @@
     </script>
     <script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='js/app.js') }}"></script>
     <script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='js/customize.js') }}"></script>
+    <script nonce="{{ csp_nonce() }}">
+        (function () {
+            var overlay = document.createElement('div');
+            overlay.id = 'app-view';
+            overlay.className = 'app-view-overlay';
+            overlay.setAttribute('hidden', '');
+            document.body.appendChild(overlay);
+            if (window.FlaskyRouter) {
+                if (window.FlaskyViews && window.FlaskyViews.export) {
+                    FlaskyRouter.registerView('/export', window.FlaskyViews.export);
+                }
+                if (window.FlaskyViews && window.FlaskyViews.agenda) {
+                    FlaskyRouter.registerView('/agenda', window.FlaskyViews.agenda);
+                }
+                if (window.FlaskyViews && window.FlaskyViews.ai) {
+                    FlaskyRouter.registerView('/ai', window.FlaskyViews.ai);
+                }
+                if (window.FlaskyViews && window.FlaskyViews.settings) {
+                    FlaskyRouter.registerView('/settings', window.FlaskyViews.settings);
+                }
+                FlaskyRouter.init();
+            }
+        })();
+    </script>
 </body>
 </html>

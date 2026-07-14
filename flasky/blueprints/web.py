@@ -352,6 +352,7 @@ def index_page():
 @login_required_page
 def settings_page():
     settings = g.user.return_settings()
+    is_fragment = request.args.get("_fragment") == "1" or request.form.get("_fragment") == "1"
     if request.method == "POST":
         if "update-timezone" in request.form:
             timezone = request.form["timezone"]
@@ -471,6 +472,29 @@ def settings_page():
             )
             db.session.add(new_token)
             db.session.commit()
+            if is_fragment:
+                tokens = ApiToken.query.filter_by(user_id=g.user.id).all()
+                conflicts = (
+                    SyncConflict.query.filter_by(user_id=g.user.id, resolved=False)
+                    .order_by(SyncConflict.conflict_date.desc())
+                    .all()
+                )
+                ui_settings = get_all_settings(g.user)
+                return render_template(
+                    "_settings_view.html",
+                    timezones=available_timezones(),
+                    tokens=tokens,
+                    new_token=plaintext,
+                    conflicts=conflicts,
+                    sync_enabled=settings.obsidian_sync_enabled,
+                    ui_settings=ui_settings,
+                    custom_colors=get_effective_colors(ui_settings.custom_colors),
+                    custom_css=ui_settings.custom_css,
+                    panel_widgets=get_panel_widgets(g.user),
+                    ai_enabled=settings.ai_enabled,
+                    ai_settings=settings,
+                    drawing_enabled=get_setting(g.user, "drawing_enabled"),
+                )
             tokens = ApiToken.query.filter_by(user_id=g.user.id).all()
             ui_settings = get_all_settings(g.user)
             return render_template(
@@ -538,6 +562,28 @@ def settings_page():
                                         content=conflict.server_content)
                 conflict.resolved = True
                 db.session.commit()
+        if is_fragment:
+            tokens = ApiToken.query.filter_by(user_id=g.user.id).all()
+            conflicts = (
+                SyncConflict.query.filter_by(user_id=g.user.id, resolved=False)
+                .order_by(SyncConflict.conflict_date.desc())
+                .all()
+            )
+            ui_settings = get_all_settings(g.user)
+            return render_template(
+                "_settings_view.html",
+                timezones=available_timezones(),
+                tokens=tokens,
+                conflicts=conflicts,
+                sync_enabled=settings.obsidian_sync_enabled,
+                ui_settings=ui_settings,
+                custom_colors=get_effective_colors(ui_settings.custom_colors),
+                custom_css=ui_settings.custom_css,
+                panel_widgets=get_panel_widgets(g.user),
+                ai_enabled=settings.ai_enabled,
+                ai_settings=settings,
+                drawing_enabled=get_setting(g.user, "drawing_enabled"),
+            )
         return redirect(url_for("web.settings_page") + "?saved=1")
     tokens = ApiToken.query.filter_by(user_id=g.user.id).all()
     conflicts = (
@@ -546,8 +592,9 @@ def settings_page():
         .all()
     )
     ui_settings = get_all_settings(g.user)
+    template_name = "_settings_view.html" if is_fragment else "settings.html"
     return render_template(
-        "settings.html",
+        template_name,
         timezones=available_timezones(),
         tokens=tokens,
         conflicts=conflicts,
@@ -727,6 +774,8 @@ def search_page():
 @web_bp.route("/agenda")
 @login_required_page
 def agenda_page():
+    settings = g.user.return_settings()
+    ai_enabled = settings.ai_enabled if settings else False
     events = (
         UserEvent.query.filter_by(userid=g.user.id)
         .filter(UserEvent.date_of_event > (datetime.utcnow() - timedelta(days=1)))
@@ -745,13 +794,20 @@ def agenda_page():
         .filter(UserTodo.date_due == None)
         .all()
     )
-    settings = g.user.return_settings()
+    if request.args.get("_fragment") == "1":
+        return render_template(
+            "_agenda_view.html",
+            todos=todos,
+            events=events,
+            ai_enabled=ai_enabled,
+            ai_settings=settings,
+        )
     ui_settings = get_all_settings(g.user)
     return render_template(
         "agenda.html",
         todos=todos,
         events=events,
-        ai_enabled=settings.ai_enabled if settings else False,
+        ai_enabled=ai_enabled,
         ai_settings=settings,
         ui_settings=ui_settings,
         custom_colors=get_effective_colors(ui_settings.custom_colors),
@@ -796,10 +852,12 @@ def serve_attachment(attachment_id, filename):
 @web_bp.route("/export")
 @login_required_page
 def export_page():
+    ui_settings = get_all_settings(g.user)
+    if request.args.get("_fragment") == "1":
+        return render_template("_export_view.html")
     note_count = UserNote.query.filter_by(userid=g.user.id).count()
     category_count = UserNoteCategory.query.filter_by(user_id=g.user.id).count()
     attachment_count = Attachment.query.filter_by(user_id=g.user.id).count()
-    ui_settings = get_all_settings(g.user)
     return render_template(
         "export.html",
         note_count=note_count,

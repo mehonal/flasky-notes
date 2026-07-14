@@ -1,0 +1,30 @@
+<div class="export-view" data-view="export">
+    <div class="export-view-header">
+        <button class="icon-btn export-view-close" data-action="router-back" title="Back" aria-label="Back">
+            <svg viewBox="0 0 24 24" width="20" height="20"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+        </button>
+        <h1>Export Notes</h1>
+    </div>
+    <div class="export-page">
+        <p>Download a zip archive of your notes, categories, and attachments.</p>
+
+        <div class="export-card">
+            <h2>What's included</h2>
+            <ul>
+                <li>All notes as <strong>.md</strong> files (with frontmatter)</li>
+                <li>Categories and subcategories as folders</li>
+                <li>All attachments in an <strong>attachments/</strong> folder</li>
+            </ul>
+        </div>
+
+        <div class="export-buttons">
+            <button class="btn-export" id="btn-export-decrypted">Download Decrypted .zip</button>
+            <button class="btn-export btn-export-secondary" id="btn-export-encrypted">Download Encrypted .zip</button>
+        </div>
+
+        <div class="export-progress" id="export-progress">
+            <span id="export-status">Preparing export...</span>
+            <div class="bar"><div class="bar-fill" id="export-bar"></div></div>
+        </div>
+    </div>
+</div>

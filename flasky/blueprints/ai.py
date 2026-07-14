@@ -91,10 +91,10 @@ def ai_page():
     ai_enabled = settings.ai_enabled if settings else False
     font_size = get_setting(g.user, "font_size") if g.user else 15
     dark_mode = get_setting(g.user, "dark_mode") if g.user else False
+    is_fragment = request.args.get("_fragment") == "1"
     if not ai_enabled:
         ui_settings = get_all_settings(g.user) if g.user else None
-        return render_template(
-            "ai.html",
+        ctx = dict(
             ai_enabled=False,
             ai_settings=settings,
             conversations_json="[]",
@@ -106,6 +106,7 @@ def ai_page():
             custom_colors=get_effective_colors(ui_settings.custom_colors) if ui_settings else {},
             custom_css=ui_settings.custom_css if ui_settings else "",
         )
+        return render_template("_ai_view.html" if is_fragment else "ai.html", **ctx)
     conversations = (
         AiConversation.query.filter_by(user_id=g.user.id)
         .order_by(AiConversation.updated_at.desc())
@@ -121,8 +122,7 @@ def ai_page():
         json.dumps(current_conversation.return_json()) if current_conversation else "null"
     )
     ui_settings = get_all_settings(g.user)
-    return render_template(
-        "ai.html",
+    ctx = dict(
         ai_enabled=True,
         ai_settings=settings,
         conversations_json=conversations_json,
@@ -134,6 +134,7 @@ def ai_page():
         custom_colors=get_effective_colors(ui_settings.custom_colors),
         custom_css=ui_settings.custom_css,
     )
+    return render_template("_ai_view.html" if is_fragment else "ai.html", **ctx)
 
 
 @ai_bp.route("/api/conversations", methods=["GET"])

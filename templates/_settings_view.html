@@ -1,385 +1,4 @@
-<!DOCTYPE html>
-<html lang="en" data-theme="{% if ui_settings and ui_settings.dark_mode %}dark{% else %}light{% endif %}">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Settings — Flasky Notes</title>
-
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/page-transition.css') }}">
-    <script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='js/page-transition.js') }}"></script>
-    <script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='js/csrf.js') }}"></script>
-    <!-- E2EE (mandatory — always loaded) -->
-    <script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='js/crypto.js') }}"></script>
-    <script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='js/e2ee.js') }}"></script>
-    <script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='js/sanitize.js') }}"></script>
-
-    <!-- Favicons -->
-    <link rel="icon" type="image/x-icon" href="/static/images/amazing_logo.png">
-    <link rel="apple-touch-icon" href="/static/images/amazing_logo.png" sizes="180x180">
-    <link rel="icon" href="/static/images/amazing_logo.png">
-
-    <link rel="manifest" href="/manifest.json?page=settings">
-
-    <style>
-    /* ============ Variables ============ */
-    :root {
-        --bg-primary: #1e1e2e;
-        --bg-secondary: #181825;
-        --bg-sidebar: #11111b;
-        --bg-hover: rgba(255,255,255,0.05);
-        --bg-active: rgba(255,255,255,0.08);
-        --bg-input: #1e1e2e;
-        --text-primary: #cdd6f4;
-        --text-secondary: #bac2de;
-        --text-muted: #585b70;
-        --accent: #b4befe;
-        --accent-dim: rgba(180,190,254,0.1);
-        --accent-hover: #cba6f7;
-        --border: rgba(255,255,255,0.06);
-        --border-light: rgba(255,255,255,0.1);
-        --green: #a6e3a1;
-        --red: #f38ba8;
-        --yellow: #f9e2af;
-        --blue: #89b4fa;
-        --peach: #fab387;
-        --scrollbar-track: transparent;
-        --scrollbar-thumb: rgba(255,255,255,0.1);
-        --shadow: 0 1px 3px rgba(0,0,0,0.3);
-    }
-
-    [data-theme="light"] {
-        --bg-primary: #f8f9fc;
-        --bg-secondary: #eff1f5;
-        --bg-sidebar: #e6e9ef;
-        --bg-hover: rgba(0,0,0,0.04);
-        --bg-active: rgba(0,0,0,0.07);
-        --bg-input: #ffffff;
-        --text-primary: #4c4f69;
-        --text-secondary: #5c5f77;
-        --text-muted: #9ca0b0;
-        --accent: #7287fd;
-        --accent-dim: rgba(114,135,253,0.08);
-        --accent-hover: #8839ef;
-        --border: rgba(0,0,0,0.06);
-        --border-light: rgba(0,0,0,0.1);
-        --green: #40a02b;
-        --red: #d20f39;
-        --yellow: #df8e1d;
-        --blue: #1e66f5;
-        --peach: #fe640b;
-        --scrollbar-track: transparent;
-        --scrollbar-thumb: rgba(0,0,0,0.12);
-        --shadow: 0 1px 3px rgba(0,0,0,0.08);
-    }
-
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-
-    body {
-        font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', system-ui, sans-serif;
-        background: var(--bg-primary);
-        color: var(--text-primary);
-        height: 100vh; height: 100dvh; overflow: hidden;
-        -webkit-font-smoothing: antialiased;
-    }
-
-    ::-webkit-scrollbar { width: 6px; }
-    ::-webkit-scrollbar-track { background: var(--scrollbar-track); }
-    ::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 3px; }
-    ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
-
-    /* ============ Layout ============ */
-    .app { display: flex; height: 100vh; height: 100dvh; }
-
-    /* ============ Sidebar ============ */
-    .sidebar {
-        width: 240px; min-width: 240px;
-        background: var(--bg-sidebar);
-        border-right: 1px solid var(--border);
-        display: flex; flex-direction: column; overflow: hidden;
-        transition: width 0.2s ease, min-width 0.2s ease, opacity 0.15s ease;
-        z-index: 200;
-    }
-    .sidebar.collapsed { width: 0; min-width: 0; border-right: none; opacity: 0; pointer-events: none; }
-
-    .sidebar-header {
-        padding: 14px 16px; display: flex; align-items: center;
-        justify-content: space-between; gap: 8px; flex-shrink: 0;
-    }
-    .sidebar-title { font-size: 14px; font-weight: 700; color: var(--text-primary); letter-spacing: -0.01em; }
-    .sidebar-actions { display: flex; gap: 2px; }
-
-    .icon-btn {
-        background: none; border: none; color: var(--text-muted); cursor: pointer;
-        padding: 4px; border-radius: 6px; display: flex; align-items: center;
-        justify-content: center; transition: all 0.15s ease;
-    }
-    .icon-btn:hover { background: var(--bg-hover); color: var(--text-primary); }
-    .icon-btn svg {
-        width: 16px; height: 16px; stroke: currentColor; fill: none;
-        stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round;
-    }
-
-    .sidebar-nav { flex: 1; overflow-y: auto; padding: 4px 8px; }
-
-    .sidebar-section-label {
-        font-size: 11px; font-weight: 600; color: var(--text-muted);
-        text-transform: uppercase; letter-spacing: 0.8px; padding: 12px 8px 6px;
-    }
-    .sidebar-divider { height: 1px; background: var(--border); margin: 6px 8px; }
-
-    .nav-item {
-        display: flex; align-items: center; gap: 8px;
-        padding: 6px 10px; border-radius: 6px; cursor: pointer;
-        color: var(--text-secondary); font-size: 13px;
-        text-decoration: none; transition: all 0.1s ease;
-    }
-    .nav-item:hover { background: var(--bg-hover); color: var(--text-primary); }
-    .nav-item.active { background: var(--accent-dim); color: var(--accent); }
-    .nav-item svg {
-        width: 16px; height: 16px; stroke: currentColor; fill: none;
-        stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; flex-shrink: 0;
-    }
-    button.nav-item {
-        width: 100%; background: none; border: none; font: inherit;
-        font-size: 13px; text-align: left;
-    }
-
-    .sidebar-footer {
-        padding: 8px 12px; border-top: 1px solid var(--border);
-        display: flex; justify-content: center; flex-shrink: 0;
-    }
-    .sidebar-footer a {
-        color: var(--text-muted); padding: 5px 10px; border-radius: 6px;
-        font-size: 12px; text-decoration: none; transition: all 0.1s ease;
-    }
-    .sidebar-footer a:hover { background: var(--bg-hover); color: var(--text-secondary); }
-
-    .sidebar-backdrop {
-        display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-        background: rgba(0,0,0,0.5); z-index: 199;
-    }
-
-    /* ============ Main ============ */
-    .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; min-width: 0; }
-
-    .toolbar {
-        display: flex; align-items: center; background: var(--bg-secondary);
-        border-bottom: 1px solid var(--border); padding: 0 12px;
-        height: 42px; gap: 8px; flex-shrink: 0;
-    }
-    .toolbar-title { font-size: 13px; font-weight: 500; color: var(--text-primary); }
-    .toolbar-spacer { flex: 1; }
-
-    /* ============ Content ============ */
-    .content-area { flex: 1; overflow-y: auto; padding: 24px; }
-
-    .settings-grid {
-        max-width: 720px; margin: 0 auto;
-    }
-    .settings-grid > .panel,
-    .settings-grid > form > .panel { margin-bottom: 24px; }
-    .settings-grid > .panel[hidden],
-    .settings-grid > form > .panel[hidden] { display: none; }
-
-    /* ============ Panels ============ */
-    .panel {
-        background: var(--bg-secondary); border: 1px solid var(--border);
-        border-radius: 10px; overflow: hidden;
-    }
-    .panel-header {
-        display: flex; align-items: center; justify-content: space-between;
-        padding: 12px 16px; border-bottom: 1px solid var(--border);
-    }
-    .panel-title {
-        font-size: 13px; font-weight: 600; color: var(--text-primary);
-        display: flex; align-items: center; gap: 8px;
-    }
-    .panel-title svg {
-        width: 16px; height: 16px; stroke: currentColor; fill: none;
-        stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round;
-        color: var(--text-muted);
-    }
-    .panel-body { padding: 8px 0; }
-
-    /* ============ Settings rows ============ */
-    .setting-row {
-        display: flex; align-items: center; justify-content: space-between;
-        gap: 12px; padding: 8px 16px; transition: background 0.1s ease;
-        min-height: 36px;
-    }
-    .setting-row.has-desc {
-        flex-wrap: wrap; align-items: center;
-    }
-    .setting-row.has-desc .setting-desc { flex: 1 1 100%; }
-    .setting-row:hover { background: var(--bg-hover); }
-    .setting-row + .setting-row { border-top: 1px solid var(--border); }
-
-    .setting-label { font-size: 13px; color: var(--text-primary); flex: 1; }
-    .setting-desc { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
-    .setting-control { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
-
-    /* ============ Toggle switch ============ */
-    .toggle {
-        position: relative; width: 36px; height: 20px;
-        background: var(--bg-hover); border: 1px solid var(--border-light);
-        border-radius: 10px; cursor: pointer; transition: all 0.15s ease;
-        flex-shrink: 0;
-    }
-    .toggle::after {
-        content: ''; position: absolute; top: 2px; left: 2px;
-        width: 14px; height: 14px; background: var(--text-muted);
-        border-radius: 50%; transition: all 0.15s ease;
-    }
-    .toggle.on { background: var(--accent-dim); border-color: var(--accent); }
-    .toggle.on::after { left: 18px; background: var(--accent); }
-    .toggle input { display: none; }
-
-    /* ============ Inputs ============ */
-    .setting-input {
-        background: var(--bg-hover); border: 1px solid transparent;
-        border-radius: 6px; padding: 6px 10px; color: var(--text-primary);
-        font-size: 13px; font-family: inherit; outline: none;
-        transition: border-color 0.15s ease, background 0.15s ease;
-        min-width: 0;
-    }
-    .setting-input:focus { border-color: var(--accent); background: var(--bg-input); }
-    .setting-input::placeholder { color: var(--text-muted); }
-    input[type="number"].setting-input { width: 80px; text-align: right; }
-    select.setting-input { cursor: pointer; min-width: 220px; }
-    .setting-input.password { width: 100%; }
-
-    /* ============ Small buttons ============ */
-    .btn-sm {
-        background: none; border: 1px solid var(--border-light); color: var(--text-secondary);
-        font-size: 12px; font-weight: 500; padding: 5px 12px; border-radius: 6px;
-        cursor: pointer; transition: all 0.15s ease; font-family: inherit;
-        display: inline-flex; align-items: center; gap: 4px;
-        text-decoration: none;
-    }
-    .btn-sm:hover { background: var(--bg-hover); color: var(--text-primary); border-color: var(--text-muted); }
-    .btn-sm.primary { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); }
-    .btn-sm.primary:hover { background: var(--accent); color: var(--bg-primary); }
-    .btn-sm.danger { border-color: var(--red); color: var(--red); }
-    .btn-sm.danger:hover { background: var(--red); color: var(--bg-primary); }
-    .btn-sm.warning { border-color: var(--yellow); color: var(--yellow); }
-    .btn-sm.warning:hover { background: var(--yellow); color: var(--bg-primary); }
-
-    /* ============ Action button (ghost) ============ */
-    .action-btn {
-        background: none; border: none; color: var(--text-muted); cursor: pointer;
-        padding: 4px; border-radius: 4px; display: flex; align-items: center;
-        transition: all 0.1s ease;
-    }
-    .action-btn:hover { background: var(--bg-hover); color: var(--text-secondary); }
-    .action-btn.danger:hover { color: var(--red); }
-    .action-btn svg {
-        width: 14px; height: 14px; stroke: currentColor; fill: none;
-        stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round;
-    }
-
-    /* ============ List items (token/conflict rows) ============ */
-    .list-item {
-        display: flex; align-items: center; justify-content: space-between;
-        padding: 8px 16px; border-top: 1px solid var(--border);
-        transition: background 0.1s ease; gap: 8px;
-    }
-    .list-item:hover { background: var(--bg-hover); }
-    .list-item-left { display: flex; align-items: center; gap: 10px; min-width: 0; flex: 1; }
-    .list-item-right { display: flex; gap: 4px; flex-shrink: 0; }
-    .list-item-label { font-size: 13px; color: var(--text-primary); }
-    .list-item-sub { font-size: 11px; color: var(--text-muted); }
-
-    /* ============ Badges ============ */
-    .badge {
-        display: inline-block; font-size: 10px; font-weight: 600;
-        padding: 2px 7px; border-radius: 10px; white-space: nowrap;
-    }
-    .badge-success { background: rgba(166,227,161,0.15); color: var(--green); }
-    .badge-warning { background: rgba(249,226,175,0.15); color: var(--yellow); }
-    .badge-danger { background: rgba(243,139,168,0.15); color: var(--red); }
-    .badge-info { background: rgba(137,180,250,0.15); color: var(--blue); }
-    .badge-secondary { background: var(--bg-hover); color: var(--text-muted); }
-    [data-theme="light"] .badge-success { background: rgba(64,160,43,0.1); }
-    [data-theme="light"] .badge-warning { background: rgba(223,142,29,0.1); }
-    [data-theme="light"] .badge-danger { background: rgba(210,15,57,0.1); }
-    [data-theme="light"] .badge-info { background: rgba(30,102,245,0.1); }
-
-    /* ============ Alert / callout ============ */
-    .callout {
-        padding: 10px 14px; border-radius: 8px; font-size: 12px;
-        margin: 8px 16px; border: 1px solid;
-    }
-    .callout-warning { background: rgba(249,226,175,0.08); border-color: rgba(249,226,175,0.25); color: var(--yellow); }
-    .callout-danger { background: rgba(243,139,168,0.08); border-color: rgba(243,139,168,0.25); color: var(--red); }
-    .callout-info { background: rgba(137,180,250,0.08); border-color: rgba(137,180,250,0.25); color: var(--blue); }
-    [data-theme="light"] .callout-info { background: rgba(30,102,245,0.06); border-color: rgba(30,102,245,0.2); }
-    .callout code { background: var(--bg-hover); padding: 1px 5px; border-radius: 4px; word-break: break-all; font-family: ui-monospace, monospace; }
-
-    /* ============ Sub-section label ============ */
-    .sub-label {
-        font-size: 11px; font-weight: 600; color: var(--text-muted);
-        text-transform: uppercase; letter-spacing: 0.8px;
-        padding: 12px 16px 4px;
-    }
-
-    /* ============ Token display ============ */
-    .token-display {
-        display: flex; gap: 8px; margin: 8px 16px;
-        background: var(--bg-input); border: 1px solid var(--red);
-        border-radius: 6px; padding: 8px 10px; align-items: center;
-    }
-    .token-display input { flex: 1; background: none; border: none; color: var(--text-primary);
-        font-family: ui-monospace, monospace; font-size: 12px; outline: none; }
-
-    /* ============ Empty state ============ */
-    .empty-state {
-        text-align: center; padding: 16px; color: var(--text-muted);
-        font-size: 13px; font-style: italic;
-    }
-
-    /* ============ Status bar ============ */
-    .status-bar {
-        height: 26px; background: var(--bg-sidebar); border-top: 1px solid var(--border);
-        display: flex; align-items: center; padding: 0 16px; font-size: 11px;
-        color: var(--text-muted); gap: 16px; flex-shrink: 0;
-    }
-    .status-spacer { flex: 1; }
-    .status-clickable { cursor: pointer; padding: 1px 4px; border-radius: 3px; transition: background 0.1s; }
-    .status-clickable:hover { background: var(--bg-hover); color: var(--text-secondary); }
-
-    /* ============ Toast ============ */
-    .toast-container {
-        position: fixed; bottom: 16px; right: 16px; z-index: 9999;
-        display: flex; flex-direction: column; gap: 8px;
-    }
-    .toast {
-        background: var(--bg-secondary); border: 1px solid var(--border-light);
-        border-radius: 8px; padding: 10px 16px; font-size: 13px;
-        color: var(--text-primary); box-shadow: 0 4px 16px rgba(0,0,0,0.2);
-        display: flex; align-items: center; gap: 8px;
-        animation: toast-in 0.2s ease;
-    }
-    .toast.success { border-left: 3px solid var(--green); }
-    .toast.danger { border-left: 3px solid var(--red); }
-    .toast.warning { border-left: 3px solid var(--yellow); }
-    @keyframes toast-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
-
-    /* ============ Mobile ============ */
-    @media (max-width: 768px) {
-        .sidebar {
-            position: fixed; top: 0; left: 0; bottom: 0;
-            width: 280px; min-width: 280px;
-            box-shadow: 4px 0 24px rgba(0,0,0,0.4);
-        }
-        .sidebar.collapsed { width: 0; min-width: 0; box-shadow: none; }
-        .sidebar-backdrop.visible { display: block; }
-        .content-area { padding: 16px; }
-    }
-    </style>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/customize.css') }}">
-    {% include '_custom_theme.html' %}
-</head>
-<body data-encrypted="true">
+<div class="settings-view-root" id="settings-root">
 
 <div class="toast-container" id="toast-container"></div>
 
@@ -392,6 +11,9 @@
         <div class="sidebar-header">
             <span class="sidebar-title">Settings</span>
             <div class="sidebar-actions">
+                <button class="icon-btn" data-action="router-back" title="Back to notes" aria-label="Back to notes">
+                    <svg viewBox="0 0 24 24"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+                </button>
                 <button class="icon-btn" data-action="toggle-theme" title="Toggle theme">
                     <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
                 </button>
@@ -509,12 +131,7 @@
         <div class="content-area">
             <div class="settings-grid">
 
-                <!-- UI settings shared form (Appearance + Customize + Daily notes
-                     + Drawing + Attachments). The handler resets missing booleans
-                     to False, so these panels must submit together. Editing, Layout,
-                     and Panel widgets are split into their own forms below so each
-                     saves independently without resetting the others' toggles.) -->
-                <form method="POST" id="ui-settings-form" style="display:contents">
+                <form method="POST" id="ui-settings-form" data-spa-form style="display:contents">
 
                 <!-- Appearance -->
                 <div class="panel" data-tab="appearance">
@@ -555,7 +172,7 @@
                     </div>
                 </div>
 
-                <!-- Customize (theme colors, font, custom CSS, AI generate) -->
+                <!-- Customize -->
                 <div class="panel" data-tab="customize" hidden>
                     <div class="panel-header">
                         <div class="panel-title">
@@ -670,7 +287,7 @@
                     </div>
                 </div>
 
-                <!-- Attachments (max render width for embedded images/videos) -->
+                <!-- Attachments -->
                 <div class="panel" data-tab="attachments" hidden>
                     <div class="panel-header">
                         <div class="panel-title">
@@ -697,8 +314,8 @@
 
                 </form>
 
-                <!-- Editing (independent form — does not reset layout/widgets) -->
-                <form method="POST" style="display:contents">
+                <!-- Editing -->
+                <form method="POST" data-spa-form style="display:contents">
                 <div class="panel" data-tab="editing" hidden>
                     <div class="panel-header">
                         <div class="panel-title">
@@ -767,8 +384,8 @@
                 </div>
                 </form>
 
-                <!-- Layout (independent form) -->
-                <form method="POST" style="display:contents">
+                <!-- Layout -->
+                <form method="POST" data-spa-form style="display:contents">
                 <div class="panel" data-tab="layout" hidden>
                     <div class="panel-header">
                         <div class="panel-title">
@@ -808,8 +425,8 @@
                 </div>
                 </form>
 
-                <!-- Panel widgets (independent form) -->
-                <form method="POST" style="display:contents">
+                <!-- Panel widgets -->
+                <form method="POST" data-spa-form style="display:contents">
                 <div class="panel" data-tab="panel-widgets" hidden>
                     <div class="panel-header">
                         <div class="panel-title">
@@ -846,7 +463,7 @@
                         </div>
                     </div>
                     <div class="panel-body">
-                        <form method="POST">
+                        <form method="POST" data-spa-form>
                             <div class="setting-row" style="border-top:none;">
                                 <select name="timezone" class="setting-input">
                                     {% for tz in timezones %}
@@ -914,19 +531,19 @@
                         </div>
                     </div>
                     <div class="panel-body">
-                        <form method="POST">
+                        <form method="POST" data-spa-form>
                             <input type="hidden" name="toggle-ai" value="1">
                             <div class="setting-row">
                                 <span class="setting-label">AI enabled</span>
                                 <div class="setting-control">
                                     <div class="toggle {% if ai_enabled %}on{% endif %}" data-toggle="ai-enabled">
-                                        <input type="checkbox" id="ai-toggle" name="ai-enabled" value="1" {% if ai_enabled %}checked{% endif %} onchange="this.form.submit()">
+                                        <input type="checkbox" id="ai-toggle" name="ai-enabled" value="1" {% if ai_enabled %}checked{% endif %} data-spa-auto-submit>
                                     </div>
                                 </div>
                             </div>
                         </form>
                         {% if ai_enabled %}
-                        <form method="POST">
+                        <form method="POST" data-spa-form>
                             <div class="sub-label">Ollama settings</div>
                             <div style="padding: 0 16px;">
                                 <label class="list-item-sub">API key</label>
@@ -954,13 +571,13 @@
                         </div>
                     </div>
                     <div class="panel-body">
-                        <form method="POST">
+                        <form method="POST" data-spa-form>
                             <input type="hidden" name="toggle-obsidian-sync" value="1">
                             <div class="setting-row">
                                 <span class="setting-label">Sync enabled</span>
                                 <div class="setting-control">
                                     <div class="toggle {% if sync_enabled %}on{% endif %}" data-toggle="sync-enabled">
-                                        <input type="checkbox" id="sync-toggle" name="sync-enabled" value="1" {% if sync_enabled %}checked{% endif %} onchange="this.form.submit()">
+                                        <input type="checkbox" id="sync-toggle" name="sync-enabled" value="1" {% if sync_enabled %}checked{% endif %} data-spa-auto-submit>
                                     </div>
                                 </div>
                             </div>
@@ -993,7 +610,7 @@
                         </div>
                     </div>
                     <div class="panel-body">
-                        <form method="POST">
+                        <form method="POST" data-spa-form>
                             <div class="setting-row" style="border-top:none;">
                                 <input name="token-name" class="setting-input" type="text" placeholder="Token label (e.g. Obsidian Laptop)" style="flex:1; max-width:380px;">
                                 <button name="generate-api-token" class="btn-sm primary" type="submit">Generate</button>
@@ -1021,7 +638,7 @@
                                 <span class="list-item-sub">Last used {{ token.last_used_at.strftime('%Y-%m-%d %H:%M') if token.last_used_at else 'Never' }}</span>
                             </div>
                             <div class="list-item-right">
-                                <form method="POST" style="display:inline">
+                                <form method="POST" data-spa-form style="display:inline">
                                     <input type="hidden" name="token-id" value="{{ token.id }}">
                                     <button name="revoke-api-token" class="action-btn danger" type="submit" title="Revoke">
                                         <svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
@@ -1055,12 +672,12 @@
                                 <span class="list-item-sub">{{ conflict.conflict_date.strftime('%Y-%m-%d %H:%M') if conflict.conflict_date else '-' }}</span>
                             </div>
                             <div class="list-item-right">
-                                <form method="POST" style="display:inline">
+                                <form method="POST" data-spa-form style="display:inline">
                                     <input type="hidden" name="conflict-id" value="{{ conflict.id }}">
                                     <input type="hidden" name="resolution" value="local">
                                     <button name="resolve-conflict" class="btn-sm primary" type="submit">Local</button>
                                 </form>
-                                <form method="POST" style="display:inline">
+                                <form method="POST" data-spa-form style="display:inline">
                                     <input type="hidden" name="conflict-id" value="{{ conflict.id }}">
                                     <input type="hidden" name="resolution" value="server">
                                     <button name="resolve-conflict" class="btn-sm" type="submit">Server</button>
@@ -1092,339 +709,6 @@
     "encryptedSymKey": {{ g.user.encrypted_symmetric_key|tojson }}
 }
 </script>
-<script nonce="{{ csp_nonce() }}">
-(function() {
-    // ============ Sidebar ============
-    function toggleSidebar() {
-        const sidebar = document.getElementById('sidebar');
-        const backdrop = document.getElementById('sidebar-backdrop');
-        sidebar.classList.toggle('collapsed');
-        if (window.innerWidth <= 768) backdrop.classList.toggle('visible');
-    }
-    if (window.innerWidth <= 768) {
-        document.getElementById('sidebar').classList.add('collapsed');
-    }
-
-    // ============ Settings tabs (sidebar nav) ============
-    var settingsTabs = document.querySelectorAll('[data-action="settings-tab"]');
-    var settingsPanels = document.querySelectorAll('.settings-grid .panel[data-tab]');
-
-    function activateTab(tab) {
-        if (!tab) return;
-        var name = tab.dataset.tab;
-        settingsTabs.forEach(function(t) { t.classList.toggle('active', t === tab); });
-        settingsPanels.forEach(function(p) {
-            if (p.dataset.tab === name) { p.removeAttribute('hidden'); }
-            else { p.setAttribute('hidden', ''); }
-        });
-        try { localStorage.setItem('flasky-settings-tab', name); } catch(e) {}
-        var area = document.querySelector('.content-area');
-        if (area) area.scrollTop = 0;
-        if (window.innerWidth <= 768) {
-            var sb = document.getElementById('sidebar');
-            var bd = document.getElementById('sidebar-backdrop');
-            if (sb) sb.classList.add('collapsed');
-            if (bd) bd.classList.remove('visible');
-        }
-    }
-
-    settingsTabs.forEach(function(tab) {
-        tab.addEventListener('click', function() { activateTab(tab); });
-    });
-
-    // Restore last active tab (default: appearance).
-    var savedTab = null;
-    try { savedTab = localStorage.getItem('flasky-settings-tab'); } catch(e) {}
-    if (savedTab) {
-        var match = document.querySelector('[data-action="settings-tab"][data-tab="' + savedTab + '"]');
-        if (match) activateTab(match);
-    }
-
-    // Show a toast on save (POST redirects back with ?saved=1).
-    if (new URLSearchParams(window.location.search).get('saved') === '1') {
-        showToast('Settings saved.');
-        try { history.replaceState(null, '', window.location.pathname); } catch(e) {}
-    }
-
-    // ============ Theme ============
-    function toggleTheme() {
-        const html = document.documentElement;
-        const isDark = html.getAttribute('data-theme') === 'dark';
-        html.setAttribute('data-theme', isDark ? 'light' : 'dark');
-        document.getElementById('theme-label').innerText = isDark ? 'Light' : 'Dark';
-        fetch('/api/save_dark_mode/' + (isDark ? '0' : '1'));
-    }
-
-    // ============ Toggle switches ============
-    function syncToggle(el) {
-        const input = el.querySelector('input');
-        if (!input) return;
-        el.classList.toggle('on', input.checked);
-    }
-    document.querySelectorAll('.toggle[data-toggle]').forEach(function(el) {
-        syncToggle(el);
-        el.addEventListener('click', function(e) {
-            e.preventDefault();
-            const input = el.querySelector('input');
-            if (!input) return;
-            if (e.target === input) return;
-            input.checked = !input.checked;
-            syncToggle(el);
-            if (input.getAttribute('onchange')) {
-                input.form.submit();
-            }
-        });
-    });
-
-    // ============ Token copy ============
-    var tokenInput = document.getElementById('new-token-input');
-    if (tokenInput) tokenInput.addEventListener('click', function() { this.select(); });
-
-    function showToast(message, type) {
-        type = type || 'success';
-        var container = document.getElementById('toast-container');
-        var toast = document.createElement('div');
-        toast.className = 'toast ' + type;
-        toast.innerText = message;
-        container.appendChild(toast);
-        setTimeout(function() { if (toast.parentElement) toast.remove(); }, 3000);
-    }
-
-    // ============ Event delegation ============
-    document.addEventListener('click', function(e) {
-        var el = e.target.closest('[data-action]');
-        if (!el) return;
-        var action = el.dataset.action;
-        switch (action) {
-            case 'toggle-sidebar': toggleSidebar(); break;
-            case 'toggle-theme': toggleTheme(); break;
-            case 'copy-token':
-                if (tokenInput) {
-                    tokenInput.select();
-                    document.execCommand('copy');
-                    showToast('Token copied to clipboard.');
-                }
-                break;
-        }
-    });
-
-    // ============ Change password / recovery key ============
-    var settingsData = JSON.parse(document.getElementById('settings-encryption-data').textContent);
-    document.getElementById('change-pw-btn').addEventListener('click', changeEncryptionPassword);
-    document.getElementById('regen-recovery-btn').addEventListener('click', regenerateRecoveryKey);
-
-    async function changeEncryptionPassword() {
-        var statusEl = document.getElementById('change-pw-status');
-        var currentPw = document.getElementById('current-password').value;
-        var newPw = document.getElementById('new-password').value;
-        var confirmPw = document.getElementById('confirm-password').value;
-        if (!currentPw || !newPw || !confirmPw) {
-            statusEl.innerHTML = '<span style="color:var(--red)">All fields are required.</span>';
-            return;
-        }
-        if (newPw !== confirmPw) {
-            statusEl.innerHTML = '<span style="color:var(--red)">New passwords do not match.</span>';
-            return;
-        }
-        if (newPw.length < 8) {
-            statusEl.innerHTML = '<span style="color:var(--red)">Password must be at least 8 characters.</span>';
-            return;
-        }
-        statusEl.innerHTML = '<span style="color:var(--text-muted)">Deriving keys...</span>';
-        try {
-            var oldSalt = await FlaskyCrypto.fetchSalt(settingsData.username);
-            var oldKeys = await FlaskyCrypto.deriveKeys(currentPw, oldSalt);
-            var encSymKey = settingsData.encryptedSymKey;
-            var symKey;
-            try {
-                symKey = await FlaskyCrypto.unwrapSymmetricKey(encSymKey, oldKeys.kek);
-            } catch(e) {
-                statusEl.innerHTML = '<span style="color:var(--red)">Current password is incorrect.</span>';
-                return;
-            }
-            statusEl.innerHTML = '<span style="color:var(--text-muted)">Encrypting with new password...</span>';
-            var newKeySalt = FlaskyCrypto.generateSalt();
-            var newKeys = await FlaskyCrypto.deriveKeys(newPw, newKeySalt);
-            var newWrappedKey = await FlaskyCrypto.wrapSymmetricKey(symKey, newKeys.kek);
-            var resp = await fetch('/api/auth/change_password', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    new_auth_key: newKeys.authKeyHex,
-                    new_encrypted_sym_key: newWrappedKey,
-                    new_key_salt: newKeySalt
-                })
-            });
-            var data = await resp.json();
-            if (data.success) {
-                await FlaskyCrypto.storeSymmetricKey(symKey);
-                statusEl.innerHTML = '<span style="color:var(--green)">Password changed successfully.</span>';
-                document.getElementById('current-password').value = '';
-                document.getElementById('new-password').value = '';
-                document.getElementById('confirm-password').value = '';
-            } else {
-                statusEl.innerHTML = '<span style="color:var(--red)">Error: ' + escapeHtml(data.reason || 'Unknown error') + '</span>';
-            }
-        } catch(e) {
-            statusEl.innerHTML = '<span style="color:var(--red)">Error: ' + escapeHtml(e.message) + '</span>';
-        }
-    }
-
-    async function regenerateRecoveryKey() {
-        try {
-            var symKey = await FlaskyCrypto.loadSymmetricKey();
-            if (!symKey) {
-                showToast('Encryption key not loaded. Please unlock first.', 'danger');
-                return;
-            }
-            var recovery = await FlaskyCrypto.generateRecoveryKey();
-            var wrappedKey = await FlaskyCrypto.wrapSymmetricKey(symKey, recovery.cryptoKey);
-            var recoveryHash = await FlaskyCrypto.recoveryKeyHash(recovery.keyBytes);
-            var resp = await fetch('/api/auth/update_recovery_key', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ recovery_encrypted_key: wrappedKey, recovery_key_hash: recoveryHash })
-            });
-            var data = await resp.json();
-            if (data.success) {
-                document.getElementById('new-recovery-key').textContent = recovery.displayString;
-                document.getElementById('recovery-key-display').style.display = '';
-            } else {
-                showToast('Error: ' + (data.reason || 'Unknown error'), 'danger');
-            }
-        } catch(e) {
-            showToast('Error: ' + e.message, 'danger');
-        }
-    }
-
-    // ============ Daily notes dropdowns + preview ============
-    var tzForPreview = {{ g.user.get_timezone(as_str=True) | tojson }};
-
-    function formatDailyTitle(fmt, date) {
-        var pad = function(n) { return n < 10 ? '0' + n : '' + n; };
-        return String(fmt || '')
-            .replace(/YYYY/g, date.getFullYear())
-            .replace(/MM/g, pad(date.getMonth() + 1))
-            .replace(/DD/g, pad(date.getDate()))
-            .replace(/HH/g, pad(date.getHours()))
-            .replace(/mm/g, pad(date.getMinutes()));
-    }
-
-    function updateDailyPreview() {
-        var fmt = document.getElementById('daily-note-title-format').value || 'YYYY-MM-DD';
-        var now = new Date();
-        if (tzForPreview && typeof Intl !== 'undefined') {
-            try {
-                var parts = new Intl.DateTimeFormat('en-US', {
-                    timeZone: tzForPreview, year: 'numeric', month: '2-digit',
-                    day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false
-                }).formatToParts(now);
-                var map = {};
-                parts.forEach(function(p) { map[p.type] = p.value; });
-                if (map.hour === '24') map.hour = '00';
-                now = new Date(map.year, map.month - 1, map.day, map.hour, map.minute);
-            } catch(e) {}
-        }
-        document.getElementById('daily-note-preview').textContent = formatDailyTitle(fmt, now);
-    }
-
-    var fmtInput = document.getElementById('daily-note-title-format');
-    if (fmtInput) fmtInput.addEventListener('input', updateDailyPreview);
-    updateDailyPreview();
-
-    async function populateDailyTemplateSelect() {
-        var sel = document.getElementById('daily-note-template-id');
-        if (!sel) return;
-        var selectedId = parseInt(sel.dataset.selected || '0', 10) || 0;
-        try {
-            var resp = await fetch('/api/templates');
-            var list = await resp.json();
-            if (!Array.isArray(list)) list = [];
-            for (var i = 0; i < list.length; i++) {
-                var t = list[i];
-                var name = t.name || '';
-                if (typeof FlaskyE2EE !== 'undefined' && FlaskyE2EE.isEncrypted && FlaskyE2EE.isEncrypted() && name) {
-                    try { name = await FlaskyE2EE.decryptField(name); } catch(e) {}
-                }
-                var opt = document.createElement('option');
-                opt.value = t.id;
-                opt.textContent = name || ('Template #' + t.id);
-                if (t.id === selectedId) opt.selected = true;
-                sel.appendChild(opt);
-            }
-        } catch(e) {}
-    }
-
-    async function populateDailyCategorySelect() {
-        var sel = document.getElementById('daily-note-category-id');
-        if (!sel) return;
-        var selectedId = parseInt(sel.dataset.selected || '0', 10) || 0;
-        try {
-            var resp = await fetch('/api/sidebar_tree_data');
-            var data = await resp.json();
-            if (!data || !data.success) return;
-            var cats = data.categories || [];
-            for (var i = 0; i < cats.length; i++) {
-                var c = cats[i];
-                var label = c.name || '';
-                if (typeof FlaskyE2EE !== 'undefined' && FlaskyE2EE.isEncrypted && FlaskyE2EE.isEncrypted() && c.name) {
-                    try { label = await FlaskyE2EE.decryptField(c.name); } catch(e) {}
-                }
-                var opt = document.createElement('option');
-                opt.value = c.id;
-                opt.textContent = label;
-                if (c.id === selectedId) opt.selected = true;
-                sel.appendChild(opt);
-            }
-        } catch(e) {}
-    }
-
-    async function populateDefaultCategorySelect() {
-        var sel = document.getElementById('default-category-id');
-        if (!sel) return;
-        var selectedId = parseInt(sel.dataset.selected || '0', 10) || 0;
-        try {
-            var resp = await fetch('/api/sidebar_tree_data');
-            var data = await resp.json();
-            if (!data || !data.success) return;
-            var cats = data.categories || [];
-            for (var i = 0; i < cats.length; i++) {
-                var c = cats[i];
-                var label = c.name || '';
-                if (typeof FlaskyE2EE !== 'undefined' && FlaskyE2EE.isEncrypted && FlaskyE2EE.isEncrypted() && c.name) {
-                    try { label = await FlaskyE2EE.decryptField(c.name); } catch(e) {}
-                }
-                var opt = document.createElement('option');
-                opt.value = c.id;
-                opt.textContent = label;
-                if (c.id === selectedId || (!selectedId && sel.options.length === 0)) opt.selected = true;
-                sel.appendChild(opt);
-            }
-        } catch(e) {}
-    }
-
-    // Decrypt-ready gate: the e2ee layer needs its symmetric key loaded before
-    // decryptField works. FlaskyE2EE.init() loads the key from sessionStorage
-    // (or redirects to /unlock if absent) — same path the editor pages use.
-    function whenE2EEReady(cb) {
-        if (typeof FlaskyE2EE === 'undefined' || typeof FlaskyE2EE.init !== 'function') { cb(); return; }
-        if (FlaskyE2EE.isReady && FlaskyE2EE.isReady()) { cb(); return; }
-        FlaskyE2EE.init().then(function(ok) { cb(); }).catch(function() { cb(); });
-    }
-
-    whenE2EEReady(function() {
-        populateDailyTemplateSelect();
-        populateDailyCategorySelect();
-        populateDefaultCategorySelect();
-    });
-
-    function escapeHtml(s) {
-        return String(s).replace(/[&<>"']/g, function(c) {
-            return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
-        });
-    }
-})();
-</script>
 <script nonce="{{ csp_nonce() }}" type="application/json" id="customize-page-data">
 {
     "customColors": {{ custom_colors | tojson }},
@@ -1435,6 +719,4 @@
     "fontSize": {{ ui_settings.font_size }}
 }
 </script>
-<script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='js/customize.js') }}"></script>
-</body>
-</html>
+</div>

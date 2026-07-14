@@ -1,4 +1,5 @@
-from wsgi import app, db
+from wsgi import app
+from flasky import db
 
 with app.app_context():
     db.create_all()

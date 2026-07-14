@@ -241,6 +241,8 @@
             close();
             if (typeof ctx.onOpenNote === 'function') {
                 ctx.onOpenNote(item.id);
+            } else if (window.FlaskyRouter && window.FlaskyRouter.navigate) {
+                FlaskyRouter.navigate('/note/' + item.id);
             } else {
                 window.location.href = '/note/' + item.id;
             }
@@ -253,7 +255,8 @@
                 ctx.insertCallback(item.title);
             } else {
                 close();
-                window.location.href = '/note/' + item.id;
+                if (window.FlaskyRouter && window.FlaskyRouter.navigate) FlaskyRouter.navigate('/note/' + item.id);
+                else window.location.href = '/note/' + item.id;
             }
         }
     }

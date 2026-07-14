@@ -55,10 +55,10 @@
         { label: 'Toggle auto-save', icon: '\u21BB', run: function () { _call('toggleAutoSave'); } },
         { label: 'Toggle hide title', icon: '\u00B7', run: function () { _call('toggleHideTitle'); } },
         { label: 'Edit / Preview', icon: '\u270E', hint: 'Ctrl E', run: function () { _call('toggleMode'); } },
-        { label: 'Open agenda', icon: '\u2311', run: function () { window.location.href = '/agenda'; } },
-        { label: 'Open settings', icon: '\u2699', run: function () { window.location.href = '/settings'; } },
-        { label: 'Open AI chat', icon: '\u2B50', run: function () { window.location.href = '/ai'; } },
-        { label: 'Export notes', icon: '\u2B07', run: function () { window.location.href = '/export'; } },
+        { label: 'Open agenda', icon: '\u2311', run: function () { _nav('/agenda'); } },
+        { label: 'Open settings', icon: '\u2699', run: function () { _nav('/settings'); } },
+        { label: 'Open AI chat', icon: '\u2B50', run: function () { _nav('/ai'); } },
+        { label: 'Export notes', icon: '\u2B07', run: function () { _nav('/export'); } },
         { label: 'Keyboard shortcuts', icon: '?', hint: 'Ctrl /', run: function () { _call('toggleShortcutsModal'); } }
     ];
 
@@ -113,6 +113,11 @@
         return commands.filter(function (cmd) {
             return cmd.label.toLowerCase().indexOf(q) !== -1;
         });
+    }
+
+    function _nav(path) {
+        if (window.FlaskyRouter && window.FlaskyRouter.navigate) FlaskyRouter.navigate(path);
+        else window.location.href = path;
     }
 
     window.FlaskyCommands = {

@@ -9,6 +9,7 @@ var autoSaveEnabled = _pageData.autoSaveEnabled;
 var editMode = _pageData.editMode;
 var isDirty = false;
 var isSaving = false;
+var _inPopState = false;
 var cmEditor = null;
 var currentFontSize = _pageData.currentFontSize;
 var pinnedNotes = JSON.parse(localStorage.getItem('flasky-pinned') || '[]');
@@ -396,7 +397,7 @@ function loadNote(id, category, categoryId) {
         currentNoteIconColor = null;
         updateNoteIconPreview(null, null);
         document.getElementById('note-title').value = '';
-        if (cmEditor) cmEditor.setValue('');
+        if (cmEditor) { cmEditor.setValue(''); cmEditor.refresh(); }
         else document.getElementById('note-content').value = '';
         // Clear properties
         var propsBody = document.getElementById('props-body');
@@ -407,7 +408,8 @@ function loadNote(id, category, categoryId) {
         currentCategoryId = categoryId || null;
         // Update breadcrumb category
         updateBreadcrumbCategory(currentCategory, categoryId);
-        history.pushState({ noteId: 0 }, '', '/note/0');
+        history.pushState({ flasky: { view: 'note', noteId: 0 } }, '', '/note/0');
+        if (_inPopState) history.replaceState({ flasky: { view: 'note', noteId: 0 } }, '', '/note/0');
         document.getElementById('breadcrumb-note-title').textContent = 'New note';
         document.getElementById('save-status').textContent = '';
         document.getElementById('save-status').style.color = '';
@@ -440,13 +442,14 @@ function loadNote(id, category, categoryId) {
             })
             .catch(function() {});
         }
+        _inPopState = false;
         return;
     }
 
     fetch('/api/note/' + id)
     .then(function(r) { return r.json(); })
     .then(async function(data) {
-        if (!data.success) { window.location.href = '/note/' + id; return; }
+        if (!data.success) { _inPopState = false; window.location.href = '/note/' + id; return; }
         var n = data.note;
 
         // E2EE: decrypt fields
@@ -473,7 +476,7 @@ function loadNote(id, category, categoryId) {
         document.getElementById('note-title').value = n.title || '';
 
         // Update content
-        if (cmEditor) cmEditor.setValue(n.content || '');
+        if (cmEditor) { cmEditor.setValue(n.content || ''); cmEditor.refresh(); }
         else document.getElementById('note-content').value = n.content || '';
 
         // Update properties
@@ -498,7 +501,8 @@ function loadNote(id, category, categoryId) {
         }
 
         // Update URL and breadcrumb
-        history.pushState({ noteId: n.id }, '', '/note/' + n.id);
+        history.pushState({ flasky: { view: 'note', noteId: n.id } }, '', '/note/' + n.id);
+        if (_inPopState) history.replaceState({ flasky: { view: 'note', noteId: n.id } }, '', '/note/' + n.id);
         document.getElementById('breadcrumb-note-title').textContent = n.title || 'Untitled';
 
         // Update icon
@@ -526,23 +530,31 @@ function loadNote(id, category, categoryId) {
         var rp = document.getElementById('right-panel');
         if (rp && !rp.classList.contains('collapsed')) refreshAllVisibleWidgets();
         refreshCalendarWidget();
+        _inPopState = false;
     });
 }
 
 // Handle browser back/forward
 window.addEventListener('popstate', function(e) {
+    _inPopState = true;
+    var st = e.state;
     var id = 0;
-    if (e.state && e.state.noteId !== undefined) {
-        id = e.state.noteId;
+    if (st && st.flasky && st.flasky.view === 'note') {
+        id = st.flasky.noteId;
+    } else if (st && st.noteId !== undefined) {
+        id = st.noteId;
     } else {
         var match = window.location.pathname.match(/\/note\/(\d+)/);
         if (match) id = parseInt(match[1]);
+    }
+    if (window.FlaskyRouter && window.FlaskyRouter.closeOverlay) {
+        window.FlaskyRouter.closeOverlay();
     }
     loadNote(id);
 });
 
 // Set initial history state
-history.replaceState({ noteId: noteId }, '', window.location.href);
+history.replaceState({ flasky: { view: 'note', noteId: noteId } }, '', window.location.href);
 
 function openNote(id) {
     if (isMobile) closeSidebar();
