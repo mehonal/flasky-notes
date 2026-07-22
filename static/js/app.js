@@ -425,6 +425,7 @@ function loadNote(id, category, categoryId) {
         var rp = document.getElementById('right-panel');
         if (rp && !rp.classList.contains('collapsed')) refreshAllVisibleWidgets();
         refreshCalendarWidget();
+        if (window.FlaskyRouter && typeof window.FlaskyRouter.finishBar === 'function') window.FlaskyRouter.finishBar();
         // Check for folder default template
         if (categoryId) {
             fetch('/api/folder_default_template/' + categoryId)
