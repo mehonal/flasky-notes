@@ -220,6 +220,36 @@
         _buildPromise = null;
     }
 
+    function updateNote(note) {
+        if (!_index) return;
+        var id = note.id;
+        for (var i = 0; i < _index.length; i++) {
+            if (_index[i].id === id) {
+                if (typeof note.title === 'string') _index[i].title = note.title;
+                if (typeof note.content === 'string') _index[i].content = note.content;
+                if (typeof note.category === 'string') _index[i].category = note.category;
+                if (note.date_last_changed) _index[i].date_last_changed = note.date_last_changed;
+                return;
+            }
+        }
+        if (typeof note.title === 'string' && typeof note.content === 'string') {
+            _index.push({
+                id: id,
+                title: note.title,
+                content: note.content,
+                category: note.category || '',
+                date_last_changed: note.date_last_changed || null
+            });
+        }
+    }
+
+    function deleteNote(id) {
+        if (!_index) return;
+        for (var i = 0; i < _index.length; i++) {
+            if (_index[i].id === id) { _index.splice(i, 1); return; }
+        }
+    }
+
     function getIndex() {
         return _index;
     }
@@ -265,6 +295,8 @@
         buildIndex: buildIndex,
         search: search,
         invalidate: invalidate,
+        updateNote: updateNote,
+        deleteNote: deleteNote,
         getIndex: getIndex,
         isBuilding: isBuilding,
         computeBacklinks: computeBacklinks,

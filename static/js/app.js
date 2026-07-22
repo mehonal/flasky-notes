@@ -10,6 +10,7 @@ var editMode = _pageData.editMode;
 var isDirty = false;
 var isSaving = false;
 var _inPopState = false;
+var _loadedNoteTitle = '';
 var cmEditor = null;
 var currentFontSize = _pageData.currentFontSize;
 var pinnedNotes = JSON.parse(localStorage.getItem('flasky-pinned') || '[]');
@@ -410,6 +411,7 @@ function loadNote(id, category, categoryId) {
         updateBreadcrumbCategory(currentCategory, categoryId);
         history.pushState({ flasky: { view: 'note', noteId: 0 } }, '', '/note/0');
         if (_inPopState) history.replaceState({ flasky: { view: 'note', noteId: 0 } }, '', '/note/0');
+        _loadedNoteTitle = '';
         document.getElementById('breadcrumb-note-title').textContent = 'New note';
         document.getElementById('save-status').textContent = '';
         document.getElementById('save-status').style.color = '';
@@ -472,6 +474,7 @@ function loadNote(id, category, categoryId) {
         hasBeenSavedOnce = true;
         isDirty = false;
         isSaving = false;
+        _loadedNoteTitle = n.title || '';
 
         // Update title
         document.getElementById('note-title').value = n.title || '';
@@ -1079,31 +1082,54 @@ async function _doSaveNote(titleVal, content, props, callback) {
         if (data.success) {
             isDirty = false;
             hasBeenSavedOnce = true;
-            if (typeof FlaskySearch !== 'undefined') FlaskySearch.invalidate();
-            document.getElementById('save-status').textContent = '\u2713 Saved';
-            document.getElementById('save-status').style.color = 'var(--green)';
-            updateMobileSaveBtn('saved');
-            try { localStorage.setItem('flasky-notes-rev', Date.now().toString()); } catch (e) {}
             var displayTitle = document.getElementById('note-title') ? document.getElementById('note-title').value : '';
-            var needsMapRefresh = false;
-            if (noteId === 0 && data.note && data.note.id) {
+            var wasNewNote = (noteId === 0 && data.note && data.note.id);
+            var oldTitle = _loadedNoteTitle;
+            var titleChanged = (oldTitle !== displayTitle);
+
+            if (typeof FlaskySearch !== 'undefined' && data.note) {
+                FlaskySearch.updateNote({
+                    id: wasNewNote ? data.note.id : noteId,
+                    title: displayTitle,
+                    content: content,
+                    category: currentCategory || '',
+                    date_last_changed: data.note.date_last_changed
+                });
+            }
+
+            if (wasNewNote) {
                 noteId = data.note.id;
+                _loadedNoteTitle = displayTitle;
                 history.replaceState(null, '', '/note/' + noteId);
                 refreshSidebar();
                 var bc = document.getElementById('breadcrumb-note-title');
                 if (bc) bc.textContent = displayTitle || 'Untitled';
-                needsMapRefresh = true;
-            } else if (data.note) {
-                updateSidebarNoteTitle(noteId, displayTitle);
-            }
-            if (needsMapRefresh && window._invalidateNoteMap) {
-                window._invalidateNoteMap();
-                if (!editMode) {
-                    document.addEventListener('noteMapUpdated', function() { renderPreview(); }, { once: true });
+                if (window._updateNoteMapEntry) {
+                    window._updateNoteMapEntry(noteId, null, displayTitle);
+                }
+                if (wikiNoteList !== null) {
+                    wikiNoteList.push({ title: displayTitle, id: noteId });
+                    wikiNoteList.sort(function(a, b) { return a.title.localeCompare(b.title); });
                 }
             } else {
-                if (!editMode) renderPreview();
+                _loadedNoteTitle = displayTitle;
+                updateSidebarNoteTitle(noteId, displayTitle);
+                if (titleChanged && window._updateNoteMapEntry) {
+                    window._updateNoteMapEntry(noteId, oldTitle, displayTitle);
+                }
+                if (wikiNoteList !== null && titleChanged) {
+                    for (var i = 0; i < wikiNoteList.length; i++) {
+                        if (wikiNoteList[i].id === noteId) { wikiNoteList[i].title = displayTitle; break; }
+                    }
+                    wikiNoteList.sort(function(a, b) { return a.title.localeCompare(b.title); });
+                }
             }
+
+            document.getElementById('save-status').textContent = '\u2713 Saved';
+            document.getElementById('save-status').style.color = 'var(--green)';
+            updateMobileSaveBtn('saved');
+            try { localStorage.setItem('flasky-notes-rev', Date.now().toString()); } catch (e) {}
+            if (!editMode) renderPreview();
         }
         if (callback) callback();
     })
@@ -1153,7 +1179,12 @@ function deleteSidebarNote(id, title) {
     .then(function(r) { return r.json(); })
     .then(function(data) {
         if (data.success) {
-            if (window._invalidateNoteMap) window._invalidateNoteMap();
+            if (typeof FlaskySearch !== 'undefined') FlaskySearch.deleteNote(id);
+            if (window._deleteNoteMapEntry) window._deleteNoteMapEntry(id, title);
+            if (wikiNoteList !== null) {
+                wikiNoteList = wikiNoteList.filter(function(n) { return n.id !== id; });
+            }
+            try { localStorage.setItem('flasky-notes-rev', Date.now().toString()); } catch (e) {}
             refreshSidebar();
             if (noteId === id) {
                 if (isMobile) closeSidebar();
@@ -1166,13 +1197,20 @@ function deleteSidebarNote(id, title) {
 function deleteCurrentNote() {
     if (!noteId || noteId === 0) return;
     if (!confirm('Delete this note?')) return;
-    var idx = pinnedNotes.indexOf(noteId);
+    var deletedId = noteId;
+    var deletedTitle = _loadedNoteTitle;
+    var idx = pinnedNotes.indexOf(deletedId);
     if (idx > -1) { pinnedNotes.splice(idx, 1); localStorage.setItem('flasky-pinned', JSON.stringify(pinnedNotes)); }
-    fetch('/api/delete_note', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ noteId: noteId }) })
+    fetch('/api/delete_note', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ noteId: deletedId }) })
     .then(function(r) { return r.json(); })
     .then(function(data) {
         if (data.success) {
-            if (window._invalidateNoteMap) window._invalidateNoteMap();
+            if (typeof FlaskySearch !== 'undefined') FlaskySearch.deleteNote(deletedId);
+            if (window._deleteNoteMapEntry) window._deleteNoteMapEntry(deletedId, deletedTitle);
+            if (wikiNoteList !== null) {
+                wikiNoteList = wikiNoteList.filter(function(n) { return n.id !== deletedId; });
+            }
+            try { localStorage.setItem('flasky-notes-rev', Date.now().toString()); } catch (e) {}
             refreshSidebar();
             loadNote(0);
         }
@@ -1890,12 +1928,23 @@ async function ctxRenameNote() {
     .then(function(r) { return r.json(); })
     .then(function(data) {
         if (data.success) {
-            if (window._invalidateNoteMap) window._invalidateNoteMap();
+            var oldTitle = t.title;
+            var newTitleTrimmed = newTitle.trim();
+            if (typeof FlaskySearch !== 'undefined') FlaskySearch.updateNote({ id: t.id, title: newTitleTrimmed });
+            if (window._updateNoteMapEntry) window._updateNoteMapEntry(t.id, oldTitle, newTitleTrimmed);
+            if (wikiNoteList !== null) {
+                for (var i = 0; i < wikiNoteList.length; i++) {
+                    if (wikiNoteList[i].id === t.id) { wikiNoteList[i].title = newTitleTrimmed; break; }
+                }
+                wikiNoteList.sort(function(a, b) { return a.title.localeCompare(b.title); });
+            }
+            try { localStorage.setItem('flasky-notes-rev', Date.now().toString()); } catch (e) {}
             refreshSidebar();
             // If this is the currently open note, update the title in the editor
             if (noteId === t.id) {
+                _loadedNoteTitle = newTitleTrimmed;
                 var titleEl = document.querySelector('.editor-title');
-                if (titleEl) titleEl.value = newTitle.trim();
+                if (titleEl) titleEl.value = newTitleTrimmed;
             }
         } else if (data.reason) alert(data.reason);
     });
@@ -3407,33 +3456,29 @@ var _noteMapPromise = null;
 function loadWikiNoteList(callback) {
     if (wikiNoteList !== null) { if (callback) callback(); return; }
     if (!_noteMapPromise) {
-        _noteMapPromise = fetch('/api/note-map')
-        .then(function(r) { return r.json(); })
-        .then(async function(data) {
-            wikiNoteList = [];
-            if (data.encrypted && typeof FlaskyE2EE !== 'undefined' && FlaskyE2EE.isEncrypted()) {
-                // E2EE: decrypt note titles
-                var notesList = data.notes || [];
-                for (var i = 0; i < notesList.length; i++) {
-                    try {
-                        var decTitle = await FlaskyE2EE.decryptField(notesList[i].title);
-                        if (decTitle) {
-                            wikiNoteList.push({ title: decTitle, id: notesList[i].id });
-                        }
-                    } catch (e) {}
-                }
-            } else {
-                var notes = data.notes || {};
-                Object.keys(notes).forEach(function(key) {
-                    wikiNoteList.push({ title: notes[key].title || key, id: notes[key].id });
-                });
-            }
-            wikiNoteList.sort(function(a, b) { return a.title.localeCompare(b.title); });
-            _noteMapPromise = null;
-        })
-        .catch(function() { wikiNoteList = []; _noteMapPromise = null; });
+        _noteMapPromise = _buildWikiNoteListFromMap();
     }
     _noteMapPromise.then(function() { if (callback) callback(); });
+}
+
+function _buildWikiNoteListFromMap() {
+    return new Promise(function(resolve) {
+        function buildFromMap() {
+            var map = window._getNoteMap ? window._getNoteMap() : null;
+            if (map) {
+                wikiNoteList = [];
+                for (var key in map) {
+                    if (map[key]) wikiNoteList.push({ title: map[key].title, id: map[key].id });
+                }
+                wikiNoteList.sort(function(a, b) { return a.title.localeCompare(b.title); });
+            } else {
+                wikiNoteList = [];
+            }
+            resolve();
+        }
+        if (window._wikiLinksReady) { buildFromMap(); return; }
+        document.addEventListener('wikiLinksReady', buildFromMap, { once: true });
+    });
 }
 
 function showWikiAutocomplete(cm) {
@@ -4133,6 +4178,7 @@ window.addEventListener('resize', function() { isMobile = window.innerWidth <= 7
                 }
                 var titleEl = document.getElementById('note-title');
                 if (titleEl) titleEl.value = title || '';
+                _loadedNoteTitle = title || '';
                 if (cmEditor) { cmEditor.setValue(content || ''); cmEditor.refresh(); }
                 else {
                     var ta = document.getElementById('note-content');
@@ -4198,8 +4244,15 @@ window.addEventListener('resize', function() { isMobile = window.innerWidth <= 7
     FlaskyE2EE.init().then(_postE2EEInit);
 
     window.afterUnlockReinit = function() {
+        wikiNoteList = null;
+        _noteMapPromise = null;
         FlaskyE2EE.init().then(_postE2EEInit);
     };
+
+    document.addEventListener('noteMapUpdated', function() {
+        wikiNoteList = null;
+        _noteMapPromise = null;
+    });
 
     document.addEventListener('visibilitychange', function() {
         if (document.visibilityState === 'visible' && !document.hidden) {
@@ -4210,6 +4263,8 @@ window.addEventListener('resize', function() { isMobile = window.innerWidth <= 7
         if (e.key === 'flasky-notes-rev') {
             if (typeof FlaskySearch !== 'undefined') FlaskySearch.invalidate();
             if (window._invalidateNoteMap) window._invalidateNoteMap();
+            wikiNoteList = null;
+            _noteMapPromise = null;
         }
     });
 })();

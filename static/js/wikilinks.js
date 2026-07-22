@@ -9,6 +9,9 @@
     var attachmentMap = null;
     var _originalMarked = window.marked;
     var _pendingBuild = null;
+    var _loadPromise = null;
+    var _loadResolve = null;
+    var _loadXhr = null;
 
     // Max render widths for embedded attachments / drawings. Set from app.js
     // via _setEmbedMaxWidths() using values from the page-data block. Values
@@ -37,29 +40,53 @@
             callback();
             return;
         }
-        var xhr = new XMLHttpRequest();
-        xhr.open('GET', '/api/note-map');
-        xhr.onload = function () {
-            if (xhr.status === 200) {
-                var data = JSON.parse(xhr.responseText);
-                _buildEncryptedNoteMap(data.notes || [], data.attachments || [], callback);
-            } else {
+        if (_loadPromise) {
+            _loadPromise.then(callback);
+            return _loadPromise;
+        }
+        var myPromise = new Promise(function(resolve) {
+            _loadResolve = resolve;
+            var xhr = new XMLHttpRequest();
+            _loadXhr = xhr;
+            xhr.open('GET', '/api/note-map');
+            xhr.onload = function () {
+                if (_loadXhr !== xhr) return;
+                if (xhr.status === 200) {
+                    var data = JSON.parse(xhr.responseText);
+                    _buildEncryptedNoteMap(data.notes || [], data.attachments || [], function() {
+                        if (_loadPromise === myPromise) { _loadPromise = null; _loadResolve = null; }
+                        if (_loadXhr === xhr) _loadXhr = null;
+                        resolve();
+                        callback();
+                    });
+                } else {
+                    noteMap = {};
+                    attachmentMap = {};
+                    if (_loadPromise === myPromise) { _loadPromise = null; _loadResolve = null; }
+                    if (_loadXhr === xhr) _loadXhr = null;
+                    resolve();
+                    callback();
+                }
+            };
+            xhr.onerror = function () {
+                if (_loadXhr !== xhr) return;
                 noteMap = {};
                 attachmentMap = {};
+                if (_loadPromise === myPromise) { _loadPromise = null; _loadResolve = null; }
+                if (_loadXhr === xhr) _loadXhr = null;
+                resolve();
                 callback();
-            }
-        };
-        xhr.onerror = function () {
-            noteMap = {};
-            attachmentMap = {};
-            callback();
-        };
-        xhr.send();
+            };
+            xhr.send();
+        });
+        _loadPromise = myPromise;
+        return _loadPromise;
     }
 
     async function _buildEncryptedNoteMap(notesList, attList, callback) {
         if (typeof FlaskyE2EE === 'undefined' || !FlaskyE2EE.isReady()) {
-            _pendingBuild = { notes: notesList, atts: attList, callback: callback };
+            _pendingBuild = { notes: notesList, atts: attList, callback: callback, resolve: _loadResolve, promise: _loadPromise };
+            _loadResolve = null;
             return;
         }
 
@@ -90,8 +117,14 @@
     function _flushPending() {
         if (!_pendingBuild) return;
         var p = _pendingBuild;
+        var pendingResolve = p.resolve;
+        var pendingPromise = p.promise;
         _pendingBuild = null;
-        _buildEncryptedNoteMap(p.notes, p.atts, p.callback);
+        _buildEncryptedNoteMap(p.notes, p.atts, function() {
+            if (pendingResolve) pendingResolve();
+            if (_loadPromise === pendingPromise) { _loadPromise = null; _loadResolve = null; }
+            p.callback();
+        });
     }
 
     function resolveWikiLinks(html) {
@@ -209,12 +242,35 @@
         noteMap = null;
         attachmentMap = null;
         _pendingBuild = null;
+        if (_loadXhr) { try { _loadXhr.abort(); } catch(e) {} _loadXhr = null; }
+        if (_loadResolve) { _loadResolve(); _loadResolve = null; }
+        _loadPromise = null;
         window._wikiLinksReady = false;
         loadNoteMap(function() {
             window._wikiLinksReady = true;
             document.dispatchEvent(new Event('wikiLinksReady'));
             document.dispatchEvent(new Event('noteMapUpdated'));
         });
+    };
+
+    window._updateNoteMapEntry = function(id, oldTitle, newTitle) {
+        if (!noteMap) return;
+        if (oldTitle) delete noteMap[oldTitle.toLowerCase()];
+        if (newTitle) noteMap[newTitle.toLowerCase()] = { id: id, title: newTitle };
+    };
+
+    window._deleteNoteMapEntry = function(id, title) {
+        if (!noteMap) return;
+        if (title) delete noteMap[title.toLowerCase()];
+        else {
+            for (var k in noteMap) {
+                if (noteMap[k] && noteMap[k].id === id) { delete noteMap[k]; return; }
+            }
+        }
+    };
+
+    window._getNoteMap = function() {
+        return noteMap;
     };
 
     loadNoteMap(function () {
