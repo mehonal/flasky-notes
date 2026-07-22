@@ -52,6 +52,7 @@
         }
 
         async function submitForm(form, submitter) {
+            var requiresRefresh = form.hasAttribute('data-requires-refresh');
             var formData = new FormData(form);
             formData.set('_fragment', '1');
             if (submitter && submitter.name) formData.set(submitter.name, submitter.value);
@@ -63,6 +64,11 @@
                     credentials: 'same-origin',
                 });
                 if (!resp.ok) { showToast('Failed to save settings.', 'danger'); return; }
+                if (requiresRefresh) {
+                    showToast('Settings saved. Reloading…');
+                    window.location.reload();
+                    return;
+                }
                 var html = await resp.text();
                 if (html && html.indexOf('settings-root') !== -1) {
                     swapFragment(html);

@@ -131,7 +131,7 @@
         <div class="content-area">
             <div class="settings-grid">
 
-                <form method="POST" id="ui-settings-form" data-spa-form style="display:contents">
+                <form method="POST" id="ui-settings-form" data-spa-form data-requires-refresh style="display:contents">
 
                 <!-- Appearance -->
                 <div class="panel" data-tab="appearance">
@@ -169,6 +169,7 @@
                             <div class="setting-row">
                                 <button name="update-ui-settings" class="btn-sm primary" type="submit">Save appearance</button>
                             </div>
+                            <div class="setting-hint">Saving refreshes the page to apply changes.</div>
                     </div>
                 </div>
 
@@ -254,6 +255,7 @@
                             <div class="setting-row">
                                 <button name="update-ui-settings" class="btn-sm primary" type="submit">Save daily notes</button>
                             </div>
+                            <div class="setting-hint">Saving refreshes the page to apply changes.</div>
                     </div>
                 </div>
 
@@ -284,6 +286,7 @@
                             <div class="setting-row">
                                 <button name="update-ui-settings" class="btn-sm primary" type="submit">Save settings</button>
                             </div>
+                            <div class="setting-hint">Saving refreshes the page to apply changes.</div>
                     </div>
                 </div>
 
@@ -309,13 +312,14 @@
                         <div class="setting-row">
                             <button name="update-ui-settings" class="btn-sm primary" type="submit">Save settings</button>
                         </div>
+                        <div class="setting-hint">Saving refreshes the page to apply changes.</div>
                     </div>
                 </div>
 
                 </form>
 
                 <!-- Editing -->
-                <form method="POST" data-spa-form style="display:contents">
+                <form method="POST" data-spa-form data-requires-refresh style="display:contents">
                 <div class="panel" data-tab="editing" hidden>
                     <div class="panel-header">
                         <div class="panel-title">
@@ -380,12 +384,13 @@
                             <div class="setting-row">
                                 <button name="save-editing" class="btn-sm primary" type="submit">Save editing</button>
                             </div>
+                            <div class="setting-hint">Saving refreshes the page to apply changes.</div>
                     </div>
                 </div>
                 </form>
 
                 <!-- Layout -->
-                <form method="POST" data-spa-form style="display:contents">
+                <form method="POST" data-spa-form data-requires-refresh style="display:contents">
                 <div class="panel" data-tab="layout" hidden>
                     <div class="panel-header">
                         <div class="panel-title">
@@ -421,12 +426,13 @@
                             <div class="setting-row">
                                 <button name="save-layout" class="btn-sm primary" type="submit">Save layout</button>
                             </div>
+                            <div class="setting-hint">Saving refreshes the page to apply changes.</div>
                     </div>
                 </div>
                 </form>
 
                 <!-- Panel widgets -->
-                <form method="POST" data-spa-form style="display:contents">
+                <form method="POST" data-spa-form data-requires-refresh style="display:contents">
                 <div class="panel" data-tab="panel-widgets" hidden>
                     <div class="panel-header">
                         <div class="panel-title">
@@ -450,6 +456,7 @@
                             <div class="setting-row">
                                 <button name="save-widgets" class="btn-sm primary" type="submit">Save widgets</button>
                             </div>
+                            <div class="setting-hint">Saving refreshes the page to apply changes.</div>
                     </div>
                 </div>
                 </form>
@@ -463,7 +470,7 @@
                         </div>
                     </div>
                     <div class="panel-body">
-                        <form method="POST" data-spa-form>
+                        <form method="POST" data-spa-form data-requires-refresh>
                             <div class="setting-row" style="border-top:none;">
                                 <select name="timezone" class="setting-input">
                                     {% for tz in timezones %}
@@ -472,6 +479,7 @@
                                 </select>
                                 <button name="update-timezone" class="btn-sm primary" type="submit">Save</button>
                             </div>
+                            <div class="setting-hint">Saving refreshes the page to apply changes.</div>
                         </form>
                     </div>
                 </div>
@@ -531,7 +539,7 @@
                         </div>
                     </div>
                     <div class="panel-body">
-                        <form method="POST" data-spa-form>
+                        <form method="POST" data-spa-form data-requires-refresh>
                             <input type="hidden" name="toggle-ai" value="1">
                             <div class="setting-row">
                                 <span class="setting-label">AI enabled</span>
@@ -541,9 +549,10 @@
                                     </div>
                                 </div>
                             </div>
+                            <div class="setting-hint">Toggling refreshes the page to apply changes.</div>
                         </form>
                         {% if ai_enabled %}
-                        <form method="POST" data-spa-form>
+                        <form method="POST" data-spa-form data-requires-refresh>
                             <div class="sub-label">Ollama settings</div>
                             <div style="padding: 0 16px;">
                                 <label class="list-item-sub">API key</label>
@@ -556,6 +565,7 @@
                                     <button name="update-ai-settings" class="btn-sm primary" type="submit">Save</button>
                                     <button name="remove-ai-api-key" class="btn-sm danger" type="submit">Remove API Key</button>
                                 </div>
+                                <div class="setting-hint" style="margin-top:8px;">Saving refreshes the page to apply changes.</div>
                             </div>
                         </form>
                         {% endif %}

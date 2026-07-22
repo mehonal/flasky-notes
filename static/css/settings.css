@@ -124,6 +124,7 @@
 #settings-root .setting-label { font-size: 13px; color: var(--text-primary); flex: 1; }
 #settings-root .setting-desc { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
 #settings-root .setting-control { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+#settings-root .setting-hint { font-size: 11px; color: var(--text-muted); font-style: italic; padding: 4px 16px 8px; }
 
 #settings-root .toggle {
     position: relative; width: 36px; height: 20px;
