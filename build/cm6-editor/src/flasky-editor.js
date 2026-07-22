@@ -88,10 +88,10 @@ const flaskyTheme = EditorView.theme({
     fontSize: '0.9em',
   },
   '.cm6-code': {
-    color: 'var(--text-muted)',
     backgroundColor: 'var(--bg-hover)',
-    borderRadius: '3px',
-    padding: '1px 4px',
+    borderRadius: '4px',
+    padding: '2px 6px',
+    fontFamily: '"JetBrains Mono", "Fira Code", "SF Mono", monospace',
   },
   '.cm6-quote': {
     color: 'var(--text-secondary)',
@@ -453,6 +453,7 @@ function _buildLivePreview(state) {
   }
 
   _walkTree(state, builder, nodeOnActiveLine, excluded);
+  _decorateLiveInlineCode(state, builder, nodeOnActiveLine, excluded);
   _decorateLiveWikilinks(state, builder, nodeOnActiveLine, excluded);
   return Decoration.set(builder, true);
 }
@@ -486,6 +487,32 @@ function _decorateLiveWikilinks(state, builder, nodeOnActiveLine, excluded) {
       if (fullFrom + 2 < fullTo - 2) {
         builder.push(Decoration.mark({ class: 'cm6-wikilink-live' }).range(fullFrom + 2, fullTo - 2));
       }
+    }
+  }
+}
+
+// Live-preview inline-code fallback: the Lezer tree is built incrementally, so
+// lines far from the parse frontier may have no InlineCode node yet — this
+// hides the backticks on those lines. Same active-line reveal as wikilinks.
+var INLINE_CODE_LIVE_RE = /(`+)([^`]|[^`]*[^`\n])\1/g;
+
+function _decorateLiveInlineCode(state, builder, nodeOnActiveLine, excluded) {
+  var doc = state.doc;
+  var lineCount = doc.lines;
+  for (var n = 1; n <= lineCount; n++) {
+    var line = doc.line(n);
+    var text = line.text;
+    INLINE_CODE_LIVE_RE.lastIndex = 0;
+    var m;
+    while ((m = INLINE_CODE_LIVE_RE.exec(text)) !== null) {
+      var fullFrom = line.from + m.index;
+      var fullTo = fullFrom + m[0].length;
+      if (nodeOnActiveLine(fullFrom, fullTo)) continue;
+      if (_inExcluded(fullFrom + 1, excluded)) continue;
+      var openLen = m[1].length;
+      builder.push(Decoration.replace({}).range(fullFrom, fullFrom + openLen));
+      builder.push(Decoration.replace({}).range(fullTo - openLen, fullTo));
+      if (excluded) excluded.push({ from: fullFrom, to: fullTo });
     }
   }
 }
@@ -568,11 +595,12 @@ function _walkTree(state, builder, nodeOnActiveLine, excluded) {
         return false;
       }
 
-      // --- Inline code: hide the backticks, style the content ---
+      // --- Inline code: hide the backticks (CodeText is already styled cm6-code
+      // by the HighlightStyle; a second mark would nest backgrounds + compound
+      // the 0.88em font-size) ---
       if (name === 'InlineCode') {
         if (nodeOnActiveLine(from, to)) return;
         _hideMarkChildren(node, builder);
-        builder.push(Decoration.mark({ class: 'cm6-code' }).range(from, to));
         if (excluded) excluded.push({ from: from, to: to });
         return false;
       }
