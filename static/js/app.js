@@ -3080,12 +3080,7 @@ async function loadLinkGraph() {
     var title = document.getElementById('note-title');
     var noteTitle = title ? title.value : '';
     var content = getEditorContent();
-    if (!noteTitle) {
-        svg.style.display = 'none';
-        emptyMsg.style.display = '';
-        emptyMsg.textContent = 'No links';
-        return;
-    }
+    var displayTitle = noteTitle || 'Untitled';
 
     try {
         if (typeof FlaskySearch !== 'undefined' && FlaskySearch.isBuilding()) {
@@ -3096,12 +3091,12 @@ async function loadLinkGraph() {
             FlaskySearch.buildIndex().then(function() { loadLinkGraph(); });
             return;
         }
-        var backlinks = await FlaskySearch.computeBacklinks(noteTitle);
+        var backlinks = noteTitle ? await FlaskySearch.computeBacklinks(noteTitle) : [];
         var outbound = await FlaskySearch.computeOutboundLinks(content || '');
 
         // Build node map: center + neighbors. A note may appear in both lists.
         var nodes = {};
-        nodes[noteId] = { id: noteId, title: noteTitle, type: 'center' };
+        nodes[noteId] = { id: noteId, title: displayTitle, type: 'center' };
         backlinks.forEach(function(n) {
             if (!nodes[n.id]) nodes[n.id] = { id: n.id, title: n.title || 'Untitled', type: 'in' };
         });
