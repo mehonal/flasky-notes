@@ -275,10 +275,16 @@
 
     loadNoteMap(function () {
         var orig = window.marked;
-        window.marked = function (text) {
-            var html = orig(text);
-            return resolveWikiLinks(html);
+        var origParse = (typeof orig.parse === 'function') ? orig.parse : orig;
+        var wrapper = function (text) {
+            return resolveWikiLinks(origParse(text));
         };
+        // Preserve the original API so marked.parse(...) / marked.setOptions(...) callers keep working after the swap.
+        Object.keys(orig).forEach(function (k) {
+            if (!(k in wrapper)) wrapper[k] = orig[k];
+        });
+        wrapper.parse = function (text) { return resolveWikiLinks(origParse(text)); };
+        window.marked = wrapper;
         window._wikiLinksReady = true;
         document.dispatchEvent(new Event('wikiLinksReady'));
     });

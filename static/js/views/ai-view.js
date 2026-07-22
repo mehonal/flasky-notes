@@ -198,7 +198,7 @@
         function escapeHtml(text) { var d = document.createElement('div'); d.textContent = text; return d.innerHTML; }
 
         var SANITIZE_CONFIG = { ALLOWED_TAGS: ['p','br','strong','em','a','code','pre','ul','ol','li','h1','h2','h3','h4','h5','h6','blockquote','table','thead','tbody','tr','th','td','hr','img','del','s','sup','sub'], ALLOWED_ATTR: ['href','src','alt','title','class','id','target','rel'], ALLOW_DATA_ATTR: false };
-        function renderMarkdown(text) { try { return DOMPurify.sanitize(marked.parse(text), SANITIZE_CONFIG); } catch (e) { return escapeHtml(text); } }
+        function renderMarkdown(text) { try { return DOMPurify.sanitize(marked(text), SANITIZE_CONFIG); } catch (e) { return escapeHtml(text); } }
 
         var COPY_ICON = '<svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
         var REGEN_ICON = '<svg viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>';

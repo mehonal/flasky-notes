@@ -820,9 +820,10 @@
                     }).catch(function () { showToast('Failed to save model selection.', 'danger'); });
                 });
             }
+        }
 
-            function aiRenderMarkdown(text) {
-                var html = typeof marked !== 'undefined' ? marked.parse(text) : escapeHtml(text).replace(/\n/g, '<br>');
+        function aiRenderMarkdown(text) {
+                var html = typeof marked !== 'undefined' ? marked(text) : escapeHtml(text).replace(/\n/g, '<br>');
                 return typeof sanitizeMarkdown === 'function' ? sanitizeMarkdown(html) : html;
             }
 
@@ -1190,7 +1191,6 @@
                 };
                 aiStreamResponseWith(encryptedMessage, smartMessages, smartConvId, true);
             }
-        }
     }
 
     function destroy() {
