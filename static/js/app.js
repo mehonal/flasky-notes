@@ -446,10 +446,11 @@ function loadNote(id, category, categoryId) {
         return;
     }
 
+    if (window.FlaskyRouter && typeof window.FlaskyRouter.showBar === 'function') window.FlaskyRouter.showBar();
     fetch('/api/note/' + id)
     .then(function(r) { return r.json(); })
     .then(async function(data) {
-        if (!data.success) { _inPopState = false; window.location.href = '/note/' + id; return; }
+        if (!data.success) { _inPopState = false; if (window.FlaskyRouter && typeof window.FlaskyRouter.finishBar === 'function') window.FlaskyRouter.finishBar(); window.location.href = '/note/' + id; return; }
         var n = data.note;
 
         // E2EE: decrypt fields
@@ -531,6 +532,10 @@ function loadNote(id, category, categoryId) {
         if (rp && !rp.classList.contains('collapsed')) refreshAllVisibleWidgets();
         refreshCalendarWidget();
         _inPopState = false;
+        if (window.FlaskyRouter && typeof window.FlaskyRouter.finishBar === 'function') window.FlaskyRouter.finishBar();
+    })
+    .catch(function() {
+        if (window.FlaskyRouter && typeof window.FlaskyRouter.finishBar === 'function') window.FlaskyRouter.finishBar();
     });
 }
 

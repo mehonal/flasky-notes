@@ -173,11 +173,13 @@
             var noteId = parseInt(match[1], 10);
             closeOverlay();
             if (typeof window.loadNote === 'function') {
+                // loadNote owns the bar lifecycle now (shows on fetch,
+                // finishes after decrypt/render). Don't finishBar here.
                 window.loadNote(noteId);
             } else {
                 window.location.href = path;
+                finishBar();
             }
-            finishBar();
             return;
         }
 
@@ -298,6 +300,8 @@
         navigate: navigate,
         registerView: registerView,
         closeOverlay: closeOverlay,
-        isEditorActive: isEditorActive
+        isEditorActive: isEditorActive,
+        showBar: showBar,
+        finishBar: finishBar
     };
 })();
