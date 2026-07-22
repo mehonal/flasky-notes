@@ -113,6 +113,10 @@ const flaskyTheme = EditorView.theme({
   '.cm6-wikilink, .cm6-wikilink *': {
     color: 'var(--accent) !important',
   },
+  '.cm6-wikilink-live, .cm6-wikilink-live *': {
+    color: 'var(--accent) !important',
+    fontWeight: '700',
+  },
   // --- Live-preview content styling (applied via Decoration.mark) ---
   '.cm6-h1': { fontWeight: '700' },
   '.cm6-h2': { fontWeight: '600' },
@@ -437,6 +441,7 @@ function _escapeHtml(s) {
 // decorations. Nodes overlapping the active line are skipped.
 function _buildLivePreview(state) {
   var builder = [];
+  var excluded = [];  // ranges covered by block widgets or inline code/links
   var sel = state.selection.main;
   var headLine = state.doc.lineAt(sel.head).number;
   var doc = state.doc;
@@ -447,10 +452,53 @@ function _buildLivePreview(state) {
     return headLine >= startLine && headLine <= endLine;
   }
 
-  return _walkTree(state, builder, nodeOnActiveLine);
+  _walkTree(state, builder, nodeOnActiveLine, excluded);
+  _decorateLiveWikilinks(state, builder, nodeOnActiveLine, excluded);
+  return Decoration.set(builder, true);
 }
 
-function _walkTree(state, builder, nodeOnActiveLine) {
+// Live-preview wikilink rendering: hide the [[ ]] brackets and style the
+// inner text bold + accent-colored. Skipped on the cursor's line so the raw
+// [[...]] source stays editable there. ![[...]] embeds are left to the embed
+// plugin. Runs as part of the live-preview StateField.
+var WIKILINK_LIVE_RE = /\[\[([^\]]+)\]\]/g;
+
+function _decorateLiveWikilinks(state, builder, nodeOnActiveLine, excluded) {
+  var doc = state.doc;
+  var lineCount = doc.lines;
+  for (var n = 1; n <= lineCount; n++) {
+    var line = doc.line(n);
+    var text = line.text;
+    WIKILINK_LIVE_RE.lastIndex = 0;
+    var m;
+    while ((m = WIKILINK_LIVE_RE.exec(text)) !== null) {
+      // Skip ![[...]] embeds (handled by the embed plugin).
+      var bracketIdx = m.index;
+      if (bracketIdx > 0 && text[bracketIdx - 1] === '!') continue;
+      var fullFrom = line.from + bracketIdx;
+      var fullTo = fullFrom + m[0].length;
+      if (nodeOnActiveLine(fullFrom, fullTo)) continue;
+      // Skip wikilinks inside block widgets / inline code / links.
+      if (_inExcluded(fullFrom, excluded)) continue;
+      // Hide the [[ and ]] brackets, mark the inner content bold + accent.
+      builder.push(Decoration.replace({}).range(fullFrom, fullFrom + 2));
+      builder.push(Decoration.replace({}).range(fullTo - 2, fullTo));
+      if (fullFrom + 2 < fullTo - 2) {
+        builder.push(Decoration.mark({ class: 'cm6-wikilink-live' }).range(fullFrom + 2, fullTo - 2));
+      }
+    }
+  }
+}
+
+// Check whether a position falls inside any of the excluded ranges.
+function _inExcluded(pos, excluded) {
+  for (var i = 0; i < excluded.length; i++) {
+    if (pos >= excluded[i].from && pos < excluded[i].to) return true;
+  }
+  return false;
+}
+
+function _walkTree(state, builder, nodeOnActiveLine, excluded) {
   var tree = syntaxTree(state);
   var doc = state.doc;
 
@@ -482,6 +530,7 @@ function _walkTree(state, builder, nodeOnActiveLine) {
           block: true,
           widget: new CodeBlockWidget(lang, codeText),
         }).range(from, to));
+        if (excluded) excluded.push({ from: from, to: to });
         return false;
       }
 
@@ -495,6 +544,7 @@ function _walkTree(state, builder, nodeOnActiveLine) {
             block: true,
             widget: new CalloutWidget(calloutParsed.type, calloutParsed.title, calloutParsed.bodyLines),
           }).range(from, to));
+          if (excluded) excluded.push({ from: from, to: to });
           return false;
         }
         // Not a callout — style the `>` markers on each line as dimmed.
@@ -523,6 +573,7 @@ function _walkTree(state, builder, nodeOnActiveLine) {
         if (nodeOnActiveLine(from, to)) return;
         _hideMarkChildren(node, builder);
         builder.push(Decoration.mark({ class: 'cm6-code' }).range(from, to));
+        if (excluded) excluded.push({ from: from, to: to });
         return false;
       }
 
@@ -530,6 +581,7 @@ function _walkTree(state, builder, nodeOnActiveLine) {
       if (name === 'Link') {
         if (nodeOnActiveLine(from, to)) return;
         _hideLinkMarkers(node, builder);
+        if (excluded) excluded.push({ from: from, to: to });
         return false;
       }
 
@@ -539,6 +591,7 @@ function _walkTree(state, builder, nodeOnActiveLine) {
       if (name === 'Image') {
         if (nodeOnActiveLine(from, to)) return;
         _hideLinkMarkers(node, builder);
+        if (excluded) excluded.push({ from: from, to: to });
         return false;
       }
 
