@@ -55,6 +55,32 @@ function nowInUserTz() {
     return now;
 }
 
+// Compose a wall-clock string from <input type="date">[+ <input type="time">]
+// for transmission to the server. The server interprets these in the user's
+// configured timezone, so no client-side UTC conversion is done.
+// Returns '' when no date is selected so the backend clears the field.
+function composeAgendaDateIso(date, time) {
+    if (!date) return '';
+    return time ? date + 'T' + time : date;
+}
+
+// Extract the wall-clock YYYY-MM-DD (in the user's configured tz) from a
+// UTC ISO string returned by the server, for repopulating date inputs.
+function extractAgendaDate(isoStr) {
+    if (!isoStr) return '';
+    try {
+        var d = new Date(isoStr);
+        if (isNaN(d.getTime())) return '';
+        var parts = new Intl.DateTimeFormat('en-CA', {
+            timeZone: userTimezone, year: 'numeric', month: '2-digit', day: '2-digit'
+        }).formatToParts(d);
+        var y = parts.find(function (p) { return p.type === 'year'; }).value;
+        var mo = parts.find(function (p) { return p.type === 'month'; }).value;
+        var da = parts.find(function (p) { return p.type === 'day'; }).value;
+        return y + '-' + mo + '-' + da;
+    } catch (e) { return ''; }
+}
+
 async function openDailyNote() { return openDailyNoteFor(nowInUserTz()); }
 
 async function openDailyNoteFor(date) {
@@ -2677,7 +2703,7 @@ function openTodoDetail(todoId) {
                 try { t.content = await FlaskyE2EE.decryptField(t.content); } catch(e) {}
             }
             document.getElementById('todo-modal-input-title').value = t.title || '';
-            document.getElementById('todo-modal-input-date').value = t.date_due ? t.date_due.split('T')[0].split(' ')[0] : '';
+            document.getElementById('todo-modal-input-date').value = t.date_due ? extractAgendaDate(t.date_due) : '';
             document.getElementById('todo-modal-input-content').value = t.content || '';
             openAgendaModal('todo-detail-overlay');
         }
@@ -2704,6 +2730,7 @@ async function saveFromTodoModal() {
     var date = document.getElementById('todo-modal-input-date').value;
     var content = document.getElementById('todo-modal-input-content').value;
     if (!title || title.trim().length < 1) return;
+    var dateDue = composeAgendaDateIso(date, '');
 
     var encTitle = title, encContent = content;
     if (typeof FlaskyE2EE !== 'undefined' && FlaskyE2EE.isEncrypted()) {
@@ -2715,14 +2742,14 @@ async function saveFromTodoModal() {
         fetch('/api/edit_todo', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ toDoId: currentModalTodoId, title: encTitle, content: encContent, dateDue: date })
+            body: JSON.stringify({ toDoId: currentModalTodoId, title: encTitle, content: encContent, dateDue: dateDue })
         }).then(function(r) { return r.json(); })
         .then(function() { closeTodoDetailModal(); loadTodosWidget(); });
     } else {
         fetch('/api/add_todo', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ title: encTitle, content: encContent, dateDue: date })
+            body: JSON.stringify({ title: encTitle, content: encContent, dateDue: dateDue })
         }).then(function(r) { return r.json(); })
         .then(function() { closeTodoDetailModal(); loadTodosWidget(); });
     }
@@ -2756,7 +2783,7 @@ function openEventDetail(eventId) {
                 try { e.content = await FlaskyE2EE.decryptField(e.content); } catch(ex) {}
             }
             document.getElementById('event-modal-input-title').value = e.title || '';
-            document.getElementById('event-modal-input-date').value = e.date_of_event ? e.date_of_event.split('T')[0].split(' ')[0] : '';
+            document.getElementById('event-modal-input-date').value = e.date_of_event ? extractAgendaDate(e.date_of_event) : '';
             document.getElementById('event-modal-input-content').value = e.content || '';
             openAgendaModal('event-detail-overlay');
         }
@@ -2783,6 +2810,7 @@ async function saveFromEventModal() {
     var date = document.getElementById('event-modal-input-date').value;
     var content = document.getElementById('event-modal-input-content').value;
     if (!title || title.trim().length < 1) return;
+    var dateOfEvent = composeAgendaDateIso(date, '');
 
     var encTitle = title, encContent = content;
     if (typeof FlaskyE2EE !== 'undefined' && FlaskyE2EE.isEncrypted()) {
@@ -2794,14 +2822,14 @@ async function saveFromEventModal() {
         fetch('/api/edit_event', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ eventId: currentModalEventId, title: encTitle, content: encContent, dateOfEvent: date })
+            body: JSON.stringify({ eventId: currentModalEventId, title: encTitle, content: encContent, dateOfEvent: dateOfEvent })
         }).then(function(r) { return r.json(); })
         .then(function() { closeEventDetailModal(); loadEventsWidget(); });
     } else {
         fetch('/api/add_event', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ title: encTitle, content: encContent, dateOfEvent: date })
+            body: JSON.stringify({ title: encTitle, content: encContent, dateOfEvent: dateOfEvent })
         }).then(function(r) { return r.json(); })
         .then(function() { closeEventDetailModal(); loadEventsWidget(); });
     }

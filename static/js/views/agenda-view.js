@@ -37,6 +37,8 @@
         _root = container.querySelector('#agenda-root');
         if (!_root) return;
 
+        var userTimezone = (typeof _pageData !== 'undefined' && _pageData.timezone) ? _pageData.timezone : 'UTC';
+
         var lastSavedContent = document.getElementById('agenda-notes').value;
         var currentFilter = 'all';
         var aiConversationId = null;
@@ -345,10 +347,38 @@
             try {
                 var d = new Date(isoStr);
                 if (isNaN(d.getTime())) return '';
-                var h = String(d.getHours()).padStart(2, '0');
-                var m = String(d.getMinutes()).padStart(2, '0');
+                var parts = new Intl.DateTimeFormat('en-GB', {
+                    timeZone: userTimezone, hour: '2-digit', minute: '2-digit', hour12: false
+                }).formatToParts(d);
+                var h = parts.find(function (p) { return p.type === 'hour'; }).value;
+                var m = parts.find(function (p) { return p.type === 'minute'; }).value;
+                if (h === '24') h = '00';
                 return h + ':' + m;
             } catch (e) { return ''; }
+        }
+
+        function _extractDate(isoStr) {
+            if (!isoStr) return '';
+            try {
+                var d = new Date(isoStr);
+                if (isNaN(d.getTime())) return '';
+                var parts = new Intl.DateTimeFormat('en-CA', {
+                    timeZone: userTimezone, year: 'numeric', month: '2-digit', day: '2-digit'
+                }).formatToParts(d);
+                var y = parts.find(function (p) { return p.type === 'year'; }).value;
+                var mo = parts.find(function (p) { return p.type === 'month'; }).value;
+                var da = parts.find(function (p) { return p.type === 'day'; }).value;
+                return y + '-' + mo + '-' + da;
+            } catch (e) { return ''; }
+        }
+
+        // Compose a wall-clock string from <input type="date">[+ <input type="time">]
+        // for transmission to the server. The server interprets these in the
+        // user's configured timezone, so no client-side UTC conversion is done.
+        // Returns '' when no date is selected so the backend clears the field.
+        function _composeDueIso(date, time) {
+            if (!date) return '';
+            return time ? date + 'T' + time : date;
         }
 
         async function showTodoDetailsModal(id) {
@@ -367,7 +397,7 @@
                 document.getElementById('todoDetailsModalLabel').dataset.todoId = data.todo.id;
                 document.getElementById('todoDetailsModalLabel').dataset.todoArchived = data.todo.archived;
                 document.querySelector('#todoDetailsFields input[type="text"]').value = data.todo.title;
-                document.querySelector('#todoDetailsFields input[type="date"]').value = data.todo.date_due ? new Date(data.todo.date_due).toISOString().split('T')[0] : '';
+                document.querySelector('#todoDetailsFields input[type="date"]').value = data.todo.date_due ? _extractDate(data.todo.date_due) : '';
                 document.querySelector('#todoDetailsFields input[type="time"]').value = data.todo.date_due ? _extractTime(data.todo.date_due) : '';
                 document.querySelector('#todoDetailsFields textarea').value = data.todo.content;
             } catch (e) {
@@ -391,7 +421,7 @@
                 document.getElementById('eventDetailsModalLabel').innerText = data.event.title;
                 document.getElementById('eventDetailsModalLabel').dataset.eventId = data.event.id;
                 document.querySelector('#eventDetailsFields input[type="text"]').value = data.event.title;
-                document.querySelector('#eventDetailsFields input[type="date"]').value = data.event.date_of_event ? new Date(data.event.date_of_event).toISOString().split('T')[0] : '';
+                document.querySelector('#eventDetailsFields input[type="date"]').value = data.event.date_of_event ? _extractDate(data.event.date_of_event) : '';
                 document.querySelector('#eventDetailsFields input[type="time"]').value = data.event.date_of_event ? _extractTime(data.event.date_of_event) : '';
                 document.querySelector('#eventDetailsFields textarea').value = data.event.content;
             } catch (e) {
@@ -454,8 +484,7 @@
             var todoDate = document.querySelector('#todoDetailsFields input[type="date"]').value;
             var todoTime = document.querySelector('#todoDetailsFields input[type="time"]').value;
             var todoContent = document.querySelector('#todoDetailsFields textarea').value;
-            var dateDue = todoDate;
-            if (todoDate && todoTime) dateDue = todoDate + 'T' + todoTime;
+            var dateDue = _composeDueIso(todoDate, todoTime);
             var encTitle = todoTitle, encContent = todoContent;
             if (typeof FlaskyE2EE !== 'undefined' && FlaskyE2EE.isEncrypted()) {
                 encTitle = await FlaskyE2EE.encryptField(todoTitle);
@@ -476,7 +505,7 @@
                     todoItem.innerHTML = text;
                 }
                 var todoRow = todoItem ? todoItem.closest('.todo-item') : null;
-                if (todoRow && todoDate) todoRow.dataset.date = dateDue;
+                if (todoRow && data.todo.date_due) todoRow.dataset.date = data.todo.date_due;
                 else if (todoRow && !todoDate) delete todoRow.dataset.date;
                 hideModal('todoDetailsOverlay');
                 updateSummaryBar();
@@ -490,8 +519,7 @@
             var eventDate = document.querySelector('#eventDetailsFields input[type="date"]').value;
             var eventTime = document.querySelector('#eventDetailsFields input[type="time"]').value;
             var eventContent = document.querySelector('#eventDetailsFields textarea').value;
-            var dateOfEvent = eventDate;
-            if (eventDate && eventTime) dateOfEvent = eventDate + 'T' + eventTime;
+            var dateOfEvent = _composeDueIso(eventDate, eventTime);
             var encTitle = eventTitle, encContent = eventContent;
             if (typeof FlaskyE2EE !== 'undefined' && FlaskyE2EE.isEncrypted()) {
                 encTitle = await FlaskyE2EE.encryptField(eventTitle);
@@ -512,7 +540,7 @@
                     eventItem.innerHTML = text;
                 }
                 var eventRow = eventItem ? eventItem.closest('.event-item') : null;
-                if (eventRow && eventDate) eventRow.dataset.date = dateOfEvent;
+                if (eventRow && data.event.date_of_event) eventRow.dataset.date = data.event.date_of_event;
                 else if (eventRow && !eventDate) delete eventRow.dataset.date;
                 hideModal('eventDetailsOverlay');
                 updateSummaryBar();
@@ -567,8 +595,7 @@
             var time = document.querySelector('#addTodoOverlay input[type="time"]').value;
             var content = document.querySelector('#addTodoOverlay textarea').value;
             if (!title || title.trim().length < 2) { showToast('Please enter a valid to-do title.', 'warning'); return; }
-            var dateDue = date;
-            if (date && time) dateDue = date + 'T' + time;
+            var dateDue = _composeDueIso(date, time);
             var encTitle = title, encContent = content;
             if (typeof FlaskyE2EE !== 'undefined' && FlaskyE2EE.isEncrypted()) {
                 encTitle = await FlaskyE2EE.encryptField(title);
@@ -594,8 +621,7 @@
             var time = document.querySelector('#addEventOverlay input[type="time"]').value;
             var content = document.querySelector('#addEventOverlay textarea').value;
             if (!title || title.trim().length < 2) { showToast('Please enter a valid event title.', 'warning'); return; }
-            var dateOfEvent = date;
-            if (date && time) dateOfEvent = date + 'T' + time;
+            var dateOfEvent = _composeDueIso(date, time);
             var encTitle = title, encContent = content;
             if (typeof FlaskyE2EE !== 'undefined' && FlaskyE2EE.isEncrypted()) {
                 encTitle = await FlaskyE2EE.encryptField(title);
@@ -1171,13 +1197,14 @@
                         if (parsed.title) {
                             var todoTitle = String(parsed.title);
                             var todoDate = parsed.dateDue ? String(parsed.dateDue).split('T')[0] : '';
+                            var dateDueIso = _composeDueIso(todoDate, '');
                             var et = todoTitle, ec = '';
                             (async function () {
                                 if (typeof FlaskyE2EE !== 'undefined' && FlaskyE2EE.isEncrypted()) {
                                     et = await FlaskyE2EE.encryptField(todoTitle);
                                     ec = await FlaskyE2EE.encryptField('');
                                 }
-                                fetch('/api/add_todo', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title: et, content: ec, dateDue: todoDate }) })
+                                fetch('/api/add_todo', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title: et, content: ec, dateDue: dateDueIso }) })
                                     .then(function (r) { return r.json(); }).then(function (data) {
                                         if (typeof FlaskyE2EE !== 'undefined' && FlaskyE2EE.isEncrypted()) data.todo.title = todoTitle;
                                         document.getElementById('todo-list').appendChild(bakeTodoDOM(data.todo));

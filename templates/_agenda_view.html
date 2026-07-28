@@ -134,7 +134,7 @@
             <div class="panel-body">
               <div id="todo-list">
                 {% for todo in todos %}
-                <div class="list-item todo-item" data-completed="{{ 'true' if todo.completed else 'false' }}" {% if todo.date_due %}data-date="{{ todo.date_due.isoformat() }}"{% endif %}>
+                <div class="list-item todo-item" data-completed="{{ 'true' if todo.completed else 'false' }}" {% if todo.date_due %}data-date="{{ todo.date_due|utc_iso }}"{% endif %}>
                   <div class="list-item-left">
                     <input type="checkbox" class="todo-checkbox" {% if todo.completed %}checked{% endif %} />
                     <span data-todo-id="{{ todo.id }}" class="todo-label{% if todo.completed %} completed{% endif %}" data-action="show-todo-details" data-id="{{ todo.id }}">{{ todo.title }}{% if todo.has_content() %} <span style="opacity:0.5">...</span>{% endif %} {% if todo.date_due %}<span class="badge badge-{{ todo.get_due_css_class() }}">{{ todo.get_time_until_due() }}</span><span class="item-time">{{ todo.get_formatted_due_time() }}</span>{% endif %}</span>
@@ -183,7 +183,7 @@
             <div class="panel-body">
               <div id="event-list">
                 {% for event in events %}
-                <div class="list-item event-item" {% if event.date_of_event %}data-date="{{ event.date_of_event.isoformat() }}"{% endif %}>
+                <div class="list-item event-item" {% if event.date_of_event %}data-date="{{ event.date_of_event|utc_iso }}"{% endif %}>
                   <div class="list-item-left">
                     <span data-event-id="{{ event.id }}" class="event-label" data-action="show-event-details" data-id="{{ event.id }}">{{ event.title }}{% if event.has_content() %} <span style="opacity:0.5">...</span>{% endif %} {% if event.date_of_event %}<span class="badge badge-{{ event.get_event_css_class() }}">{{ event.get_time_until_event() }}</span><span class="item-time">{{ event.get_formatted_event_time() }}</span>{% endif %}</span>
                   </div>

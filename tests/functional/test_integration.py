@@ -401,6 +401,186 @@ def test_delete_event(auth_client):
     assert len(r3.json) == 0
 
 
+# === Timezone / UTC round-trip ===
+#
+# Semantics: the client sends wall-clock components (what the user picked in
+# the UI) with NO timezone suffix. The server interprets them in the user's
+# configured timezone (UserSettings.timezone, default UTC), converts to a
+# naive UTC instant, and stores. Responses emit stored instants as UTC-with-Z
+# so the client can parse them unambiguously. Display accessors
+# (formatted_due_time / formatted_event_time) convert UTC back to the user's
+# configured tz for rendering.
+
+
+def test_add_todo_wall_clock_stored_as_utc(auth_client):
+    """A bare wall-clock dateDue is interpreted in the user's tz (UTC by default)
+    and echoed back as UTC-with-Z."""
+    client, creds = auth_client
+    r = client.post(
+        "/api/add_todo",
+        json={"title": enc(creds, "Due todo"), "content": "", "dateDue": "2026-07-23T19:00"},
+    )
+    assert r.json["success"] is True
+    assert r.json["todo"]["date_due"] == "2026-07-23T19:00:00Z"
+
+
+def test_add_event_wall_clock_stored_as_utc(auth_client):
+    """A bare wall-clock dateOfEvent is interpreted in the user's tz and echoed
+    back as UTC-with-Z."""
+    client, creds = auth_client
+    r = client.post(
+        "/api/add_event",
+        json={"title": enc(creds, "Meeting"), "content": "", "dateOfEvent": "2026-07-23T19:00"},
+    )
+    assert r.json["success"] is True
+    assert r.json["event"]["date_of_event"] == "2026-07-23T19:00:00Z"
+
+
+def test_edit_todo_preserves_wall_clock_utc(auth_client):
+    """Editing a todo does not shift its stored UTC instant for a UTC user."""
+    client, creds = auth_client
+    r = client.post(
+        "/api/add_todo",
+        json={"title": enc(creds, "Original"), "content": "", "dateDue": "2026-07-23T19:00"},
+    )
+    todo_id = r.json["id"]
+    assert r.json["todo"]["date_due"] == "2026-07-23T19:00:00Z"
+
+    r2 = client.post(
+        "/api/edit_todo",
+        json={"toDoId": todo_id, "title": enc(creds, "Updated"), "content": "", "dateDue": "2026-07-23T19:00"},
+    )
+    assert r2.json["success"] is True
+    assert r2.json["todo"]["date_due"] == "2026-07-23T19:00:00Z"
+
+
+def test_get_todos_returns_utc_z_dates(auth_client):
+    """The list endpoint emits date_due as UTC-with-Z, not bare naive ISO."""
+    client, creds = auth_client
+    client.post(
+        "/api/add_todo",
+        json={"title": enc(creds, "Listed"), "content": "", "dateDue": "2026-08-01T08:30"},
+    )
+    r = client.get("/api/get_todos")
+    assert r.status_code == 200
+    matched = [t for t in r.json if t.get("date_due")]
+    assert len(matched) == 1
+    assert matched[0]["date_due"] == "2026-08-01T08:30:00Z"
+
+
+def test_get_events_returns_utc_z_dates(auth_client):
+    """The events list endpoint emits date_of_event as UTC-with-Z."""
+    client, creds = auth_client
+    client.post(
+        "/api/add_event",
+        json={"title": enc(creds, "Listed Event"), "content": "", "dateOfEvent": "2026-08-01T08:30"},
+    )
+    r = client.get("/api/get_events")
+    assert r.status_code == 200
+    matched = [e for e in r.json if e.get("date_of_event")]
+    assert len(matched) == 1
+    assert matched[0]["date_of_event"] == "2026-08-01T08:30:00Z"
+
+
+def test_wall_clock_interpreted_in_user_timezone(auth_client):
+    """A wall-clock dateDue is interpreted in the user's *configured* timezone,
+    not the server's. For a New York user (UTC-4 in July), 19:00 wall-clock
+    → 23:00 UTC."""
+    from flasky.models import User
+    from flasky.services.settings import set_timezone
+
+    client, creds = auth_client
+    user = User.query.filter_by(username="testuser").first()
+    set_timezone(user, "America/New_York")
+
+    r = client.post(
+        "/api/add_todo",
+        json={"title": enc(creds, "TZ todo"), "content": "", "dateDue": "2026-07-23T19:00"},
+    )
+    assert r.json["success"] is True
+    # 19:00 EDT = 23:00 UTC
+    assert r.json["todo"]["date_due"] == "2026-07-23T23:00:00Z"
+    # Display accessor converts back to the user's tz: 19:00 → "7:00 PM"
+    assert r.json["todo"]["formatted_due_time"] == "7:00 PM"
+
+
+def test_wall_clock_event_interpreted_in_user_timezone(auth_client):
+    """A wall-clock dateOfEvent is interpreted in the user's configured tz; the
+    display accessor renders it back in that tz."""
+    from flasky.models import User
+    from flasky.services.settings import set_timezone
+
+    client, creds = auth_client
+    user = User.query.filter_by(username="testuser").first()
+    set_timezone(user, "America/New_York")
+
+    # 00:00 wall-clock EDT = 04:00 UTC; display → "12:00 AM"
+    r = client.post(
+        "/api/add_event",
+        json={"title": enc(creds, "TZ event"), "content": "", "dateOfEvent": "2026-07-23T00:00"},
+    )
+    assert r.json["success"] is True
+    assert r.json["event"]["date_of_event"] == "2026-07-23T04:00:00Z"
+    assert r.json["event"]["formatted_event_time"] == "12:00 AM"
+
+
+def test_date_only_interpreted_as_midnight_in_user_timezone(auth_client):
+    """A bare YYYY-MM-DD is midnight in the user's configured tz, not UTC, so a
+    New York user's 2026-07-23 → 2026-07-23T04:00:00Z."""
+    from flasky.models import User
+    from flasky.services.settings import set_timezone
+
+    client, creds = auth_client
+    user = User.query.filter_by(username="testuser").first()
+    set_timezone(user, "America/New_York")
+
+    r = client.post(
+        "/api/add_todo",
+        json={"title": enc(creds, "Date only"), "content": "", "dateDue": "2026-07-23"},
+    )
+    assert r.json["success"] is True
+    assert r.json["todo"]["date_due"] == "2026-07-23T04:00:00Z"
+
+
+def test_explicit_tz_input_is_normalized_to_utc(auth_client):
+    """A full ISO string with an explicit offset is normalized to UTC regardless
+    of the user's configured tz (the offset is authoritative)."""
+    from flasky.models import User
+    from flasky.services.settings import set_timezone
+
+    client, creds = auth_client
+    user = User.query.filter_by(username="testuser").first()
+    set_timezone(user, "America/New_York")
+
+    # 19:00 UTC+05:30 = 13:30 UTC, independent of configured tz
+    r = client.post(
+        "/api/add_todo",
+        json={"title": enc(creds, "Offset"), "content": "", "dateDue": "2026-07-23T19:00:00+05:30"},
+    )
+    assert r.json["success"] is True
+    assert r.json["todo"]["date_due"] == "2026-07-23T13:30:00Z"
+
+
+def test_naive_iso_with_seconds_interpreted_in_user_timezone(auth_client):
+    """A naive ISO string with seconds (no tz suffix) is interpreted in the
+    user's configured tz, not silently dropped. Guards against a regression
+    where fromisoformat succeeded but the strptime fallback loop didn't match."""
+    from flasky.models import User
+    from flasky.services.settings import set_timezone
+
+    client, creds = auth_client
+    user = User.query.filter_by(username="testuser").first()
+    set_timezone(user, "America/New_York")
+
+    r = client.post(
+        "/api/add_todo",
+        json={"title": enc(creds, "Seconds"), "content": "", "dateDue": "2026-07-23T19:00:00"},
+    )
+    assert r.json["success"] is True
+    # 19:00 EDT = 23:00 UTC
+    assert r.json["todo"]["date_due"] == "2026-07-23T23:00:00Z"
+
+
 # === UI state API ===
 
 

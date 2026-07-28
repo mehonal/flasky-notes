@@ -154,6 +154,12 @@ def create_app():
 
     register_error_handlers(app)
 
+    # Expose format_utc_iso to templates so naive-UTC datetimes render with an
+    # explicit Z suffix (e.g. data-date attributes consumed by JS via new Date()).
+    from flasky.utils import format_utc_iso as _format_utc_iso
+
+    app.jinja_env.filters["utc_iso"] = _format_utc_iso
+
     # Set CSRF cookie on responses so client JS can read it
     @app.after_request
     def set_csrf_cookie(response):

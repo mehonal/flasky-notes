@@ -2,7 +2,7 @@
 from flask import request, g, jsonify
 from flask_smorest import Blueprint as SmorestBlueprint
 
-from flasky.utils import login_required
+from flasky.utils import login_required, format_utc_iso
 from flasky.services import agenda as agenda_service
 from flasky.services.agenda import TodoNotFound, EventNotFound
 from flasky.schemas.agenda import (
@@ -34,6 +34,7 @@ def get_todos():
             "title": t.title,
             "completed": t.completed,
             "archived": t.archived,
+            "date_due": format_utc_iso(t.date_due),
             "time_until_due": t.get_time_until_due(),
             "due_css_class": t.get_due_css_class(),
             "has_content": t.has_content(),
@@ -142,7 +143,7 @@ def get_events():
         {
             "id": e.id,
             "title": e.title,
-            "date_of_event": e.date_of_event,
+            "date_of_event": format_utc_iso(e.date_of_event),
             "time_until_event": e.get_time_until_event(),
             "event_css_class": e.get_event_css_class(),
             "has_content": e.has_content(),

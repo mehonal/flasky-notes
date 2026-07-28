@@ -10,6 +10,7 @@ from werkzeug.utils import secure_filename
 from zoneinfo import ZoneInfo, available_timezones
 
 from flasky import db
+from flasky.utils import format_utc_iso
 
 
 class UserSettings(db.Model):
@@ -365,10 +366,10 @@ class UserTodo(db.Model):
             "id": self.id,
             "title": self.title,
             "content": self.content,
-            "date_due": self.date_due.isoformat() if self.date_due else None,
+            "date_due": format_utc_iso(self.date_due),
             "formatted_due_time": self.get_formatted_due_time(),
-            "date_added": self.date_added,
-            "date_completed": self.date_completed,
+            "date_added": format_utc_iso(self.date_added),
+            "date_completed": format_utc_iso(self.date_completed),
             "completed": self.completed,
             "archived": self.archived,
             "time_until_due": self.get_time_until_due(),
@@ -434,10 +435,10 @@ class UserEvent(db.Model):
             "id": self.id,
             "title": self.title,
             "content": self.content,
-            "date_of_event": self.date_of_event.isoformat() if self.date_of_event else None,
+            "date_of_event": format_utc_iso(self.date_of_event),
             "formatted_event_time": self.get_formatted_event_time(),
-            "date_added": self.date_added,
-            "date_last_changed": self.date_last_changed,
+            "date_added": format_utc_iso(self.date_added),
+            "date_last_changed": format_utc_iso(self.date_last_changed),
             "time_until_event": self.get_time_until_event(),
             "event_css_class": self.get_event_css_class(),
             "has_content": self.has_content(),

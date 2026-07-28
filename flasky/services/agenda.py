@@ -2,22 +2,44 @@
 title/content as opaque ciphertext; date fields are plaintext (the client
 needs them to sort/render, and the server also sorts by them).
 """
-from datetime import datetime
+from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
 
 from flasky import db
 from flasky.models import UserTodo, UserEvent, UserAgendaNotes
 
 
-def _parse_date(value):
+def _parse_date(value, user_tz="UTC"):
+    """Parse a client-supplied wall-clock string into a naive UTC datetime.
+
+    The client sends wall-clock components in the user's *configured*
+    timezone (what the user picked in the UI). Accepted input shapes:
+
+      - Full ISO 8601 with explicit tz (Z or offset): normalized to UTC.
+      - Naive ISO 8601 or bare wall-clock "YYYY-MM-DDTHH:MM[:SS[.fff]]":
+        interpreted as the user's configured timezone, then converted to UTC.
+      - Date-only "YYYY-MM-DD": midnight in the user's configured tz.
+
+    Returns None on unparseable input. Stored datetimes are always naive
+    UTC so that the existing read-side accessors (which attach
+    timezone.utc and convert to the user's tz) display correctly.
+    """
     if not value or value == "":
         return None
+    tz = ZoneInfo(user_tz) if isinstance(user_tz, str) else user_tz
     try:
-        return datetime.strptime(value, "%Y-%m-%dT%H:%M")
+        dt = datetime.fromisoformat(value.replace("Z", "+00:00"))
+        if dt.tzinfo is not None:
+            return dt.astimezone(timezone.utc).replace(tzinfo=None)
+        return dt.replace(tzinfo=tz).astimezone(timezone.utc).replace(tzinfo=None)
     except ValueError:
+        pass
+    for fmt in ("%Y-%m-%dT%H:%M", "%Y-%m-%d"):
         try:
-            return datetime.strptime(value, "%Y-%m-%d")
+            return datetime.strptime(value, fmt).replace(tzinfo=tz).astimezone(timezone.utc).replace(tzinfo=None)
         except ValueError:
-            return None
+            continue
+    return None
 
 
 class TodoNotFound(LookupError):
@@ -42,6 +64,10 @@ def _get_event(user, event_id):
     return event
 
 
+def _user_tz(user):
+    return user.get_timezone(as_str=True) if user else "UTC"
+
+
 def list_todos(user, archived=False):
     return UserTodo.query.filter_by(userid=user.id, archived=archived).all()
 
@@ -62,7 +88,8 @@ def list_events(user, past=False):
 
 def create_todo(user, title, content="", date_due=None):
     todo = UserTodo(
-        userid=user.id, title=title, content=content, date_due=_parse_date(date_due)
+        userid=user.id, title=title, content=content,
+        date_due=_parse_date(date_due, _user_tz(user)),
     )
     db.session.add(todo)
     db.session.commit()
@@ -74,7 +101,7 @@ def create_event(user, title, content="", date_of_event=None):
         userid=user.id,
         title=title,
         content=content,
-        date_of_event=_parse_date(date_of_event),
+        date_of_event=_parse_date(date_of_event, _user_tz(user)),
     )
     db.session.add(event)
     db.session.commit()
@@ -85,7 +112,7 @@ def update_todo(user, todo_id, title, content, date_due):
     todo = _get_todo(user, todo_id)
     todo.title = title
     todo.content = content
-    todo.date_due = _parse_date(date_due)
+    todo.date_due = _parse_date(date_due, _user_tz(user))
     db.session.commit()
     return todo
 
@@ -94,7 +121,7 @@ def update_event(user, event_id, title, content, date_of_event):
     event = _get_event(user, event_id)
     event.title = title
     event.content = content
-    event.date_of_event = _parse_date(date_of_event)
+    event.date_of_event = _parse_date(date_of_event, _user_tz(user))
     db.session.commit()
     return event
 
