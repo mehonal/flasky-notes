@@ -88,11 +88,7 @@ async function openDailyNoteFor(date) {
     var title = formatDailyTitle(dailyNoteConfig.titleFormat, date);
     if (!title) return;
     // Ensure the decrypted note index is available (titles are E2EE ciphertext).
-    var idx = [];
-    if (typeof FlaskySearch !== 'undefined') {
-        try { idx = await FlaskySearch.buildIndex(); } catch(e) { idx = []; }
-    }
-    if (!Array.isArray(idx)) idx = [];
+    var idx = await _getDailySearchIndex();
     // Find matching notes; pick the most recently changed on ties.
     var matches = [];
     for (var i = 0; i < idx.length; i++) {
@@ -132,13 +128,29 @@ async function openDailyNoteFor(date) {
             // Apply the configured daily template if any; otherwise the folder
             // default template (if any) is already applied by loadNote's flow.
             if (dailyNoteConfig.templateId) {
-                applyTemplate(dailyNoteConfig.templateId);
+                applyTemplate(dailyNoteConfig.templateId, function() {
+                    saveNote();
+                });
+            } else {
+                saveNote();
             }
-            // Auto-save so the new daily note is persisted and addressable.
-            saveNote();
         }, 60);
     };
     if (isDirty) { saveNote(proceed); } else { proceed(); }
+}
+
+async function _getDailySearchIndex() {
+    if (typeof FlaskySearch === 'undefined') return [];
+    var idx = [];
+    try { idx = await FlaskySearch.buildIndex(); } catch(e) { idx = []; }
+    if (!Array.isArray(idx)) idx = [];
+    if (idx.length > 0) return idx;
+    // Index may still be building during E2EE init — retry once before
+    // deciding no daily note exists.
+    await new Promise(function(resolve) { setTimeout(resolve, 800); });
+    try { idx = await FlaskySearch.buildIndex(); } catch(e) { idx = []; }
+    if (!Array.isArray(idx)) idx = [];
+    return idx;
 }
 
 function saveUiState(updates) {
@@ -1061,6 +1073,10 @@ function saveNote(callback) {
     var title = document.getElementById('note-title');
     if (!title) { if (callback) callback(); return; }
     if (isSaving) { if (callback) callback(); return; }
+    if (noteId === 0 && !title.value.trim()) {
+        if (callback) callback();
+        return;
+    }
     isSaving = true;
     clearTimeout(autoSaveTimer);
     var content = getEditorContent();
@@ -3884,7 +3900,7 @@ function loadTemplateList() {
     });
 }
 
-function applyTemplate(templateId) {
+function applyTemplate(templateId, onApplied) {
     fetch('/api/templates/' + templateId)
     .then(function(r) { return r.json(); })
     .then(async function(t) {
@@ -3896,14 +3912,12 @@ function applyTemplate(templateId) {
             }
         }
         if (templatePickerMode === 'insert') {
-            // Insert at cursor position
             if (cmEditor) {
                 var content = t.content || '';
                 cmEditor.replaceRange(content, cmEditor.getCursor());
                 cmEditor.focus();
             }
         } else if (templatePickerMode === 'new_in_folder' && templatePickerFolderId) {
-            // Create a new note in the target folder, then populate from template
             if (isMobile) closeSidebar();
             var catId = templatePickerFolderId;
             var folderEl = document.querySelector('.folder[data-category-id="' + catId + '"]');
@@ -3920,10 +3934,10 @@ function applyTemplate(templateId) {
                 setTimeout(function() { populateFromTemplate(pendingTemplate); }, 100);
             }
         } else {
-            // 'new' mode: populate the full note
             populateFromTemplate(t);
         }
         closeTemplatePicker();
+        if (typeof onApplied === 'function') onApplied();
     });
 }
 
