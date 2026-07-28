@@ -568,6 +568,33 @@
                                 <div class="setting-hint" style="margin-top:8px;">Saving refreshes the page to apply changes.</div>
                             </div>
                         </form>
+                        <form method="POST" data-spa-form data-requires-refresh style="margin-top:16px;">
+                            <input type="hidden" name="update-vault-context-settings" value="1">
+                            <div class="sub-label">Vault Context (let AI read your notes)</div>
+                            <div style="padding: 0 16px;">
+                                <div class="setting-row">
+                                    <span class="setting-label">Allow Vault Context</span>
+                                    <div class="setting-control">
+                                        <div class="toggle {% if ui_settings.vault_context_allowed %}on{% endif %}" data-toggle="vault-context-allowed">
+                                            <input type="checkbox" id="vault-context-toggle" name="vault-context-allowed" value="1" {% if ui_settings.vault_context_allowed %}checked{% endif %} data-spa-auto-submit>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="setting-hint" style="margin-bottom:10px;">
+                                    Vault Context lets the AI read relevant notes from your vault when answering. Each message triggers a private on-device search; the most relevant notes (titles + contents) are decrypted and sent to your AI provider (Ollama) as context. Your Flasky server never sees this plaintext. The AI provider will receive and read the relevant note contents. Enable per conversation in AI chat.
+                                </div>
+                                {% if ui_settings.vault_context_allowed %}
+                                <label class="list-item-sub">Notes to include per message (top-K)</label>
+                                <input name="vault-context-top-k" class="setting-input" type="number" min="1" max="50" value="{{ ui_settings.ai_vault_context_top_k }}" style="width:100%; margin-bottom:6px;">
+                                <div class="setting-hint" style="margin-bottom:8px;">How many of the most relevant notes to attach as context per message (1–50).</div>
+                                <label class="list-item-sub">Max characters of context per message</label>
+                                <input name="vault-context-max-chars" class="setting-input" type="number" min="1000" max="200000" step="1000" value="{{ ui_settings.ai_vault_context_max_chars }}" style="width:100%; margin-bottom:8px;">
+                                <div class="setting-hint" style="margin-bottom:8px;">Total character budget for vault context per message (1000–200000). Notes are added in relevance order until the budget is reached.</div>
+                                {% endif %}
+                                <button class="btn-sm primary" type="submit">Save</button>
+                                <div class="setting-hint" style="margin-top:8px;">Saving refreshes the page to apply changes.</div>
+                            </div>
+                        </form>
                         {% endif %}
                     </div>
                 </div>

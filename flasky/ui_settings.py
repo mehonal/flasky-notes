@@ -152,6 +152,19 @@ REGISTRY: dict[str, SettingDef] = {
     # numbers get "px" appended client-side. Audio/PDF/links unaffected.
     "attachment_max_width": SettingDef("attachment_max_width", "", str, _is_valid_width),
     "drawing_max_width": SettingDef("drawing_max_width", "", str, _is_valid_width),
+    # Vault Context (client-side RAG) tuning + global consent gate. The global
+    # gate (vault_context_allowed) defaults off and must be on before the
+    # per-conversation chip is offered. The top_k / max_chars tunables cap how
+    # much of each note is sent to the AI provider per message. All three are
+    # consulted only when the global gate AND the per-conversation
+    # ai_conversation.vault_context_enabled flag are both true.
+    "vault_context_allowed": SettingDef("vault_context_allowed", False, bool),
+    "ai_vault_context_top_k": SettingDef(
+        "ai_vault_context_top_k", 8, int, _is_int_in_range(1, 50),
+    ),
+    "ai_vault_context_max_chars": SettingDef(
+        "ai_vault_context_max_chars", 20000, int, _is_int_in_range(1000, 200000),
+    ),
 }
 
 # The CSS variables exposed in the customize UI (curated subset). The dark

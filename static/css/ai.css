@@ -452,4 +452,65 @@
 }
 #ai-root .ai-toast a { color: var(--accent); text-decoration: none; font-weight: 500; }
 #ai-root .ai-toast a:hover { text-decoration: underline; }
+
+/* ============ Vault Context Chip ============ */
+#ai-root .ai-vault-chip {
+    align-self: flex-end; display: flex; align-items: center; gap: 6px;
+    height: 44px; padding: 0 14px; border-radius: 10px;
+    border: 1px solid var(--border); background: var(--bg-input);
+    color: var(--text-muted); cursor: pointer; font-size: 13px;
+    font-family: inherit; transition: all 0.15s ease; flex-shrink: 0;
+}
+#ai-root .ai-vault-chip:hover { border-color: var(--accent); color: var(--accent); }
+#ai-root .ai-vault-chip svg { stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+#ai-root .ai-vault-chip.on {
+    background: var(--accent-dim); border-color: var(--accent); color: var(--accent);
+}
+#ai-root .ai-vault-chip.on svg { fill: var(--accent); fill-opacity: 0.15; }
+
+/* ============ Vault Context Modals ============ */
+#ai-root .ai-vault-modal-card {
+    width: 520px; max-width: 92vw; max-height: 80vh; display: flex; flex-direction: column;
+    background: var(--bg-primary); border: 1px solid var(--border-light);
+    border-radius: 12px; box-shadow: 0 16px 48px rgba(0,0,0,0.3); overflow: hidden;
+}
+#ai-root .modal-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 16px 20px; border-bottom: 1px solid var(--border);
+}
+#ai-root .modal-title { font-size: 15px; font-weight: 600; color: var(--text-primary); }
+#ai-root .modal-close {
+    display: flex; align-items: center; justify-content: center;
+    width: 28px; height: 28px; border-radius: 6px; border: none;
+    background: transparent; color: var(--text-muted); cursor: pointer;
+}
+#ai-root .modal-close:hover { background: var(--bg-hover); color: var(--text-primary); }
+#ai-root .modal-close svg { width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+#ai-root .modal-body {
+    padding: 16px 20px; overflow-y: auto; font-size: 14px; color: var(--text-secondary); line-height: 1.5;
+}
+#ai-root .modal-body p { margin: 0 0 10px; }
+#ai-root .modal-body p:last-child { margin-bottom: 0; }
+#ai-root .modal-body strong { color: var(--text-primary); }
+#ai-root .modal-footer {
+    display: flex; gap: 8px; justify-content: flex-end; padding: 12px 20px;
+    border-top: 1px solid var(--border);
+}
+#ai-root .btn-sm {
+    padding: 7px 14px; border-radius: 7px; border: 1px solid var(--border-light);
+    background: transparent; color: var(--text-secondary); cursor: pointer;
+    font-size: 13px; font-family: inherit; transition: all 0.15s ease;
+}
+#ai-root .btn-sm:hover { background: var(--bg-hover); color: var(--text-primary); border-color: var(--text-muted); }
+#ai-root .btn-sm.primary { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); }
+#ai-root .btn-sm.primary:hover { background: var(--accent); color: var(--bg-primary); }
+
+#ai-root .ai-vault-notes-list { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
+#ai-root .ai-vault-note-row {
+    padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg-secondary);
+}
+#ai-root .ai-vault-note-head { display: flex; align-items: baseline; gap: 8px; }
+#ai-root .ai-vault-note-title { font-size: 14px; font-weight: 500; color: var(--text-primary); }
+#ai-root .ai-vault-note-folder { font-size: 11px; color: var(--text-muted); margin-left: auto; flex-shrink: 0; }
+#ai-root .ai-vault-note-snippet { font-size: 12px; color: var(--text-secondary); margin-top: 4px; opacity: 0.8; }
 @keyframes ai-toast-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }

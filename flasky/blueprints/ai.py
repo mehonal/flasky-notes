@@ -108,6 +108,9 @@ def ai_page():
             models=OLLAMA_CLOUD_MODELS,
             custom_colors=get_effective_colors(ui_settings.custom_colors) if ui_settings else {},
             custom_css=ui_settings.custom_css if ui_settings else "",
+            vault_context_allowed=bool(ui_settings.vault_context_allowed) if ui_settings else False,
+            vault_context_top_k=int(ui_settings.ai_vault_context_top_k) if ui_settings else 8,
+            vault_context_max_chars=int(ui_settings.ai_vault_context_max_chars) if ui_settings else 20000,
         )
         return render_template("_ai_view.html", **ctx)
     conversations = (
@@ -136,6 +139,9 @@ def ai_page():
         models=OLLAMA_CLOUD_MODELS,
         custom_colors=get_effective_colors(ui_settings.custom_colors),
         custom_css=ui_settings.custom_css,
+        vault_context_allowed=bool(ui_settings.vault_context_allowed),
+        vault_context_top_k=int(ui_settings.ai_vault_context_top_k),
+        vault_context_max_chars=int(ui_settings.ai_vault_context_max_chars),
     )
     return render_template("_ai_view.html", **ctx)
 
@@ -193,6 +199,31 @@ def rename_conversation(conv_id):
     if not title:
         return jsonify(error="Title cannot be empty."), 400
     conv.title = title[:500]
+    db.session.commit()
+    return jsonify(conv.return_json())
+
+
+@ai_bp.route("/api/conversations/<int:conv_id>/vault_context", methods=["PUT"])
+def set_vault_context(conv_id):
+    """Toggle per-conversation Vault Context opt-in.
+
+    Records consent only — the server never reads note plaintext for this
+    feature (retrieval is client-side). Enabling requires the global
+    ``vault_context_allowed`` gate (a ui_settings SettingDef) to be on.
+    """
+    err = _check_ai_enabled()
+    if err:
+        return err
+    conv = AiConversation.query.filter_by(id=conv_id, user_id=g.user.id).first()
+    if not conv:
+        return jsonify(error="Conversation not found."), 404
+    data = request.get_json(silent=True) or {}
+    enabled = bool(data.get("enabled"))
+    if enabled and not get_setting(g.user, "vault_context_allowed"):
+        return jsonify(
+            error="Vault Context is not enabled in Settings."
+        ), 403
+    conv.vault_context_enabled = enabled
     db.session.commit()
     return jsonify(conv.return_json())
 

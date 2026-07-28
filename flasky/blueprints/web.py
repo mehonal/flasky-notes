@@ -565,6 +565,20 @@ def settings_page():
         elif "remove-ai-api-key" in request.form:
             settings.ollama_api_key = None
             db.session.commit()
+        elif "update-vault-context-settings" in request.form:
+            allowed = "vault-context-allowed" in request.form
+            set_setting(g.user, "vault_context_allowed", allowed)
+            try:
+                top_k = int(request.form.get("vault-context-top-k", "8"))
+            except (TypeError, ValueError):
+                top_k = 8
+            set_setting(g.user, "ai_vault_context_top_k", top_k)
+            try:
+                max_chars = int(request.form.get("vault-context-max-chars", "20000"))
+            except (TypeError, ValueError):
+                max_chars = 20000
+            set_setting(g.user, "ai_vault_context_max_chars", max_chars)
+            db.session.commit()
         elif "resolve-conflict" in request.form:
             conflict_id = request.form.get("conflict-id")
             resolution = request.form.get("resolution")

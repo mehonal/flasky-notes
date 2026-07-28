@@ -161,7 +161,7 @@
                 rename.addEventListener('click', function (e) { e.stopPropagation(); decryptIfNeeded(c.title || 'Untitled').then(function (dec) { promptRename(c.id, dec); }); });
                 div.appendChild(rename); div.appendChild(del);
                 div.addEventListener('click', function () {
-                    conversationId = c.id; currentConvData = c; loadMessages(c.id); loadConversations(); updatePanel();
+                    conversationId = c.id; currentConvData = c; loadMessages(c.id); loadConversations(); updateVaultChip(); updatePanel();
                     if (isMobile()) closeSidebar();
                 });
                 titleSpan.addEventListener('dblclick', function (e) { e.stopPropagation(); e.preventDefault(); decryptIfNeeded(c.title || 'Untitled').then(function (dec) { promptRename(c.id, dec); }); });
@@ -337,10 +337,252 @@
             decryptIfNeeded(currentConvData ? (currentConvData.title || 'Untitled') : 'Untitled').then(function (dec) { promptRename(conversationId, dec); });
         });
 
+        var vaultChip = document.getElementById('ai-vault-chip');
+        var vaultWarnModal = document.getElementById('ai-vault-warn-modal');
+        var vaultApproveModal = document.getElementById('ai-vault-approve-modal');
+        var vaultNotesList = document.getElementById('ai-vault-notes-list');
+        var vaultContextAllowed = !!data.vaultContextAllowed;
+        var vaultCtxTopK = data.vaultContextTopK || 8;
+        var vaultCtxMaxChars = data.vaultContextMaxChars || 20000;
+        var vaultContextPending = false;
+
+        function vaultContextEnabled() {
+            if (!vaultContextAllowed) return false;
+            if (vaultContextPending) return true;
+            return !!(currentConvData && currentConvData.vault_context_enabled);
+        }
+
+        function updateVaultChip() {
+            if (!vaultChip) return;
+            if (!vaultContextAllowed) {
+                vaultChip.style.display = 'none';
+                return;
+            }
+            vaultChip.style.display = '';
+            vaultChip.removeAttribute('disabled');
+            vaultChip.style.opacity = '';
+            vaultChip.style.cursor = '';
+            vaultChip.title = 'Vault context: include relevant notes from your vault for the AI to read';
+            var on = vaultContextPending || !!(currentConvData && currentConvData.vault_context_enabled);
+            vaultChip.classList.toggle('on', on);
+            vaultChip.setAttribute('aria-pressed', on ? 'true' : 'false');
+        }
+
+        function setVaultContext(enabled) {
+            if (!conversationId) return Promise.resolve(null);
+            return fetch('/ai/api/conversations/' + conversationId + '/vault_context', {
+                method: 'PUT', headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRFToken() },
+                body: JSON.stringify({ enabled: enabled })
+            }).then(function (r) { return r.json(); }).then(function (resp) {
+                if (resp && resp.error) { alert(resp.error); return resp; }
+                if (resp) { currentConvData = resp; updateVaultChip(); }
+                return resp;
+            });
+        }
+
+        function showVaultWarnModal() {
+            return new Promise(function (resolve) {
+                if (!vaultWarnModal) { resolve(false); return; }
+                vaultWarnModal.style.display = 'flex';
+                vaultWarnModal.querySelectorAll('[data-vault-warn-action]').forEach(function (btn) {
+                    var action = btn.getAttribute('data-vault-warn-action');
+                    var handler = function () {
+                        vaultWarnModal.style.display = 'none';
+                        vaultWarnModal.querySelectorAll('[data-vault-warn-action]').forEach(function (b) { b.removeEventListener('click', handler); });
+                        resolve(action === 'enable');
+                    };
+                    btn.addEventListener('click', handler);
+                });
+            });
+        }
+
+        function showVaultApproveModal(notes) {
+            return new Promise(function (resolve) {
+                if (!vaultApproveModal) { resolve('cancel'); return; }
+                vaultNotesList.innerHTML = '';
+                notes.forEach(function (n) {
+                    var row = document.createElement('div'); row.className = 'ai-vault-note-row';
+                    var head = document.createElement('div'); head.className = 'ai-vault-note-head';
+                    var titleEl = document.createElement('span'); titleEl.className = 'ai-vault-note-title'; titleEl.textContent = n.title || 'Untitled';
+                    var folderEl = document.createElement('span'); folderEl.className = 'ai-vault-note-folder'; folderEl.textContent = n.category || 'Uncategorized';
+                    head.appendChild(titleEl); head.appendChild(folderEl);
+                    row.appendChild(head);
+                    if (n.snippet) { var snip = document.createElement('div'); snip.className = 'ai-vault-note-snippet'; snip.textContent = n.snippet; row.appendChild(snip); }
+                    vaultNotesList.appendChild(row);
+                });
+                vaultApproveModal.style.display = 'flex';
+                vaultApproveModal.querySelectorAll('[data-vault-approve-action]').forEach(function (btn) {
+                    var action = btn.getAttribute('data-vault-approve-action');
+                    var handler = function () {
+                        vaultApproveModal.style.display = 'none';
+                        vaultApproveModal.querySelectorAll('[data-vault-approve-action]').forEach(function (b) { b.removeEventListener('click', handler); });
+                        resolve(action);
+                    };
+                    btn.addEventListener('click', handler);
+                });
+            });
+        }
+
+        var _STOP_WORDS = { 'a':1, 'an':1, 'the':1, 'and':1, 'or':1, 'but':1, 'is':1, 'are':1,
+            'was':1, 'were':1, 'be':1, 'been':1, 'being':1, 'have':1, 'has':1, 'had':1,
+            'do':1, 'does':1, 'did':1, 'will':1, 'would':1, 'could':1, 'should':1,
+            'may':1, 'might':1, 'must':1, 'can':1, 'shall':1, 'to':1, 'of':1, 'in':1,
+            'on':1, 'at':1, 'by':1, 'for':1, 'with':1, 'about':1, 'against':1,
+            'between':1, 'into':1, 'through':1, 'during':1, 'before':1, 'after':1,
+            'above':1, 'below':1, 'from':1, 'up':1, 'down':1, 'out':1, 'off':1,
+            'over':1, 'under':1, 'again':1, 'further':1, 'then':1, 'once':1,
+            'here':1, 'there':1, 'when':1, 'where':1, 'why':1, 'how':1, 'all':1,
+            'both':1, 'each':1, 'few':1, 'more':1, 'most':1, 'other':1, 'some':1,
+            'such':1, 'no':1, 'nor':1, 'not':1, 'only':1, 'own':1, 'same':1,
+            'so':1, 'than':1, 'too':1, 'very':1, 'just':1, 'now':1, 'i':1, 'me':1,
+            'my':1, 'we':1, 'our':1, 'you':1, 'your':1, 'he':1, 'him':1, 'his':1,
+            'she':1, 'her':1, 'it':1, 'its':1, 'they':1, 'them':1, 'their':1,
+            'what':1, 'which':1, 'who':1, 'whom':1, 'this':1, 'that':1, 'these':1,
+            'those':1, 'see':1, 'look':1, 'get':1, 'got':1, 'let':1, 'like':1,
+            'want':1, 'know':1, 'think':1, 'say':1, 'said':1, 'tell':1, 'told':1,
+            'make':1, 'made':1, 'go':1, 'going':1, 'one':1, 'two':1, 'also':1,
+            'any':1, 'if':1, 'as':1, 'because':1, 'while':1, 'still':1, 'even':1,
+            'yes':1, 'no':1, 'ok':1, 'okay':1, 'yeah':1, 'hi':1, 'hey':1, 'oh':1,
+            'uh':1, 'um':1, 'well':1, 'right':1, 'sure':1, 'lot':1, 'much':1,
+            'way':1, 'thing':1, 'things':1, 'stuff':1, 'page':1, 'note':1, 'notes':1 };
+
+        function _extractKeywords(text) {
+            var tokens = text.toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);
+            var keywords = [];
+            var seen = {};
+            for (var i = 0; i < tokens.length; i++) {
+                var t = tokens[i];
+                if (t.length < 2) continue;
+                if (_STOP_WORDS[t]) continue;
+                if (seen[t]) continue;
+                seen[t] = 1;
+                keywords.push(t);
+            }
+            return keywords;
+        }
+
+        async function gatherVaultContext(userText) {
+            if (!vaultContextEnabled()) return null;
+            if (typeof FlaskySearch === 'undefined') return null;
+            try { await FlaskySearch.buildIndex(); } catch (e) { return null; }
+            var idx = FlaskySearch.getIndex();
+            if (!idx || idx.length === 0) return null;
+
+            var keywords = _extractKeywords(userText);
+            if (keywords.length === 0) return null;
+
+            var scored = [];
+            for (var i = 0; i < idx.length; i++) {
+                var n = idx[i];
+                var titleLower = (n.title || '').toLowerCase();
+                var contentLower = (n.content || '').toLowerCase();
+                var score = 0;
+                for (var k = 0; k < keywords.length; k++) {
+                    var kw = keywords[k];
+                    if (titleLower.indexOf(kw) !== -1) score += 50;
+                    if (contentLower.indexOf(kw) !== -1) score += 10;
+                }
+                if (score === 0) continue;
+                scored.push({ id: n.id, title: n.title || '', category: n.category || '',
+                    content: n.content || '', snippet: _makeSnippet(n.content || '', keywords),
+                    score: score });
+            }
+            if (scored.length === 0) return null;
+
+            scored.sort(function (a, b) { return b.score - a.score; });
+
+            var picked = [];
+            var totalChars = 0;
+            for (var j = 0; j < scored.length && picked.length < vaultCtxTopK; j++) {
+                var r = scored[j];
+                var content = r.content;
+                if (totalChars + content.length > vaultCtxMaxChars) {
+                    var room = vaultCtxMaxChars - totalChars;
+                    if (room <= 200) break;
+                    content = content.substring(0, room - 20) + '\n…[truncated]';
+                }
+                totalChars += content.length;
+                picked.push({
+                    id: r.id, title: r.title || 'Untitled',
+                    category: r.category || 'Uncategorized',
+                    snippet: r.snippet, content: content
+                });
+                if (totalChars >= vaultCtxMaxChars) break;
+            }
+            if (picked.length === 0) return null;
+            return { notes: picked };
+        }
+
+        function _makeSnippet(content, keywords) {
+            if (!content) return '';
+            var contentLower = content.toLowerCase();
+            var bestPos = -1;
+            for (var i = 0; i < keywords.length; i++) {
+                var p = contentLower.indexOf(keywords[i]);
+                if (p !== -1 && (bestPos === -1 || p < bestPos)) bestPos = p;
+            }
+            if (bestPos === -1) return '';
+            var radius = 60;
+            var start = Math.max(0, bestPos - radius);
+            var end = Math.min(content.length, bestPos + radius);
+            var prefix = start > 0 ? '…' : '';
+            var suffix = end < content.length ? '…' : '';
+            return prefix + content.substring(start, end).replace(/\s+/g, ' ').trim() + suffix;
+        }
+
+        function buildVaultContextSystemMessage(ctx) {
+            if (!ctx || !ctx.notes || ctx.notes.length === 0) return null;
+            var fence = '<<<FLASKY_NOTE_BOUNDARY>>>';
+            var parts = [
+                'You are chatting with a user about their personal note vault. The notes below are the most relevant to their latest message, retrieved by private on-device search. Use them to answer, and cite note titles when you rely on them. Do not reveal a note\'s contents unless the user asks. Each note is delimited by a unique boundary marker.'
+            ];
+            for (var i = 0; i < ctx.notes.length; i++) {
+                var n = ctx.notes[i];
+                parts.push(fence);
+                parts.push('Note: "' + n.title + '" (folder: ' + n.category + ')');
+                parts.push(n.content);
+                parts.push(fence);
+            }
+            return { role: 'system', content: parts.join('\n\n') };
+        }
+
+        async function maybeVaultGate(userText) {
+            if (!vaultContextEnabled()) return { ctxMsg: null, verdict: 'approve' };
+            var ctx = await gatherVaultContext(userText);
+            if (!ctx) return { ctxMsg: null, verdict: 'approve' };
+            var verdict = await showVaultApproveModal(ctx.notes);
+            if (verdict === 'approve') return { ctxMsg: buildVaultContextSystemMessage(ctx), verdict: 'approve' };
+            if (verdict === 'without') return { ctxMsg: null, verdict: 'without' };
+            return { ctxMsg: null, verdict: 'cancel' };
+        }
+
+        if (vaultChip) {
+            bind(vaultChip, 'click', async function () {
+                if (vaultContextEnabled()) {
+                    if (conversationId) { setVaultContext(false); }
+                    else { vaultContextPending = false; updateVaultChip(); }
+                    return;
+                }
+                var ok = await showVaultWarnModal();
+                if (!ok) return;
+                if (conversationId) { setVaultContext(true); }
+                else { vaultContextPending = true; updateVaultChip(); }
+            });
+        }
+
+        var isGating = false;
         async function sendMessage() {
             var text = inputEl.value.trim();
-            if (!text || isStreaming) return;
+            if (!text || isStreaming || isGating) return;
             inputEl.value = ''; inputEl.style.height = 'auto';
+
+            isGating = true;
+            var gate;
+            try { gate = await maybeVaultGate(text); } catch (e) { gate = { ctxMsg: null, verdict: 'cancel' }; }
+            isGating = false;
+            if (gate.verdict === 'cancel') { inputEl.value = text; inputEl.focus(); return; }
+            var ctxMsg = gate.ctxMsg;
+
             addMessageBubble('user', text, false);
             localMessages.push({ role: 'user', content: text });
             statusText.innerHTML = '<span class="ai-status-streaming">Sending...</span>';
@@ -350,22 +592,30 @@
                 fetch('/ai/api/conversations', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRFToken() }, body: JSON.stringify({ title: encryptedTitle }) })
                     .then(function (r) { return r.json(); }).then(function (data) {
                         if (data.error) { alert(data.error); statusText.textContent = 'Ready'; return; }
-                        conversationId = data.id; currentConvData = data; updatePanel(); loadConversations(); streamResponse(encryptedMessage);
+                        conversationId = data.id; currentConvData = data; updateVaultChip(); updatePanel(); loadConversations();
+                        if (vaultContextPending) {
+                            vaultContextPending = false;
+                            setVaultContext(true).then(function () { streamResponse(encryptedMessage, ctxMsg); });
+                        } else {
+                            streamResponse(encryptedMessage, ctxMsg);
+                        }
                     });
-            } else { streamResponse(encryptedMessage); }
+            } else { streamResponse(encryptedMessage, ctxMsg); }
         }
 
         function stopGeneration() { if (_currentAbortController) { _currentAbortController.abort(); _currentAbortController = null; } }
         bind(stopBtn, 'click', stopGeneration);
 
-        function streamResponse(encryptedMessage) {
+        function streamResponse(encryptedMessage, ctxMsg) {
             isStreaming = true; sendBtn.style.display = 'none'; stopBtn.style.display = 'flex'; inputEl.disabled = true;
             statusText.innerHTML = '<span class="ai-status-streaming">Thinking...</span>';
             var assistantDiv = addMessageBubble('assistant', '', false);
             assistantDiv.classList.add('ai-cursor-blink');
             var abortController = new AbortController(); _currentAbortController = abortController;
             var chatBody = { message: encryptedMessage };
-            if (isEncrypted) chatBody.messages = localMessages;
+            var msgsForBody = localMessages.slice();
+            if (ctxMsg) msgsForBody = [ctxMsg].concat(msgsForBody);
+            if (isEncrypted || ctxMsg) chatBody.messages = msgsForBody;
             fetch('/ai/api/conversations/' + conversationId + '/chat', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRFToken() }, body: JSON.stringify(chatBody), signal: abortController.signal })
                 .then(function (response) {
                     if (!response.ok) {
@@ -452,7 +702,7 @@
 
         bind(sendBtn, 'click', sendMessage);
         bind(inputEl, 'keydown', function (e) { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } });
-        bind(newChatBtn, 'click', function () { conversationId = null; currentConvData = null; localMessages = []; clearMessages(); loadConversations(); updatePanel(); inputEl.focus(); if (isMobile()) closeSidebar(); });
+        bind(newChatBtn, 'click', function () { conversationId = null; currentConvData = null; localMessages = []; vaultContextPending = false; clearMessages(); loadConversations(); updateVaultChip(); updatePanel(); inputEl.focus(); if (isMobile()) closeSidebar(); });
         bind(inputEl, 'input', function () { this.style.height = 'auto'; this.style.height = Math.min(this.scrollHeight, 160) + 'px'; });
         bindDoc(document, 'click', function (e) { var btn = e.target.closest('.ai-suggestion-btn'); if (btn && btn.dataset.prompt) { inputEl.value = btn.dataset.prompt; inputEl.focus(); inputEl.dispatchEvent(new Event('input')); } });
 
@@ -460,6 +710,7 @@
             await initE2EE();
             revealContent();
             loadConversations();
+            updateVaultChip();
             updatePanel();
             if (conversationId) loadMessages(conversationId);
         })();
