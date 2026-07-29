@@ -135,6 +135,9 @@
         el.setAttribute('hidden', '');
         document.body.classList.remove('app-view-open');
         reattachEditor();
+        // Notify app.js that the editor is back in the DOM so it can
+        // rebuild the sidebar if a refresh was deferred while detached.
+        document.dispatchEvent(new CustomEvent('flasky:editorReattached'));
     }
 
     function openOverlay(html, viewModule) {

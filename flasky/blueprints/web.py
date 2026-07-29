@@ -353,7 +353,13 @@ def before_request():
 @web_bp.route("/")
 @login_required_page
 def index_page():
-    return redirect(url_for("web.notes_page"))
+    # Compute the daily flag here so we skip the /notes hop and redirect
+    # straight to the editor shell.
+    if get_setting(g.user, "daily_note_enabled") and get_setting(
+        g.user, "daily_note_open_on_start"
+    ):
+        return redirect(url_for("web.note_single_page", note_id=0, daily=1))
+    return redirect(url_for("web.note_single_page", note_id=0))
 
 
 def _render_shell(initial_view=None):
@@ -364,7 +370,6 @@ def _render_shell(initial_view=None):
     navigates to the correct view after the shell loads.
     """
     ui_settings = get_all_settings(g.user)
-    category_tree = g.user.get_category_tree()
     default_category = g.user.get_default_category()
     panel_widgets = get_panel_widgets(g.user)
     return render_template(
@@ -377,7 +382,6 @@ def _render_shell(initial_view=None):
         ui_settings=ui_settings,
         custom_colors=get_effective_colors(ui_settings.custom_colors),
         custom_css=ui_settings.custom_css,
-        category_tree=category_tree,
         default_template=None,
         default_category_id=(default_category.id if default_category else 0),
         panel_widgets=panel_widgets,
@@ -681,7 +685,6 @@ def note_single_page(note_id):
             return "You do not own this note. Click here to go to your <a href='/notes'>notes</a>."
     category = request.args.get("category")
     category_id = request.args.get("category_id", type=int)
-    category_tree = g.user.get_category_tree()
     default_template = None
     if note_id == 0 and (category or category_id):
         if category_id:
@@ -728,7 +731,6 @@ def note_single_page(note_id):
         ui_settings=ui_settings,
         custom_colors=get_effective_colors(ui_settings.custom_colors),
         custom_css=ui_settings.custom_css,
-        category_tree=category_tree,
         default_template=default_template,
         default_category_id=(default_category.id if default_category else 0),
         panel_widgets=panel_widgets,

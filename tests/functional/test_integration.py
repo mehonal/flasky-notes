@@ -66,21 +66,6 @@ def test_delete_note(auth_client):
     assert len(notes.json) == 0
 
 
-def test_load_notes_pagination(auth_client):
-    client, creds = auth_client
-    for i in range(7):
-        client.post(
-            "/api/save_note",
-            json={"noteId": 0, "title": enc(creds, f"Note {i}"), "content": enc(creds, "Body"), "category": None},
-        )
-
-    page1 = client.post("/api/load_notes", json={"page": 1})
-    assert len(page1.json) == 5
-
-    page2 = client.post("/api/load_notes", json={"page": 2})
-    assert len(page2.json) == 2
-
-
 def test_note_map(auth_client):
     """With mandatory E2EE, note-map returns arrays of {id, title} (ciphertext)
     instead of a title-keyed dict. The client decrypts + indexes locally.

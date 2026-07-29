@@ -79,7 +79,3 @@ class SaveHideTitleSchema(Schema):
 
 class SaveFontSchema(fields.Field):
     """Body is raw text (the font family string), not JSON. Use direct decode in route."""
-
-
-class LoadNotesSchema(Schema):
-    page = fields.Integer(required=True)

@@ -153,6 +153,103 @@ async function _getDailySearchIndex() {
     return idx;
 }
 
+// ============ In-memory note store ============
+// All notes decrypted once on page load; note switching reads from here
+// instead of refetching/decrypting on every navigation.
+var _noteStore = new Map();      // noteId -> { id, title, content, properties, category, category_id, icon, icon_color, date_last_changed }
+var _noteStoreReady = null;     // Promise<void> resolved when store is warmed
+var _categoriesStore = [];      // [{ id, name, icon, icon_color, default_note_icon, default_note_icon_color }]
+
+function _warmNoteStore() {
+    if (_noteStoreReady) return _noteStoreReady;
+    _noteStoreReady = (async function() {
+        if (typeof FlaskyE2EE === 'undefined' || !FlaskyE2EE.isReady()) return;
+        var resp = await fetch('/api/get_all_notes');
+        var notes = await resp.json();
+        if (!Array.isArray(notes)) return;
+        await Promise.all([
+            (async function() {
+                await FlaskyE2EE.decryptObjects(notes, ['title', 'content', 'category']);
+                for (var i = 0; i < notes.length; i++) {
+                    var n = notes[i];
+                    var props = null;
+                    if (n.properties && typeof n.properties === 'string') {
+                        try { props = JSON.parse(await FlaskyE2EE.decryptField(n.properties)); } catch(e) {}
+                    }
+                    n.properties = props || {};
+                    _noteStore.set(n.id, n);
+                }
+            })(),
+            (async function() {
+                var r2 = await fetch('/api/sidebar_tree');
+                var d2 = await r2.json();
+                if (d2 && d2.success && Array.isArray(d2.categories)) {
+                    await FlaskyE2EE.decryptObjects(d2.categories, ['name']);
+                    _categoriesStore = d2.categories;
+                }
+            })()
+        ]);
+    })().catch(function(e) {
+        console.warn('Note store warm failed:', e);
+        _noteStoreReady = null;
+    });
+    return _noteStoreReady;
+}
+
+function _storeNote(note) {
+    if (!note || !note.id) return;
+    _noteStore.set(note.id, {
+        id: note.id,
+        title: note.title || '',
+        content: note.content || '',
+        properties: note.properties || {},
+        category: note.category || '',
+        category_id: note.category_id || null,
+        icon: note.icon || null,
+        icon_color: note.icon_color || null,
+        resolved_icon: note.resolved_icon || null,
+        resolved_icon_color: note.resolved_icon_color || null,
+        date_last_changed: note.date_last_changed || null
+    });
+}
+
+function _storeDeleteNote(id) {
+    _noteStore.delete(id);
+}
+
+function _applyPropsToEditor(props) {
+    var propsBody = document.getElementById('props-body');
+    if (!propsBody) return;
+    propsBody.querySelectorAll('.prop-row').forEach(function(r) { r.remove(); });
+    var addBtn = propsBody.querySelector('.prop-add-row');
+    Object.keys(props || {}).forEach(function(key) {
+        var val = props[key];
+        if (Array.isArray(val)) val = val.join(', ');
+        var row = document.createElement('div');
+        row.className = 'prop-row';
+        row.setAttribute('data-prop-key', key);
+        row.innerHTML = '<div class="prop-key"><input type="text" class="prop-value-input" value="" style="font-size:12px;font-weight:500;color:var(--text-muted)" data-action="prop-changed"></div>' +
+            '<div class="prop-value"><input type="text" class="prop-value-input" value="" data-action="prop-changed"></div>' +
+            '<button class="prop-remove-btn" data-action="remove-prop" title="Remove property"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>';
+        row.querySelector('.prop-key .prop-value-input').value = key;
+        row.querySelector('.prop-value .prop-value-input').value = val || '';
+        propsBody.insertBefore(row, addBtn);
+    });
+}
+
+// Toggle the active highlight in the sidebar without refetching/rebuilding.
+function setActiveSidebarItem(id) {
+    var prev = document.querySelector('#file-tree .file-item.active');
+    if (prev) prev.classList.remove('active');
+    if (id === null || id === 0) return;
+    var item = document.querySelector('.file-item[data-note-id="' + id + '"]');
+    if (item) {
+        item.classList.add('active');
+        var parentFolder = item.closest('.folder');
+        if (parentFolder) parentFolder.classList.remove('collapsed');
+    }
+}
+
 function saveUiState(updates) {
     fetch('/api/save_ui_state', {
         method: 'POST',
@@ -229,7 +326,19 @@ function persistMobileSidebarState() {
     }
 }
 
+var _sidebarPending = false;
+
 function refreshSidebar(callback) {
+    // If the editor is detached (e.g. an overlay view like /agenda is active),
+    // defer the rebuild until the editor is reattached.
+    var fileTreeNow = document.getElementById('file-tree');
+    if (!fileTreeNow || !document.body.contains(fileTreeNow)) {
+        _sidebarPending = true;
+        if (callback) callback();
+        return;
+    }
+    _sidebarPending = false;
+
     // Save expanded folder paths before replacing the tree
     var expandedPaths = [];
     document.querySelectorAll('#file-tree .folder:not(.collapsed)').forEach(function(f) {
@@ -254,14 +363,9 @@ function refreshSidebar(callback) {
             // E2EE: build sidebar HTML client-side from decrypted data
             var cats = data.categories || [];
             var notes = data.notes || [];
-            // Decrypt note titles
-            for (var i = 0; i < notes.length; i++) {
-                try { notes[i].title = await FlaskyE2EE.decryptField(notes[i].title); } catch(e) {}
-            }
-            // Decrypt category names
-            for (var i = 0; i < cats.length; i++) {
-                try { cats[i].name = await FlaskyE2EE.decryptField(cats[i].name); } catch(e) {}
-            }
+            // Decrypt note titles + category names in parallel
+            await FlaskyE2EE.decryptObjects(notes, ['title']);
+            await FlaskyE2EE.decryptObjects(cats, ['name']);
             // Group notes by category
             var catMap = {};
             cats.forEach(function(c) { catMap[c.id] = { cat: c, notes: [] }; });
@@ -438,11 +542,7 @@ function loadNote(id, category, categoryId) {
         document.getElementById('note-title').value = '';
         if (cmEditor) { cmEditor.setValue(''); cmEditor.refresh(); }
         else document.getElementById('note-content').value = '';
-        // Clear properties
-        var propsBody = document.getElementById('props-body');
-        if (propsBody) {
-            propsBody.querySelectorAll('.prop-row').forEach(function(r) { r.remove(); });
-        }
+        _applyPropsToEditor({});
         currentCategory = category || 'Default';
         currentCategoryId = categoryId || null;
         // Update breadcrumb category
@@ -455,7 +555,7 @@ function loadNote(id, category, categoryId) {
         document.getElementById('save-status').style.color = '';
         updateMobileSaveBtn('saved');
         if (!editMode) renderPreview();
-        refreshSidebar();
+        setActiveSidebarItem(null);
         document.getElementById('note-title').focus();
         var naWrap = document.getElementById('note-actions-wrap');
         if (naWrap) naWrap.style.display = 'none';
@@ -487,87 +587,37 @@ function loadNote(id, category, categoryId) {
         return;
     }
 
-    if (window.FlaskyRouter && typeof window.FlaskyRouter.showBar === 'function') window.FlaskyRouter.showBar();
-    fetch('/api/note/' + id)
-    .then(function(r) { return r.json(); })
-    .then(async function(data) {
-        if (!data.success) { _inPopState = false; if (window.FlaskyRouter && typeof window.FlaskyRouter.finishBar === 'function') window.FlaskyRouter.finishBar(); window.location.href = '/note/' + id; return; }
-        var n = data.note;
-
-        // E2EE: decrypt fields
-        if (typeof FlaskyE2EE !== 'undefined' && FlaskyE2EE.isEncrypted()) {
-            n.title = await FlaskyE2EE.decryptField(n.title);
-            n.content = await FlaskyE2EE.decryptField(n.content);
-            if (n.category) {
-                try { n.category = await FlaskyE2EE.decryptField(n.category); } catch(e) {}
-            }
-            if (n.properties && typeof n.properties === 'string') {
-                try {
-                    var decProps = await FlaskyE2EE.decryptField(n.properties);
-                    n.properties = JSON.parse(decProps);
-                } catch(e) { n.properties = {}; }
-            }
-        }
-
+    var onLoaded = function(n) {
         noteId = n.id;
         hasBeenSavedOnce = true;
-        isDirty = false;
         isSaving = false;
         _loadedNoteTitle = n.title || '';
 
-        // Update title
         document.getElementById('note-title').value = n.title || '';
-
-        // Update content
         if (cmEditor) { cmEditor.setValue(n.content || ''); cmEditor.refresh(); }
         else document.getElementById('note-content').value = n.content || '';
+        isDirty = false;
+        _applyPropsToEditor(n.properties || {});
 
-        // Update properties
-        var propsBody = document.getElementById('props-body');
-        if (propsBody) {
-            propsBody.querySelectorAll('.prop-row').forEach(function(r) { r.remove(); });
-            var addBtn = propsBody.querySelector('.prop-add-row');
-            var props = n.properties || {};
-            Object.keys(props).forEach(function(key) {
-                var val = props[key];
-                if (Array.isArray(val)) val = val.join(', ');
-                var row = document.createElement('div');
-                row.className = 'prop-row';
-                row.setAttribute('data-prop-key', key);
-                row.innerHTML = '<div class="prop-key"><input type="text" class="prop-value-input" value="" style="font-size:12px;font-weight:500;color:var(--text-muted)" data-action="prop-changed"></div>' +
-                    '<div class="prop-value"><input type="text" class="prop-value-input" value="" data-action="prop-changed"></div>' +
-                    '<button class="prop-remove-btn" data-action="remove-prop" title="Remove property"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>';
-                row.querySelector('.prop-key .prop-value-input').value = key;
-                row.querySelector('.prop-value .prop-value-input').value = val || '';
-                propsBody.insertBefore(row, addBtn);
-            });
-        }
-
-        // Update URL and breadcrumb
         history.pushState({ flasky: { view: 'note', noteId: n.id } }, '', '/note/' + n.id);
         if (_inPopState) history.replaceState({ flasky: { view: 'note', noteId: n.id } }, '', '/note/' + n.id);
         document.getElementById('breadcrumb-note-title').textContent = n.title || 'Untitled';
 
-        // Update icon
         currentNoteIcon = n.icon || null;
         currentNoteIconColor = n.icon_color || null;
         updateNoteIconPreview(n.resolved_icon || n.icon, n.resolved_icon_color || n.icon_color);
 
-        // Update category
         currentCategory = n.category || 'Default';
         currentCategoryId = n.category_id || null;
         updateBreadcrumbCategory(currentCategory, n.category_id);
 
-        // Update status
         document.getElementById('save-status').textContent = '\u2713 Saved';
         document.getElementById('save-status').style.color = 'var(--green)';
         updateMobileSaveBtn('saved');
 
-        // Re-render preview if in preview mode
         if (!editMode) renderPreview();
 
-        // Refresh sidebar and right panel
-        refreshSidebar();
+        setActiveSidebarItem(n.id);
         var naWrap = document.getElementById('note-actions-wrap');
         if (naWrap) naWrap.style.display = '';
         var rp = document.getElementById('right-panel');
@@ -575,6 +625,38 @@ function loadNote(id, category, categoryId) {
         refreshCalendarWidget();
         _inPopState = false;
         if (window.FlaskyRouter && typeof window.FlaskyRouter.finishBar === 'function') window.FlaskyRouter.finishBar();
+    };
+
+    var cached = _noteStore.get(id);
+    if (cached) {
+        if (window.FlaskyRouter && typeof window.FlaskyRouter.showBar === 'function') window.FlaskyRouter.showBar();
+        onLoaded(cached);
+        return;
+    }
+
+    if (window.FlaskyRouter && typeof window.FlaskyRouter.showBar === 'function') window.FlaskyRouter.showBar();
+    fetch('/api/note/' + id)
+    .then(function(r) { return r.json(); })
+    .then(async function(data) {
+        if (!data.success) { _inPopState = false; if (window.FlaskyRouter && typeof window.FlaskyRouter.finishBar === 'function') window.FlaskyRouter.finishBar(); window.location.href = '/note/' + id; return; }
+        var n = data.note;
+
+        if (typeof FlaskyE2EE !== 'undefined' && FlaskyE2EE.isEncrypted()) {
+            var decTitle, decContent, decCategory, decProps;
+            await Promise.all([
+                (async function() { try { decTitle = await FlaskyE2EE.decryptField(n.title); } catch(e) { decTitle = n.title; } })(),
+                (async function() { try { decContent = await FlaskyE2EE.decryptField(n.content); } catch(e) { decContent = n.content; } })(),
+                (async function() { try { decCategory = n.category ? await FlaskyE2EE.decryptField(n.category) : null; } catch(e) { decCategory = n.category; } })(),
+                (async function() {
+                    if (n.properties && typeof n.properties === 'string') {
+                        try { decProps = JSON.parse(await FlaskyE2EE.decryptField(n.properties)); } catch(e) { decProps = {}; }
+                    } else { decProps = n.properties || {}; }
+                })()
+            ]);
+            n.title = decTitle; n.content = decContent; n.category = decCategory; n.properties = decProps;
+        }
+        _storeNote(n);
+        onLoaded(n);
     })
     .catch(function() {
         if (window.FlaskyRouter && typeof window.FlaskyRouter.finishBar === 'function') window.FlaskyRouter.finishBar();
@@ -1101,11 +1183,19 @@ async function _doSaveNote(titleVal, content, props, callback) {
             payload.icon = currentNoteIcon;
             payload.iconColor = currentNoteIconColor;
         }
-        payload.title = await FlaskyE2EE.encryptField(titleVal);
-        payload.content = await FlaskyE2EE.encryptField(content);
-        if (props && Object.keys(props).length > 0) {
-            payload.properties = await FlaskyE2EE.encryptField(JSON.stringify(props));
-        }
+        var encTitle, encContent, encProps;
+        await Promise.all([
+            (async function() { encTitle = await FlaskyE2EE.encryptField(titleVal); })(),
+            (async function() { encContent = await FlaskyE2EE.encryptField(content); })(),
+            (async function() {
+                if (props && Object.keys(props).length > 0) {
+                    encProps = await FlaskyE2EE.encryptField(JSON.stringify(props));
+                }
+            })()
+        ]);
+        payload.title = encTitle;
+        payload.content = encContent;
+        if (encProps) payload.properties = encProps;
     } catch(e) {
         isSaving = false;
         document.getElementById('save-status').textContent = '\u26A0 Encrypt failed';
@@ -1144,7 +1234,27 @@ async function _doSaveNote(titleVal, content, props, callback) {
                 noteId = data.note.id;
                 _loadedNoteTitle = displayTitle;
                 history.replaceState(null, '', '/note/' + noteId);
-                refreshSidebar();
+                _storeNote({
+                    id: noteId,
+                    title: displayTitle,
+                    content: content,
+                    properties: props || {},
+                    category: currentCategory || '',
+                    category_id: data.note.category_id || currentCategoryId || null,
+                    icon: data.note.icon || currentNoteIcon,
+                    icon_color: data.note.icon_color || currentNoteIconColor,
+                    resolved_icon: data.note.resolved_icon || null,
+                    resolved_icon_color: data.note.resolved_icon_color || null,
+                    date_last_changed: data.note.date_last_changed
+                });
+                updateSidebarAfterSave({
+                    id: noteId,
+                    title: displayTitle,
+                    category: currentCategory || 'Default',
+                    icon: currentNoteIcon,
+                    icon_color: currentNoteIconColor
+                });
+                setActiveSidebarItem(noteId);
                 var bc = document.getElementById('breadcrumb-note-title');
                 if (bc) bc.textContent = displayTitle || 'Untitled';
                 if (window._updateNoteMapEntry) {
@@ -1157,6 +1267,19 @@ async function _doSaveNote(titleVal, content, props, callback) {
             } else {
                 _loadedNoteTitle = displayTitle;
                 updateSidebarNoteTitle(noteId, displayTitle);
+                if (data.note) {
+                    _storeNote({
+                        id: noteId,
+                        title: displayTitle,
+                        content: content,
+                        properties: props || {},
+                        category: currentCategory || '',
+                        category_id: currentCategoryId || null,
+                        icon: currentNoteIcon,
+                        icon_color: currentNoteIconColor,
+                        date_last_changed: data.note.date_last_changed
+                    });
+                }
                 if (titleChanged && window._updateNoteMapEntry) {
                     window._updateNoteMapEntry(noteId, oldTitle, displayTitle);
                 }
@@ -1200,13 +1323,34 @@ function updateSidebarAfterSave(note) {
     });
     if (targetFolder) {
         var items = targetFolder.querySelector('.folder-items');
-        var div = document.createElement('div');
-        div.className = 'file-item active';
-        div.setAttribute('data-note-id', note.id);
-        div.setAttribute('data-action', 'open-note');
-        div.innerHTML = '<span class="file-icon"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></span><span class="file-name">' + escapeHtml(note.title || 'Untitled') + '</span>';
-        items.appendChild(div);
-        targetFolder.classList.remove('collapsed');
+        var existing = items.querySelector('.file-item[data-note-id="' + note.id + '"]');
+        if (existing) {
+            var nameEl = existing.querySelector('.file-name');
+            if (nameEl) nameEl.textContent = note.title || 'Untitled';
+        } else {
+            var div = document.createElement('div');
+            div.className = 'file-item active';
+            div.setAttribute('data-note-id', note.id);
+            div.setAttribute('data-action', 'open-note');
+            div.setAttribute('draggable', 'true');
+            div.setAttribute('data-drag-type', 'note');
+            div.setAttribute('data-drag-id', note.id);
+            div.setAttribute('data-drop-target', 'file-item');
+            var iconHtml;
+            if (note.icon) {
+                var nColor = note.icon_color ? ' data-icon-color="' + escapeHtml(note.icon_color) + '" style="color:' + escapeHtml(note.icon_color) + '"' : '';
+                iconHtml = '<span class="file-icon"><span class="lucide-icon" data-icon="' + escapeHtml(note.icon) + '"' + nColor + '></span></span>';
+            } else {
+                iconHtml = '<span class="file-icon"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></span>';
+            }
+            div.innerHTML = iconHtml +
+                '<span class="file-name">' + escapeHtml(note.title || 'Untitled') + '</span>' +
+                '<button class="icon-btn delete-btn" draggable="false" data-action="delete-sidebar-note" data-note-id="' + note.id + '" data-note-title="' + escapeHtml(note.title || 'Untitled') + '" title="Delete note"><svg viewBox="0 0 24 24" width="12" height="12"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>' +
+                '<button class="icon-btn pin-btn" draggable="false" data-note-id="' + note.id + '" data-action="toggle-pin" title="Pin note"><svg viewBox="0 0 24 24" width="12" height="12"><path d="M12 2L15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26z"/></svg></button>';
+            items.appendChild(div);
+            targetFolder.classList.remove('collapsed');
+            if (typeof renderSidebarIcons === 'function') renderSidebarIcons();
+        }
         var count = targetFolder.querySelector('.folder-count');
         if (count) count.textContent = items.querySelectorAll('.file-item').length;
     }
@@ -1227,8 +1371,9 @@ function deleteSidebarNote(id, title) {
             if (wikiNoteList !== null) {
                 wikiNoteList = wikiNoteList.filter(function(n) { return n.id !== id; });
             }
+            _storeDeleteNote(id);
             try { localStorage.setItem('flasky-notes-rev', Date.now().toString()); } catch (e) {}
-            refreshSidebar();
+            removeSidebarNoteItem(id);
             if (noteId === id) {
                 if (isMobile) closeSidebar();
                 loadNote(0);
@@ -1253,11 +1398,24 @@ function deleteCurrentNote() {
             if (wikiNoteList !== null) {
                 wikiNoteList = wikiNoteList.filter(function(n) { return n.id !== deletedId; });
             }
+            _storeDeleteNote(deletedId);
             try { localStorage.setItem('flasky-notes-rev', Date.now().toString()); } catch (e) {}
-            refreshSidebar();
+            removeSidebarNoteItem(deletedId);
             loadNote(0);
         }
     });
+}
+
+function removeSidebarNoteItem(id) {
+    var item = document.querySelector('.file-item[data-note-id="' + id + '"]');
+    if (!item) return;
+    var folder = item.closest('.folder');
+    var items = item.parentElement;
+    item.remove();
+    if (folder && items) {
+        var count = folder.querySelector('.folder-count');
+        if (count) count.textContent = items.querySelectorAll('.file-item').length;
+    }
 }
 
 // ============ Category / Folder management ============
@@ -4205,63 +4363,59 @@ window.addEventListener('resize', function() { isMobile = window.innerWidth <= 7
         if (dataEl) {
             try {
                 var enc = JSON.parse(dataEl.textContent);
-                var title = await FlaskyE2EE.decryptField(enc.title);
-                var content = await FlaskyE2EE.decryptField(enc.content);
-                var props = null;
-                if (enc.properties) {
-                    try {
-                        var decProps = await FlaskyE2EE.decryptField(enc.properties);
-                        props = JSON.parse(decProps);
-                    } catch(e) { props = {}; }
-                }
+                var decTitle = '', decContent = '', decProps = null;
+                await Promise.all([
+                    (async function() { try { decTitle = await FlaskyE2EE.decryptField(enc.title); } catch(e) {} })(),
+                    (async function() { try { decContent = await FlaskyE2EE.decryptField(enc.content); } catch(e) {} })(),
+                    (async function() {
+                        if (enc.properties) {
+                            try {
+                                var p = await FlaskyE2EE.decryptField(enc.properties);
+                                decProps = JSON.parse(p);
+                            } catch(e) { decProps = {}; }
+                        }
+                    })()
+                ]);
+                var title = decTitle || '';
+                var content = decContent || '';
+                var props = decProps;
                 var titleEl = document.getElementById('note-title');
-                if (titleEl) titleEl.value = title || '';
-                _loadedNoteTitle = title || '';
-                if (cmEditor) { cmEditor.setValue(content || ''); cmEditor.refresh(); }
+                if (titleEl) titleEl.value = title;
+                _loadedNoteTitle = title;
+                if (cmEditor) { cmEditor.setValue(content); cmEditor.refresh(); }
                 else {
                     var ta = document.getElementById('note-content');
-                    if (ta) ta.value = content || '';
+                    if (ta) ta.value = content;
                 }
                 var bc = document.getElementById('breadcrumb-note-title');
                 if (bc) bc.textContent = title || 'Untitled';
                 document.title = (title || 'Untitled') + ' \u2014 Flasky Notes';
-                if (props) {
-                    var propsBody = document.getElementById('props-body');
-                    if (propsBody) {
-                        propsBody.querySelectorAll('.prop-row').forEach(function(r) { r.remove(); });
-                        var addBtn = propsBody.querySelector('.prop-add-row');
-                        Object.keys(props).forEach(function(key) {
-                            var val = props[key];
-                            if (Array.isArray(val)) val = val.join(', ');
-                            var row = document.createElement('div');
-                            row.className = 'prop-row';
-                            row.setAttribute('data-prop-key', key);
-                            row.innerHTML = '<div class="prop-key"><input type="text" class="prop-value-input" value="" style="font-size:12px;font-weight:500;color:var(--text-muted)" data-action="prop-changed"></div><div class="prop-value"><input type="text" class="prop-value-input" value="" data-action="prop-changed"></div><button class="prop-remove-btn" data-action="remove-prop" title="Remove property"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>';
-                            row.querySelector('.prop-key .prop-value-input').value = key;
-                            row.querySelector('.prop-value .prop-value-input').value = val || '';
-                            if (addBtn) propsBody.insertBefore(row, addBtn);
-                        });
-                    }
-                }
+                if (props) _applyPropsToEditor(props);
                 if (!editMode && typeof renderPreview === 'function') renderPreview();
             } catch(e) {
                 console.error('E2EE page decrypt failed:', e);
             }
         }
-        try { if (currentCategory) currentCategory = await FlaskyE2EE.decryptField(currentCategory); } catch(e) {}
         var folderLabel = document.getElementById('folder-picker-label');
-        if (folderLabel) {
-            try { folderLabel.textContent = await FlaskyE2EE.decryptField(folderLabel.textContent.trim()); } catch(e) {}
-        }
-        refreshSidebar(function() {
-            FlaskyE2EE.revealContent();
+        var folderCipher = folderLabel ? folderLabel.textContent.trim() : '';
+        await Promise.all([
+            (async function() { try { if (currentCategory) currentCategory = await FlaskyE2EE.decryptField(currentCategory); } catch(e) {} })(),
+            (async function() {
+                if (folderLabel) {
+                    try { folderLabel.textContent = await FlaskyE2EE.decryptField(folderCipher); } catch(e) {}
+                }
+            })()
+        ]);
+
+        FlaskyE2EE.revealContent();
+
+        _warmNoteStore().then(function() {
+            refreshSidebar();
+            if (window._flushPendingNoteMap) window._flushPendingNoteMap();
+            if (typeof FlaskySearch !== 'undefined') {
+                FlaskySearch.buildIndex();
+            }
         });
-
-        if (window._flushPendingNoteMap) window._flushPendingNoteMap();
-
-        if (typeof FlaskySearch !== 'undefined') {
-            FlaskySearch.buildIndex();
-        }
 
         // Daily notes: if the daily flag is set and the feature is enabled,
         // open (or create) today's daily note. The server sets daily=1 when
@@ -4284,6 +4438,8 @@ window.addEventListener('resize', function() { isMobile = window.innerWidth <= 7
     window.afterUnlockReinit = function() {
         wikiNoteList = null;
         _noteMapPromise = null;
+        _noteStore.clear();
+        _noteStoreReady = null;
         FlaskyE2EE.init().then(_postE2EEInit);
     };
 
@@ -4292,11 +4448,12 @@ window.addEventListener('resize', function() { isMobile = window.innerWidth <= 7
         _noteMapPromise = null;
     });
 
-    document.addEventListener('visibilitychange', function() {
-        if (document.visibilityState === 'visible' && !document.hidden) {
-            if (typeof FlaskySearch !== 'undefined') FlaskySearch.invalidate();
-        }
+    // When the router reattaches the editor (closing an overlay view),
+    // rebuild the sidebar if a refresh was deferred while detached.
+    document.addEventListener('flasky:editorReattached', function() {
+        if (_sidebarPending) refreshSidebar();
     });
+
     window.addEventListener('storage', function(e) {
         if (e.key === 'flasky-notes-rev') {
             if (typeof FlaskySearch !== 'undefined') FlaskySearch.invalidate();

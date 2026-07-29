@@ -134,11 +134,6 @@ def list_notes(user, page=None, per_page=5):
     return q.all()
 
 
-def get_note_content(user, note_id):
-    note = get_owned_note(user, note_id)
-    return note.content or "", note.get_properties()
-
-
 def set_note_icon(user, note_id, icon, icon_color):
     """Set or clear the icon on a note. Pass icon=None to clear."""
     note = get_owned_note(user, note_id)

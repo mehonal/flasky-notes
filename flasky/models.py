@@ -221,7 +221,7 @@ class UserNote(db.Model):
     icon = db.Column(db.String(100), nullable=True)
     icon_color = db.Column(db.String(20), nullable=True)
     user = db.relationship("User", backref="notes")
-    category = db.relationship("UserNoteCategory", backref="notes")
+    category = db.relationship("UserNoteCategory", backref="notes", lazy="selectin")
 
     # ---- Read accessors only ----
 

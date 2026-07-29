@@ -6,7 +6,6 @@ from flasky.utils import login_required
 from flasky.services import notes as notes_service
 from flasky.services.notes import NoteNotFound, NotOwner
 from flasky.schemas.notes import SaveNoteSchema, NoteIdSchema
-from flasky.schemas.agenda import LoadNotesSchema
 
 
 notes_bp = SmorestBlueprint("notes", __name__, url_prefix="/api")
@@ -97,14 +96,6 @@ def get_note(note_id):
     return jsonify(success=True, note=data)
 
 
-@notes_bp.route("/load_notes", methods=["POST"])
-@login_required
-@notes_bp.arguments(LoadNotesSchema)
-def load_notes(data):
-    notes = notes_service.list_notes(g.user, page=data["page"], per_page=5)
-    return jsonify([n.return_json() for n in notes])
-
-
 @notes_bp.route("/delete_note", methods=["POST"])
 @login_required
 @notes_bp.arguments(NoteIdSchema)
@@ -121,18 +112,6 @@ def note_map():
     from flasky.services.categories import note_map as _nm
     note_list, att_list = _nm(g.user)
     return jsonify({"notes": note_list, "attachments": att_list, "encrypted": True})
-
-
-@notes_bp.route("/note_content/<int:note_id>", methods=["GET"])
-@login_required
-def get_note_content(note_id):
-    try:
-        content, properties = notes_service.get_note_content(g.user, note_id)
-    except NoteNotFound:
-        return jsonify(success=False, reason="Note not found."), 404
-    except NotOwner:
-        return jsonify(success=False, reason="Note not found."), 404
-    return jsonify(success=True, content=content, properties=properties)
 
 
 @notes_bp.route("/sidebar_tree")

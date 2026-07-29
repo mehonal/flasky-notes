@@ -147,18 +147,12 @@
         try {
             var encData = JSON.parse(dataEl.textContent);
             var results = {};
-            if (encData.title) {
-                results.title = await decryptField(encData.title);
-            }
-            if (encData.content) {
-                results.content = await decryptField(encData.content);
-            }
-            if (encData.properties) {
-                results.properties = await decryptField(encData.properties);
-            }
-            if (encData.previous_content) {
-                results.previous_content = await decryptField(encData.previous_content);
-            }
+            var tasks = [];
+            if (encData.title) tasks.push(decryptField(encData.title).then(function(v) { results.title = v; }));
+            if (encData.content) tasks.push(decryptField(encData.content).then(function(v) { results.content = v; }));
+            if (encData.properties) tasks.push(decryptField(encData.properties).then(function(v) { results.properties = v; }));
+            if (encData.previous_content) tasks.push(decryptField(encData.previous_content).then(function(v) { results.previous_content = v; }));
+            await Promise.all(tasks);
             return results;
         } catch (e) {
             console.error('E2EE: failed to decrypt page data:', e);

@@ -28,65 +28,62 @@
             return Promise.resolve([]);
         }
         _buildPromise = _doBuild();
+        _buildPromise.then(function() { _buildPromise = null; }, function() { _buildPromise = null; });
         return _buildPromise;
     }
 
     async function _doBuild() {
         try {
+            // Prefer the in-memory note store warmed by app.js (decrypted once on load).
+            if (window._noteStore && _noteStoreReady()) {
+                _index = [];
+                window._noteStore.forEach(function(n) {
+                    if (n.title || n.content) {
+                        _index.push({
+                            id: n.id,
+                            title: n.title || '',
+                            content: n.content || '',
+                            category: n.category || '',
+                            date_last_changed: n.date_last_changed
+                        });
+                    }
+                });
+                return _index;
+            }
+
+            // Fallback: fetch + decrypt all notes in parallel.
             var resp = await fetch('/api/get_all_notes');
             var notes = await resp.json();
             if (!Array.isArray(notes)) {
-                _buildPromise = null;
                 return [];
             }
 
             _index = [];
-            var undecrypted = 0;
+            await FlaskyE2EE.decryptObjects(notes, ['title', 'content', 'category']);
             for (var i = 0; i < notes.length; i++) {
                 var n = notes[i];
-                var encTitle = n.title || '';
-                var encContent = n.content || '';
-                var encCategory = n.category || '';
-                var title = '';
-                var content = '';
-                var category = '';
-                try { title = await FlaskyE2EE.decryptField(encTitle); } catch (e) { title = ''; }
-                try { content = await FlaskyE2EE.decryptField(encContent); } catch (e) { content = ''; }
-                try { category = await FlaskyE2EE.decryptField(encCategory); } catch (e) { category = ''; }
-                // decryptField falls back to the raw ciphertext on failure
-                // rather than throwing. Treat an unchanged value as a failed
-                // decrypt so we never index ciphertext as plaintext.
-                if (encTitle && title === encTitle) title = '';
-                if (encContent && content === encContent) content = '';
-                if (encCategory && category === encCategory) category = '';
-                if (!title && !content) {
-                    if (encTitle || encContent) undecrypted++;
-                    continue;
-                }
+                var title = n.title || '';
+                var content = n.content || '';
+                var category = n.category || '';
+                if (!title && !content) continue;
                 _index.push({
                     id: n.id,
-                    title: title || '',
-                    content: content || '',
-                    category: category || '',
+                    title: title,
+                    content: content,
+                    category: category,
                     date_last_changed: n.date_last_changed
                 });
-            }
-            // If every note failed to decrypt, the key likely wasn't ready
-            // (e.g. built before unlock). Don't cache an empty index — let
-            // the next search() retry so we recover after unlock.
-            if (notes.length > 0 && undecrypted === notes.length) {
-                console.warn('E2EE search: no notes decrypted — not caching index');
-                _index = null;
-                _buildPromise = null;
-                return [];
             }
         } catch (e) {
             console.error('E2EE search: failed to build index', e);
             _index = null;
         }
 
-        _buildPromise = null;
         return _index;
+    }
+
+    function _noteStoreReady() {
+        return window._noteStore && window._noteStore.size > 0;
     }
 
     function _tokenize(query) {
