@@ -172,3 +172,57 @@
 }
 .qs-customize-btn:hover { border-color: var(--accent); color: var(--accent); }
 .qs-customize-btn svg { flex-shrink: 0; }
+
+/* ---------- Theme presets ---------- */
+.theme-presets-hint {
+    margin: 0 0 8px;
+    font-size: 0.78rem;
+    color: var(--text-muted);
+}
+.theme-presets-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(108px, 1fr));
+    gap: 8px;
+}
+.theme-preset-card {
+    display: flex; flex-direction: column;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    overflow: hidden;
+    cursor: pointer;
+    background: var(--bg-secondary);
+    transition: border-color 0.15s, transform 0.1s;
+}
+.theme-preset-card:hover { border-color: var(--accent); transform: translateY(-1px); }
+.theme-preset-card.active {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 1px var(--accent);
+}
+.theme-preset-swatch {
+    height: 40px;
+    display: flex; align-items: stretch;
+}
+.theme-preset-swatch-half { flex: 1; }
+.theme-preset-body {
+    padding: 6px 8px;
+    display: flex; flex-direction: column; gap: 2px;
+}
+.theme-preset-name {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+.theme-preset-vibe {
+    font-size: 0.68rem;
+    color: var(--text-muted);
+}
+.theme-preset-card.active .theme-preset-name { color: var(--accent); }
+.theme-animations-toggle {
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid var(--border);
+}
+.theme-animations-toggle .customize-checkbox-label {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 0.8rem; cursor: pointer; color: var(--text-secondary);
+}

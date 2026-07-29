@@ -9,14 +9,27 @@
 {% set _ai_on = ai_enabled if ai_enabled is defined else (g.user and g.user.settings and g.user.settings.ai_enabled) %}
 <div class="customize-content" data-customize-scope="{{ s }}">
   <div class="customize-tabs">
-    <button type="button" class="customize-tab-btn active" data-action="customize-tab" data-scope="{{ s }}" data-tab="colors">Colors</button>
+    <button type="button" class="customize-tab-btn active" data-action="customize-tab" data-scope="{{ s }}" data-tab="themes">Themes</button>
+    <button type="button" class="customize-tab-btn" data-action="customize-tab" data-scope="{{ s }}" data-tab="colors">Colors</button>
     <button type="button" class="customize-tab-btn" data-action="customize-tab" data-scope="{{ s }}" data-tab="font">Font</button>
     <button type="button" class="customize-tab-btn" data-action="customize-tab" data-scope="{{ s }}" data-tab="css">Custom CSS</button>
     {% if _ai_on %}<button type="button" class="customize-tab-btn" data-action="customize-tab" data-scope="{{ s }}" data-tab="ai">AI Generate</button>{% endif %}
   </div>
 
+  <!-- Themes tab -->
+  <div class="customize-panel" data-customize-panel="{{ s }}-themes">
+    <p class="theme-presets-hint">Pick a vibe — applied instantly. Tweak in the other tabs anytime.</p>
+    <div class="theme-presets-grid" id="theme-presets-{{ s }}"></div>
+    <div class="customize-actions theme-animations-toggle">
+      <label class="customize-checkbox-label">
+        <input type="checkbox" id="theme-animations-{{ s }}" data-action="toggle-theme-animations" data-scope="{{ s }}" checked>
+        Enable animations
+      </label>
+    </div>
+  </div>
+
   <!-- Colors tab -->
-  <div class="customize-panel" data-customize-panel="{{ s }}-colors">
+  <div class="customize-panel" data-customize-panel="{{ s }}-colors" hidden>
     <div class="customize-theme-subtabs">
       <button type="button" class="customize-theme-btn active" data-action="customize-color-theme" data-scope="{{ s }}" data-theme="dark">Dark</button>
       <button type="button" class="customize-theme-btn" data-action="customize-color-theme" data-scope="{{ s }}" data-theme="light">Light</button>

@@ -184,6 +184,8 @@
         "calendarPlacement": {{ (ui_settings.calendar_placement if ui_settings else 'left') | tojson }},
         "customColors": {{ custom_colors | tojson }},
         "customCss": {{ custom_css | tojson }},
+        "activePreset": {{ (ui_settings.active_preset if ui_settings else '') | tojson }},
+        "themeAnimationsEnabled": {% if ui_settings and ui_settings.theme_animations_enabled is defined %}{{ ui_settings.theme_animations_enabled | tojson }}{% else %}true{% endif %},
         "dailyNote": {
             "enabled": {% if ui_settings and ui_settings.daily_note_enabled %}true{% else %}false{% endif %},
             "titleFormat": {{ (ui_settings.daily_note_title_format if ui_settings else 'YYYY-MM-DD') | tojson }},

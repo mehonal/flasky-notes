@@ -750,6 +750,8 @@
 {
     "customColors": {{ custom_colors | tojson }},
     "customCss": {{ custom_css | tojson }},
+    "activePreset": {{ (ui_settings.active_preset if ui_settings else '') | tojson }},
+    "themeAnimationsEnabled": {% if ui_settings and ui_settings.theme_animations_enabled is defined %}{{ ui_settings.theme_animations_enabled | tojson }}{% else %}true{% endif %},
     "aiEnabled": {% if ai_enabled %}true{% else %}false{% endif %},
     "aiModel": {% if ai_settings and ai_settings.ollama_model %}{{ ai_settings.ollama_model | tojson }}{% else %}"gpt-oss:120b"{% endif %},
     "fontFamily": {{ ui_settings.font | tojson }},

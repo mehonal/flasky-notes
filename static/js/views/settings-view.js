@@ -373,9 +373,11 @@
         });
 
         // Customize tab is handled by customize.js (document-level delegation
-        // that persists across fragment swaps). Known limitation: the customize
-        // color-picker fields won't repopulate after a fragment swap, but
-        // saving still works via customize.js's own AJAX.
+        // that persists across fragment swaps). Re-trigger populate so the
+        // preset grid and color grid render after the fragment is injected.
+        if (window.FlaskyCustomize && window.FlaskyCustomize.refreshSettings) {
+            window.FlaskyCustomize.refreshSettings();
+        }
     }
 
     function destroy() {

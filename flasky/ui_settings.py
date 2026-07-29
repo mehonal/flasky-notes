@@ -147,6 +147,16 @@ REGISTRY: dict[str, SettingDef] = {
         "custom_css", "", str,
         lambda v: isinstance(v, str) and len(v) <= 50000,
     ),
+    # Currently-applied one-click theme preset id ("" = none/Classic).
+    # Used only to highlight the active card in the preset picker; the
+    # actual colors/css come from custom_colors/custom_css. Cleared when
+    # the user manually edits a color/font/css after applying a preset.
+    "active_preset": SettingDef("active_preset", "", str),
+    # Whether animated theme effects (keyframes, scanlines, etc.) are
+    # applied when a preset is selected. When off, @keyframes and
+    # animation: declarations are stripped from the preset CSS before
+    # applying — static CSS (textures, font settings) is preserved.
+    "theme_animations_enabled": SettingDef("theme_animations_enabled", True, bool),
     # Max render width for embedded attachments (images + videos) and .fldraw
     # drawings. Accepts "N", "Npx", "N%"; empty / "0" = full width. Bare
     # numbers get "px" appended client-side. Audio/PDF/links unaffected.
@@ -176,6 +186,8 @@ CUSTOMIZABLE_VARS = [
     "--text-primary", "--text-secondary", "--text-muted",
     "--accent", "--accent-hover",
     "--border", "--border-light",
+    "--accent-dim", "--bg-hover", "--bg-active",
+    "--green", "--red", "--yellow",
 ]
 
 DEFAULT_COLORS = {
@@ -190,18 +202,30 @@ DEFAULT_COLORS = {
         "--accent-hover": "#cba6f7",
         "--border": "rgba(255,255,255,0.06)",
         "--border-light": "rgba(255,255,255,0.1)",
+        "--accent-dim": "rgba(180,190,254,0.1)",
+        "--bg-hover": "rgba(255,255,255,0.05)",
+        "--bg-active": "rgba(255,255,255,0.08)",
+        "--green": "#a6e3a1",
+        "--red": "#f38ba8",
+        "--yellow": "#f9e2af",
     },
     "light": {
         "--bg-primary": "#f8f9fc",
         "--bg-secondary": "#eff1f5",
         "--bg-sidebar": "#e6e9ef",
-        "--text-primary": "#4c4f69",
-        "--text-secondary": "#5c5f77",
-        "--text-muted": "#9ca0b0",
-        "--accent": "#7287fd",
-        "--accent-hover": "#8839ef",
-        "--border": "rgba(0,0,0,0.06)",
-        "--border-light": "rgba(0,0,0,0.1)",
+        "--text-primary": "#1a1a2e",
+        "--text-secondary": "#2d2d44",
+        "--text-muted": "#555770",
+        "--accent": "#5a6fe0",
+        "--accent-hover": "#7630d4",
+        "--border": "rgba(0,0,0,0.12)",
+        "--border-light": "rgba(0,0,0,0.18)",
+        "--accent-dim": "rgba(90,111,224,0.16)",
+        "--bg-hover": "rgba(0,0,0,0.06)",
+        "--bg-active": "rgba(0,0,0,0.10)",
+        "--green": "#2d8a1a",
+        "--red": "#c40d33",
+        "--yellow": "#c47a10",
     },
 }
 

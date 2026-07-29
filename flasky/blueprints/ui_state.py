@@ -12,8 +12,9 @@ from flask import Blueprint, request, g, jsonify
 from flasky import db
 from flasky.utils import login_required
 from flasky.ui_settings import (
-    set_setting, set_panel_widgets, CUSTOMIZABLE_VARS,
+    set_setting, set_panel_widgets, CUSTOMIZABLE_VARS, _load_raw, _save_raw,
 )
+from flasky.theme_presets import is_valid_preset_id
 
 ui_state_bp = Blueprint("ui_state", __name__, url_prefix="/api")
 
@@ -32,6 +33,19 @@ def _is_valid_color_value(val):
     if not val:
         return True
     return bool(_COLOR_RE.match(val))
+
+
+_FORBIDDEN_CSS_RE = re.compile(r"</style|<script|</script", re.IGNORECASE)
+
+
+def _validate_css(css):
+    if not isinstance(css, str):
+        return "css must be a string."
+    if len(css) > 50000:
+        return "CSS too long."
+    if _FORBIDDEN_CSS_RE.search(css):
+        return "CSS contains forbidden markup."
+    return None
 
 
 @ui_state_bp.route("/save_font_size/<int:font_size>")
@@ -163,11 +177,118 @@ def save_custom_colors():
 @login_required
 def save_custom_css():
     data = request.get_json(silent=True) or {}
-    css = data.get("css")
-    if not isinstance(css, str):
-        return jsonify(success=False, reason="css must be a string."), 400
-    if len(css) > 50000:
-        return jsonify(success=False, reason="CSS too long."), 400
-    set_setting(g.user, "custom_css", css)
+    err = _validate_css(data.get("css"))
+    if err:
+        return jsonify(success=False, reason=err), 400
+    set_setting(g.user, "custom_css", data["css"])
+    db.session.commit()
+    return jsonify(success=True)
+
+
+@ui_state_bp.route("/save_preset", methods=["POST"])
+@login_required
+def save_preset():
+    data = request.get_json(silent=True) or {}
+    preset_id = data.get("preset")
+    if not isinstance(preset_id, str):
+        return jsonify(success=False, reason="preset must be a string."), 400
+    preset_id = preset_id.strip()
+    if not is_valid_preset_id(preset_id):
+        return jsonify(success=False, reason="Unknown preset."), 400
+    set_setting(g.user, "active_preset", preset_id)
+    db.session.commit()
+    return jsonify(success=True, preset=preset_id)
+
+
+@ui_state_bp.route("/save_theme_animations", methods=["POST"])
+@login_required
+def save_theme_animations():
+    data = request.get_json(silent=True) or {}
+    enabled = data.get("enabled")
+    enabled = enabled == 1 or enabled is True
+    set_setting(g.user, "theme_animations_enabled", enabled)
+    db.session.commit()
+    return jsonify(success=True, enabled=enabled)
+
+
+def _clean_colors(colors):
+    if not isinstance(colors, dict):
+        return None
+    cleaned = {}
+    for mode in ("dark", "light"):
+        mode_colors = colors.get(mode)
+        if mode_colors is None or not isinstance(mode_colors, dict):
+            continue
+        cleaned_mode = {}
+        for var, val in mode_colors.items():
+            if var not in CUSTOMIZABLE_VARS:
+                continue
+            if not _is_valid_color_value(val):
+                return None
+            stripped = val.strip()
+            if stripped:
+                cleaned_mode[var] = stripped
+        if cleaned_mode:
+            cleaned[mode] = cleaned_mode
+    return cleaned
+
+
+@ui_state_bp.route("/save_appearance", methods=["POST"])
+@login_required
+def save_appearance():
+    """Batch-save appearance settings in a single read-modify-write cycle.
+
+    The individual /save_custom_colors, /save_custom_css, /save_font_family,
+    /save_font_size, /save_preset, /save_theme_animations, and /save_dark_mode
+    endpoints each do their own _load_raw → _save_raw.  Firing them
+    concurrently (as the old JS did) causes last-write-wins data loss because
+    every request starts from the same JSON snapshot.  This endpoint performs
+    one load, applies all provided keys, then saves once.
+    """
+    data = request.get_json(silent=True) or {}
+
+    raw = _load_raw(g.user)
+
+    if "colors" in data:
+        cleaned = _clean_colors(data["colors"])
+        if cleaned is None:
+            return jsonify(success=False, reason="Invalid colors."), 400
+        raw["custom_colors"] = cleaned
+
+    if "css" in data:
+        err = _validate_css(data["css"])
+        if err:
+            return jsonify(success=False, reason=err), 400
+        raw["custom_css"] = data["css"]
+
+    if "font" in data:
+        font = (data["font"] or "").strip()
+        if len(font) > 200:
+            return jsonify(success=False, reason="Font family too long."), 400
+        raw["font"] = font
+
+    if "font_size" in data:
+        fs = data["font_size"]
+        if not isinstance(fs, int) or not (8 <= fs <= 40):
+            return jsonify(success=False, reason="font_size out of range."), 400
+        raw["font_size"] = fs
+
+    if "active_preset" in data:
+        preset_id = data["active_preset"]
+        if not isinstance(preset_id, str):
+            return jsonify(success=False, reason="preset must be a string."), 400
+        preset_id = preset_id.strip()
+        if not is_valid_preset_id(preset_id):
+            return jsonify(success=False, reason="Unknown preset."), 400
+        raw["active_preset"] = preset_id
+
+    if "theme_animations_enabled" in data:
+        enabled = data["theme_animations_enabled"]
+        raw["theme_animations_enabled"] = enabled == 1 or enabled is True
+
+    if "dark_mode" in data:
+        raw["dark_mode"] = bool(data["dark_mode"])
+
+    _save_raw(g.user, raw)
     db.session.commit()
     return jsonify(success=True)

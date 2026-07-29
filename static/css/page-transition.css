@@ -21,8 +21,8 @@
     transform: scaleX(0);
     transform-origin: left center;
     opacity: 0;
-    background: linear-gradient(90deg, #6d8fd8 0%, #a78bfa 50%, #6d8fd8 100%);
-    box-shadow: 0 0 10px rgba(167, 139, 250, 0.85), 0 0 4px rgba(109, 143, 216, 0.6);
+    background: linear-gradient(90deg, var(--accent) 0%, var(--accent-hover) 50%, var(--accent) 100%);
+    box-shadow: 0 0 10px var(--accent-dim), 0 0 4px var(--accent-dim);
 }
 
 .flasky-nav-progress.is-loading {

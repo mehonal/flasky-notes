@@ -67,7 +67,7 @@ body.app-view-open {
 .export-progress { display: none; margin-top: 1rem; }
 .export-progress .bar { height: 6px; background: #e5e7eb; border-radius: 3px; overflow: hidden; margin-top: 0.5rem; }
 [data-theme="dark"] .export-progress .bar { background: #2a2a3a; }
-.export-progress .bar-fill { height: 100%; background: #3b82f6; width: 0%; transition: width 0.2s; }
+.export-progress .bar-fill { height: 100%; background: var(--accent); width: 0%; transition: width 0.2s; }
 #export-status { font-size: 0.85rem; color: #6b7280; }
 [data-theme="dark"] #export-status { color: #9ca3af; }
 

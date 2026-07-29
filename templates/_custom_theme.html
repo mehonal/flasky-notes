@@ -10,6 +10,6 @@
 {% if _has_colors %}{% for mode, vars in custom_colors.items() %}{% if vars %}{% if mode == 'dark' %}:root{% else %}[data-theme="light"]{% endif %} {
 {% for k, v in vars.items() %}  {{ k }}: {{ v }};
 {% endfor %}}
-{% endif %}{% endfor %}{% endif %}{% if custom_css %}{{ custom_css }}
+{% endif %}{% endfor %}{% endif %}{% if custom_css %}{{ custom_css | safe }}
 {% endif %}</style>
 {% endif %}
