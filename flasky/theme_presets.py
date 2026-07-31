@@ -54,7 +54,8 @@ _PRESETS = [
         font_size=16,
         colors_dark={
             "--bg-primary": "#1e1e2e", "--bg-secondary": "#181825",
-            "--bg-sidebar": "#11111b", "--text-primary": "#cdd6f4",
+            "--bg-sidebar": "#11111b", "--bg-input": "#1e1e2e",
+            "--text-primary": "#cdd6f4",
             "--text-secondary": "#bac2de", "--text-muted": "#585b70",
             "--accent": "#b4befe", "--accent-hover": "#cba6f7",
             "--border": "rgba(255,255,255,0.06)",
@@ -67,7 +68,8 @@ _PRESETS = [
         },
         colors_light={
             "--bg-primary": "#f8f9fc", "--bg-secondary": "#eff1f5",
-            "--bg-sidebar": "#e6e9ef", "--text-primary": "#1a1a2e",
+            "--bg-sidebar": "#e6e9ef", "--bg-input": "#ffffff",
+            "--text-primary": "#1a1a2e",
             "--text-secondary": "#2d2d44", "--text-muted": "#555770",
             "--accent": "#5a6fe0", "--accent-hover": "#7630d4",
             "--border": "rgba(0,0,0,0.12)",
@@ -89,7 +91,8 @@ _PRESETS = [
         font_size=15,
         colors_dark={
             "--bg-primary": "#0d0221", "--bg-secondary": "#10042b",
-            "--bg-sidebar": "#08011a", "--text-primary": "#e0e0ff",
+            "--bg-sidebar": "#08011a", "--bg-input": "#0d0221",
+            "--text-primary": "#e0e0ff",
             "--text-secondary": "#9d8df1", "--text-muted": "#5a4e8c",
             "--accent": "#ff2e88", "--accent-hover": "#00f0ff",
             "--border": "rgba(255,46,136,0.15)",
@@ -102,7 +105,8 @@ _PRESETS = [
         },
         colors_light={
             "--bg-primary": "#f5f0ff", "--bg-secondary": "#ebe0ff",
-            "--bg-sidebar": "#e0d4ff", "--text-primary": "#2d0a4e",
+            "--bg-sidebar": "#e0d4ff", "--bg-input": "#ffffff",
+            "--text-primary": "#2d0a4e",
             "--text-secondary": "#4a1a6e", "--text-muted": "#7a5a9e",
             "--accent": "#d600a0", "--accent-hover": "#0070d6",
             "--border": "rgba(214,0,160,0.15)",
@@ -142,7 +146,8 @@ _PRESETS = [
         font_size=16,
         colors_dark={
             "--bg-primary": "#2b2620", "--bg-secondary": "#241f1a",
-            "--bg-sidebar": "#1e1915", "--text-primary": "#eee6d3",
+            "--bg-sidebar": "#1e1915", "--bg-input": "#2b2620",
+            "--text-primary": "#eee6d3",
             "--text-secondary": "#c8b893", "--text-muted": "#8a7a5e",
             "--accent": "#e8a87c", "--accent-hover": "#f0b890",
             "--border": "rgba(238,230,211,0.08)",
@@ -155,7 +160,8 @@ _PRESETS = [
         },
         colors_light={
             "--bg-primary": "#fdf6e3", "--bg-secondary": "#f5ecd0",
-            "--bg-sidebar": "#eee3c4", "--text-primary": "#3b3025",
+            "--bg-sidebar": "#eee3c4", "--bg-input": "#ffffff",
+            "--text-primary": "#3b3025",
             "--text-secondary": "#5a4a3a", "--text-muted": "#8a7a60",
             "--accent": "#cb7e3c", "--accent-hover": "#a86520",
             "--border": "rgba(59,48,37,0.10)",
@@ -177,7 +183,8 @@ _PRESETS = [
         font_size=15,
         colors_dark={
             "--bg-primary": "#2e3440", "--bg-secondary": "#272c36",
-            "--bg-sidebar": "#21262e", "--text-primary": "#e5e9f0",
+            "--bg-sidebar": "#21262e", "--bg-input": "#2e3440",
+            "--text-primary": "#e5e9f0",
             "--text-secondary": "#c1cce0", "--text-muted": "#6b7280",
             "--accent": "#88c0d0", "--accent-hover": "#81a1c1",
             "--border": "rgba(229,233,240,0.06)",
@@ -190,7 +197,8 @@ _PRESETS = [
         },
         colors_light={
             "--bg-primary": "#f0f4f8", "--bg-secondary": "#e6ecf2",
-            "--bg-sidebar": "#dde4ec", "--text-primary": "#2e3440",
+            "--bg-sidebar": "#dde4ec", "--bg-input": "#ffffff",
+            "--text-primary": "#2e3440",
             "--text-secondary": "#44546a", "--text-muted": "#738090",
             "--accent": "#5e81ac", "--accent-hover": "#4c6e8e",
             "--border": "rgba(46,52,64,0.10)",
@@ -212,7 +220,8 @@ _PRESETS = [
         font_size=16,
         colors_dark={
             "--bg-primary": "#2a2329", "--bg-secondary": "#221c21",
-            "--bg-sidebar": "#1b161a", "--text-primary": "#f5e8ee",
+            "--bg-sidebar": "#1b161a", "--bg-input": "#2a2329",
+            "--text-primary": "#f5e8ee",
             "--text-secondary": "#d4b8c4", "--text-muted": "#8a7a82",
             "--accent": "#e8a0bf", "--accent-hover": "#d080a0",
             "--border": "rgba(245,232,238,0.06)",
@@ -225,7 +234,8 @@ _PRESETS = [
         },
         colors_light={
             "--bg-primary": "#fdf5f8", "--bg-secondary": "#f7ecf2",
-            "--bg-sidebar": "#f0e0e8", "--text-primary": "#3a2832",
+            "--bg-sidebar": "#f0e0e8", "--bg-input": "#ffffff",
+            "--text-primary": "#3a2832",
             "--text-secondary": "#5a4050", "--text-muted": "#8a7080",
             "--accent": "#c06090", "--accent-hover": "#a04070",
             "--border": "rgba(58,40,50,0.10)",
@@ -247,7 +257,8 @@ _PRESETS = [
         font_size=16,
         colors_dark={
             "--bg-primary": "#1c2418", "--bg-secondary": "#161e13",
-            "--bg-sidebar": "#101709", "--text-primary": "#d8e8c8",
+            "--bg-sidebar": "#101709", "--bg-input": "#1c2418",
+            "--text-primary": "#d8e8c8",
             "--text-secondary": "#b0c098", "--text-muted": "#6a7a5a",
             "--accent": "#8fa860", "--accent-hover": "#a8c878",
             "--border": "rgba(216,232,200,0.06)",
@@ -260,7 +271,8 @@ _PRESETS = [
         },
         colors_light={
             "--bg-primary": "#f4f6ee", "--bg-secondary": "#eaeede",
-            "--bg-sidebar": "#dde4d0", "--text-primary": "#2a3020",
+            "--bg-sidebar": "#dde4d0", "--bg-input": "#ffffff",
+            "--text-primary": "#2a3020",
             "--text-secondary": "#444a34", "--text-muted": "#6a7060",
             "--accent": "#506e30", "--accent-hover": "#3a5020",
             "--border": "rgba(42,48,32,0.10)",
@@ -282,7 +294,8 @@ _PRESETS = [
         font_size=16,
         colors_dark={
             "--bg-primary": "#1a0f0a", "--bg-secondary": "#241510",
-            "--bg-sidebar": "#120906", "--text-primary": "#ffe8d0",
+            "--bg-sidebar": "#120906", "--bg-input": "#1a0f0a",
+            "--text-primary": "#ffe8d0",
             "--text-secondary": "#e8a878", "--text-muted": "#8a6048",
             "--accent": "#ff6a3d", "--accent-hover": "#ff9040",
             "--border": "rgba(255,106,61,0.12)",
@@ -295,7 +308,8 @@ _PRESETS = [
         },
         colors_light={
             "--bg-primary": "#fff5ed", "--bg-secondary": "#ffead8",
-            "--bg-sidebar": "#ffdcc0", "--text-primary": "#2a1810",
+            "--bg-sidebar": "#ffdcc0", "--bg-input": "#ffffff",
+            "--text-primary": "#2a1810",
             "--text-secondary": "#4a2e20", "--text-muted": "#806048",
             "--accent": "#e05020", "--accent-hover": "#c03010",
             "--border": "rgba(42,24,16,0.10)",
@@ -330,7 +344,8 @@ _PRESETS = [
         font_size=15,
         colors_dark={
             "--bg-primary": "#1a1a1a", "--bg-secondary": "#141414",
-            "--bg-sidebar": "#0f0f0f", "--text-primary": "#e8e8e8",
+            "--bg-sidebar": "#0f0f0f", "--bg-input": "#1a1a1a",
+            "--text-primary": "#e8e8e8",
             "--text-secondary": "#b0b0b0", "--text-muted": "#606060",
             "--accent": "#a0a0a0", "--accent-hover": "#c0c0c0",
             "--border": "rgba(255,255,255,0.06)",
@@ -343,7 +358,8 @@ _PRESETS = [
         },
         colors_light={
             "--bg-primary": "#fafafa", "--bg-secondary": "#f0f0f0",
-            "--bg-sidebar": "#e8e8e8", "--text-primary": "#1a1a1a",
+            "--bg-sidebar": "#e8e8e8", "--bg-input": "#ffffff",
+            "--text-primary": "#1a1a1a",
             "--text-secondary": "#3a3a3a", "--text-muted": "#808080",
             "--accent": "#505050", "--accent-hover": "#303030",
             "--border": "rgba(0,0,0,0.10)",
@@ -365,7 +381,8 @@ _PRESETS = [
         font_size=15,
         colors_dark={
             "--bg-primary": "#0f0a1e", "--bg-secondary": "#160f2a",
-            "--bg-sidebar": "#0a0617", "--text-primary": "#f0e6ff",
+            "--bg-sidebar": "#0a0617", "--bg-input": "#0f0a1e",
+            "--text-primary": "#f0e6ff",
             "--text-secondary": "#c8a0ff", "--text-muted": "#7a5a9e",
             "--accent": "#ff006e", "--accent-hover": "#8338ec",
             "--border": "rgba(255,0,110,0.12)",
@@ -378,7 +395,8 @@ _PRESETS = [
         },
         colors_light={
             "--bg-primary": "#f0e8ff", "--bg-secondary": "#e4d4ff",
-            "--bg-sidebar": "#d8c4ff", "--text-primary": "#2a0a4e",
+            "--bg-sidebar": "#d8c4ff", "--bg-input": "#ffffff",
+            "--text-primary": "#2a0a4e",
             "--text-secondary": "#4a1a6e", "--text-muted": "#7a5a9e",
             "--accent": "#d600a0", "--accent-hover": "#7030d6",
             "--border": "rgba(42,10,78,0.12)",
@@ -422,7 +440,8 @@ _PRESETS = [
         font_size=16,
         colors_dark={
             "--bg-primary": "#2a2520", "--bg-secondary": "#241f1a",
-            "--bg-sidebar": "#1e1915", "--text-primary": "#e8dcc8",
+            "--bg-sidebar": "#1e1915", "--bg-input": "#2a2520",
+            "--text-primary": "#e8dcc8",
             "--text-secondary": "#c0b098", "--text-muted": "#8a7a60",
             "--accent": "#a08050", "--accent-hover": "#c0a060",
             "--border": "rgba(232,220,200,0.08)",
@@ -435,7 +454,8 @@ _PRESETS = [
         },
         colors_light={
             "--bg-primary": "#f5ecd7", "--bg-secondary": "#ede0c0",
-            "--bg-sidebar": "#e4d4a8", "--text-primary": "#3a2a18",
+            "--bg-sidebar": "#e4d4a8", "--bg-input": "#ffffff",
+            "--text-primary": "#3a2a18",
             "--text-secondary": "#5a4028", "--text-muted": "#8a7048",
             "--accent": "#8a5a2a", "--accent-hover": "#6a401a",
             "--border": "rgba(58,42,24,0.12)",
@@ -467,7 +487,8 @@ _PRESETS = [
         font_size=15,
         colors_dark={
             "--bg-primary": "#0a0a0f", "--bg-secondary": "#12121a",
-            "--bg-sidebar": "#06060a", "--text-primary": "#fcee0c",
+            "--bg-sidebar": "#06060a", "--bg-input": "#0a0a0f",
+            "--text-primary": "#fcee0c",
             "--text-secondary": "#c0c0d0", "--text-muted": "#5a5a6e",
             "--accent": "#fcee0c", "--accent-hover": "#00f0ff",
             "--border": "rgba(252,238,12,0.1)",
@@ -480,7 +501,8 @@ _PRESETS = [
         },
         colors_light={
             "--bg-primary": "#f8f8f0", "--bg-secondary": "#eeee00",
-            "--bg-sidebar": "#e0e0d0", "--text-primary": "#0a0a0f",
+            "--bg-sidebar": "#e0e0d0", "--bg-input": "#ffffff",
+            "--text-primary": "#0a0a0f",
             "--text-secondary": "#3a3a4e", "--text-muted": "#808090",
             "--accent": "#e0b000", "--accent-hover": "#0090d0",
             "--border": "rgba(10,10,15,0.12)",
@@ -525,7 +547,8 @@ _PRESETS = [
         font_size=15,
         colors_dark={
             "--bg-primary": "#000000", "--bg-secondary": "#030a03",
-            "--bg-sidebar": "#000000", "--text-primary": "#00ff41",
+            "--bg-sidebar": "#000000", "--bg-input": "#000000",
+            "--text-primary": "#00ff41",
             "--text-secondary": "#00cc33", "--text-muted": "#008822",
             "--accent": "#00ff41", "--accent-hover": "#33ff66",
             "--border": "rgba(0,255,65,0.1)",
@@ -538,7 +561,8 @@ _PRESETS = [
         },
         colors_light={
             "--bg-primary": "#f0fff0", "--bg-secondary": "#e0ffe0",
-            "--bg-sidebar": "#d0f0d0", "--text-primary": "#0a1a0a",
+            "--bg-sidebar": "#d0f0d0", "--bg-input": "#ffffff",
+            "--text-primary": "#0a1a0a",
             "--text-secondary": "#2a4a2a", "--text-muted": "#5a7a5a",
             "--accent": "#008822", "--accent-hover": "#006611",
             "--border": "rgba(10,26,10,0.10)",
@@ -574,7 +598,8 @@ _PRESETS = [
         font_size=14,
         colors_dark={
             "--bg-primary": "#1a0633", "--bg-secondary": "#240844",
-            "--bg-sidebar": "#120422", "--text-primary": "#ff6ec7",
+            "--bg-sidebar": "#120422", "--bg-input": "#1a0633",
+            "--text-primary": "#ff6ec7",
             "--text-secondary": "#c0a0e0", "--text-muted": "#7060a0",
             "--accent": "#ff6ec7", "--accent-hover": "#00ffff",
             "--border": "rgba(255,110,199,0.12)",
@@ -587,7 +612,8 @@ _PRESETS = [
         },
         colors_light={
             "--bg-primary": "#f8f0ff", "--bg-secondary": "#f0e0ff",
-            "--bg-sidebar": "#e8d4ff", "--text-primary": "#2a0a44",
+            "--bg-sidebar": "#e8d4ff", "--bg-input": "#ffffff",
+            "--text-primary": "#2a0a44",
             "--text-secondary": "#4a1a6e", "--text-muted": "#7a5a9e",
             "--accent": "#d620a0", "--accent-hover": "#0090d0",
             "--border": "rgba(42,10,68,0.12)",
@@ -626,7 +652,8 @@ _PRESETS = [
         font_size=15,
         colors_dark={
             "--bg-primary": "#050510", "--bg-secondary": "#0a0a18",
-            "--bg-sidebar": "#020208", "--text-primary": "#d0e0ff",
+            "--bg-sidebar": "#020208", "--bg-input": "#050510",
+            "--text-primary": "#d0e0ff",
             "--text-secondary": "#80a0d0", "--text-muted": "#405070",
             "--accent": "#00d4ff", "--accent-hover": "#ff9900",
             "--border": "rgba(0,212,255,0.15)",
@@ -639,7 +666,8 @@ _PRESETS = [
         },
         colors_light={
             "--bg-primary": "#eef4ff", "--bg-secondary": "#e0eaf8",
-            "--bg-sidebar": "#d4e0f0", "--text-primary": "#0a1428",
+            "--bg-sidebar": "#d4e0f0", "--bg-input": "#ffffff",
+            "--text-primary": "#0a1428",
             "--text-secondary": "#2a3a50", "--text-muted": "#607090",
             "--accent": "#0090d4", "--accent-hover": "#cc6600",
             "--border": "rgba(10,20,40,0.12)",

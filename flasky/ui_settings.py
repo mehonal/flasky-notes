@@ -182,7 +182,7 @@ REGISTRY: dict[str, SettingDef] = {
 # [data-theme="light"] so the customize UI can show the current value and
 # reset to default. rgba vars (border/border-light) use text inputs in the UI.
 CUSTOMIZABLE_VARS = [
-    "--bg-primary", "--bg-secondary", "--bg-sidebar",
+    "--bg-primary", "--bg-secondary", "--bg-sidebar", "--bg-input",
     "--text-primary", "--text-secondary", "--text-muted",
     "--accent", "--accent-hover",
     "--border", "--border-light",
@@ -195,6 +195,7 @@ DEFAULT_COLORS = {
         "--bg-primary": "#1e1e2e",
         "--bg-secondary": "#181825",
         "--bg-sidebar": "#11111b",
+        "--bg-input": "#1e1e2e",
         "--text-primary": "#cdd6f4",
         "--text-secondary": "#bac2de",
         "--text-muted": "#585b70",
@@ -213,6 +214,7 @@ DEFAULT_COLORS = {
         "--bg-primary": "#f8f9fc",
         "--bg-secondary": "#eff1f5",
         "--bg-sidebar": "#e6e9ef",
+        "--bg-input": "#ffffff",
         "--text-primary": "#1a1a2e",
         "--text-secondary": "#2d2d44",
         "--text-muted": "#555770",

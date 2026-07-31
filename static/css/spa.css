@@ -4,7 +4,7 @@
     position: fixed;
     inset: 0;
     z-index: 1000;
-    background: var(--bg, #f9fafb);
+    background: var(--bg-primary);
     overflow-y: auto;
     display: block;
 }
@@ -13,9 +13,6 @@
 }
 body.app-view-open {
     overflow: hidden;
-}
-[data-theme="dark"] .app-view-overlay {
-    background: #14141f;
 }
 
 /* Export view */
