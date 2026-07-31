@@ -701,9 +701,8 @@ def note_single_page(note_id):
                 default_template = NoteTemplate.query.get(cat_obj.default_template_id)
     # For a new note with no explicit folder, fall back to the user's default
     # category so the breadcrumb shows the folder new notes will land in.
-    default_category = None
+    default_category = g.user.get_default_category()
     if note_id == 0 and not category and not category_id:
-        default_category = g.user.get_default_category()
         if default_category:
             category = default_category.name
             category_id = default_category.id

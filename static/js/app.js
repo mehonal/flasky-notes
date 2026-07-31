@@ -532,58 +532,75 @@ function loadNote(id, category, categoryId) {
     clearTimeout(autoSaveTimer);
 
     if (id === 0) {
-        noteId = 0;
-        hasBeenSavedOnce = false;
-        isDirty = false;
-        isSaving = false;
-        currentNoteIcon = null;
-        currentNoteIconColor = null;
-        updateNoteIconPreview(null, null);
-        document.getElementById('note-title').value = '';
-        if (cmEditor) { cmEditor.setValue(''); cmEditor.refresh(); }
-        else document.getElementById('note-content').value = '';
-        _applyPropsToEditor({});
-        currentCategory = category || 'Default';
-        currentCategoryId = categoryId || null;
-        // Update breadcrumb category
-        updateBreadcrumbCategory(currentCategory, categoryId);
-        history.pushState({ flasky: { view: 'note', noteId: 0 } }, '', '/note/0');
-        if (_inPopState) history.replaceState({ flasky: { view: 'note', noteId: 0 } }, '', '/note/0');
-        _loadedNoteTitle = '';
-        document.getElementById('breadcrumb-note-title').textContent = 'New note';
-        document.getElementById('save-status').textContent = '';
-        document.getElementById('save-status').style.color = '';
-        updateMobileSaveBtn('saved');
-        if (!editMode) renderPreview();
-        setActiveSidebarItem(null);
-        document.getElementById('note-title').focus();
-        var naWrap = document.getElementById('note-actions-wrap');
-        if (naWrap) naWrap.style.display = 'none';
-        // Refresh right panel
-        var rp = document.getElementById('right-panel');
-        if (rp && !rp.classList.contains('collapsed')) refreshAllVisibleWidgets();
-        refreshCalendarWidget();
-        if (window.FlaskyRouter && typeof window.FlaskyRouter.finishBar === 'function') window.FlaskyRouter.finishBar();
-        // Check for folder default template
-        if (categoryId) {
-            fetch('/api/folder_default_template/' + categoryId)
-            .then(function(r) { return r.json(); })
-            .then(async function(data) {
-                if (data.success && data.template) {
-                    var t = data.template;
-                    // E2EE: decrypt template content/properties
-                    if (typeof FlaskyE2EE !== 'undefined' && FlaskyE2EE.isEncrypted()) {
-                        try { t.content = await FlaskyE2EE.decryptField(t.content); } catch(e) {}
-                        if (t.properties && typeof t.properties === 'string') {
-                            try { t.properties = JSON.parse(await FlaskyE2EE.decryptField(t.properties)); } catch(e) { t.properties = {}; }
-                        }
-                    }
-                    populateFromTemplate(t);
+        var setupNewNote = function() {
+            noteId = 0;
+            hasBeenSavedOnce = false;
+            isDirty = false;
+            isSaving = false;
+            currentNoteIcon = null;
+            currentNoteIconColor = null;
+            updateNoteIconPreview(null, null);
+            document.getElementById('note-title').value = '';
+            if (cmEditor) { cmEditor.setValue(''); cmEditor.refresh(); }
+            else document.getElementById('note-content').value = '';
+            _applyPropsToEditor({});
+            if (!category && !categoryId && defaultCategoryId) {
+                categoryId = defaultCategoryId;
+                var defCat = _categoriesStore.find(function(c) { return c.id === defaultCategoryId; });
+                if (defCat) {
+                    category = defCat.name || null;
+                } else {
+                    var defEl = document.querySelector('.folder[data-category-id="' + defaultCategoryId + '"]');
+                    if (defEl) category = defEl.dataset.path || null;
                 }
-            })
-            .catch(function() {});
+            }
+            currentCategory = category || 'Default';
+            currentCategoryId = categoryId || null;
+            // Update breadcrumb category
+            updateBreadcrumbCategory(currentCategory, currentCategoryId);
+            history.pushState({ flasky: { view: 'note', noteId: 0 } }, '', '/note/0');
+            if (_inPopState) history.replaceState({ flasky: { view: 'note', noteId: 0 } }, '', '/note/0');
+            _loadedNoteTitle = '';
+            document.getElementById('breadcrumb-note-title').textContent = 'New note';
+            document.getElementById('save-status').textContent = '';
+            document.getElementById('save-status').style.color = '';
+            updateMobileSaveBtn('saved');
+            if (!editMode) renderPreview();
+            setActiveSidebarItem(null);
+            document.getElementById('note-title').focus();
+            var naWrap = document.getElementById('note-actions-wrap');
+            if (naWrap) naWrap.style.display = 'none';
+            // Refresh right panel
+            var rp = document.getElementById('right-panel');
+            if (rp && !rp.classList.contains('collapsed')) refreshAllVisibleWidgets();
+            refreshCalendarWidget();
+            if (window.FlaskyRouter && typeof window.FlaskyRouter.finishBar === 'function') window.FlaskyRouter.finishBar();
+            // Check for folder default template
+            if (categoryId) {
+                fetch('/api/folder_default_template/' + categoryId)
+                .then(function(r) { return r.json(); })
+                .then(async function(data) {
+                    if (data.success && data.template) {
+                        var t = data.template;
+                        // E2EE: decrypt template content/properties
+                        if (typeof FlaskyE2EE !== 'undefined' && FlaskyE2EE.isEncrypted()) {
+                            try { t.content = await FlaskyE2EE.decryptField(t.content); } catch(e) {}
+                            if (t.properties && typeof t.properties === 'string') {
+                                try { t.properties = JSON.parse(await FlaskyE2EE.decryptField(t.properties)); } catch(e) { t.properties = {}; }
+                            }
+                        }
+                        populateFromTemplate(t);
+                    }
+                })
+                .catch(function() {});
+            }
+            _inPopState = false;
+        };
+        if (!category && !categoryId && defaultCategoryId && _categoriesStore.length === 0 && _noteStoreReady) {
+            _noteStoreReady.then(setupNewNote);
+            return;
         }
-        _inPopState = false;
+        setupNewNote();
         return;
     }
 
@@ -707,18 +724,12 @@ function openNote(id) {
 
 function createNewNote() {
     if (isMobile) closeSidebar();
-    // Land the new note in the user's default folder when known, so the
-    // breadcrumb shows the real folder name instead of a placeholder.
-    var defCatId = defaultCategoryId || null;
-    var defCatName = '';
-    if (defCatId) {
-        var defEl = document.querySelector('.folder[data-category-id="' + defCatId + '"]');
-        defCatName = defEl ? defEl.dataset.path : '';
-    }
+    // loadNote(0) resolves the user's default folder from the category
+    // store or sidebar DOM, so no need to pass it explicitly here.
     if (isDirty) {
-        saveNote(function() { loadNote(0, defCatName || null, defCatId); });
+        saveNote(function() { loadNote(0); });
     } else {
-        loadNote(0, defCatName || null, defCatId);
+        loadNote(0);
     }
 }
 
@@ -1251,6 +1262,7 @@ async function _doSaveNote(titleVal, content, props, callback) {
                     id: noteId,
                     title: displayTitle,
                     category: currentCategory || 'Default',
+                    category_id: data.note.category_id || currentCategoryId || null,
                     icon: currentNoteIcon,
                     icon_color: currentNoteIconColor
                 });
@@ -1318,9 +1330,14 @@ function updateSidebarNoteTitle(id, title) {
 function updateSidebarAfterSave(note) {
     var catName = note.category || 'Default';
     var targetFolder = null;
-    document.querySelectorAll('.folder').forEach(function(f) {
-        if (f.querySelector('.folder-name').textContent.trim() === catName) targetFolder = f;
-    });
+    if (note.category_id) {
+        targetFolder = document.querySelector('.folder[data-category-id="' + note.category_id + '"]');
+    }
+    if (!targetFolder) {
+        document.querySelectorAll('.folder').forEach(function(f) {
+            if (f.querySelector('.folder-name').textContent.trim() === catName) targetFolder = f;
+        });
+    }
     if (targetFolder) {
         var items = targetFolder.querySelector('.folder-items');
         var existing = items.querySelector('.file-item[data-note-id="' + note.id + '"]');
@@ -1353,6 +1370,8 @@ function updateSidebarAfterSave(note) {
         }
         var count = targetFolder.querySelector('.folder-count');
         if (count) count.textContent = items.querySelectorAll('.file-item').length;
+    } else {
+        refreshSidebar();
     }
     var bc = document.getElementById('breadcrumb-note-title');
     if (bc) bc.textContent = note.title || 'Untitled';
@@ -1438,6 +1457,7 @@ function updateBreadcrumbCategory(name, id) {
     if (label) {
         label.textContent = name || 'Default';
         if (id !== undefined && id !== null) label.dataset.categoryId = id;
+        else label.removeAttribute('data-category-id');
     }
 }
 
@@ -1533,8 +1553,11 @@ function buildFolderPickerItems(filter) {
         }
         items.push({ id: id, path: path, depth: depth, iconData: iconData });
     });
-    // Decrypt paths for E2EE using cached sidebar plaintext labels
-    var isEncrypted = typeof FlaskyE2EE !== 'undefined' && FlaskyE2EE.isEncrypted();
+    // Sort by full path so parents appear before children (e.g. "Work"
+    // before "Work/Projects"). Must happen before we overwrite path with
+    // the leaf name for display.
+    items.sort(function(a, b) { return a.path.toLowerCase().localeCompare(b.path.toLowerCase()); });
+    // Replace full path with the decrypted leaf name for display.
     items.forEach(function(item) {
         var folderEl = document.querySelector('.folder[data-category-id="' + item.id + '"]');
         if (folderEl) {
@@ -1542,8 +1565,6 @@ function buildFolderPickerItems(filter) {
             if (nameEl) item.path = nameEl.textContent.trim();
         }
     });
-    // Sort by name
-    items.sort(function(a, b) { return a.path.toLowerCase().localeCompare(b.path.toLowerCase()); });
     if (filter) {
         var q = filter.toLowerCase();
         items = items.filter(function(item) { return item.path.toLowerCase().includes(q); });
@@ -4449,9 +4470,10 @@ window.addEventListener('resize', function() { isMobile = window.innerWidth <= 7
     });
 
     // When the router reattaches the editor (closing an overlay view),
-    // rebuild the sidebar if a refresh was deferred while detached.
+    // rebuild the sidebar if a refresh was deferred while detached, or if
+    // we're returning to a new-note state that needs a current sidebar.
     document.addEventListener('flasky:editorReattached', function() {
-        if (_sidebarPending) refreshSidebar();
+        if (_sidebarPending || noteId === 0) refreshSidebar();
     });
 
     window.addEventListener('storage', function(e) {
