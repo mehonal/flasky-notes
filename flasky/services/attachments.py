@@ -122,5 +122,39 @@ def read_attachment_bytes(user, attachment_id):
         return f.read()
 
 
+def _remove_disk_file(attachment):
+    disk = attachment.disk_path()
+    if os.path.exists(disk):
+        try:
+            os.remove(disk)
+        except OSError:
+            pass
+
+
+def delete_attachment(user, attachment_id):
+    """Delete a single attachment: DB row + on-disk blob. Raises
+    AttachmentNotFound if the row is missing or not owned by `user`."""
+    a = get_attachment(user, attachment_id)
+    _remove_disk_file(a)
+    db.session.delete(a)
+    db.session.commit()
+    return a
+
+
+def delete_attachments(user, ids):
+    """Bulk-delete attachments by id. Only rows owned by `user` are touched.
+    Returns the number of attachments actually deleted."""
+    if not ids:
+        return 0
+    attachments = Attachment.query.filter(
+        Attachment.id.in_(ids), Attachment.user_id == user.id
+    ).all()
+    for a in attachments:
+        _remove_disk_file(a)
+        db.session.delete(a)
+    db.session.commit()
+    return len(attachments)
+
+
 def list_attachments(user):
     return Attachment.query.filter_by(user_id=user.id).all()

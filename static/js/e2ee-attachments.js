@@ -125,6 +125,13 @@
     function getAttachmentIndex() { return _index; }
     function getAttachmentMap() { return _map; }
 
+    function getIdsByCategory(categoryKey) {
+        if (!_index) return [];
+        return _index
+            .filter(function (a) { return _classify(a.name) === categoryKey; })
+            .map(function (a) { return a.id; });
+    }
+
     /**
      * Populate the cache from an already-decrypted list (e.g. wikilinks.js
      * decrypts attachments as part of its /api/note-map fetch and hands the
@@ -145,6 +152,7 @@
         invalidateAttachmentIndex: invalidateAttachmentIndex,
         getAttachmentIndex: getAttachmentIndex,
         getAttachmentMap: getAttachmentMap,
+        getIdsByCategory: getIdsByCategory,
         hydrate: hydrate,
         flushPending: flushPending,
         classify: _classify,

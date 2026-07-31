@@ -1,4 +1,4 @@
-"""Attachments blueprint — upload endpoint (download is on web.py /serve_attachment)."""
+"""Attachments blueprint — upload + delete endpoints (download is on web.py /serve_attachment)."""
 from flask import Blueprint, request, g, jsonify
 
 from flasky.utils import login_required
@@ -53,3 +53,31 @@ def replace_attachment(attachment_id):
         "file_hash": attachment.file_hash,
         "file_size": attachment.file_size,
     }), 200
+
+
+@attachments_bp.route("/attachment/<int:attachment_id>", methods=["DELETE"])
+@login_required
+def delete_attachment(attachment_id):
+    """Delete a single attachment (DB row + on-disk blob)."""
+    try:
+        att_service.delete_attachment(g.user, attachment_id)
+    except AttachmentNotFound:
+        return jsonify(error="Not found"), 404
+    except Exception as e:
+        return jsonify(error=str(e)), 500
+    return jsonify({"deleted": attachment_id}), 200
+
+
+@attachments_bp.route("/attachments/delete-batch", methods=["POST"])
+@login_required
+def delete_attachments_batch():
+    """Bulk-delete attachments by id. Body: {"ids": [1, 2, 3]}."""
+    data = request.get_json(silent=True) or {}
+    ids = data.get("ids")
+    if not isinstance(ids, list) or not ids:
+        return jsonify(error="Expected non-empty 'ids' list"), 400
+    try:
+        count = att_service.delete_attachments(g.user, ids)
+    except Exception as e:
+        return jsonify(error=str(e)), 500
+    return jsonify({"deleted": count}), 200

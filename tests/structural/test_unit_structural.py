@@ -185,3 +185,98 @@ def test_attachments_folder_settings_defaults_and_round_trip():
     # Bool coercion from common truthy strings.
     assert set_setting(user, "attachments_folder_enabled", "1") is True
     assert get_setting(user, "attachments_folder_enabled") is True
+
+
+# === Attachment deletion (service layer) ===
+
+
+def _make_attachment(user, data=b"test-bytes", filename="test.png"):
+    """Create an attachment via the service layer (bypasses HTTP)."""
+    from flasky.services.attachments import upload_attachment_bytes
+    att, _ = upload_attachment_bytes(user, filename, data)
+    return att
+
+
+def test_delete_attachment_removes_row_and_disk_file():
+    from flasky.services.attachments import delete_attachment, get_attachment, AttachmentNotFound
+    user = _make_user("attdelete", "testpass", "attdelete@test.com")
+    att = _make_attachment(user, b"hello-world", "file.png")
+    assert att.id is not None
+
+    disk = att.disk_path()
+    import os
+    assert os.path.exists(disk)
+
+    deleted = delete_attachment(user, att.id)
+    assert deleted.id == att.id
+
+    # DB row gone
+    try:
+        get_attachment(user, att.id)
+        assert False, "Should have raised AttachmentNotFound"
+    except AttachmentNotFound:
+        pass
+
+    # Disk file gone
+    assert not os.path.exists(disk)
+
+
+def test_delete_attachment_not_found_raises():
+    from flasky.services.attachments import delete_attachment, AttachmentNotFound
+    user = _make_user("att404", "testpass", "att404@test.com")
+    try:
+        delete_attachment(user, 999999)
+        assert False, "Should have raised AttachmentNotFound"
+    except AttachmentNotFound:
+        pass
+
+
+def test_delete_attachment_other_user_not_found():
+    """A user cannot delete another user's attachment (ownership check)."""
+    from flasky.services.attachments import delete_attachment, AttachmentNotFound
+    user_a = _make_user("usera", "testpass", "usera@test.com")
+    user_b = _make_user("userb", "testpass", "userb@test.com")
+    att = _make_attachment(user_a, b"owner-a", "secret.png")
+    try:
+        delete_attachment(user_b, att.id)
+        assert False, "Should have raised AttachmentNotFound"
+    except AttachmentNotFound:
+        pass
+    # user_a's attachment is untouched
+    from flasky.services.attachments import get_attachment
+    assert get_attachment(user_a, att.id).id == att.id
+
+
+def test_delete_attachments_batch():
+    """Bulk delete removes all matching attachments owned by the user."""
+    from flasky.services.attachments import delete_attachments, list_attachments, Attachment
+    user = _make_user("attbatch", "testpass", "attbatch@test.com")
+    a1 = _make_attachment(user, b"one", "a.png")
+    a2 = _make_attachment(user, b"two", "b.png")
+    a3 = _make_attachment(user, b"three", "c.png")
+    ids = [a1.id, a2.id, a3.id]
+
+    count = delete_attachments(user, ids)
+    assert count == 3
+    assert list_attachments(user) == []
+    for aid in ids:
+        assert Attachment.query.filter_by(id=aid).first() is None
+
+
+def test_delete_attachments_batch_ignores_other_user_ids():
+    """Bulk delete only touches rows owned by the calling user."""
+    from flasky.services.attachments import delete_attachments, get_attachment
+    user_a = _make_user("batcha", "testpass", "batcha@test.com")
+    user_b = _make_user("batchb", "testpass", "batchb@test.com")
+    att_a = _make_attachment(user_a, b"mine", "mine.png")
+    att_b = _make_attachment(user_b, b"theirs", "theirs.png")
+    count = delete_attachments(user_a, [att_a.id, att_b.id])
+    assert count == 1  # only user_a's attachment
+    # user_b's attachment is untouched
+    assert get_attachment(user_b, att_b.id).id == att_b.id
+
+
+def test_delete_attachments_batch_empty_list():
+    from flasky.services.attachments import delete_attachments
+    user = _make_user("attempty", "testpass", "attempty@test.com")
+    assert delete_attachments(user, []) == 0

@@ -565,7 +565,7 @@ async function renderAttachmentsFolder(fileTree) {
             if (!items || items.length === 0) return;
             items.sort(function (a, b) { return a.name.toLowerCase().localeCompare(b.name.toLowerCase()); });
             var path = ATTACHMENT_PATH + '/' + sf.label;
-            subHtml += '<div class="folder collapsed" data-virtual="attachments" data-path="' + _esc(path) + '">';
+            subHtml += '<div class="folder collapsed" data-virtual="attachments" data-subcategory="' + sf.key + '" data-path="' + _esc(path) + '">';
             subHtml += '<div class="folder-header" data-action="toggle-folder">';
             subHtml += '<span class="folder-chevron"><svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg></span>';
             subHtml += '<span class="folder-icon"><span class="lucide-icon" data-icon="' + ATTACHMENT_ICONS[sf.key] + '"></span></span>';
@@ -617,6 +617,8 @@ function _renderAttachmentItem(att) {
 // ============ Attachment Preview Modal ============
 
 var _previewObjectUrl = null;
+var _previewAttachmentId = null;
+var _previewAttachmentName = null;
 
 function openAttachmentPreview(attId, name) {
     var overlay = document.getElementById('attachment-preview-overlay');
@@ -624,11 +626,15 @@ function openAttachmentPreview(attId, name) {
     var titleEl = document.getElementById('attachment-preview-title');
     var findBtn = document.getElementById('attachment-preview-find-btn');
     var dlBtn = document.getElementById('attachment-preview-download-btn');
+    var delBtn = document.getElementById('attachment-preview-delete-btn');
     if (!overlay || !body) return;
+    _previewAttachmentId = attId;
+    _previewAttachmentName = name || '';
     titleEl.textContent = name || 'Attachment';
     body.innerHTML = '<div class="attachment-preview-loading">Loading…</div>';
     if (findBtn) findBtn.disabled = true;
     if (dlBtn) dlBtn.disabled = true;
+    if (delBtn) delBtn.disabled = true;
     overlay.classList.add('visible');
 
     var url = '/attachment/' + attId + '/' + encodeURIComponent(name);
@@ -693,6 +699,10 @@ function openAttachmentPreview(attId, name) {
             findBtn.disabled = false;
             findBtn.onclick = function () { _findAttachmentInNotes(name); };
         }
+        if (delBtn) {
+            delBtn.disabled = false;
+            delBtn.onclick = function () { _deleteAttachmentFromPreview(); };
+        }
     }).catch(function (e) {
         body.innerHTML = '<div class="attachment-preview-info">Failed to load attachment.</div>';
     });
@@ -702,10 +712,27 @@ function closeAttachmentPreview() {
     var overlay = document.getElementById('attachment-preview-overlay');
     if (overlay) overlay.classList.remove('visible');
     if (_previewObjectUrl) { URL.revokeObjectURL(_previewObjectUrl); _previewObjectUrl = null; }
+    _previewAttachmentId = null;
+    _previewAttachmentName = null;
     var dlBtn = document.getElementById('attachment-preview-download-btn');
     if (dlBtn) dlBtn.onclick = null;
     var findBtn = document.getElementById('attachment-preview-find-btn');
     if (findBtn) findBtn.onclick = null;
+    var delBtn = document.getElementById('attachment-preview-delete-btn');
+    if (delBtn) delBtn.onclick = null;
+}
+
+async function _deleteAttachmentFromPreview() {
+    var id = _previewAttachmentId, name = _previewAttachmentName;
+    if (!id) return;
+    var refCount = await _countAttachmentReferences(name);
+    var msg = 'Delete "' + name + '"?';
+    if (refCount > 0) msg += '\n\nIt is embedded in ' + refCount + ' note(s). Broken embeds will remain in those notes.';
+    else msg += '\n\nIt is not embedded in any notes.';
+    msg += '\n\nThis cannot be undone.';
+    if (!confirm(msg)) return;
+    closeAttachmentPreview();
+    _deleteAttachmentById(id);
 }
 
 async function _findAttachmentInNotes(filename) {
@@ -2237,7 +2264,18 @@ var longPressTriggered = false;
 function showContextMenu(x, y, target) {
     ctxTarget = target;
     var html = '';
-    if (target.type === 'note') {
+    if (target.type === 'attachment') {
+        html += '<div class="context-menu-item" data-action="ctx-find-attachment"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>Find in notes</div>';
+        html += '<div class="context-menu-item" data-action="ctx-download-attachment"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Download</div>';
+        html += '<div class="context-menu-sep"></div>';
+        html += '<div class="context-menu-item danger" data-action="ctx-delete-attachment"><svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>Delete</div>';
+    } else if (target.type === 'attachments-folder') {
+        if (target.subcategory) {
+            html += '<div class="context-menu-item danger" data-action="ctx-delete-attachment-category"><svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>Delete all in ' + _esc(target.title) + '</div>';
+        } else {
+            html += '<div class="context-menu-item danger" data-action="ctx-delete-all-attachments"><svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>Delete all attachments</div>';
+        }
+    } else if (target.type === 'note') {
         html += '<div class="context-menu-item" data-action="ctx-rename-note"><svg viewBox="0 0 24 24"><path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>Rename</div>';
         html += '<div class="context-menu-item" data-action="ctx-move-note"><svg viewBox="0 0 24 24"><polyline points="5 9 2 12 5 15"/><polyline points="19 9 22 12 19 15"/><line x1="2" y1="12" x2="22" y2="12"/></svg>Move to folder</div>';
         html += '<div class="context-menu-item" data-action="ctx-pin-note"><svg viewBox="0 0 24 24"><path d="M12 2L15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26z"/></svg>' + (pinnedNotes.indexOf(target.id) > -1 ? 'Unpin' : 'Pin') + '</div>';
@@ -2288,20 +2326,31 @@ document.addEventListener('keydown', function(e) {
 
 // Extract context info from a sidebar element
 function getContextTarget(el) {
-    var fileItem = el.closest('.file-item');
-    if (fileItem) {
-        var nid = parseInt(fileItem.dataset.noteId);
-        var title = fileItem.querySelector('.file-name').textContent;
-        var folder = fileItem.closest('.folder');
-        return { type: 'note', id: nid, title: title, catId: folder ? parseInt(folder.dataset.categoryId) : null, path: folder ? folder.dataset.path : '' };
+    var attItem = el.closest('.attachment-item');
+    if (attItem) {
+        var aid = parseInt(attItem.dataset.attachmentId);
+        var aname = attItem.dataset.attachmentName || '';
+        return { type: 'attachment', id: aid, name: aname };
     }
     var folderHeader = el.closest('.folder-header');
     if (folderHeader) {
         var folder = folderHeader.parentElement;
+        if (folder.dataset.virtual === 'attachments') {
+            var subcat = folder.dataset.subcategory || null;
+            var vname = folder.querySelector('.folder-name').textContent;
+            return { type: 'attachments-folder', subcategory: subcat, title: vname, path: folder.dataset.path || '' };
+        }
         var catId = folder.dataset.categoryId ? parseInt(folder.dataset.categoryId) : null;
         var path = folder.dataset.path || '';
         var name = folder.querySelector('.folder-name').textContent;
         return { type: 'folder', id: catId, title: name, catId: catId, path: path };
+    }
+    var fileItem = el.closest('.file-item');
+    if (fileItem) {
+        var nid = parseInt(fileItem.dataset.noteId);
+        var title = fileItem.querySelector('.file-name').textContent;
+        var folder2 = fileItem.closest('.folder');
+        return { type: 'note', id: nid, title: title, catId: folder2 ? parseInt(folder2.dataset.categoryId) : null, path: folder2 ? folder2.dataset.path : '' };
     }
     return null;
 }
@@ -2481,6 +2530,114 @@ function ctxDeleteFolder() {
     var id = ctxTarget.id, path = ctxTarget.path;
     hideContextMenu();
     deleteFolder(id, path);
+}
+
+// ============ Attachment context-menu handlers ============
+
+function ctxFindAttachment() {
+    if (!ctxTarget || ctxTarget.type !== 'attachment') return;
+    var name = ctxTarget.name;
+    hideContextMenu();
+    _findAttachmentInNotes(name);
+}
+
+function ctxDownloadAttachment() {
+    if (!ctxTarget || ctxTarget.type !== 'attachment') return;
+    var id = ctxTarget.id, name = ctxTarget.name;
+    hideContextMenu();
+    _downloadAttachment(id, name);
+}
+
+async function ctxDeleteAttachment() {
+    if (!ctxTarget || ctxTarget.type !== 'attachment') return;
+    var id = ctxTarget.id, name = ctxTarget.name;
+    hideContextMenu();
+    var refCount = await _countAttachmentReferences(name);
+    var msg = 'Delete "' + name + '"?';
+    if (refCount > 0) msg += '\n\nIt is embedded in ' + refCount + ' note(s). Broken embeds will remain in those notes.';
+    else msg += '\n\nIt is not embedded in any notes.';
+    msg += '\n\nThis cannot be undone.';
+    if (!confirm(msg)) return;
+    _deleteAttachmentById(id);
+}
+
+async function ctxDeleteAllAttachments() {
+    if (!ctxTarget || ctxTarget.type !== 'attachments-folder') return;
+    hideContextMenu();
+    if (!window.FlaskyAttachments) return;
+    var idx = window.FlaskyAttachments.getAttachmentIndex();
+    if (!idx || idx.length === 0) { alert('No attachments to delete.'); return; }
+    var msg = 'Delete all ' + idx.length + ' attachment(s)?\n\nSome may be embedded in notes. Broken embeds will remain.\n\nThis cannot be undone.';
+    if (!confirm(msg)) return;
+    var ids = idx.map(function (a) { return a.id; });
+    _deleteAttachmentsBatch(ids);
+}
+
+async function ctxDeleteAttachmentCategory() {
+    if (!ctxTarget || ctxTarget.type !== 'attachments-folder' || !ctxTarget.subcategory) return;
+    var subcat = ctxTarget.subcategory, label = ctxTarget.title;
+    hideContextMenu();
+    if (!window.FlaskyAttachments) return;
+    var ids = window.FlaskyAttachments.getIdsByCategory(subcat);
+    if (!ids || ids.length === 0) { alert('No attachments in ' + label + '.'); return; }
+    var msg = 'Delete all ' + ids.length + ' attachment(s) in ' + label + '?\n\nSome may be embedded in notes. Broken embeds will remain.\n\nThis cannot be undone.';
+    if (!confirm(msg)) return;
+    _deleteAttachmentsBatch(ids);
+}
+
+async function _countAttachmentReferences(filename) {
+    if (!filename || typeof FlaskySearch === 'undefined') return 0;
+    try {
+        var results = await FlaskySearch.search('![[' + filename + ']]');
+        return results ? results.length : 0;
+    } catch (e) { return 0; }
+}
+
+function _downloadAttachment(attId, name) {
+    var url = '/attachment/' + attId + '/' + encodeURIComponent(name);
+    fetch(url).then(function (r) {
+        if (!r.ok) throw new Error('fetch failed');
+        return r.arrayBuffer();
+    }).then(function (buf) {
+        return FlaskyE2EE.decryptBlob(new Uint8Array(buf));
+    }).then(function (decrypted) {
+        var mime = window.FlaskyAttachments ? window.FlaskyAttachments.mimeForName(name) : 'application/octet-stream';
+        var blob = new Blob([decrypted], { type: mime });
+        var objUrl = URL.createObjectURL(blob);
+        var a = document.createElement('a');
+        a.href = objUrl; a.download = name;
+        document.body.appendChild(a); a.click(); a.remove();
+        URL.revokeObjectURL(objUrl);
+    }).catch(function () {
+        alert('Failed to download attachment.');
+    });
+}
+
+function _deleteAttachmentById(attId) {
+    fetch('/api/attachment/' + attId, { method: 'DELETE' })
+        .then(function (r) {
+            if (!r.ok) throw new Error('delete failed');
+            if (window.FlaskyAttachments) window.FlaskyAttachments.invalidateAttachmentIndex();
+            _invalidateNoteMap();
+            refreshSidebar();
+        }).catch(function () {
+            alert('Failed to delete attachment.');
+        });
+}
+
+function _deleteAttachmentsBatch(ids) {
+    fetch('/api/attachments/delete-batch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: ids })
+    }).then(function (r) {
+        if (!r.ok) throw new Error('batch delete failed');
+        if (window.FlaskyAttachments) window.FlaskyAttachments.invalidateAttachmentIndex();
+        _invalidateNoteMap();
+        refreshSidebar();
+    }).catch(function () {
+        alert('Failed to delete attachments.');
+    });
 }
 
 async function ctxSaveAsTemplate() {
@@ -4850,6 +5007,7 @@ document.addEventListener('click', function(e) {
         case 'close-attachment-preview': closeAttachmentPreview(); break;
         case 'download-attachment-preview': break; // handled via onclick set in openAttachmentPreview
         case 'find-attachment-in-notes': break;    // handled via onclick set in openAttachmentPreview
+        case 'delete-attachment-preview': break;   // handled via onclick set in openAttachmentPreview
         case 'close-modal-self':
             if (e.target === el) {
                 var closeFn = el.dataset.modalClose;
@@ -4873,6 +5031,11 @@ document.addEventListener('click', function(e) {
         case 'ctx-set-folder-icon': ctxSetFolderIcon(); break;
         case 'ctx-set-default-note-icon': ctxSetDefaultNoteIcon(); break;
         case 'ctx-delete-folder': ctxDeleteFolder(); break;
+        case 'ctx-find-attachment': ctxFindAttachment(); break;
+        case 'ctx-download-attachment': ctxDownloadAttachment(); break;
+        case 'ctx-delete-attachment': ctxDeleteAttachment(); break;
+        case 'ctx-delete-all-attachments': ctxDeleteAllAttachments(); break;
+        case 'ctx-delete-attachment-category': ctxDeleteAttachmentCategory(); break;
     }
 });
 

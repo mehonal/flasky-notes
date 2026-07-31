@@ -171,3 +171,83 @@ def test_settings_attachments_panel_and_persistence(app_context):
     # "abc" rejected → previous "300" preserved; "150%" rejected → "250px" preserved.
     assert get_setting(user, "attachment_max_width") == "300"
     assert get_setting(user, "drawing_max_width") == "250px"
+
+
+# === Attachment deletion endpoints ===
+
+
+def _create_attachment_via_service(user, data=b"test-bytes", filename="test.png"):
+    from flasky.services.attachments import upload_attachment_bytes
+    att, _ = upload_attachment_bytes(user, filename, data)
+    return att
+
+
+def test_delete_attachment_endpoint(auth_client):
+    """DELETE /api/attachment/<id> removes the attachment."""
+    from flasky.models import User
+    client, creds = auth_client
+    user = User.query.filter_by(username="testuser").first()
+    att = _create_attachment_via_service(user, b"hello", "photo.png")
+
+    r = client.delete(f"/api/attachment/{att.id}")
+    assert r.status_code == 200
+    assert r.get_json()["deleted"] == att.id
+    from flasky.models import Attachment
+    assert Attachment.query.filter_by(id=att.id).first() is None
+
+
+def test_delete_attachment_not_found_endpoint(auth_client):
+    """DELETE /api/attachment/<id> returns 404 for nonexistent id."""
+    client, creds = auth_client
+    r = client.delete("/api/attachment/999999")
+    assert r.status_code == 404
+
+
+def test_delete_attachment_batch_endpoint(auth_client):
+    """POST /api/attachments/delete-batch removes multiple attachments."""
+    from flasky.models import User, Attachment
+    client, creds = auth_client
+    user = User.query.filter_by(username="testuser").first()
+    a1 = _create_attachment_via_service(user, b"one", "a.png")
+    a2 = _create_attachment_via_service(user, b"two", "b.png")
+    a3 = _create_attachment_via_service(user, b"three", "c.png")
+
+    r = client.post(
+        "/api/attachments/delete-batch",
+        json={"ids": [a1.id, a2.id, a3.id]},
+    )
+    assert r.status_code == 200
+    assert r.get_json()["deleted"] == 3
+    assert Attachment.query.filter_by(user_id=user.id).count() == 0
+
+
+def test_delete_attachment_batch_empty_ids(auth_client):
+    """POST /api/attachments/delete-batch rejects empty/missing ids list."""
+    client, creds = auth_client
+    r = client.post("/api/attachments/delete-batch", json={"ids": []})
+    assert r.status_code == 400
+    r = client.post("/api/attachments/delete-batch", json={})
+    assert r.status_code == 400
+
+
+def test_delete_attachment_batch_ignores_other_user_ids(auth_client):
+    """Batch delete only touches the calling user's attachments."""
+    from flasky.models import User, Attachment
+    from flasky.services.auth import create_user
+    client, creds = auth_client
+    user_a = User.query.filter_by(username="testuser").first()
+
+    # Create a second user directly (without changing the session)
+    user_b = create_user("otheruser2", "otherpassword123", "otheruser2@test.com")
+    att_b = _create_attachment_via_service(user_b, b"theirs", "theirs.png")
+    att_a = _create_attachment_via_service(user_a, b"mine", "mine.png")
+
+    # user_a tries to delete both their own and user_b's attachment
+    r = client.post(
+        "/api/attachments/delete-batch",
+        json={"ids": [att_a.id, att_b.id]},
+    )
+    assert r.status_code == 200
+    assert r.get_json()["deleted"] == 1  # only user_a's
+    # user_b's attachment still exists
+    assert Attachment.query.filter_by(id=att_b.id).first() is not None
