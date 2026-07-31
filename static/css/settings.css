@@ -140,6 +140,8 @@
 #settings-root .toggle.on { background: var(--accent-dim); border-color: var(--accent); }
 #settings-root .toggle.on::after { left: 18px; background: var(--accent); }
 #settings-root .toggle input { display: none; }
+#settings-root .toggle.disabled { opacity: 0.45; cursor: not-allowed; }
+#settings-root .toggle.disabled::after { background: var(--text-muted); }
 
 #settings-root .setting-input {
     background: var(--bg-hover); border: 1px solid transparent;

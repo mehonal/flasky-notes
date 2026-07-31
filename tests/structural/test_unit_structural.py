@@ -166,3 +166,22 @@ def test_attachment_drawing_max_width_validation():
         assert set_setting(user, "attachment_max_width", bad) is False, bad
         # On rejection the previously stored value is preserved.
         assert get_setting(user, "attachment_max_width") == "4000px"
+
+
+def test_attachments_folder_settings_defaults_and_round_trip():
+    """attachments_folder_enabled / attachments_folder_subcategories default
+    to False and persist True/False round-trips."""
+    from flasky.ui_settings import set_setting, get_setting
+    user = _make_user("attfolder", "testpass", "attfolder@test.com")
+    assert get_setting(user, "attachments_folder_enabled") is False
+    assert get_setting(user, "attachments_folder_subcategories") is False
+    assert set_setting(user, "attachments_folder_enabled", True) is True
+    assert get_setting(user, "attachments_folder_enabled") is True
+    assert set_setting(user, "attachments_folder_subcategories", True) is True
+    assert get_setting(user, "attachments_folder_subcategories") is True
+    # Falsy round-trip.
+    assert set_setting(user, "attachments_folder_enabled", False) is True
+    assert get_setting(user, "attachments_folder_enabled") is False
+    # Bool coercion from common truthy strings.
+    assert set_setting(user, "attachments_folder_enabled", "1") is True
+    assert get_setting(user, "attachments_folder_enabled") is True

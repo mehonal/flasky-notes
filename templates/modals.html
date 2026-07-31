@@ -103,3 +103,21 @@
             </div>
         </div>
     </div>
+
+    <!-- Attachment Preview Modal -->
+    <div class="modal-overlay" id="attachment-preview-overlay" data-action="close-modal-self" data-modal-close="closeAttachmentPreview">
+        <div class="attachment-preview-modal">
+            <div class="attachment-preview-header">
+                <span id="attachment-preview-title">Attachment</span>
+                <button class="icon-btn" data-action="close-attachment-preview">
+                    <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+            </div>
+            <div class="attachment-preview-body" id="attachment-preview-body"></div>
+            <div class="attachment-preview-footer">
+                <button class="agenda-modal-btn" data-action="find-attachment-in-notes" id="attachment-preview-find-btn">Find in notes</button>
+                <span class="agenda-modal-spacer"></span>
+                <button class="agenda-modal-btn primary" data-action="download-attachment-preview" id="attachment-preview-download-btn">Download</button>
+            </div>
+        </div>
+    </div>

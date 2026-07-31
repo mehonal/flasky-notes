@@ -473,6 +473,11 @@ function refreshSidebar(callback) {
             fileTree.insertAdjacentHTML('beforeend', data.tree_html);
         }
 
+        // Virtual "Attachments" folder (read-only, client-side only).
+        if (typeof _pageData !== 'undefined' && _pageData.attachmentsFolderEnabled) {
+            await renderAttachmentsFolder(fileTree);
+        }
+
         // Restore expanded folders
         expandedPaths.forEach(function(path) {
             var folder = fileTree.querySelector('.folder[data-path="' + path + '"]');
@@ -518,6 +523,206 @@ function refreshSidebar(callback) {
 }
 
 function toggleFolder(folder) { folder.classList.toggle('collapsed'); }
+
+// ============ Virtual Attachments Folder ============
+
+var ATTACHMENT_PATH = '__attachments__';
+var ATTACHMENT_ICONS = {
+    image: 'image', video: 'video', drawing: 'palette', other: 'file'
+};
+
+function _esc(s) { return (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
+function _jesc(s) { return (s || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'"); }
+
+/**
+ * Build and prepend the read-only virtual "Attachments" folder to the sidebar.
+ * Uses the shared FlaskyAttachments index (hydrated by wikilinks.js from the
+ * /api/note-map fetch, or fetched on demand). The folder has no category id,
+ * no drop targets, and no drag handlers — it is a browser only.
+ */
+async function renderAttachmentsFolder(fileTree) {
+    if (!window.FlaskyAttachments) return;
+    var idx;
+    try { idx = await window.FlaskyAttachments.loadAttachmentIndex(); }
+    catch (e) { return; }
+    if (!idx || idx.length === 0) return;
+
+    var subcats = !!(typeof _pageData !== 'undefined' && _pageData.attachmentsFolderSubcategories);
+
+    var html;
+    if (subcats) {
+        var buckets = { image: [], video: [], drawing: [], other: [] };
+        idx.forEach(function (a) { buckets[window.FlaskyAttachments.classify(a.name)].push(a); });
+        var subfolders = [
+            { key: 'image', label: 'Images' },
+            { key: 'video', label: 'Videos' },
+            { key: 'drawing', label: 'Drawings' },
+            { key: 'other', label: 'Other' },
+        ];
+        var subHtml = '';
+        subfolders.forEach(function (sf) {
+            var items = buckets[sf.key];
+            if (!items || items.length === 0) return;
+            items.sort(function (a, b) { return a.name.toLowerCase().localeCompare(b.name.toLowerCase()); });
+            var path = ATTACHMENT_PATH + '/' + sf.label;
+            subHtml += '<div class="folder collapsed" data-virtual="attachments" data-path="' + _esc(path) + '">';
+            subHtml += '<div class="folder-header" data-action="toggle-folder">';
+            subHtml += '<span class="folder-chevron"><svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg></span>';
+            subHtml += '<span class="folder-icon"><span class="lucide-icon" data-icon="' + ATTACHMENT_ICONS[sf.key] + '"></span></span>';
+            subHtml += '<span class="folder-name">' + _esc(sf.label) + '</span>';
+            subHtml += '<span class="folder-count">' + items.length + '</span>';
+            subHtml += '</div><div class="folder-items">';
+            subHtml += items.map(function (a) { return _renderAttachmentItem(a); }).join('');
+            subHtml += '</div></div>';
+        });
+        html = '<div class="folder collapsed" data-virtual="attachments" data-path="' + _esc(ATTACHMENT_PATH) + '">';
+        html += '<div class="folder-header" data-action="toggle-folder">';
+        html += '<span class="folder-chevron"><svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg></span>';
+        html += '<span class="folder-icon"><span class="lucide-icon" data-icon="paperclip"></span></span>';
+        html += '<span class="folder-name">Attachments</span>';
+        html += '<span class="folder-count">' + idx.length + '</span>';
+        html += '</div><div class="folder-items">' + subHtml + '</div></div>';
+    } else {
+        var sorted = idx.slice().sort(function (a, b) {
+            return a.name.toLowerCase().localeCompare(b.name.toLowerCase());
+        });
+        var itemsHtml = sorted.map(function (a) { return _renderAttachmentItem(a); }).join('');
+        html = '<div class="folder collapsed" data-virtual="attachments" data-path="' + _esc(ATTACHMENT_PATH) + '">';
+        html += '<div class="folder-header" data-action="toggle-folder">';
+        html += '<span class="folder-chevron"><svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg></span>';
+        html += '<span class="folder-icon"><span class="lucide-icon" data-icon="paperclip"></span></span>';
+        html += '<span class="folder-name">Attachments</span>';
+        html += '<span class="folder-count">' + idx.length + '</span>';
+        html += '</div><div class="folder-items">' + itemsHtml + '</div></div>';
+    }
+
+    var rootDrop = document.getElementById('root-drop-zone');
+    var tmp = document.createElement('div');
+    tmp.innerHTML = html;
+    while (tmp.firstChild) {
+        if (rootDrop) fileTree.insertBefore(tmp.firstChild, rootDrop.nextSibling);
+        else fileTree.appendChild(tmp.firstChild);
+    }
+}
+
+function _renderAttachmentItem(att) {
+    var cls = window.FlaskyAttachments.classify(att.name);
+    var icon = ATTACHMENT_ICONS[cls] || 'file';
+    return '<div class="attachment-item" data-attachment-id="' + att.id + '" data-attachment-name="' + _esc(att.name) + '" data-action="open-attachment">'
+        + '<span class="file-icon"><span class="lucide-icon" data-icon="' + icon + '"></span></span>'
+        + '<span class="file-name">' + _esc(att.name) + '</span>'
+        + '</div>';
+}
+
+// ============ Attachment Preview Modal ============
+
+var _previewObjectUrl = null;
+
+function openAttachmentPreview(attId, name) {
+    var overlay = document.getElementById('attachment-preview-overlay');
+    var body = document.getElementById('attachment-preview-body');
+    var titleEl = document.getElementById('attachment-preview-title');
+    var findBtn = document.getElementById('attachment-preview-find-btn');
+    var dlBtn = document.getElementById('attachment-preview-download-btn');
+    if (!overlay || !body) return;
+    titleEl.textContent = name || 'Attachment';
+    body.innerHTML = '<div class="attachment-preview-loading">Loading…</div>';
+    if (findBtn) findBtn.disabled = true;
+    if (dlBtn) dlBtn.disabled = true;
+    overlay.classList.add('visible');
+
+    var url = '/attachment/' + attId + '/' + encodeURIComponent(name);
+    fetch(url).then(function (r) {
+        if (!r.ok) throw new Error('fetch failed');
+        return r.arrayBuffer();
+    }).then(function (buf) {
+        return FlaskyE2EE.decryptBlob(new Uint8Array(buf));
+    }).then(function (decrypted) {
+        if (_previewObjectUrl) { URL.revokeObjectURL(_previewObjectUrl); _previewObjectUrl = null; }
+        var mime = window.FlaskyAttachments ? window.FlaskyAttachments.mimeForName(name) : 'application/octet-stream';
+        var blob = new Blob([decrypted], { type: mime });
+        _previewObjectUrl = URL.createObjectURL(blob);
+        var cls = window.FlaskyAttachments ? window.FlaskyAttachments.classify(name) : 'other';
+        body.innerHTML = '';
+        if (cls === 'image') {
+            var img = document.createElement('img');
+            img.src = _previewObjectUrl; img.alt = name; img.className = 'attachment-preview-media';
+            body.appendChild(img);
+        } else if (cls === 'video') {
+            var vid = document.createElement('video');
+            vid.src = _previewObjectUrl; vid.controls = true; vid.className = 'attachment-preview-media';
+            body.appendChild(vid);
+        } else if (cls === 'drawing') {
+            try {
+                var text = new TextDecoder().decode(new Uint8Array(decrypted));
+                var doc = window._parseFldraw ? window._parseFldraw(text) : JSON.parse(text);
+                if (doc && doc.strokes) {
+                    var canvas = document.createElement('canvas');
+                    canvas.className = 'attachment-preview-canvas';
+                    body.appendChild(canvas);
+                    if (window._renderFldrawToCanvas) {
+                        window._renderFldrawToCanvas(canvas, doc.strokes, doc.w || 0, doc.h || 0);
+                    }
+                } else {
+                    body.innerHTML = '<div class="attachment-preview-info">Empty drawing.</div>';
+                }
+            } catch (e) {
+                body.innerHTML = '<div class="attachment-preview-info">Could not render drawing.</div>';
+            }
+        } else {
+            var info = document.createElement('div');
+            info.className = 'attachment-preview-info';
+            info.textContent = name + ' (' + mime + ')';
+            body.appendChild(info);
+            // Audio: try to play.
+            if (mime.indexOf('audio/') === 0) {
+                var aud = document.createElement('audio');
+                aud.src = _previewObjectUrl; aud.controls = true;
+                body.appendChild(aud);
+            }
+        }
+        if (dlBtn) {
+            dlBtn.disabled = false;
+            dlBtn.onclick = function () {
+                var a = document.createElement('a');
+                a.href = _previewObjectUrl; a.download = name;
+                document.body.appendChild(a); a.click(); a.remove();
+            };
+        }
+        if (findBtn) {
+            findBtn.disabled = false;
+            findBtn.onclick = function () { _findAttachmentInNotes(name); };
+        }
+    }).catch(function (e) {
+        body.innerHTML = '<div class="attachment-preview-info">Failed to load attachment.</div>';
+    });
+}
+
+function closeAttachmentPreview() {
+    var overlay = document.getElementById('attachment-preview-overlay');
+    if (overlay) overlay.classList.remove('visible');
+    if (_previewObjectUrl) { URL.revokeObjectURL(_previewObjectUrl); _previewObjectUrl = null; }
+    var dlBtn = document.getElementById('attachment-preview-download-btn');
+    if (dlBtn) dlBtn.onclick = null;
+    var findBtn = document.getElementById('attachment-preview-find-btn');
+    if (findBtn) findBtn.onclick = null;
+}
+
+async function _findAttachmentInNotes(filename) {
+    if (!filename) return;
+    if (typeof FlaskySearch === 'undefined') { alert('Search is not available yet.'); return; }
+    try {
+        var results = await FlaskySearch.search('![[' + filename + ']]');
+        if (results && results.length) {
+            closeAttachmentPreview();
+            openNote(results[0].id);
+        } else {
+            alert('No notes embed "' + filename + '".');
+        }
+    } catch (e) {
+        alert('Search is not ready yet — try again in a moment.');
+    }
+}
 
 // Auto-expand the folder containing the active note
 (function() {
@@ -4433,6 +4638,9 @@ window.addEventListener('resize', function() { isMobile = window.innerWidth <= 7
         _warmNoteStore().then(function() {
             refreshSidebar();
             if (window._flushPendingNoteMap) window._flushPendingNoteMap();
+            if (window.FlaskyAttachments && typeof window.FlaskyAttachments.flushPending === 'function') {
+                window.FlaskyAttachments.flushPending();
+            }
             if (typeof FlaskySearch !== 'undefined') {
                 FlaskySearch.buildIndex();
             }
@@ -4467,6 +4675,11 @@ window.addEventListener('resize', function() { isMobile = window.innerWidth <= 7
     document.addEventListener('noteMapUpdated', function() {
         wikiNoteList = null;
         _noteMapPromise = null;
+        // Refresh the sidebar so the virtual Attachments folder picks up
+        // newly uploaded attachments without a full page reload.
+        if (typeof _pageData !== 'undefined' && _pageData.attachmentsFolderEnabled) {
+            refreshSidebar();
+        }
     });
 
     // When the router reattaches the editor (closing an overlay view),
@@ -4630,6 +4843,13 @@ document.addEventListener('click', function(e) {
         case 'close-event-modal': closeEventDetailModal(); break;
         case 'delete-from-event-modal': deleteFromEventModal(); break;
         case 'save-from-event-modal': saveFromEventModal(); break;
+        case 'open-attachment':
+            var attEl = el.closest('[data-attachment-id]');
+            if (attEl) openAttachmentPreview(parseInt(attEl.dataset.attachmentId, 10), attEl.dataset.attachmentName);
+            break;
+        case 'close-attachment-preview': closeAttachmentPreview(); break;
+        case 'download-attachment-preview': break; // handled via onclick set in openAttachmentPreview
+        case 'find-attachment-in-notes': break;    // handled via onclick set in openAttachmentPreview
         case 'close-modal-self':
             if (e.target === el) {
                 var closeFn = el.dataset.modalClose;

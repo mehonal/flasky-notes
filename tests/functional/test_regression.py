@@ -115,10 +115,13 @@ def test_settings_attachments_panel_and_persistence(app_context):
     body = r.get_data(as_text=True)
     assert 'data-tab="attachments"' in body
     assert 'name="attachment-max-width"' in body
+    assert 'name="attachments-folder-enabled"' in body
+    assert 'name="attachments-folder-subcategories"' in body
     assert 'data-tab="drawing"' in body
     assert 'name="drawing-max-width"' in body
 
-    # POST the shared ui-settings form with the two fields + drawing toggle.
+    # POST the shared ui-settings form with the two fields + drawing toggle +
+    # the attachments-folder toggles.
     r = client.post(
         "/settings",
         data={
@@ -126,6 +129,8 @@ def test_settings_attachments_panel_and_persistence(app_context):
             "drawing-enabled": "1",
             "attachment-max-width": "300",
             "drawing-max-width": "250px",
+            "attachments-folder-enabled": "1",
+            "attachments-folder-subcategories": "1",
         },
         follow_redirects=True,
     )
@@ -135,6 +140,22 @@ def test_settings_attachments_panel_and_persistence(app_context):
     assert get_setting(user, "attachment_max_width") == "300"
     assert get_setting(user, "drawing_max_width") == "250px"
     assert get_setting(user, "drawing_enabled") is True
+    assert get_setting(user, "attachments_folder_enabled") is True
+    assert get_setting(user, "attachments_folder_subcategories") is True
+
+    # Omitting the toggles (unchecked checkboxes) turns them back off.
+    r = client.post(
+        "/settings",
+        data={
+            "update-ui-settings": "Save settings",
+            "attachment-max-width": "300",
+            "drawing-max-width": "250px",
+        },
+        follow_redirects=True,
+    )
+    assert r.status_code == 200
+    assert get_setting(user, "attachments_folder_enabled") is False
+    assert get_setting(user, "attachments_folder_subcategories") is False
 
     # Bad input is rejected and does not crash or overwrite the stored value.
     r = client.post(

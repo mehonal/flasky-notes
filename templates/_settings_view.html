@@ -300,6 +300,24 @@
                     </div>
                     <div class="panel-body">
                         <div class="setting-row has-desc">
+                            <span class="setting-label">Attachments folder</span>
+                            <div class="setting-control">
+                                <div class="toggle {% if ui_settings.attachments_folder_enabled %}on{% endif %}" data-toggle="attachments-folder-enabled">
+                                    <input type="checkbox" id="attachments-folder-enabled" name="attachments-folder-enabled" value="1" {% if ui_settings.attachments_folder_enabled %}checked{% endif %}>
+                                </div>
+                            </div>
+                            <div class="setting-desc">Show a read-only <strong>Attachments</strong> folder at the top of the sidebar listing every uploaded file. Attachments are global to your vault and referenced from notes via <code>![[filename]]</code> embeds; this folder is a browser only — you cannot drag notes into it or create subfolders inside it.</div>
+                        </div>
+                        <div class="setting-row has-desc">
+                            <span class="setting-label">Group by type</span>
+                            <div class="setting-control">
+                                <div class="toggle {% if ui_settings.attachments_folder_subcategories %}on{% endif %}" data-toggle="attachments-folder-subcategories" id="attachments-folder-subcategories-toggle">
+                                    <input type="checkbox" id="attachments-folder-subcategories" name="attachments-folder-subcategories" value="1" {% if ui_settings.attachments_folder_subcategories %}checked{% endif %} {% if not ui_settings.attachments_folder_enabled %}disabled{% endif %}>
+                                </div>
+                            </div>
+                            <div class="setting-desc">Nest attachments under <strong>Images</strong>, <strong>Videos</strong>, <strong>Drawings</strong>, and <strong>Other</strong> subfolders (classified by file extension after E2EE decryption). When off, all attachments appear in a single flat list.</div>
+                        </div>
+                        <div class="setting-row has-desc">
                             <label class="setting-label" for="attachment-max-width">Image / video max-width</label>
                             <div class="setting-control">
                                 <input name="attachment-max-width" id="attachment-max-width" class="setting-input" type="text" value="{{ ui_settings.attachment_max_width }}" placeholder="0" maxlength="10">

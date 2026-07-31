@@ -464,6 +464,8 @@ def settings_page():
                 cat_id = 0
             set_setting(g.user, "daily_note_category_id", cat_id)
             set_setting(g.user, "drawing_enabled", "drawing-enabled" in request.form)
+            set_setting(g.user, "attachments_folder_enabled", "attachments-folder-enabled" in request.form)
+            set_setting(g.user, "attachments_folder_subcategories", "attachments-folder-subcategories" in request.form)
             for field in ("attachment_max_width", "drawing_max_width"):
                 form_key = field.replace("_", "-")
                 set_setting(g.user, field, request.form.get(form_key, ""))

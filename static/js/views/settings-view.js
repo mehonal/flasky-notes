@@ -157,6 +157,7 @@
             bind(el, 'click', function (e) {
                 var input = el.querySelector('input');
                 if (!input) return;
+                if (input.disabled) return;
                 if (e.target === input) return;
                 e.preventDefault();
                 input.checked = !input.checked;
@@ -167,6 +168,23 @@
                 }
             });
         });
+
+        // Attachments folder: disable "Group by type" when the parent
+        // "Attachments folder" toggle is off.
+        var attFolderCb = _root.querySelector('#attachments-folder-enabled');
+        var attSubToggle = _root.querySelector('#attachments-folder-subcategories-toggle');
+        function syncAttSubState() {
+            if (!attFolderCb || !attSubToggle) return;
+            var subInput = attSubToggle.querySelector('input');
+            if (!subInput) return;
+            var on = attFolderCb.checked;
+            subInput.disabled = !on;
+            attSubToggle.classList.toggle('disabled', !on);
+        }
+        if (attFolderCb) {
+            bind(attFolderCb, 'change', syncAttSubState);
+            syncAttSubState();
+        }
 
         // ============ Token copy ============
         var tokenInput = document.getElementById('new-token-input');

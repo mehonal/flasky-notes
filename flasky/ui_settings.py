@@ -162,6 +162,18 @@ REGISTRY: dict[str, SettingDef] = {
     # numbers get "px" appended client-side. Audio/PDF/links unaffected.
     "attachment_max_width": SettingDef("attachment_max_width", "", str, _is_valid_width),
     "drawing_max_width": SettingDef("drawing_max_width", "", str, _is_valid_width),
+    # Virtual "Attachments" sidebar folder. When enabled, a read-only folder
+    # listing all of the user's attachments is prepended to the sidebar tree.
+    # The subcategories flag further groups items into Images / Videos /
+    # Drawings / Other subfolders. Both are pure client-side concerns: the
+    # server has no mime info (filenames are ciphertext), so classification
+    # happens in the browser after E2EE decryption.
+    "attachments_folder_enabled": SettingDef(
+        "attachments_folder_enabled", False, bool,
+    ),
+    "attachments_folder_subcategories": SettingDef(
+        "attachments_folder_subcategories", False, bool,
+    ),
     # Vault Context (client-side RAG) tuning + global consent gate. The global
     # gate (vault_context_allowed) defaults off and must be on before the
     # per-conversation chip is offered. The top_k / max_chars tunables cap how

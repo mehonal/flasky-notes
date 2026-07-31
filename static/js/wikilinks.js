@@ -111,6 +111,17 @@
             } catch (e) {}
         }
 
+        // Hydrate the shared attachment index so the sidebar virtual folder
+        // (and any other consumer) can reuse this decrypted data without a
+        // second /api/note-map fetch.
+        if (window.FlaskyAttachments && typeof window.FlaskyAttachments.hydrate === 'function') {
+            var attIdx = [];
+            for (var k in attachmentMap) {
+                if (attachmentMap[k]) attIdx.push({ id: attachmentMap[k].id, name: attachmentMap[k].filename });
+            }
+            window.FlaskyAttachments.hydrate(attIdx);
+        }
+
         callback();
     }
 
@@ -245,6 +256,9 @@
         if (_loadXhr) { try { _loadXhr.abort(); } catch(e) {} _loadXhr = null; }
         if (_loadResolve) { _loadResolve(); _loadResolve = null; }
         _loadPromise = null;
+        if (window.FlaskyAttachments && typeof window.FlaskyAttachments.invalidateAttachmentIndex === 'function') {
+            window.FlaskyAttachments.invalidateAttachmentIndex();
+        }
         window._wikiLinksReady = false;
         loadNoteMap(function() {
             window._wikiLinksReady = true;
