@@ -124,6 +124,24 @@
         canvas.style.width = w + 'px';
         canvas.style.height = h + 'px';
         _redraw();
+        _applyModalBg();
+    }
+
+    // Resolve the transparent-background setting and apply it to the live
+    // canvas. Called once on modal open (and on resize). For dynamic mode the
+    // canvas is already drawn with strokes, so _analyzeContrastBg can sample
+    // synchronously. Re-analyzing on every stroke would flicker the bg, so we
+    // only resolve on open/resize.
+    function _applyModalBg() {
+        if (!canvas) return;
+        var bg = null;
+        if (window.resolveEmbedBg) bg = window.resolveEmbedBg();
+        if (window._getEmbedBgMode && window._getEmbedBgMode() === 'dynamic') {
+            var dyn = window._analyzeContrastBg ? window._analyzeContrastBg(canvas) : null;
+            if (dyn) bg = dyn;
+            else bg = window._themeEmbedBg ? window._themeEmbedBg() : '#ffffff';
+        }
+        if (bg) canvas.style.backgroundColor = bg;
     }
 
     function _getPos(e) {
@@ -239,14 +257,26 @@
     }
 
     function _exportImage(mime, filename) {
-        // For JPG, fill a white background first (JPEG has no alpha)
+        // For JPG, fill the resolved background first (JPEG has no alpha).
+        // Use the canvas's current background color so the export matches what
+        // the user sees in the editor. Browsers serialize backgroundColor as
+        // "rgb(r, g, b)" (or rgba), so parse both rgb() and #hex forms.
+        var r = 255, g = 255, b = 255;
+        var bgCss = (canvas.style.backgroundColor || '').trim();
+        var mHex = bgCss.match(/#([0-9a-fA-F]{2})([0-9a-fA-F]{2})([0-9a-fA-F]{2})/);
+        var mRgb = bgCss.match(/rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/);
+        if (mHex) {
+            r = parseInt(mHex[1], 16); g = parseInt(mHex[2], 16); b = parseInt(mHex[3], 16);
+        } else if (mRgb) {
+            r = parseInt(mRgb[1], 10); g = parseInt(mRgb[2], 10); b = parseInt(mRgb[3], 10);
+        }
         if (mime === 'image/jpeg') {
             var imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
             for (var i = 0; i < imgData.data.length; i += 4) {
                 if (imgData.data[i + 3] === 0) {
-                    imgData.data[i] = 255;
-                    imgData.data[i + 1] = 255;
-                    imgData.data[i + 2] = 255;
+                    imgData.data[i] = r;
+                    imgData.data[i + 1] = g;
+                    imgData.data[i + 2] = b;
                     imgData.data[i + 3] = 255;
                 }
             }
@@ -333,10 +363,12 @@
         var filename = opts.filename || 'drawing.fldraw';
         if (opts.attachmentId) {
             _loadExisting(opts.attachmentId, filename, function () {
+                _applyModalBg();
                 overlay.classList.add('visible');
             });
         } else {
             _redraw();
+            _applyModalBg();
             overlay.classList.add('visible');
         }
     };

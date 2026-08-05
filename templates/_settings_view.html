@@ -291,6 +291,9 @@
                                 </div>
                                 <div class="setting-desc">Maximum render width for embedded <code>.fldraw</code> drawings. Enter a number (pixels), <code>Npx</code>, or <code>N%</code>. Empty or <code>0</code> = full container width (default).</div>
                             </div>
+                            <div class="callout callout-info">
+                                <strong>Note:</strong> Background color for transparent drawings (and images) can be adjusted in the <strong>Attachments</strong> tab.
+                            </div>
                             <div class="setting-row">
                                 <button name="update-ui-settings" class="btn-sm primary" type="submit">Save settings</button>
                             </div>
@@ -415,6 +418,18 @@
                                 <input name="attachment-max-width" id="attachment-max-width" class="setting-input" type="text" value="{{ ui_settings.attachment_max_width }}" placeholder="0" maxlength="10">
                             </div>
                             <div class="setting-desc">Maximum render width for embedded images and videos (<code>![[image.png]]</code>, <code>![[video.mp4]]</code>). Enter a number (pixels), <code>Npx</code>, or <code>N%</code>. Empty or <code>0</code> = full container width (default). Audio and other file types are unaffected.</div>
+                        </div>
+                        <div class="setting-row has-desc">
+                            <span class="setting-label">Transparent background</span>
+                            <div class="setting-control embed-bg-control">
+                                <select name="embed-bg-mode" id="embed-bg-mode" class="setting-input">
+                                    <option value="theme" {% if ui_settings.embed_bg_mode == 'theme' %}selected{% endif %}>Theme (auto light/dark)</option>
+                                    <option value="solid" {% if ui_settings.embed_bg_mode == 'solid' %}selected{% endif %}>Solid color</option>
+                                    <option value="dynamic" {% if ui_settings.embed_bg_mode == 'dynamic' %}selected{% endif %}>Dynamic (best match)</option>
+                                </select>
+                                <input name="embed-bg-color" id="embed-bg-color" class="setting-input" type="color" value="{{ ui_settings.embed_bg_color or '#ffffff' }}"{% if ui_settings.embed_bg_mode != 'solid' %} hidden{% endif %}>
+                            </div>
+                            <div class="setting-desc">Background shown behind transparent images and <code>.fldraw</code> drawings in embeds, the drawing editor, and the attachment preview. <strong>Theme</strong> follows your light/dark mode. <strong>Solid color</strong> uses the chosen hex. <strong>Dynamic</strong> analyzes each image/drawing at load and picks white or black for maximum contrast (best for line art, signatures, and screenshots).</div>
                         </div>
                         <div class="callout callout-info">
                             <strong>Note:</strong> Drawing max-width settings are in the <strong>Drawing</strong> tab.

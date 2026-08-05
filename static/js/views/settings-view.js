@@ -186,6 +186,17 @@
             syncAttSubState();
         }
 
+        // Embed background: show the color picker only when mode == "solid".
+        var embedBgMode = _root.querySelector('#embed-bg-mode');
+        var embedBgColor = _root.querySelector('#embed-bg-color');
+        if (embedBgMode && embedBgColor) {
+            function syncEmbedBgColor() {
+                embedBgColor.hidden = embedBgMode.value !== 'solid';
+            }
+            bind(embedBgMode, 'change', syncEmbedBgColor);
+            syncEmbedBgColor();
+        }
+
         // ============ Token copy ============
         var tokenInput = document.getElementById('new-token-input');
         if (tokenInput) bind(tokenInput, 'click', function () { this.select(); });

@@ -162,6 +162,23 @@ REGISTRY: dict[str, SettingDef] = {
     # numbers get "px" appended client-side. Audio/PDF/links unaffected.
     "attachment_max_width": SettingDef("attachment_max_width", "", str, _is_valid_width),
     "drawing_max_width": SettingDef("drawing_max_width", "", str, _is_valid_width),
+    # Background shown behind transparent images and .fldraw drawings in
+    # embeds, the drawing editor, and the attachment preview. "theme" follows
+    # the light/dark CSS variables (auto light/dark); "solid" uses
+    # embed_bg_color; "dynamic" analyzes content luminance at decode time and
+    # picks white or black for maximum contrast (best for line art, signatures,
+    # and screenshots). Applies to image embeds, .fldraw embeds, the drawing
+    # editor canvas, and the attachment preview modal.
+    "embed_bg_mode": SettingDef(
+        "embed_bg_mode", "theme", str,
+        lambda v: v in ("theme", "solid", "dynamic"),
+    ),
+    # Hex color (e.g. "#ffffff") used when embed_bg_mode == "solid". Ignored
+    # for other modes.
+    "embed_bg_color": SettingDef(
+        "embed_bg_color", "#ffffff", str,
+        lambda v: isinstance(v, str) and re.fullmatch(r"#[0-9a-fA-F]{6}", v) is not None,
+    ),
     # Virtual "Attachments" sidebar folder. When enabled, a read-only folder
     # listing all of the user's attachments is prepended to the sidebar tree.
     # The subcategories flag further groups items into Images / Videos /

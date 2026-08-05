@@ -11,10 +11,11 @@ from flask import (
     current_app,
 )
 from datetime import datetime, timedelta
+import base64
 import bcrypt
 import hashlib
-import base64
 import json
+import re
 
 import config as CONFIG
 from flasky import db
@@ -469,6 +470,14 @@ def settings_page():
             for field in ("attachment_max_width", "drawing_max_width"):
                 form_key = field.replace("_", "-")
                 set_setting(g.user, field, request.form.get(form_key, ""))
+            embed_bg_mode = request.form.get("embed-bg-mode", "theme")
+            if embed_bg_mode not in ("theme", "solid", "dynamic"):
+                embed_bg_mode = "theme"
+            set_setting(g.user, "embed_bg_mode", embed_bg_mode)
+            embed_bg_color = (request.form.get("embed-bg-color") or "#ffffff").strip()
+            if not re.fullmatch(r"#[0-9a-fA-F]{6}", embed_bg_color):
+                embed_bg_color = "#ffffff"
+            set_setting(g.user, "embed_bg_color", embed_bg_color)
             # Audio recording settings
             set_setting(g.user, "audio_recording_enabled", "audio-recording-enabled" in request.form)
             set_setting(g.user, "audio_echo_cancellation", "audio-echo-cancellation" in request.form)

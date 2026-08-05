@@ -754,7 +754,7 @@ body {
     word-break: break-all;
 }
 .attachment-preview-media { max-width: 100%; max-height: 60vh; border-radius: 8px; object-fit: contain; }
-.attachment-preview-canvas { max-width: 100%; max-height: 60vh; border-radius: 8px; background: var(--bg-secondary); }
+.attachment-preview-canvas { max-width: 100%; max-height: 60vh; border-radius: 8px; }
 .attachment-preview-footer {
     display: flex; align-items: center; gap: 8px;
     padding: 12px 16px; border-top: 1px solid var(--border);
@@ -1694,12 +1694,12 @@ body[data-encrypted="true"] .prop-value-input { visibility: hidden; }
 .drawing-save-btn.primary { background:var(--accent); color:var(--bg-primary); }
 .drawing-save-btn.primary:hover { background:var(--accent-hover); color:var(--bg-primary); }
 .drawing-canvas-wrap { flex:1; display:flex; align-items:center; justify-content:center; overflow:hidden; background:var(--bg-primary); cursor:crosshair; }
-.drawing-canvas { display:block; background:#ffffff; touch-action:none; box-shadow:0 2px 16px rgba(0,0,0,0.25); }
+.drawing-canvas { display:block; touch-action:none; box-shadow:0 2px 16px rgba(0,0,0,0.25); }
 
 /* Embedded .fldraw render in note preview */
 .fldraw-render { display:inline-block; max-width:100%; margin:8px 0; cursor:pointer; border:1px solid var(--border); border-radius:6px; padding:4px; background:var(--bg-secondary); }
 .fldraw-render:hover { border-color:var(--accent); }
-.fldraw-render canvas { display:block; max-width:100%; height:auto; background:#ffffff; border-radius:4px; }
+.fldraw-render canvas { display:block; max-width:100%; height:auto; border-radius:4px; }
 
 /* Inline embed widgets in CM6 edit mode. The widget visually replaces the
    ![[file]] source text via Decoration.replace; the underlying text is

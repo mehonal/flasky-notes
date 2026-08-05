@@ -58,6 +58,93 @@
         return { img: _attachmentMaxWidth, draw: _drawingMaxWidth };
     };
 
+    // ============ Embed background (transparent images + .fldraw) ============
+    // Resolves the background color shown behind transparent images and
+    // .fldraw drawings in embeds, the drawing editor, and the attachment
+    // preview. Three modes:
+    //   "theme"   — use the current theme's --bg-primary (auto light/dark)
+    //   "solid"   — use _embedBgColor (hex set by user)
+    //   "dynamic" — analyze content luminance at decode time and pick white
+    //               or black for maximum contrast (D1 luminance-contrast)
+    var _embedBgMode = 'theme';
+    var _embedBgColor = '#ffffff';
+    var _darkMode = false;
+
+    window._setEmbedBgSettings = function (mode, color, dark) {
+        _embedBgMode = mode || 'theme';
+        _embedBgColor = color || '#ffffff';
+        _darkMode = !!dark;
+    };
+    window._getEmbedBgMode = function () { return _embedBgMode; };
+
+    function _themeBg() {
+        // Read the CSS var so custom_colors overrides are respected; fall back
+        // to the built-in defaults if the var is empty.
+        var v = getComputedStyle(document.documentElement)
+            .getPropertyValue('--bg-primary').trim();
+        if (v) return v;
+        return _darkMode ? '#1e1e2e' : '#f8f9fc';
+    }
+
+    // Resolve the background color. Returns null for "dynamic" mode — the
+    // caller must run _analyzeContrastBg() after decode and apply the result.
+    // Until then, the caller should fall back to _themeBg().
+    window.resolveEmbedBg = function () {
+        if (_embedBgMode === 'solid') return _embedBgColor;
+        if (_embedBgMode === 'dynamic') return null;
+        return _themeBg();
+    };
+    window._themeEmbedBg = _themeBg;
+
+    // D1 luminance-contrast: downsample the decoded pixels, average the
+    // luminance of non-transparent pixels, and pick white or black for
+    // maximum contrast. Returns null if the canvas is tainted or empty.
+    function _luminance(r, g, b) {
+        return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+    }
+
+    window._analyzeContrastBg = function (sourceEl) {
+        var w = sourceEl.naturalWidth || sourceEl.width;
+        var h = sourceEl.naturalHeight || sourceEl.height;
+        if (!w || !h) return null;
+        var sw = Math.min(w, 64), sh = Math.min(h, 64);
+        var tmp = document.createElement('canvas');
+        tmp.width = sw; tmp.height = sh;
+        var tctx = tmp.getContext('2d');
+        try { tctx.drawImage(sourceEl, 0, 0, sw, sh); }
+        catch (e) { return null; }
+        var data;
+        try { data = tctx.getImageData(0, 0, sw, sh).data; }
+        catch (e) { return null; } // tainted canvas — bail to theme fallback
+        var sum = 0, count = 0;
+        for (var i = 0; i < data.length; i += 4) {
+            if (data[i + 3] === 0) continue; // skip transparent pixels
+            sum += _luminance(data[i], data[i + 1], data[i + 2]);
+            count++;
+        }
+        if (!count) return '#ffffff'; // fully transparent → white
+        var avg = sum / count;
+        return avg < 128 ? '#ffffff' : '#000000';
+    };
+
+    function applyEmbedBg(el, bg) {
+        if (bg) el.style.backgroundColor = bg;
+    }
+
+    // Resolve the final background for an element, running dynamic analysis
+    // synchronously when in dynamic mode. Used for canvases (already drawn)
+    // and images (must be loaded — caller passes the loaded img element).
+    window._resolveAndApplyEmbedBg = function (el) {
+        var bg = window.resolveEmbedBg();
+        if (_embedBgMode === 'dynamic') {
+            var dyn = window._analyzeContrastBg(el);
+            if (dyn) bg = dyn;
+            else bg = _themeBg();
+        }
+        applyEmbedBg(el, bg);
+        return bg;
+    };
+
     function loadNoteMap(callback) {
         if (noteMap !== null) {
             callback();
@@ -229,6 +316,26 @@
                     if (attId) _blobUrlCache[attId] = blobUrl;
                 }
                 el.src = blobUrl;
+                // Apply transparent-image background. For dynamic mode, run
+                // the luminance analysis after the image has decoded.
+                if (el.tagName === 'IMG') {
+                    var bg = window.resolveEmbedBg();
+                    if (_embedBgMode === 'dynamic') {
+                        applyEmbedBg(el, bg || _themeBg());
+                        var imgEl = el;
+                        var onAnalyze = function () {
+                            var dyn = window._analyzeContrastBg(imgEl);
+                            if (dyn) applyEmbedBg(imgEl, dyn);
+                        };
+                        if (imgEl.complete && imgEl.naturalWidth) {
+                            onAnalyze();
+                        } else {
+                            imgEl.addEventListener('load', onAnalyze, { once: true });
+                        }
+                    } else {
+                        applyEmbedBg(el, bg);
+                    }
+                }
             } catch (e) {
                 console.warn('E2EE: failed to decrypt attachment', url, e);
             }
@@ -255,6 +362,8 @@
                     if (window._renderFldrawToCanvas) {
                         window._renderFldrawToCanvas(cEl, doc.strokes, doc.w || 0, doc.h || 0);
                     }
+                    // Apply transparent-drawing background to the canvas.
+                    window._resolveAndApplyEmbedBg(cEl);
                 }
             } catch (e) {
                 console.warn('E2EE: failed to decrypt .fldraw', fUrl, e);

@@ -27,6 +27,9 @@ var userTimezone = _pageData.timezone || 'UTC';
 if (typeof window._setEmbedMaxWidths === 'function') {
     window._setEmbedMaxWidths(_pageData.attachmentMaxWidth, _pageData.drawingMaxWidth);
 }
+if (typeof window._setEmbedBgSettings === 'function') {
+    window._setEmbedBgSettings(_pageData.embedBgMode, _pageData.embedBgColor, _pageData.darkMode);
+}
 
 function formatDailyTitle(fmt, date) {
     var pad = function(n) { return n < 10 ? '0' + n : '' + n; };
@@ -654,6 +657,22 @@ function openAttachmentPreview(attId, name) {
             var img = document.createElement('img');
             img.src = _previewObjectUrl; img.alt = name; img.className = 'attachment-preview-media';
             body.appendChild(img);
+            // Apply transparent-image background.
+            if (window._resolveAndApplyEmbedBg) {
+                var previewImg = img;
+                var bg0 = window.resolveEmbedBg ? window.resolveEmbedBg() : null;
+                if (window._getEmbedBgMode && window._getEmbedBgMode() === 'dynamic') {
+                    previewImg.style.backgroundColor = bg0 || (window._themeEmbedBg ? window._themeEmbedBg() : '');
+                    var onDyn = function () {
+                        var dyn = window._analyzeContrastBg ? window._analyzeContrastBg(previewImg) : null;
+                        if (dyn) previewImg.style.backgroundColor = dyn;
+                    };
+                    if (previewImg.complete && previewImg.naturalWidth) onDyn();
+                    else previewImg.addEventListener('load', onDyn, { once: true });
+                } else {
+                    previewImg.style.backgroundColor = bg0 || '';
+                }
+            }
         } else if (cls === 'video') {
             var vid = document.createElement('video');
             vid.src = _previewObjectUrl; vid.controls = true; vid.className = 'attachment-preview-media';
@@ -668,6 +687,9 @@ function openAttachmentPreview(attId, name) {
                     body.appendChild(canvas);
                     if (window._renderFldrawToCanvas) {
                         window._renderFldrawToCanvas(canvas, doc.strokes, doc.w || 0, doc.h || 0);
+                    }
+                    if (window._resolveAndApplyEmbedBg) {
+                        window._resolveAndApplyEmbedBg(canvas);
                     }
                 } else {
                     body.innerHTML = '<div class="attachment-preview-info">Empty drawing.</div>';
@@ -3508,6 +3530,9 @@ function toggleDarkMode() {
         icon.innerHTML = '<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>';
     } else {
         icon.innerHTML = '<circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>';
+    }
+    if (typeof window._setEmbedBgSettings === 'function') {
+        window._setEmbedBgSettings(_pageData.embedBgMode, _pageData.embedBgColor, !isDark);
     }
     if (!editMode) renderPreview();
     fetch('/api/save_dark_mode/' + (isDark ? 0 : 1));
