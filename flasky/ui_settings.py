@@ -187,6 +187,28 @@ REGISTRY: dict[str, SettingDef] = {
     "ai_vault_context_max_chars": SettingDef(
         "ai_vault_context_max_chars", 20000, int, _is_int_in_range(1000, 200000),
     ),
+    # Audio recording (optional). Off by default; the toolbar mic button and
+    # slash command are hidden unless audio_recording_enabled is on. The
+    # device_id is the MediaTrackConstraints.deviceId string from
+    # enumerateDevices() (empty = system default). mime_preference controls
+    # which MediaRecorder codec is selected when more than one is supported:
+    # "auto" picks the first supported of webm-opus → mp4-aac → browser
+    # default. The three processing toggles map 1:1 to getUserMedia audio
+    # constraints and default on (standard practice).
+    "audio_recording_enabled": SettingDef("audio_recording_enabled", False, bool),
+    "audio_device_id": SettingDef(
+        "audio_device_id", "", str, lambda v: isinstance(v, str) and len(v) <= 200,
+    ),
+    "audio_max_duration_min": SettingDef(
+        "audio_max_duration_min", 5, int, _is_int_in_range(1, 300),
+    ),
+    "audio_mime_preference": SettingDef(
+        "audio_mime_preference", "auto", str,
+        lambda v: v in ("auto", "webm-opus", "mp4-aac"),
+    ),
+    "audio_echo_cancellation": SettingDef("audio_echo_cancellation", True, bool),
+    "audio_noise_suppression": SettingDef("audio_noise_suppression", True, bool),
+    "audio_auto_gain_control": SettingDef("audio_auto_gain_control", True, bool),
 }
 
 # The CSS variables exposed in the customize UI (curated subset). The dark

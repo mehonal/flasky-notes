@@ -3875,6 +3875,7 @@ function openPalette() {
         editor: cmEditor,
         aiEnabled: !!(typeof _pageData !== 'undefined' && _pageData.aiEnabled),
         drawingEnabled: !!(typeof _pageData !== 'undefined' && _pageData.drawingEnabled),
+        audioEnabled: !!(typeof _pageData !== 'undefined' && _pageData.audioRecordingEnabled),
         onOpenNote: function (id) { openNote(id); },
         insertCallback: function (title) {
             if (!cmEditor) return;
@@ -3987,6 +3988,16 @@ document.addEventListener('keydown', function(e) {
     if (drawingEl) {
         if (e.key === 'Escape') { e.preventDefault(); if (window.closeDrawingModal) window.closeDrawingModal(); return; }
         if ((e.ctrlKey || e.metaKey) && e.key === 'z') { e.preventDefault(); var ub = drawingEl.querySelector('.drawing-undo-btn'); if (ub) ub.click(); return; }
+        return;
+    }
+    // Audio recording: Esc discards the in-progress recording. We don't bind
+    // a "save" hotkey because any unmodified letter (e.g. plain "s") must
+    // remain available for typing while a recording runs in the background.
+    // Stop+save is triggered by clicking the toolbar mic button or the
+    // floating recorder pill.
+    if (window.isAudioRecording && window.isAudioRecording() && e.key === 'Escape') {
+        e.preventDefault();
+        if (window._audioDiscard) window._audioDiscard();
         return;
     }
     // Template modals
@@ -4284,7 +4295,8 @@ function _slashAllCommands() {
     if (typeof FlaskyCommands === 'undefined') return [];
     var aiEnabled = !!(typeof _pageData !== 'undefined' && _pageData.aiEnabled);
     var drawingEnabled = !!(typeof _pageData !== 'undefined' && _pageData.drawingEnabled);
-    var all = FlaskyCommands.getCommands('editor', { aiEnabled: aiEnabled, drawingEnabled: drawingEnabled });
+    var audioEnabled = !!(typeof _pageData !== 'undefined' && _pageData.audioRecordingEnabled);
+    var all = FlaskyCommands.getCommands('editor', { aiEnabled: aiEnabled, drawingEnabled: drawingEnabled, audioEnabled: audioEnabled });
     return all.filter(function (cmd) { return cmd.editorOnly; });
 }
 
@@ -4894,6 +4906,9 @@ document.addEventListener('click', function(e) {
         case 'open-search': openPalette(); break;
         case 'open-daily-note': openDailyNote(); break;
         case 'open-drawing': openDrawingForNew(); break;
+        case 'toggle-audio-record':
+            if (window.toggleAudioRecord) window.toggleAudioRecord();
+            break;
         case 'cal-prev-month': sidebarCalendarPrev(); break;
         case 'cal-next-month': sidebarCalendarNext(); break;
         case 'cal-open-day': sidebarCalendarOpenDay(parseInt(el.dataset.calDay, 10)); break;

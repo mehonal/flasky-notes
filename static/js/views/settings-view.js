@@ -206,8 +206,72 @@
                         showToast('Token copied to clipboard.');
                     }
                     break;
+                case 'audio-grant': audioGrantAccess(); break;
+                case 'audio-refresh-devices': audioRefreshDevices(); break;
             }
         });
+
+        // ============ Audio device enumeration ============
+        // The "Microphone" row in the Audio settings panel starts with a
+        // "Grant access" button. Clicking it triggers getUserMedia so the
+        // browser permission prompt fires; only after permission is granted
+        // can enumerateDevices() return device labels. The selected deviceId
+        // is sent as a plain form field on Save.
+        var audioGrantBtn = _root.querySelector('#audio-grant-btn');
+        var audioDeviceSelect = _root.querySelector('#audio-device-id');
+        var audioRefreshBtn = _root.querySelector('#audio-refresh-devices');
+
+        async function audioGrantAccess() {
+            if (!audioGrantBtn) return;
+            audioGrantBtn.disabled = true;
+            audioGrantBtn.textContent = 'Requesting...';
+            try {
+                var stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                stream.getTracks().forEach(function (t) { t.stop(); });
+                await audioPopulateDevices();
+                audioGrantBtn.hidden = true;
+                if (audioDeviceSelect) audioDeviceSelect.hidden = false;
+                if (audioRefreshBtn) audioRefreshBtn.hidden = false;
+            } catch (e) {
+                audioGrantBtn.disabled = false;
+                audioGrantBtn.textContent = 'Grant access & list devices';
+                if (e && e.name === 'NotAllowedError') {
+                    showToast('Microphone permission denied.');
+                } else {
+                    showToast('Could not access microphone: ' + (e && e.message ? e.message : e));
+                }
+            }
+        }
+
+        async function audioRefreshDevices() {
+            if (!audioDeviceSelect) return;
+            try { await audioPopulateDevices(); }
+            catch (e) { showToast('Could not list devices.'); }
+        }
+
+        async function audioPopulateDevices() {
+            if (!audioDeviceSelect || !navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) return;
+            var devices = await navigator.mediaDevices.enumerateDevices();
+            var mics = devices.filter(function (d) { return d.kind === 'audioinput'; });
+            var saved = audioDeviceSelect.dataset.saved || audioDeviceSelect.value || '';
+            // Preserve the "System default" option (value=""), rebuild the rest.
+            var opts = ['<option value="">System default</option>'];
+            mics.forEach(function (m) {
+                var label = m.label || ('Device ' + (m.deviceId || '').slice(0, 8));
+                var sel = (m.deviceId && m.deviceId === saved) ? ' selected' : '';
+                opts.push('<option value="' + (m.deviceId || '') + '"' + sel + '>' + escapeHtml(label) + '</option>');
+            });
+            audioDeviceSelect.innerHTML = opts.join('');
+        }
+
+        // If a device was previously selected, permission is already granted —
+        // try to populate the dropdown with labeled devices on init without a
+        // user gesture. If labels come back empty (permission not granted yet,
+        // or the browser requires a gesture), the user can click the grant
+        // button to trigger the permission prompt. No-op if the API is missing.
+        if (audioDeviceSelect && !audioDeviceSelect.hidden) {
+            audioPopulateDevices().catch(function () {});
+        }
 
         // ============ Change password / recovery key ============
         var settingsDataEl = document.getElementById('settings-encryption-data');

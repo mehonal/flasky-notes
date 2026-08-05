@@ -1688,3 +1688,45 @@ body[data-encrypted="true"] .prop-value-input { visibility: hidden; }
 .cm6-embed { display:block; max-width:100%; border-radius:6px; }
 .cm6-embed.fldraw-render { min-height:40px; }
 .cm6-embed-unresolved { color:var(--text-muted); font-style:italic; }
+
+/* ============ Audio recorder (toolbar mic button) ============ */
+#audio-record-btn { position:relative; }
+#audio-record-btn .audio-record-timer {
+    font-size:11px; font-variant-numeric:tabular-nums; margin-left:4px;
+    color:var(--red); font-weight:600; letter-spacing:0.02em;
+}
+#audio-record-btn.recording { color:var(--red); background:rgba(243,139,168,0.12); }
+#audio-record-btn.recording .audio-record-icon { animation:flasky-audio-pulse 1.5s ease-in-out infinite; }
+@keyframes flasky-audio-pulse {
+    0%,100% { fill:var(--red); opacity:1; }
+    50% { fill:var(--red); opacity:0.45; }
+}
+@media (prefers-reduced-motion: reduce) {
+    #audio-record-btn.recording .audio-record-icon { animation:none; }
+}
+
+/* Audio settings panel — mic grant / device row layout */
+.audio-device-control { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+.audio-device-control .setting-input { flex:1 1 200px; min-width:160px; }
+
+/* Floating recorder pill — appended to body so it survives editor detach
+   during SPA navigation. Visible only while recording is active. */
+.audio-record-pill {
+    position: fixed; bottom: 16px; right: 16px; z-index: 9999;
+    display: none; align-items: center; gap: 8px;
+    padding: 8px 14px; border-radius: 999px; cursor: pointer;
+    background: var(--bg-secondary); color: var(--text-primary);
+    border: 1px solid var(--red); box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+    font-size: 13px; font-weight: 500;
+}
+.audio-record-pill.visible { display: inline-flex; }
+.audio-record-pill:hover { background: var(--bg-hover); }
+.audio-record-pill-dot {
+    width: 10px; height: 10px; border-radius: 50%; background: var(--red);
+    animation: flasky-audio-pulse 1.5s ease-in-out infinite;
+}
+.audio-record-pill-timer { font-variant-numeric: tabular-nums; color: var(--red); font-weight: 600; }
+.audio-record-pill-hint { color: var(--text-muted); font-size: 11px; }
+@media (prefers-reduced-motion: reduce) {
+    .audio-record-pill-dot { animation: none; }
+}

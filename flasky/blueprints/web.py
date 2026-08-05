@@ -469,6 +469,22 @@ def settings_page():
             for field in ("attachment_max_width", "drawing_max_width"):
                 form_key = field.replace("_", "-")
                 set_setting(g.user, field, request.form.get(form_key, ""))
+            # Audio recording settings
+            set_setting(g.user, "audio_recording_enabled", "audio-recording-enabled" in request.form)
+            set_setting(g.user, "audio_echo_cancellation", "audio-echo-cancellation" in request.form)
+            set_setting(g.user, "audio_noise_suppression", "audio-noise-suppression" in request.form)
+            set_setting(g.user, "audio_auto_gain_control", "audio-auto-gain-control" in request.form)
+            device_id = (request.form.get("audio-device-id") or "").strip()
+            if len(device_id) <= 200:
+                set_setting(g.user, "audio_device_id", device_id)
+            try:
+                set_setting(g.user, "audio_max_duration_min", int(request.form.get("audio-max-duration-min", "5")))
+            except (TypeError, ValueError):
+                pass
+            mime_pref = request.form.get("audio-mime-preference", "auto")
+            if mime_pref not in ("auto", "webm-opus", "mp4-aac"):
+                mime_pref = "auto"
+            set_setting(g.user, "audio_mime_preference", mime_pref)
             db.session.commit()
         elif "save-editing" in request.form:
             for field in (

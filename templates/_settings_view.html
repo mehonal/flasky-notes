@@ -54,6 +54,10 @@
                 <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/></svg>
                 Appearance
             </button>
+            <button type="button" class="nav-item nav-item-btn" data-action="settings-tab" data-tab="audio">
+                <svg viewBox="0 0 24 24"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+                Audio
+            </button>
             <button type="button" class="nav-item nav-item-btn" data-action="settings-tab" data-tab="tokens">
                 <svg viewBox="0 0 24 24"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.778-7.778zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>
                 API Tokens
@@ -282,6 +286,90 @@
                                     <input name="drawing-max-width" id="drawing-max-width" class="setting-input" type="text" value="{{ ui_settings.drawing_max_width }}" placeholder="0" maxlength="10">
                                 </div>
                                 <div class="setting-desc">Maximum render width for embedded <code>.fldraw</code> drawings. Enter a number (pixels), <code>Npx</code>, or <code>N%</code>. Empty or <code>0</code> = full container width (default).</div>
+                            </div>
+                            <div class="setting-row">
+                                <button name="update-ui-settings" class="btn-sm primary" type="submit">Save settings</button>
+                            </div>
+                            <div class="setting-hint">Saving refreshes the page to apply changes.</div>
+                    </div>
+                </div>
+
+                <!-- Audio -->
+                <div class="panel" data-tab="audio" hidden>
+                    <div class="panel-header">
+                        <div class="panel-title">
+                            <svg viewBox="0 0 24 24"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+                            Audio
+                        </div>
+                    </div>
+                    <div class="panel-body">
+                            <div class="setting-row has-desc">
+                                <span class="setting-label">Recording enabled</span>
+                                <div class="setting-control">
+                                    <div class="toggle {% if ui_settings.audio_recording_enabled %}on{% endif %}" data-toggle="audio-recording-enabled">
+                                        <input type="checkbox" id="audio-recording-enabled" name="audio-recording-enabled" value="1" {% if ui_settings.audio_recording_enabled %}checked{% endif %}>
+                                    </div>
+                                </div>
+                                <div class="setting-desc">Show a microphone button in the editor toolbar. Recordings are encrypted client-side and embedded into the note as <code>![[audio-*.weba]]</code> — the same E2EE attachment pipeline as images and drawings.</div>
+                            </div>
+                            <div class="setting-row has-desc">
+                                <span class="setting-label">Microphone</span>
+                                <div class="setting-control audio-device-control">
+                                    <button type="button" class="btn-sm" id="audio-grant-btn" data-action="audio-grant">Grant access &amp; list devices</button>
+                                    <select name="audio-device-id" id="audio-device-id" class="setting-input" data-saved="{{ ui_settings.audio_device_id }}"{% if not ui_settings.audio_device_id %} hidden{% endif %}>
+                                        <option value="">System default</option>
+                                        {% if ui_settings.audio_device_id %}
+                                        <option value="{{ ui_settings.audio_device_id }}" selected>{{ ui_settings.audio_device_id }}</option>
+                                        {% endif %}
+                                    </select>
+                                    <button type="button" class="btn-sm" id="audio-refresh-devices" data-action="audio-refresh-devices" {% if not ui_settings.audio_device_id %}hidden{% endif %}>Refresh</button>
+                                </div>
+                                <div class="setting-desc">Browser microphone permission is required before devices can be listed. The selected device is remembered; pick <em>System default</em> to clear.</div>
+                            </div>
+                            <div class="setting-row has-desc">
+                                <label class="setting-label" for="audio-max-duration-min">Max recording duration</label>
+                                <div class="setting-control">
+                                    <input name="audio-max-duration-min" id="audio-max-duration-min" class="setting-input" type="number" min="1" max="300" value="{{ ui_settings.audio_max_duration_min }}" maxlength="4">
+                                </div>
+                                <div class="setting-desc">Minutes. Recording stops automatically when the limit is reached (1–300, default 5). 300 = 5 hours.</div>
+                            </div>
+                            <div class="setting-row has-desc">
+                                <label class="setting-label" for="audio-mime-preference">Output format</label>
+                                <div class="setting-control">
+                                    <select name="audio-mime-preference" id="audio-mime-preference" class="setting-input">
+                                        <option value="auto" {% if ui_settings.audio_mime_preference == 'auto' %}selected{% endif %}>Auto (best available)</option>
+                                        <option value="webm-opus" {% if ui_settings.audio_mime_preference == 'webm-opus' %}selected{% endif %}>WebM / Opus (.weba)</option>
+                                        <option value="mp4-aac" {% if ui_settings.audio_mime_preference == 'mp4-aac' %}selected{% endif %}>MP4 / AAC (.m4a)</option>
+                                    </select>
+                                </div>
+                                <div class="setting-desc">Chosen only if your browser supports it; otherwise Auto falls back. Safari typically produces .m4a, Chrome/Firefox .weba.</div>
+                            </div>
+                            <div class="setting-row has-desc">
+                                <span class="setting-label">Echo cancellation</span>
+                                <div class="setting-control">
+                                    <div class="toggle {% if ui_settings.audio_echo_cancellation %}on{% endif %}" data-toggle="audio-echo-cancellation">
+                                        <input type="checkbox" id="audio-echo-cancellation" name="audio-echo-cancellation" value="1" {% if ui_settings.audio_echo_cancellation %}checked{% endif %}>
+                                    </div>
+                                </div>
+                                <div class="setting-desc">Standard <code>getUserMedia</code> audio constraint. Recommended on for headset-free recording.</div>
+                            </div>
+                            <div class="setting-row has-desc">
+                                <span class="setting-label">Noise suppression</span>
+                                <div class="setting-control">
+                                    <div class="toggle {% if ui_settings.audio_noise_suppression %}on{% endif %}" data-toggle="audio-noise-suppression">
+                                        <input type="checkbox" id="audio-noise-suppression" name="audio-noise-suppression" value="1" {% if ui_settings.audio_noise_suppression %}checked{% endif %}>
+                                    </div>
+                                </div>
+                                <div class="setting-desc">Suppresses background noise. Disable for music / high-fidelity capture.</div>
+                            </div>
+                            <div class="setting-row has-desc">
+                                <span class="setting-label">Auto gain control</span>
+                                <div class="setting-control">
+                                    <div class="toggle {% if ui_settings.audio_auto_gain_control %}on{% endif %}" data-toggle="audio-auto-gain-control">
+                                        <input type="checkbox" id="audio-auto-gain-control" name="audio-auto-gain-control" value="1" {% if ui_settings.audio_auto_gain_control %}checked{% endif %}>
+                                    </div>
+                                </div>
+                                <div class="setting-desc">Normalizes loudness automatically. Disable for manual gain staging.</div>
                             </div>
                             <div class="setting-row">
                                 <button name="update-ui-settings" class="btn-sm primary" type="submit">Save settings</button>

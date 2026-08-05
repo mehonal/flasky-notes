@@ -27,6 +27,7 @@
     <script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='js/wikilinks.js') }}"></script>
     <script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='js/icon-picker.js') }}"></script>
     <script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='js/drawing.js') }}"></script>
+    <script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='js/audio-recorder.js') }}"></script>
     <link rel="stylesheet" href="{{ url_for('static', filename='vendor/hljs/styles/github-dark.min.css') }}" id="hljs-dark">
     <link rel="stylesheet" href="{{ url_for('static', filename='vendor/hljs/styles/github.min.css') }}" id="hljs-light" disabled>
     <script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='vendor/hljs/highlight.min.js') }}"></script>
@@ -176,6 +177,13 @@
         "panelWidgets": {{ panel_widgets | tojson }},
         "aiEnabled": {% if g.user and g.user.settings and g.user.settings.ai_enabled %}true{% else %}false{% endif %},
         "drawingEnabled": {% if ui_settings and ui_settings.drawing_enabled %}true{% else %}false{% endif %},
+        "audioRecordingEnabled": {% if ui_settings and ui_settings.audio_recording_enabled %}true{% else %}false{% endif %},
+        "audioDeviceId": {{ (ui_settings.audio_device_id if ui_settings else '') | tojson }},
+        "audioMaxDurationMin": {{ (ui_settings.audio_max_duration_min if ui_settings else 5) }},
+        "audioMimePreference": {{ (ui_settings.audio_mime_preference if ui_settings else 'auto') | tojson }},
+        "audioEchoCancellation": {% if ui_settings and ui_settings.audio_echo_cancellation %}true{% else %}false{% endif %},
+        "audioNoiseSuppression": {% if ui_settings and ui_settings.audio_noise_suppression %}true{% else %}false{% endif %},
+        "audioAutoGainControl": {% if ui_settings and ui_settings.audio_auto_gain_control %}true{% else %}false{% endif %},
         "attachmentMaxWidth": {{ (ui_settings.attachment_max_width if ui_settings else '') | tojson }},
         "drawingMaxWidth": {{ (ui_settings.drawing_max_width if ui_settings else '') | tojson }},
         "attachmentsFolderEnabled": {% if ui_settings and ui_settings.attachments_folder_enabled %}true{% else %}false{% endif %},

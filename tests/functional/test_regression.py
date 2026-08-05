@@ -173,6 +173,96 @@ def test_settings_attachments_panel_and_persistence(app_context):
     assert get_setting(user, "drawing_max_width") == "250px"
 
 
+def test_settings_audio_panel_and_persistence(app_context):
+    """The Audio settings tab renders and persists the seven audio settings."""
+    from flasky.models import User
+    from flasky.ui_settings import get_setting
+    client = app_context.test_client()
+    make_e2ee_user(client, "audiosettings", "testpassword123")
+
+    # The settings fragment should render the Audio nav + panel + fields.
+    r = client.get("/settings?_fragment=1")
+    assert r.status_code == 200
+    body = r.get_data(as_text=True)
+    assert 'data-tab="audio"' in body
+    assert 'name="audio-recording-enabled"' in body
+    assert 'name="audio-device-id"' in body
+    assert 'name="audio-max-duration-min"' in body
+    assert 'name="audio-mime-preference"' in body
+    assert 'name="audio-echo-cancellation"' in body
+    assert 'name="audio-noise-suppression"' in body
+    assert 'name="audio-auto-gain-control"' in body
+
+    # Defaults before any POST: recording off, processing toggles on.
+    user = User.query.filter_by(username="audiosettings").first()
+    assert get_setting(user, "audio_recording_enabled") is False
+    assert get_setting(user, "audio_echo_cancellation") is True
+    assert get_setting(user, "audio_noise_suppression") is True
+    assert get_setting(user, "audio_auto_gain_control") is True
+    assert get_setting(user, "audio_max_duration_min") == 5
+    assert get_setting(user, "audio_mime_preference") == "auto"
+    assert get_setting(user, "audio_device_id") == ""
+
+    # POST: turn recording on, set all fields.
+    r = client.post(
+        "/settings",
+        data={
+            "update-ui-settings": "Save settings",
+            "audio-recording-enabled": "1",
+            "audio-device-id": "default-device-xyz",
+            "audio-max-duration-min": "10",
+            "audio-mime-preference": "webm-opus",
+            "audio-echo-cancellation": "1",
+            "audio-noise-suppression": "1",
+            "audio-auto-gain-control": "1",
+        },
+        follow_redirects=True,
+    )
+    assert r.status_code == 200
+    assert get_setting(user, "audio_recording_enabled") is True
+    assert get_setting(user, "audio_device_id") == "default-device-xyz"
+    assert get_setting(user, "audio_max_duration_min") == 10
+    assert get_setting(user, "audio_mime_preference") == "webm-opus"
+    assert get_setting(user, "audio_echo_cancellation") is True
+
+    # Omitting the recording toggle (unchecked checkbox) turns it back off;
+    # the processing toggles also go off when omitted.
+    r = client.post(
+        "/settings",
+        data={
+            "update-ui-settings": "Save settings",
+            "audio-device-id": "",
+            "audio-max-duration-min": "5",
+            "audio-mime-preference": "auto",
+        },
+        follow_redirects=True,
+    )
+    assert r.status_code == 200
+    assert get_setting(user, "audio_recording_enabled") is False
+    assert get_setting(user, "audio_echo_cancellation") is False
+    assert get_setting(user, "audio_noise_suppression") is False
+    assert get_setting(user, "audio_auto_gain_control") is False
+    assert get_setting(user, "audio_device_id") == ""
+
+    # Out-of-range duration and invalid mime are rejected silently (validator
+    # falls back without overwriting). max_duration_min must stay in [1,300].
+    r = client.post(
+        "/settings",
+        data={
+            "update-ui-settings": "Save settings",
+            "audio-max-duration-min": "99999",
+            "audio-mime-preference": "bogus",
+        },
+        follow_redirects=True,
+    )
+    assert r.status_code == 200
+    # "bogus" was coerced to "auto" by the handler (reject-then-default path).
+    assert get_setting(user, "audio_mime_preference") == "auto"
+    # 99999 fails _is_int_in_range(1,300) so the validator in set_setting
+    # rejects it and the previous value (5) is preserved.
+    assert get_setting(user, "audio_max_duration_min") == 5
+
+
 # === Attachment deletion endpoints ===
 
 

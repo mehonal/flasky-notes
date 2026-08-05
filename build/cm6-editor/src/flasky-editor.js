@@ -163,6 +163,38 @@ const wikilinkPlugin = ViewPlugin.fromClass(class {
 // window._decryptAttachments) so the server never sees plaintext.
 const IMAGE_EXT = /\.(png|jpg|jpeg|gif|svg|webp|bmp)$/i;
 const FLDRAW_EXT = /\.fldraw$/i;
+const AUDIO_EXT = /\.(mp3|wav|flac|m4a|weba|opus|ogg)$/i;
+
+// Cache of <audio> elements keyed by attachment id. CM6 live-preview widgets
+// are destroyed and rebuilt whenever the cursor enters/leaves their line; if
+// we created a fresh <audio> on each toDOM() the user would lose playback
+// position and the playing state every time they cursor onto/off the line.
+// Instead we keep one <audio> element per attachment and re-attach the same
+// DOM node into each new widget holder. A detached <audio> keeps its
+// currentTime and paused state; re-attaching resumes seamlessly. The cache
+// is invalidated by wikilinks.js when the note map is invalidated.
+var _audioElementCache = {};
+function _getAudioElement(att) {
+  var key = String(att.id);
+  var el = _audioElementCache[key];
+  if (el) return el;
+  el = document.createElement('audio');
+  el.controls = true;
+  el.className = 'e2ee-attachment cm6-embed';
+  el.setAttribute('data-encrypted-src', '/attachment/' + att.id + '/' + encodeURIComponent(att.filename));
+  el.setAttribute('data-att-filename', att.filename);
+  _audioElementCache[key] = el;
+  return el;
+}
+// Exposed so wikilinks.js can revoke + clear the cache when attachments are
+// deleted or the note map is invalidated.
+window._clearAudioElementCache = function () {
+  Object.keys(_audioElementCache).forEach(function (k) {
+    var el = _audioElementCache[k];
+    try { el.pause(); el.src = ''; } catch (e) {}
+  });
+  _audioElementCache = {};
+};
 
 class EmbedWidget extends WidgetType {
   constructor(name, att, fallbackText) {
@@ -229,7 +261,28 @@ class EmbedWidget extends WidgetType {
       return holder;
     }
 
-    // Non-image/non-fldraw embeds fall back to a link (matches preview mode).
+    if (AUDIO_EXT.test(filename)) {
+      // Reuse a cached <audio> element so playback position and playing
+      // state survive widget destroy/recreate (cursor moving on/off the
+      // line). appendChild on an already-attached node just moves it, so
+      // this works whether the element is fresh or detached from a prior
+      // holder. A detached <audio> keeps its currentTime and paused state.
+      var aud = _getAudioElement(this.att);
+      holder.appendChild(aud);
+      // Only trigger decryption on first use; if the src is already a
+      // blob: URL the decrypt pass is a no-op (data-encrypted-src removed).
+      if (window._decryptAttachments && aud.getAttribute('data-encrypted-src')) {
+        window._decryptAttachments(holder);
+      } else if (window._getCachedBlobUrl) {
+        // Restore cached blob URL synchronously if available (re-render
+        // after the async decrypt already completed on a prior render).
+        var cached = window._getCachedBlobUrl(this.att.id);
+        if (cached && !aud.src) aud.src = cached;
+      }
+      return holder;
+    }
+
+    // Non-embeddable attachments fall back to a link (matches preview mode).
     var a = document.createElement('a');
     a.href = url;
     a.textContent = this.name;
@@ -256,7 +309,7 @@ function _embedDeco(raw) {
     att = maps.attachments[name.toLowerCase().trim()];
   }
   if (att) {
-    if (!IMAGE_EXT.test(att.filename) && !FLDRAW_EXT.test(att.filename)) {
+    if (!IMAGE_EXT.test(att.filename) && !FLDRAW_EXT.test(att.filename) && !AUDIO_EXT.test(att.filename)) {
       att = null;
     }
   }

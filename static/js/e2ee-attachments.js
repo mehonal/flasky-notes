@@ -43,7 +43,8 @@
         gif: 'image/gif', svg: 'image/svg+xml', webp: 'image/webp',
         mp4: 'video/mp4', webm: 'video/webm', ogg: 'video/ogg',
         mp3: 'audio/mpeg', wav: 'audio/wav', flac: 'audio/flac',
-        m4a: 'audio/mp4', pdf: 'application/pdf',
+        m4a: 'audio/mp4', weba: 'audio/webm', opus: 'audio/webm',
+        pdf: 'application/pdf',
     };
 
     function mimeForName(name) {

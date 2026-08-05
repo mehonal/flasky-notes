@@ -13,6 +13,28 @@
     var _loadResolve = null;
     var _loadXhr = null;
 
+    // Cache decrypted blob URLs by attachment id so re-renders (CM6 live
+    // preview widgets being torn down and rebuilt as the cursor moves on/off
+    // their line) don't re-fetch + re-decrypt the same bytes. Each entry is a
+    // blob: URL that stays valid for the page lifetime.
+    var _blobUrlCache = {};
+
+    function _mimeForFilename(filename) {
+        if (filename.match(/\.(png)$/i)) return 'image/png';
+        if (filename.match(/\.(jpg|jpeg)$/i)) return 'image/jpeg';
+        if (filename.match(/\.(gif)$/i)) return 'image/gif';
+        if (filename.match(/\.(svg)$/i)) return 'image/svg+xml';
+        if (filename.match(/\.(webp)$/i)) return 'image/webp';
+        if (filename.match(/\.(mp4)$/i)) return 'video/mp4';
+        if (filename.match(/\.(webm)$/i)) return 'video/webm';
+        if (filename.match(/\.(mp3)$/i)) return 'audio/mpeg';
+        if (filename.match(/\.(wav)$/i)) return 'audio/wav';
+        if (filename.match(/\.(flac)$/i)) return 'audio/flac';
+        if (filename.match(/\.(m4a)$/i)) return 'audio/mp4';
+        if (filename.match(/\.(weba|opus)$/i)) return 'audio/webm';
+        return 'application/octet-stream';
+    }
+
     // Max render widths for embedded attachments / drawings. Set from app.js
     // via _setEmbedMaxWidths() using values from the page-data block. Values
     // are normalized CSS strings ("300px", "50%") or null (= full width).
@@ -150,7 +172,7 @@
                     return '<img data-encrypted-src="' + url + '" data-att-filename="' + att.filename + '" alt="' + name + '" style="max-width:' + (_attachmentMaxWidth || '100%') + '" class="e2ee-attachment">';
                 } else if (att.filename.match(/\.(mp4|webm|ogg)$/i)) {
                     return '<video controls data-encrypted-src="' + url + '" class="e2ee-attachment" style="max-width:' + (_attachmentMaxWidth || '100%') + '"></video>';
-                } else if (att.filename.match(/\.(mp3|wav|flac|m4a)$/i)) {
+                } else if (att.filename.match(/\.(mp3|wav|flac|m4a|weba|opus)$/i)) {
                     return '<audio controls data-encrypted-src="' + url + '" class="e2ee-attachment"></audio>';
                 } else if (att.filename.match(/\.pdf$/i)) {
                     return '<a href="' + url + '" target="_blank">' + name + '</a>';
@@ -185,23 +207,27 @@
             var url = el.getAttribute('data-encrypted-src');
             if (!url) continue;
             el.removeAttribute('data-encrypted-src');
+            // Derive attachment id from the URL (/attachment/<id>/...) so we
+            // can cache the decrypted blob URL and reuse it across re-renders
+            // (CM6 live-preview widgets are destroyed/recreated when the
+            // cursor enters/leaves their line — without caching each re-render
+            // would re-fetch + re-decrypt the same bytes).
+            var attId = null;
+            var m = url.match(/\/attachment\/(\d+)\//);
+            if (m) attId = m[1];
             try {
-                var resp = await fetch(url);
-                var encryptedData = await resp.arrayBuffer();
-                var decrypted = await FlaskyE2EE.decryptBlob(new Uint8Array(encryptedData));
-                var filename = el.getAttribute('data-att-filename') || '';
-                var mime = 'application/octet-stream';
-                if (filename.match(/\.(png)$/i)) mime = 'image/png';
-                else if (filename.match(/\.(jpg|jpeg)$/i)) mime = 'image/jpeg';
-                else if (filename.match(/\.(gif)$/i)) mime = 'image/gif';
-                else if (filename.match(/\.(svg)$/i)) mime = 'image/svg+xml';
-                else if (filename.match(/\.(webp)$/i)) mime = 'image/webp';
-                else if (filename.match(/\.(mp4)$/i)) mime = 'video/mp4';
-                else if (filename.match(/\.(webm)$/i)) mime = 'video/webm';
-                else if (filename.match(/\.(mp3)$/i)) mime = 'audio/mpeg';
-                else if (filename.match(/\.(wav)$/i)) mime = 'audio/wav';
-                var blob = new Blob([decrypted], { type: mime });
-                el.src = URL.createObjectURL(blob);
+                var blobUrl = attId ? _blobUrlCache[attId] : null;
+                if (!blobUrl) {
+                    var resp = await fetch(url);
+                    var encryptedData = await resp.arrayBuffer();
+                    var decrypted = await FlaskyE2EE.decryptBlob(new Uint8Array(encryptedData));
+                    var filename = el.getAttribute('data-att-filename') || '';
+                    var mime = _mimeForFilename(filename);
+                    var blob = new Blob([decrypted], { type: mime });
+                    blobUrl = URL.createObjectURL(blob);
+                    if (attId) _blobUrlCache[attId] = blobUrl;
+                }
+                el.src = blobUrl;
             } catch (e) {
                 console.warn('E2EE: failed to decrypt attachment', url, e);
             }
@@ -240,6 +266,13 @@
     };
 
     window._decryptAttachments = decryptAttachmentElements;
+
+    // Look up a cached blob URL for an attachment id (or null if not yet
+    // decrypted). Used by the CM6 audio widget to restore playback position
+    // synchronously on re-render without waiting for the async decrypt pass.
+    window._getCachedBlobUrl = function (attId) {
+        return attId != null ? _blobUrlCache[String(attId)] || null : null;
+    };
     window._flushPendingNoteMap = _flushPending;
 
     // Expose the resolved attachment/note maps so the CM6 edit-mode embed
@@ -256,6 +289,16 @@
         if (_loadXhr) { try { _loadXhr.abort(); } catch(e) {} _loadXhr = null; }
         if (_loadResolve) { _loadResolve(); _loadResolve = null; }
         _loadPromise = null;
+        // Revoke cached blob URLs so they don't outlive the attachments they
+        // point to (attachments can be deleted / replaced between notes).
+        Object.keys(_blobUrlCache).forEach(function (k) {
+            try { URL.revokeObjectURL(_blobUrlCache[k]); } catch (e) {}
+        });
+        _blobUrlCache = {};
+        // Also clear the CM6 cached <audio> elements (their blob srcs are
+        // about to be revoked by the loop above, so any playing audio should
+        // stop and the elements be discarded).
+        if (window._clearAudioElementCache) window._clearAudioElementCache();
         if (window.FlaskyAttachments && typeof window.FlaskyAttachments.invalidateAttachmentIndex === 'function') {
             window.FlaskyAttachments.invalidateAttachmentIndex();
         }

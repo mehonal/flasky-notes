@@ -24,6 +24,7 @@
         { label: 'Table', icon: '||', editorOnly: true, run: _insert('| Column 1 | Column 2 |\n| --- | --- |\n|  |  |\n') },
         { label: 'Checkbox list', icon: '[]', editorOnly: true, run: _insert('- [ ] ') },
         { label: 'Drawing', icon: '\u270F', editorOnly: true, run: function () { _call('openDrawingForNew'); } },
+        { label: 'Audio recording', icon: '\u25CE', editorOnly: true, run: function () { _call('toggleAudioRecord'); } },
         { label: 'Bullet list', icon: '-', editorOnly: true, run: _insert('- ') },
         { label: 'Numbered list', icon: '1.', editorOnly: true, run: _insert('1. ') },
         { label: 'Date (today)', icon: 'D', editorOnly: true, run: _insertDate },
@@ -98,6 +99,9 @@
             list = list.concat(_editorCommands);
             if (!opts.drawingEnabled) {
                 list = list.filter(function (cmd) { return cmd.label !== 'Drawing'; });
+            }
+            if (!opts.audioEnabled) {
+                list = list.filter(function (cmd) { return cmd.label !== 'Audio recording'; });
             }
             if (opts.aiEnabled) list = list.concat(_aiCommands);
         }
