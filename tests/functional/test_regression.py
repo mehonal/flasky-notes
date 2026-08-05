@@ -263,6 +263,72 @@ def test_settings_audio_panel_and_persistence(app_context):
     assert get_setting(user, "audio_max_duration_min") == 5
 
 
+def test_settings_links_panel_and_persistence(app_context):
+    """The Links settings tab renders and persists the five link-suggest settings."""
+    from flasky.models import User
+    from flasky.ui_settings import get_setting
+    client = app_context.test_client()
+    make_e2ee_user(client, "linksettings", "testpassword123")
+
+    # The settings fragment should render the Links nav + panel + fields.
+    r = client.get("/settings?_fragment=1")
+    assert r.status_code == 200
+    body = r.get_data(as_text=True)
+    assert 'data-tab="links"' in body
+    assert 'name="autosuggest-note-links"' in body
+    assert 'name="autosuggest-min-chars"' in body
+    assert 'name="autosuggest-result-cap"' in body
+    assert 'name="autosuggest-algorithm"' in body
+    assert 'name="autosuggest-show-category"' in body
+
+    # Defaults before any POST: master toggle off, min 2, cap 5, algo title_prefix, no category.
+    user = User.query.filter_by(username="linksettings").first()
+    assert get_setting(user, "autosuggest_note_links") is False
+    assert get_setting(user, "autosuggest_min_chars") == 2
+    assert get_setting(user, "autosuggest_result_cap") == 5
+    assert get_setting(user, "autosuggest_algorithm") == "title_prefix"
+    assert get_setting(user, "autosuggest_show_category") is False
+
+    # POST: turn everything on and bump the numeric knobs.
+    r = client.post(
+        "/settings",
+        data={
+            "save-links": "Save links",
+            "autosuggest-note-links": "1",
+            "autosuggest-min-chars": "3",
+            "autosuggest-result-cap": "10",
+            "autosuggest-algorithm": "title_substring",
+            "autosuggest-show-category": "1",
+        },
+        follow_redirects=True,
+    )
+    assert r.status_code == 200
+    assert get_setting(user, "autosuggest_note_links") is True
+    assert get_setting(user, "autosuggest_min_chars") == 3
+    assert get_setting(user, "autosuggest_result_cap") == 10
+    assert get_setting(user, "autosuggest_algorithm") == "title_substring"
+    assert get_setting(user, "autosuggest_show_category") is True
+
+    # Omitting the toggles (unchecked checkboxes) turns them back off;
+    # out-of-range numerics fall back to the floor; bad algo -> title_prefix.
+    r = client.post(
+        "/settings",
+        data={
+            "save-links": "Save links",
+            "autosuggest-min-chars": "1",
+            "autosuggest-result-cap": "999",
+            "autosuggest-algorithm": "bogus",
+        },
+        follow_redirects=True,
+    )
+    assert r.status_code == 200
+    assert get_setting(user, "autosuggest_note_links") is False
+    assert get_setting(user, "autosuggest_min_chars") == 2
+    assert get_setting(user, "autosuggest_result_cap") == 1
+    assert get_setting(user, "autosuggest_algorithm") == "title_prefix"
+    assert get_setting(user, "autosuggest_show_category") is False
+
+
 # === Attachment deletion endpoints ===
 
 

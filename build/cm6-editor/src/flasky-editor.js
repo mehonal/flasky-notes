@@ -165,37 +165,6 @@ const IMAGE_EXT = /\.(png|jpg|jpeg|gif|svg|webp|bmp)$/i;
 const FLDRAW_EXT = /\.fldraw$/i;
 const AUDIO_EXT = /\.(mp3|wav|flac|m4a|weba|opus|ogg)$/i;
 
-// Cache of <audio> elements keyed by attachment id. CM6 live-preview widgets
-// are destroyed and rebuilt whenever the cursor enters/leaves their line; if
-// we created a fresh <audio> on each toDOM() the user would lose playback
-// position and the playing state every time they cursor onto/off the line.
-// Instead we keep one <audio> element per attachment and re-attach the same
-// DOM node into each new widget holder. A detached <audio> keeps its
-// currentTime and paused state; re-attaching resumes seamlessly. The cache
-// is invalidated by wikilinks.js when the note map is invalidated.
-var _audioElementCache = {};
-function _getAudioElement(att) {
-  var key = String(att.id);
-  var el = _audioElementCache[key];
-  if (el) return el;
-  el = document.createElement('audio');
-  el.controls = true;
-  el.className = 'e2ee-attachment cm6-embed';
-  el.setAttribute('data-encrypted-src', '/attachment/' + att.id + '/' + encodeURIComponent(att.filename));
-  el.setAttribute('data-att-filename', att.filename);
-  _audioElementCache[key] = el;
-  return el;
-}
-// Exposed so wikilinks.js can revoke + clear the cache when attachments are
-// deleted or the note map is invalidated.
-window._clearAudioElementCache = function () {
-  Object.keys(_audioElementCache).forEach(function (k) {
-    var el = _audioElementCache[k];
-    try { el.pause(); el.src = ''; } catch (e) {}
-  });
-  _audioElementCache = {};
-};
-
 class EmbedWidget extends WidgetType {
   constructor(name, att, fallbackText) {
     super();
@@ -262,22 +231,28 @@ class EmbedWidget extends WidgetType {
     }
 
     if (AUDIO_EXT.test(filename)) {
-      // Reuse a cached <audio> element so playback position and playing
-      // state survive widget destroy/recreate (cursor moving on/off the
-      // line). appendChild on an already-attached node just moves it, so
-      // this works whether the element is fresh or detached from a prior
-      // holder. A detached <audio> keeps its currentTime and paused state.
-      var aud = _getAudioElement(this.att);
-      holder.appendChild(aud);
-      // Only trigger decryption on first use; if the src is already a
-      // blob: URL the decrypt pass is a no-op (data-encrypted-src removed).
-      if (window._decryptAttachments && aud.getAttribute('data-encrypted-src')) {
-        window._decryptAttachments(holder);
-      } else if (window._getCachedBlobUrl) {
-        // Restore cached blob URL synchronously if available (re-render
-        // after the async decrypt already completed on a prior render).
-        var cached = window._getCachedBlobUrl(this.att.id);
-        if (cached && !aud.src) aud.src = cached;
+      var audioMw = window._getEmbedMaxWidths ? window._getEmbedMaxWidths().img : null;
+      var player;
+      if (window.FlaskyAudioPlayer) {
+        player = window.FlaskyAudioPlayer.create(this.att);
+        if (audioMw) player.style.maxWidth = audioMw;
+        holder.appendChild(player);
+        var aud = player.querySelector('audio');
+        if (window._decryptAttachments && aud && aud.getAttribute('data-encrypted-src')) {
+          window._decryptAttachments(holder);
+        } else if (window._getCachedBlobUrl) {
+          var cached = window._getCachedBlobUrl(this.att.id);
+          if (cached && aud && !aud.src) aud.src = cached;
+        }
+      } else {
+        var fallback = document.createElement('audio');
+        fallback.controls = true;
+        fallback.className = 'e2ee-attachment cm6-embed';
+        fallback.setAttribute('data-encrypted-src', url);
+        fallback.setAttribute('data-att-filename', filename);
+        if (audioMw) fallback.style.maxWidth = audioMw;
+        holder.appendChild(fallback);
+        if (window._decryptAttachments) window._decryptAttachments(holder);
       }
       return holder;
     }
@@ -290,10 +265,13 @@ class EmbedWidget extends WidgetType {
     return holder;
   }
 
-  // Let clicks pass through to the attachment handlers wired up in app.js
-  // (.fldraw click opens the drawing modal via data-action delegation).
+  // For audio embeds, ignore all DOM events so clicks/keys on the custom
+  // player controls (play/pause, seek, volume) are handled by the player
+  // instead of interpreted as editor actions (cursor movement, selection).
+  // For image/fldraw embeds, let CM6 handle events normally (fldraw clicks
+  // are dispatched to the drawing modal via data-action delegation in app.js).
   ignoreEvent(event) {
-    return false;
+    return this.att ? AUDIO_EXT.test(this.att.filename) : false;
   }
 }
 

@@ -41,7 +41,7 @@
     var MIME_BY_EXT = {
         png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg',
         gif: 'image/gif', svg: 'image/svg+xml', webp: 'image/webp',
-        mp4: 'video/mp4', webm: 'video/webm', ogg: 'video/ogg',
+        mp4: 'video/mp4', webm: 'video/webm', ogg: 'audio/ogg',
         mp3: 'audio/mpeg', wav: 'audio/wav', flac: 'audio/flac',
         m4a: 'audio/mp4', weba: 'audio/webm', opus: 'audio/webm',
         pdf: 'application/pdf',

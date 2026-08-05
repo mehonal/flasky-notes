@@ -510,6 +510,34 @@ def settings_page():
                 def_cat_id = 0
             set_setting(g.user, "default_category_id", def_cat_id)
             db.session.commit()
+        elif "save-links" in request.form:
+            set_setting(
+                g.user, "autosuggest_note_links",
+                "autosuggest-note-links" in request.form
+                and request.form["autosuggest-note-links"] == "1",
+            )
+            for field, low, high in (
+                ("autosuggest_min_chars", 2, 10),
+                ("autosuggest_result_cap", 1, 30),
+            ):
+                form_key = field.replace("_", "-")
+                try:
+                    v = int(request.form.get(form_key, str(low)))
+                except (TypeError, ValueError):
+                    v = low
+                if not (low <= v <= high):
+                    v = low
+                set_setting(g.user, field, v)
+            set_setting(
+                g.user, "autosuggest_show_category",
+                "autosuggest-show-category" in request.form
+                and request.form["autosuggest-show-category"] == "1",
+            )
+            algo = request.form.get("autosuggest-algorithm", "title_prefix")
+            if algo not in ("title_prefix", "title_substring", "full_search"):
+                algo = "title_prefix"
+            set_setting(g.user, "autosuggest_algorithm", algo)
+            db.session.commit()
         elif "save-layout" in request.form:
             for field in (
                 "sidebar_collapsed",

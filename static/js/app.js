@@ -1069,6 +1069,7 @@ function initCodeMirror() {
         onInputRead: function(cm) {
             showWikiAutocomplete(cm);
             showSlashCommands(cm);
+            showAutosuggest(cm);
         },
         onCursorActivity: function(cm) {
             if (isSlashCommandVisible()) {
@@ -1080,12 +1081,29 @@ function initCodeMirror() {
                 }
             }
             if (isWikiAutocompleteVisible()) {
-                var cursor = cm.getCursor();
-                var line = cm.getLine(cursor.line);
-                var before = line.substring(0, cursor.ch);
-                var openIdx = before.lastIndexOf('[[');
-                if (openIdx === -1 || before.substring(openIdx + 2).indexOf(']]') > -1) {
+                var cursor2 = cm.getCursor();
+                var line2 = cm.getLine(cursor2.line);
+                var before2 = line2.substring(0, cursor2.ch);
+                var openIdx = before2.lastIndexOf('[[');
+                if (openIdx === -1 || before2.substring(openIdx + 2).indexOf(']]') > -1) {
                     hideWikiAutocomplete();
+                }
+            }
+            if (isAutosuggestVisible()) {
+                var ctx = computeAutosuggestQuery(cm);
+                var sameWord = ctx && autosuggContext
+                    && ctx.from.ch === autosuggContext.from.ch
+                    && ctx.to.ch === autosuggContext.to.ch
+                    && ctx.from.line === autosuggContext.from.line;
+                if (!sameWord) hideAutosuggest();
+            }
+            // Clear the per-word dismissal sentinel whenever the cursor
+            // leaves the dismissed word (different word or new boundary),
+            // so suggestions re-arm for the next word the user types.
+            if (_autosuggDismissedWord) {
+                var dctx = computeAutosuggestQuery(cm);
+                if (!dctx || dctx.query !== _autosuggDismissedWord) {
+                    _autosuggDismissedWord = null;
                 }
             }
         },
@@ -1106,13 +1124,30 @@ function initCodeMirror() {
                 }
                 return;
             }
+            if (isAutosuggestVisible()) {
+                if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    if (autosuggSelectedIndex < autosuggFilteredNotes.length - 1) { autosuggSelectedIndex++; renderLinksDropdown(autosuggestDropdown, autosuggFilteredNotes, _linksShowCategory(), autosuggSelectedIndex); }
+                } else if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    if (autosuggSelectedIndex > 0) { autosuggSelectedIndex--; renderLinksDropdown(autosuggestDropdown, autosuggFilteredNotes, _linksShowCategory(), autosuggSelectedIndex); }
+                } else if (e.key === 'Enter' || e.key === 'Tab') {
+                    e.preventDefault();
+                    acceptAutosuggest(autosuggSelectedIndex);
+                } else if (e.key === 'Escape') {
+                    e.preventDefault();
+                    _autosuggDismissedWord = autosuggContext ? autosuggContext.query : null;
+                    hideAutosuggest();
+                }
+                return;
+            }
             if (!isWikiAutocompleteVisible()) return;
             if (e.key === 'ArrowDown') {
                 e.preventDefault();
-                if (wikiSelectedIndex < wikiFilteredNotes.length - 1) { wikiSelectedIndex++; renderWikiAutocomplete(); }
+                if (wikiSelectedIndex < wikiFilteredNotes.length - 1) { wikiSelectedIndex++; renderLinksDropdown(wikiAutocomplete, wikiFilteredNotes, _linksShowCategory(), wikiSelectedIndex); }
             } else if (e.key === 'ArrowUp') {
                 e.preventDefault();
-                if (wikiSelectedIndex > 0) { wikiSelectedIndex--; renderWikiAutocomplete(); }
+                if (wikiSelectedIndex > 0) { wikiSelectedIndex--; renderLinksDropdown(wikiAutocomplete, wikiFilteredNotes, _linksShowCategory(), wikiSelectedIndex); }
             } else if (e.key === 'Enter' || e.key === 'Tab') {
                 e.preventDefault();
                 acceptWikiAutocomplete(wikiSelectedIndex);
@@ -1504,10 +1539,7 @@ async function _doSaveNote(titleVal, content, props, callback) {
                 if (window._updateNoteMapEntry) {
                     window._updateNoteMapEntry(noteId, null, displayTitle);
                 }
-                if (wikiNoteList !== null) {
-                    wikiNoteList.push({ title: displayTitle, id: noteId });
-                    wikiNoteList.sort(function(a, b) { return a.title.localeCompare(b.title); });
-                }
+                _invalidateWikiNoteList();
             } else {
                 _loadedNoteTitle = displayTitle;
                 updateSidebarNoteTitle(noteId, displayTitle);
@@ -1527,12 +1559,7 @@ async function _doSaveNote(titleVal, content, props, callback) {
                 if (titleChanged && window._updateNoteMapEntry) {
                     window._updateNoteMapEntry(noteId, oldTitle, displayTitle);
                 }
-                if (wikiNoteList !== null && titleChanged) {
-                    for (var i = 0; i < wikiNoteList.length; i++) {
-                        if (wikiNoteList[i].id === noteId) { wikiNoteList[i].title = displayTitle; break; }
-                    }
-                    wikiNoteList.sort(function(a, b) { return a.title.localeCompare(b.title); });
-                }
+                if (titleChanged) _invalidateWikiNoteList();
             }
 
             document.getElementById('save-status').textContent = '\u2713 Saved';
@@ -1619,9 +1646,7 @@ function deleteSidebarNote(id, title) {
         if (data.success) {
             if (typeof FlaskySearch !== 'undefined') FlaskySearch.deleteNote(id);
             if (window._deleteNoteMapEntry) window._deleteNoteMapEntry(id, title);
-            if (wikiNoteList !== null) {
-                wikiNoteList = wikiNoteList.filter(function(n) { return n.id !== id; });
-            }
+            _invalidateWikiNoteList();
             _storeDeleteNote(id);
             try { localStorage.setItem('flasky-notes-rev', Date.now().toString()); } catch (e) {}
             removeSidebarNoteItem(id);
@@ -1646,9 +1671,7 @@ function deleteCurrentNote() {
         if (data.success) {
             if (typeof FlaskySearch !== 'undefined') FlaskySearch.deleteNote(deletedId);
             if (window._deleteNoteMapEntry) window._deleteNoteMapEntry(deletedId, deletedTitle);
-            if (wikiNoteList !== null) {
-                wikiNoteList = wikiNoteList.filter(function(n) { return n.id !== deletedId; });
-            }
+            _invalidateWikiNoteList();
             _storeDeleteNote(deletedId);
             try { localStorage.setItem('flasky-notes-rev', Date.now().toString()); } catch (e) {}
             removeSidebarNoteItem(deletedId);
@@ -2408,12 +2431,7 @@ async function ctxRenameNote() {
             var newTitleTrimmed = newTitle.trim();
             if (typeof FlaskySearch !== 'undefined') FlaskySearch.updateNote({ id: t.id, title: newTitleTrimmed });
             if (window._updateNoteMapEntry) window._updateNoteMapEntry(t.id, oldTitle, newTitleTrimmed);
-            if (wikiNoteList !== null) {
-                for (var i = 0; i < wikiNoteList.length; i++) {
-                    if (wikiNoteList[i].id === t.id) { wikiNoteList[i].title = newTitleTrimmed; break; }
-                }
-                wikiNoteList.sort(function(a, b) { return a.title.localeCompare(b.title); });
-            }
+            _invalidateWikiNoteList();
             try { localStorage.setItem('flasky-notes-rev', Date.now().toString()); } catch (e) {}
             refreshSidebar();
             // If this is the currently open note, update the title in the editor
@@ -4036,70 +4054,220 @@ document.addEventListener('keydown', function(e) {
     if (e.key === 'Escape' && !editMode && document.documentElement.getAttribute('data-spotlight') === 'true') { e.preventDefault(); toggleSpotlightMode(); }
 });
 
-// ============ Wikilink Autocomplete ============
+// ============ Links Suggestion Engine (shared by [[ autocomplete + no-[[ autosuggest) ============
 
 var wikiAutocomplete = null;
-var wikiNoteList = null;
+var wikiNoteList = null;          // cached snapshot of [{ id, title, category, date_last_changed }]
 var wikiSelectedIndex = -1;
 var wikiFilteredNotes = [];
+var _wikiReqId = 0;               // monotonic token to drop stale async results
 
 var _noteMapPromise = null;
+
+function _invalidateWikiNoteList() {
+    wikiNoteList = null;
+}
 
 function loadWikiNoteList(callback) {
     if (wikiNoteList !== null) { if (callback) callback(); return; }
     if (!_noteMapPromise) {
-        _noteMapPromise = _buildWikiNoteListFromMap();
+        _noteMapPromise = _buildLinksNoteList();
     }
-    _noteMapPromise.then(function() { if (callback) callback(); });
+    _noteMapPromise.then(function() { _noteMapPromise = null; if (callback) callback(); });
 }
 
-function _buildWikiNoteListFromMap() {
+function _buildLinksNoteList() {
     return new Promise(function(resolve) {
-        function buildFromMap() {
+        function fromSearchIndex() {
+            var idx = (typeof FlaskySearch !== 'undefined') ? FlaskySearch.getIndex() : null;
+            if (idx && idx.length > 0) {
+                wikiNoteList = idx.map(function(n) {
+                    return { id: n.id, title: n.title || '', category: n.category || '', date_last_changed: n.date_last_changed || null };
+                });
+            } else {
+                wikiNoteList = [];
+            }
+            wikiNoteList.sort(function(a, b) { return (a.title || '').localeCompare(b.title || ''); });
+            resolve();
+        }
+        function fromNoteMap() {
             var map = window._getNoteMap ? window._getNoteMap() : null;
             if (map) {
                 wikiNoteList = [];
                 for (var key in map) {
-                    if (map[key]) wikiNoteList.push({ title: map[key].title, id: map[key].id });
+                    if (map[key]) wikiNoteList.push({ id: map[key].id, title: map[key].title, category: '', date_last_changed: null });
                 }
-                wikiNoteList.sort(function(a, b) { return a.title.localeCompare(b.title); });
+                wikiNoteList.sort(function(a, b) { return (a.title || '').localeCompare(b.title || ''); });
             } else {
                 wikiNoteList = [];
             }
             resolve();
         }
-        if (window._wikiLinksReady) { buildFromMap(); return; }
-        document.addEventListener('wikiLinksReady', buildFromMap, { once: true });
+        // Prefer the search index (richer: has category + recency). If it
+        // isn't built yet, build it, then fall back to the note map if still
+        // empty. The note map path also covers the rare case where
+        // FlaskySearch is unavailable.
+        if (typeof FlaskySearch !== 'undefined') {
+            if (FlaskySearch.isBuilding()) {
+                _buildSearchThenMap();
+            } else if (FlaskySearch.getIndex() && FlaskySearch.getIndex().length > 0) {
+                fromSearchIndex();
+            } else {
+                _buildSearchThenMap();
+            }
+        } else {
+            fromNoteMap();
+        }
+        function _buildSearchThenMap() {
+            FlaskySearch.buildIndex().then(function() {
+                if (FlaskySearch.getIndex() && FlaskySearch.getIndex().length > 0) {
+                    fromSearchIndex();
+                } else {
+                    fromNoteMap();
+                }
+            }).catch(function() { fromNoteMap(); });
+        }
     });
 }
+
+// Recency bonus in days. Returns 50 for <7d, 20 for <30d, else 0.
+function _recencyBonus(dateLastChanged) {
+    if (!dateLastChanged) return 0;
+    var then = new Date(dateLastChanged);
+    if (isNaN(then.getTime())) return 0;
+    var days = (Date.now() - then.getTime()) / 86400000;
+    if (days < 7) return 50;
+    if (days < 30) return 20;
+    return 0;
+}
+
+// Unified filter+rank. query is lowercased. algo is one of
+// title_prefix | title_substring | full_search. Returns a Promise<Array>.
+function filterAndRankLinks(query, cap, algo) {
+    return new Promise(function(resolve) {
+        var q = (query || '').toLowerCase();
+        if (!q) { resolve([]); return; }
+        loadWikiNoteList(function() {
+            var list = wikiNoteList || [];
+            var results;
+            if (algo === 'full_search' && typeof FlaskySearch !== 'undefined' && FlaskySearch.search) {
+                // Reuse the full search engine — title + content scoring.
+                FlaskySearch.search(q).then(function(hits) {
+                    results = (hits || []).map(function(h) {
+                        return { id: h.id, title: h.title, category: h.category || '', date_last_changed: h.date_last_changed || null, _score: h.score || 0 };
+                    });
+                    results.sort(function(a, b) { return (b._score || 0) - (a._score || 0); });
+                    resolve(results.slice(0, cap));
+                });
+                return;
+            }
+            if (algo === 'title_substring') {
+                results = [];
+                for (var i = 0; i < list.length; i++) {
+                    var n = list[i];
+                    var t = (n.title || '').toLowerCase();
+                    var idx = t.indexOf(q);
+                    if (idx === -1) continue;
+                    var score = 200 - idx;   // earlier match = higher
+                    score += _recencyBonus(n.date_last_changed);
+                    results.push({ id: n.id, title: n.title, category: n.category || '', date_last_changed: n.date_last_changed, _score: score });
+                }
+            } else {
+                // title_prefix (default)
+                results = [];
+                for (var j = 0; j < list.length; j++) {
+                    var m = list[j];
+                    var tt = (m.title || '').toLowerCase();
+                    var score = 0;
+                    if (tt.indexOf(q) === 0) score += 1000;
+                    else {
+                        var words = tt.split(/[\s\-_,.;:!?()/]+/);
+                        for (var w = 0; w < words.length; w++) {
+                            if (words[w].indexOf(q) === 0) { score += 400; break; }
+                        }
+                    }
+                    if (score === 0) continue;
+                    score += _recencyBonus(m.date_last_changed);
+                    results.push({ id: m.id, title: m.title, category: m.category || '', date_last_changed: m.date_last_changed, _score: score });
+                }
+            }
+            results.sort(function(a, b) {
+                if (b._score !== a._score) return b._score - a._score;
+                return (a.title || '').localeCompare(b.title || '');
+            });
+            resolve(results.slice(0, cap));
+        });
+    });
+}
+
+function _escHtml(s) {
+    return String(s)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+// Shared renderer. `container` is the dropdown element. `items` is the
+// filtered list. `showCategory` toggles the folder badge. `selectedIndex`
+// highlights the active row.
+function renderLinksDropdown(container, items, showCategory, selectedIndex) {
+    if (!container) return;
+    var html = '';
+    items.forEach(function(n, i) {
+        var esc = _escHtml(n.title || '');
+        var cat = '';
+        if (showCategory && n.category) {
+            cat = '<span class="link-suggest-cat">' + _escHtml(n.category) + '</span>';
+        }
+        html += '<div class="wikilink-autocomplete-item' + (i === selectedIndex ? ' selected' : '') + '" data-index="' + i + '">' +
+            '<span class="link-suggest-title">' + esc + '</span>' + cat + '</div>';
+    });
+    container.innerHTML = html;
+    var sel = container.querySelector('.wikilink-autocomplete-item.selected');
+    if (sel) sel.scrollIntoView({ block: 'nearest' });
+}
+
+function _linksResultCap() {
+    var c = parseInt(_pageData.autosuggestResultCap, 10);
+    return (isNaN(c) || c < 1) ? 5 : c;
+}
+function _linksShowCategory() { return !!_pageData.autosuggestShowCategory; }
+function _linksAlgo() {
+    var a = _pageData.autosuggestAlgorithm;
+    return (a === 'title_substring' || a === 'full_search') ? a : 'title_prefix';
+}
+
+// ============ [[ Wikilink Autocomplete ============
 
 function showWikiAutocomplete(cm) {
     var cursor = cm.getCursor();
     var line = cm.getLine(cursor.line);
     var before = line.substring(0, cursor.ch);
 
-    // Find [[ before cursor that isn't closed yet
     var openIdx = before.lastIndexOf('[[');
     if (openIdx === -1) { hideWikiAutocomplete(); return; }
     var afterOpen = before.substring(openIdx + 2);
     if (afterOpen.indexOf(']]') > -1) { hideWikiAutocomplete(); return; }
 
     var query = afterOpen.toLowerCase();
+    // Token to guard against stale async results rendering for an old query.
+    var myReq = ++_wikiReqId;
 
-    loadWikiNoteList(function() {
-        wikiFilteredNotes = wikiNoteList.filter(function(n) {
-            return n.title.toLowerCase().indexOf(query) > -1;
-        }).slice(0, 20);
-
+    filterAndRankLinks(query, _linksResultCap(), _linksAlgo()).then(function(results) {
+        if (myReq !== _wikiReqId) return;  // a newer keystroke superseded us
+        wikiFilteredNotes = results;
         if (wikiFilteredNotes.length === 0) { hideWikiAutocomplete(); return; }
 
+        // The [[ dropdown takes priority over the no-[[ autosuggest.
+        hideAutosuggest();
         wikiSelectedIndex = 0;
 
         if (!wikiAutocomplete) {
             wikiAutocomplete = document.createElement('div');
             wikiAutocomplete.className = 'wikilink-autocomplete';
             document.body.appendChild(wikiAutocomplete);
-            // Delegated event handlers
             wikiAutocomplete.addEventListener('mousedown', function(e) {
                 var item = e.target.closest('.wikilink-autocomplete-item');
                 if (item) { e.preventDefault(); acceptWikiAutocomplete(parseInt(item.getAttribute('data-index'))); }
@@ -4118,9 +4286,8 @@ function showWikiAutocomplete(cm) {
             });
         }
 
-        renderWikiAutocomplete();
+        renderLinksDropdown(wikiAutocomplete, wikiFilteredNotes, _linksShowCategory(), wikiSelectedIndex);
 
-        // Position dropdown near cursor
         var coords = cm.cursorCoords(true, 'page');
         wikiAutocomplete.style.left = coords.left + 'px';
         wikiAutocomplete.style.top = (coords.bottom + 4) + 'px';
@@ -4128,23 +4295,11 @@ function showWikiAutocomplete(cm) {
     });
 }
 
-function renderWikiAutocomplete() {
-    if (!wikiAutocomplete) return;
-    var html = '';
-    wikiFilteredNotes.forEach(function(n, i) {
-        html += '<div class="wikilink-autocomplete-item' + (i === wikiSelectedIndex ? ' selected' : '') + '" data-index="' + i + '">' +
-            n.title.replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</div>';
-    });
-    wikiAutocomplete.innerHTML = html;
-
-    var sel = wikiAutocomplete.querySelector('.wikilink-autocomplete-item.selected');
-    if (sel) sel.scrollIntoView({ block: 'nearest' });
-}
-
 function hideWikiAutocomplete() {
     if (wikiAutocomplete) wikiAutocomplete.style.display = 'none';
     wikiFilteredNotes = [];
     wikiSelectedIndex = -1;
+    _wikiReqId++;  // invalidate any in-flight ranking
 }
 
 function acceptWikiAutocomplete(index) {
@@ -4156,10 +4311,8 @@ function acceptWikiAutocomplete(index) {
     var openIdx = before.lastIndexOf('[[');
     if (openIdx === -1) return;
 
-    // autoCloseBrackets inserts ]] after the cursor, so we need to consume them
     var after = line.substring(cursor.ch);
     var extraClose = 0;
-    // Count how many ] characters follow the cursor that were auto-inserted
     if (after.indexOf(']]') === 0) extraClose = 2;
     else if (after.indexOf(']') === 0) extraClose = 1;
 
@@ -4170,8 +4323,123 @@ function acceptWikiAutocomplete(index) {
     cmEditor.setCursor({ line: cursor.line, ch: openIdx + insertText.length });
     hideWikiAutocomplete();
     cmEditor.focus();
+    _refreshOutboundLinks();
+}
 
-    // Immediately update outbound links
+function isWikiAutocompleteVisible() {
+    return wikiAutocomplete && wikiAutocomplete.style.display === 'block';
+}
+
+// ============ No-[[ Autosuggest ============
+
+var autosuggestDropdown = null;
+var autosuggSelectedIndex = -1;
+var autosuggFilteredNotes = [];
+var autosuggContext = null;        // { from, to, query } for the current word
+var _autosuggDismissedWord = null;
+var _autosuggReqId = 0;            // monotonic token to drop stale async results
+
+function _isInsideWikilinkContext(before) {
+    var openIdx = before.lastIndexOf('[[');
+    if (openIdx === -1) return false;
+    return before.substring(openIdx + 2).indexOf(']]') === -1;
+}
+
+function computeAutosuggestQuery(cm) {
+    if (!_pageData.autosuggestNoteLinks) return null;
+    var cursor = cm.getCursor();
+    var line = cm.getLine(cursor.line);
+    var before = line.substring(0, cursor.ch);
+    if (_isInsideWikilinkContext(before)) return null;
+
+    // Walk back from cursor to the last word boundary. A boundary is the
+    // start of the line, or any non-word character (\W == whitespace or
+    // punctuation). The query starts immediately after the boundary.
+    var i = cursor.ch;
+    while (i > 0) {
+        var prev = line.charAt(i - 1);
+        if (/\W/.test(prev)) break;
+        i--;
+    }
+    var query = line.slice(i, cursor.ch);
+    if (query.length < _pageData.autosuggestMinChars) return null;
+    if (_autosuggDismissedWord && _autosuggDismissedWord === query) return null;
+    return { from: { line: cursor.line, ch: i }, to: { line: cursor.line, ch: cursor.ch }, query: query };
+}
+
+function showAutosuggest(cm) {
+    if (isWikiAutocompleteVisible() || isSlashCommandVisible()) return;
+    var ctx = computeAutosuggestQuery(cm);
+    if (!ctx) { hideAutosuggest(); return; }
+
+    var myReq = ++_autosuggReqId;
+    filterAndRankLinks(ctx.query.toLowerCase(), _linksResultCap(), _linksAlgo()).then(function(results) {
+        // Drop stale results: a newer keystroke or hideAutosuggest() bumped
+        // the token while we were ranking.
+        if (myReq !== _autosuggReqId) return;
+        autosuggContext = ctx;
+        autosuggFilteredNotes = results;
+        if (autosuggFilteredNotes.length === 0) { hideAutosuggest(); return; }
+
+        autosuggSelectedIndex = 0;
+
+        if (!autosuggestDropdown) {
+            autosuggestDropdown = document.createElement('div');
+            autosuggestDropdown.className = 'wikilink-autocomplete autosuggest-links';
+            document.body.appendChild(autosuggestDropdown);
+            autosuggestDropdown.addEventListener('mousedown', function(e) {
+                var item = e.target.closest('.wikilink-autocomplete-item');
+                if (item) { e.preventDefault(); acceptAutosuggest(parseInt(item.getAttribute('data-index'))); }
+            });
+            autosuggestDropdown.addEventListener('mouseover', function(e) {
+                var item = e.target.closest('.wikilink-autocomplete-item');
+                if (item) {
+                    var newIdx = parseInt(item.getAttribute('data-index'));
+                    if (newIdx !== autosuggSelectedIndex) {
+                        var prev = autosuggestDropdown.querySelector('.wikilink-autocomplete-item.selected');
+                        if (prev) prev.classList.remove('selected');
+                        autosuggSelectedIndex = newIdx;
+                        item.classList.add('selected');
+                    }
+                }
+            });
+        }
+
+        renderLinksDropdown(autosuggestDropdown, autosuggFilteredNotes, _linksShowCategory(), autosuggSelectedIndex);
+
+        var coords = cm.cursorCoords(true, 'page');
+        autosuggestDropdown.style.left = coords.left + 'px';
+        autosuggestDropdown.style.top = (coords.bottom + 4) + 'px';
+        autosuggestDropdown.style.display = 'block';
+    });
+}
+
+function hideAutosuggest() {
+    if (autosuggestDropdown) autosuggestDropdown.style.display = 'none';
+    autosuggFilteredNotes = [];
+    autosuggSelectedIndex = -1;
+    autosuggContext = null;
+    _autosuggReqId++;  // invalidate any in-flight ranking
+}
+
+function acceptAutosuggest(index) {
+    if (!cmEditor || index < 0 || index >= autosuggFilteredNotes.length) return;
+    var selected = autosuggFilteredNotes[index];
+    if (!autosuggContext) return;
+    var insertText = '[[' + selected.title + ']]';
+    cmEditor.replaceRange(insertText, autosuggContext.from, autosuggContext.to);
+    cmEditor.setCursor({ line: autosuggContext.to.line, ch: autosuggContext.from.ch + insertText.length });
+    _autosuggDismissedWord = null;
+    hideAutosuggest();
+    cmEditor.focus();
+    _refreshOutboundLinks();
+}
+
+function isAutosuggestVisible() {
+    return autosuggestDropdown && autosuggestDropdown.style.display === 'block';
+}
+
+function _refreshOutboundLinks() {
     var panel = document.getElementById('right-panel');
     if (panel && !panel.classList.contains('collapsed')) {
         clearTimeout(outboundLinksTimer);
@@ -4179,10 +4447,6 @@ function acceptWikiAutocomplete(index) {
         clearTimeout(linkGraphTimer);
         loadLinkGraph();
     }
-}
-
-function isWikiAutocompleteVisible() {
-    return wikiAutocomplete && wikiAutocomplete.style.display === 'block';
 }
 
 // ============ Callout support for preview ============
@@ -4862,7 +5126,7 @@ window.addEventListener('resize', function() { isMobile = window.innerWidth <= 7
         if (e.key === 'flasky-notes-rev') {
             if (typeof FlaskySearch !== 'undefined') FlaskySearch.invalidate();
             if (window._invalidateNoteMap) window._invalidateNoteMap();
-            wikiNoteList = null;
+            _invalidateWikiNoteList();
             _noteMapPromise = null;
         }
     });

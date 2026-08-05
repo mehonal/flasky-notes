@@ -209,6 +209,33 @@ REGISTRY: dict[str, SettingDef] = {
     "audio_echo_cancellation": SettingDef("audio_echo_cancellation", True, bool),
     "audio_noise_suppression": SettingDef("audio_noise_suppression", True, bool),
     "audio_auto_gain_control": SettingDef("audio_auto_gain_control", True, bool),
+    # Auto-suggest note links while typing (no [[ required). Master toggle,
+    # off by default. When on, a dropdown of matching note titles appears
+    # below the cursor as the user types a word; accepting one replaces the
+    # typed fragment with [[Title]]. Applies to the editor only.
+    "autosuggest_note_links": SettingDef("autosuggest_note_links", False, bool),
+    # Minimum characters typed before the no-[[ autosuggest triggers.
+    # Floor of 2 enforced by the validator to avoid single-char noise.
+    "autosuggest_min_chars": SettingDef(
+        "autosuggest_min_chars", 2, int, _is_int_in_range(2, 10),
+    ),
+    # Maximum number of suggestions shown in both the no-[[ autosuggest and
+    # the existing [[ wikilink autocomplete dropdowns.
+    "autosuggest_result_cap": SettingDef(
+        "autosuggest_result_cap", 5, int, _is_int_in_range(1, 30),
+    ),
+    # Show the note's folder name next to each suggestion in both dropdowns.
+    "autosuggest_show_category": SettingDef(
+        "autosuggest_show_category", False, bool,
+    ),
+    # Matching algorithm used by both dropdowns. title_prefix = fast
+    # prefix-of-title-or-title-word match; title_substring = looser
+    # substring-anywhere-in-title match; full_search = reuses the
+    # FlaskySearch engine (title + content scoring, highest recall, slowest).
+    "autosuggest_algorithm": SettingDef(
+        "autosuggest_algorithm", "title_prefix", str,
+        lambda v: v in ("title_prefix", "title_substring", "full_search"),
+    ),
 }
 
 # The CSS variables exposed in the customize UI (curated subset). The dark

@@ -32,6 +32,7 @@
         if (filename.match(/\.(flac)$/i)) return 'audio/flac';
         if (filename.match(/\.(m4a)$/i)) return 'audio/mp4';
         if (filename.match(/\.(weba|opus)$/i)) return 'audio/webm';
+        if (filename.match(/\.(ogg)$/i)) return 'audio/ogg';
         return 'application/octet-stream';
     }
 
@@ -170,10 +171,10 @@
                 var url = '/attachment/' + att.id + '/' + encodeURIComponent(att.filename);
                 if (att.filename.match(/\.(png|jpg|jpeg|gif|svg|webp|bmp)$/i)) {
                     return '<img data-encrypted-src="' + url + '" data-att-filename="' + att.filename + '" alt="' + name + '" style="max-width:' + (_attachmentMaxWidth || '100%') + '" class="e2ee-attachment">';
-                } else if (att.filename.match(/\.(mp4|webm|ogg)$/i)) {
+                } else if (att.filename.match(/\.(mp4|webm)$/i)) {
                     return '<video controls data-encrypted-src="' + url + '" class="e2ee-attachment" style="max-width:' + (_attachmentMaxWidth || '100%') + '"></video>';
-                } else if (att.filename.match(/\.(mp3|wav|flac|m4a|weba|opus)$/i)) {
-                    return '<audio controls data-encrypted-src="' + url + '" class="e2ee-attachment"></audio>';
+                } else if (att.filename.match(/\.(mp3|wav|flac|m4a|weba|opus|ogg)$/i)) {
+                    return window.FlaskyAudioPlayer ? window.FlaskyAudioPlayer.html(att) : '<audio controls data-encrypted-src="' + url + '" class="e2ee-attachment"></audio>';
                 } else if (att.filename.match(/\.pdf$/i)) {
                     return '<a href="' + url + '" target="_blank">' + name + '</a>';
                 } else if (att.filename.match(/\.fldraw$/i)) {
@@ -232,6 +233,7 @@
                 console.warn('E2EE: failed to decrypt attachment', url, e);
             }
         }
+        if (window.FlaskyAudioPlayer) window.FlaskyAudioPlayer.init(container);
         // .fldraw render elements — decrypt, parse JSON, draw to canvas.
         // The placeholder is a bare <div> (DOMPurify strips <canvas>); we
         // create the canvas here once the bytes are available.
@@ -295,10 +297,10 @@
             try { URL.revokeObjectURL(_blobUrlCache[k]); } catch (e) {}
         });
         _blobUrlCache = {};
-        // Also clear the CM6 cached <audio> elements (their blob srcs are
-        // about to be revoked by the loop above, so any playing audio should
-        // stop and the elements be discarded).
-        if (window._clearAudioElementCache) window._clearAudioElementCache();
+        // Also clear the cached audio players (their blob srcs are about to
+        // be revoked by the loop above, so any playing audio should stop and
+        // the player elements be discarded).
+        if (window.FlaskyAudioPlayer) window.FlaskyAudioPlayer.clearCache();
         if (window.FlaskyAttachments && typeof window.FlaskyAttachments.invalidateAttachmentIndex === 'function') {
             window.FlaskyAttachments.invalidateAttachmentIndex();
         }

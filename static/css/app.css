@@ -964,6 +964,24 @@ body {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+}
+.wikilink-autocomplete-item .link-suggest-title {
+    flex: 1 1 auto;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.wikilink-autocomplete-item .link-suggest-cat {
+    flex: 0 0 auto;
+    margin-left: auto;
+    color: var(--text-muted);
+    font-size: 11px;
+    max-width: 120px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    opacity: 0.8;
 }
 .wikilink-autocomplete-item:first-child { border-radius: 8px 8px 0 0; }
 .wikilink-autocomplete-item:last-child { border-radius: 0 0 8px 8px; }
@@ -979,6 +997,9 @@ body {
     font-style: italic;
     font-size: 12px;
 }
+/* The no-[[ autosuggest dropdown inherits .wikilink-autocomplete styling.
+   A slightly wider max-width gives room for the category badge. */
+.autosuggest-links { max-width: 380px; }
 
 /* ============ Slash Commands ============ */
 .slash-command-popup {
@@ -1729,4 +1750,86 @@ body[data-encrypted="true"] .prop-value-input { visibility: hidden; }
 .audio-record-pill-hint { color: var(--text-muted); font-size: 11px; }
 @media (prefers-reduced-motion: reduce) {
     .audio-record-pill-dot { animation: none; }
+}
+
+/* ============ Custom audio player (E2EE embed) ============ */
+.audio-player {
+    display: block; max-width: 100%; border-radius: 6px;
+    background: var(--bg-secondary); border: 1px solid var(--border);
+    padding: 6px 10px; transition: border-color 0.15s ease;
+    outline: none;
+}
+.audio-player:hover { border-color: var(--accent); }
+.audio-player:focus-visible { border-color: var(--accent); }
+.audio-player.audio-player-error { border-color: var(--red); }
+.audio-player.audio-player-error .audio-player-play { color: var(--red); cursor: default; }
+
+/* The hidden native <audio> drives media playback; the custom UI is the
+   visible surface. display:none works in all modern browsers for audio. */
+.audio-player > audio { display: none; }
+
+.audio-player-bar {
+    display: flex; align-items: center; gap: 8px; width: 100%;
+}
+
+.audio-player-btn {
+    flex-shrink: 0; width: 32px; height: 32px; border: none;
+    background: transparent; color: var(--text-primary);
+    border-radius: 6px; cursor: pointer; padding: 0;
+    display: flex; align-items: center; justify-content: center;
+    transition: background 0.15s ease, color 0.15s ease;
+}
+.audio-player-btn:hover { background: var(--bg-hover); color: var(--accent); }
+.audio-player-btn:active { background: var(--bg-active); }
+.audio-player-btn svg { display: block; }
+
+.audio-player-time {
+    flex-shrink: 0; font-size: 12px; font-variant-numeric: tabular-nums;
+    color: var(--text-muted); min-width: 36px; text-align: center;
+    user-select: none;
+}
+
+.audio-player-seek { flex: 1; }
+.audio-player-volume { flex: 0 0 60px; }
+
+.audio-player-seek, .audio-player-volume {
+    position: relative; height: 4px; border-radius: 2px;
+    background: var(--bg-hover); cursor: pointer;
+    min-width: 40px; transition: height 0.1s ease;
+}
+.audio-player-seek:hover, .audio-player-volume:hover { height: 6px; }
+
+.audio-player-seek-filled, .audio-player-volume-filled {
+    position: absolute; left: 0; top: 0; height: 100%; border-radius: 2px;
+    background: var(--accent); pointer-events: none;
+}
+
+.audio-player-seek::after, .audio-player-volume::after {
+    content: ''; position: absolute; top: 50%; transform: translate(-50%, -50%);
+    width: 12px; height: 12px; border-radius: 50%; background: var(--accent);
+    opacity: 0; transition: opacity 0.1s ease; pointer-events: none;
+    left: var(--thumb-pct, 0%);
+}
+.audio-player-seek:hover::after, .audio-player-volume:hover::after { opacity: 1; }
+
+.audio-player-loading .audio-player-duration::before {
+    content: ''; display: inline-block; width: 36px; height: 10px;
+    background: var(--bg-hover); border-radius: 4px; vertical-align: middle;
+}
+.audio-player-loading .audio-player-duration { font-size: 0; }
+
+.audio-player-speed {
+    flex-shrink: 0; background: var(--bg-hover); border: none;
+    border-radius: 4px; color: var(--text-primary); font-size: 12px;
+    padding: 2px 6px; cursor: pointer; outline: none;
+    font-family: inherit; -webkit-appearance: none; appearance: none;
+}
+.audio-player-speed:hover { background: var(--bg-active); }
+.audio-player-speed option {
+    background: var(--bg-secondary); color: var(--text-primary);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .audio-player, .audio-player-btn, .audio-player-seek, .audio-player-volume,
+    .audio-player-seek-filled, .audio-player-volume-filled { transition: none; }
 }
