@@ -231,11 +231,9 @@ class EmbedWidget extends WidgetType {
     }
 
     if (AUDIO_EXT.test(filename)) {
-      var audioMw = window._getEmbedMaxWidths ? window._getEmbedMaxWidths().img : null;
       var player;
       if (window.FlaskyAudioPlayer) {
         player = window.FlaskyAudioPlayer.create(this.att);
-        if (audioMw) player.style.maxWidth = audioMw;
         holder.appendChild(player);
         var aud = player.querySelector('audio');
         if (window._decryptAttachments && aud && aud.getAttribute('data-encrypted-src')) {
@@ -250,7 +248,6 @@ class EmbedWidget extends WidgetType {
         fallback.className = 'e2ee-attachment cm6-embed';
         fallback.setAttribute('data-encrypted-src', url);
         fallback.setAttribute('data-att-filename', filename);
-        if (audioMw) fallback.style.maxWidth = audioMw;
         holder.appendChild(fallback);
         if (window._decryptAttachments) window._decryptAttachments(holder);
       }
