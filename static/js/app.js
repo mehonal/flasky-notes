@@ -1104,10 +1104,10 @@ function initCodeMirror() {
                 var cursor2 = cm.getCursor();
                 var line2 = cm.getLine(cursor2.line);
                 var before2 = line2.substring(0, cursor2.ch);
-                var openIdx = before2.lastIndexOf('[[');
-                if (openIdx === -1 || before2.substring(openIdx + 2).indexOf(']]') > -1) {
-                    hideWikiAutocomplete();
-                }
+                var openIdx2 = before2.lastIndexOf('[[');
+                var closed2 = openIdx2 === -1 || before2.substring(openIdx2 + 2).indexOf(']]') > -1;
+                var lostBang = wikiEmbedMode && (openIdx2 === -1 || before2.charAt(openIdx2 - 1) !== '!');
+                if (closed2 || lostBang) hideWikiAutocomplete();
             }
             if (isAutosuggestVisible()) {
                 var ctx = computeAutosuggestQuery(cm);
@@ -4259,6 +4259,7 @@ var wikiNoteList = null;          // cached snapshot of [{ id, title, category, 
 var wikiSelectedIndex = -1;
 var wikiFilteredNotes = [];
 var _wikiReqId = 0;               // monotonic token to drop stale async results
+var wikiEmbedMode = false;        // true while the [[ dropdown is showing attachment results (![[ context)
 
 var _noteMapPromise = null;
 
@@ -4453,6 +4454,11 @@ function showWikiAutocomplete(cm) {
     // Token to guard against stale async results rendering for an old query.
     var myReq = ++_wikiReqId;
 
+    if (before.charAt(openIdx - 1) === '!') {
+        _showAttachmentSuggestions(cm, query);
+        return;
+    }
+
     filterAndRankLinks(query, _linksResultCap(), _linksAlgo()).then(function(results) {
         if (myReq !== _wikiReqId) return;  // a newer keystroke superseded us
         wikiFilteredNotes = results;
@@ -4462,28 +4468,7 @@ function showWikiAutocomplete(cm) {
         hideAutosuggest();
         wikiSelectedIndex = 0;
 
-        if (!wikiAutocomplete) {
-            wikiAutocomplete = document.createElement('div');
-            wikiAutocomplete.className = 'wikilink-autocomplete';
-            document.body.appendChild(wikiAutocomplete);
-            wikiAutocomplete.addEventListener('mousedown', function(e) {
-                var item = e.target.closest('.wikilink-autocomplete-item');
-                if (item) { e.preventDefault(); acceptWikiAutocomplete(parseInt(item.getAttribute('data-index'))); }
-            });
-            wikiAutocomplete.addEventListener('mouseover', function(e) {
-                var item = e.target.closest('.wikilink-autocomplete-item');
-                if (item) {
-                    var newIdx = parseInt(item.getAttribute('data-index'));
-                    if (newIdx !== wikiSelectedIndex) {
-                        var prev = wikiAutocomplete.querySelector('.wikilink-autocomplete-item.selected');
-                        if (prev) prev.classList.remove('selected');
-                        wikiSelectedIndex = newIdx;
-                        item.classList.add('selected');
-                    }
-                }
-            });
-        }
-
+        _ensureWikiDropdown();
         renderLinksDropdown(wikiAutocomplete, wikiFilteredNotes, _linksShowCategory(), wikiSelectedIndex);
 
         var coords = cm.cursorCoords(true, 'page');
@@ -4493,10 +4478,125 @@ function showWikiAutocomplete(cm) {
     });
 }
 
+// Map a FlaskyAttachments.classify() result to a short badge label for the
+// attachment suggestion dropdown.
+function _attTypeLabel(cls) {
+    if (cls === 'image') return 'Image';
+    if (cls === 'video') return 'Video';
+    if (cls === 'drawing') return 'Drawing';
+    return 'File';
+}
+
+// Sync attachment index lookup. Mirrors the passive pattern used by the note
+// autocomplete (which reads window._getNoteMap()): never forces a fetch. The
+// /api/note-map fetch is owned by wikilinks.js, which hydrates both
+// FlaskyAttachments (via hydrate()) and the map returned by
+// window._getAttachmentMap() once it resolves. Until then, returns null and
+// the dropdown stays hidden — the same cold-start behavior as [[ note
+// suggestions.
+function _attachmentIndexSync() {
+    if (window.FlaskyAttachments && typeof window.FlaskyAttachments.getAttachmentIndex === 'function') {
+        var idx = window.FlaskyAttachments.getAttachmentIndex();
+        if (idx) return idx;
+    }
+    var map = window._getAttachmentMap ? window._getAttachmentMap() : null;
+    if (map && map.attachments) {
+        var out = [];
+        for (var k in map.attachments) {
+            if (map.attachments[k]) out.push({ id: map.attachments[k].id, name: map.attachments[k].filename });
+        }
+        return out;
+    }
+    return null;
+}
+
+// Lazily build the shared wikilink autocomplete dropdown (used by both the
+// [[ note path and the ![[ attachment path). Wired once to acceptWikiAutocomplete.
+function _ensureWikiDropdown() {
+    if (wikiAutocomplete) return;
+    wikiAutocomplete = document.createElement('div');
+    wikiAutocomplete.className = 'wikilink-autocomplete';
+    document.body.appendChild(wikiAutocomplete);
+    wikiAutocomplete.addEventListener('mousedown', function(e) {
+        var item = e.target.closest('.wikilink-autocomplete-item');
+        if (item) { e.preventDefault(); acceptWikiAutocomplete(parseInt(item.getAttribute('data-index'))); }
+    });
+    wikiAutocomplete.addEventListener('mouseover', function(e) {
+        var item = e.target.closest('.wikilink-autocomplete-item');
+        if (item) {
+            var newIdx = parseInt(item.getAttribute('data-index'));
+            if (newIdx !== wikiSelectedIndex) {
+                var prev = wikiAutocomplete.querySelector('.wikilink-autocomplete-item.selected');
+                if (prev) prev.classList.remove('selected');
+                wikiSelectedIndex = newIdx;
+                item.classList.add('selected');
+            }
+        }
+    });
+}
+
+// Render attachment suggestions for the ![[ context. Reuses the shared
+// wikiAutocomplete dropdown (already wired to acceptWikiAutocomplete) and the
+// shared renderLinksDropdown by mapping attachment results to the same
+// {id, title, category, _score} shape used for notes.
+function _showAttachmentSuggestions(cm, query) {
+    var idx = _attachmentIndexSync();
+    if (idx === null) { hideWikiAutocomplete(); return; }
+
+    var algo = _linksAlgo();
+    var results = [];
+    for (var i = 0; i < idx.length; i++) {
+        var a = idx[i];
+        var name = a.name || '';
+        var lname = name.toLowerCase();
+        var score = 0;
+        if (algo === 'title_substring' || algo === 'full_search') {
+            // Attachments have no searchable content (server is ciphertext-only),
+            // so full_search degrades to filename substring matching here.
+            var pos = lname.indexOf(query);
+            if (pos === -1) continue;
+            score = 200 - pos;
+        } else {  // title_prefix (default)
+            if (lname.indexOf(query) === 0) score = 1000;
+            else {
+                var words = lname.split(/[\s\-_,.;:!?()/]+/);
+                for (var w = 0; w < words.length; w++) {
+                    if (words[w].indexOf(query) === 0) { score = 400; break; }
+                }
+            }
+            if (score === 0) continue;
+        }
+        var typeLabel = window.FlaskyAttachments ? _attTypeLabel(window.FlaskyAttachments.classify(name)) : 'File';
+        results.push({ id: a.id, title: name, category: typeLabel, _score: score });
+    }
+    results.sort(function (x, y) {
+        if (y._score !== x._score) return y._score - x._score;
+        return (x.title || '').localeCompare(y.title || '');
+    });
+    results = results.slice(0, _linksResultCap());
+
+    if (results.length === 0) { hideWikiAutocomplete(); return; }
+
+    // The [[ dropdown takes priority over the no-[[ autosuggest.
+    hideAutosuggest();
+    wikiEmbedMode = true;
+    wikiFilteredNotes = results;
+    wikiSelectedIndex = 0;
+
+    _ensureWikiDropdown();
+    renderLinksDropdown(wikiAutocomplete, wikiFilteredNotes, _linksShowCategory(), wikiSelectedIndex);
+
+    var coords = cm.cursorCoords(true, 'page');
+    wikiAutocomplete.style.left = coords.left + 'px';
+    wikiAutocomplete.style.top = (coords.bottom + 4) + 'px';
+    wikiAutocomplete.style.display = 'block';
+}
+
 function hideWikiAutocomplete() {
     if (wikiAutocomplete) wikiAutocomplete.style.display = 'none';
     wikiFilteredNotes = [];
     wikiSelectedIndex = -1;
+    wikiEmbedMode = false;
     _wikiReqId++;  // invalidate any in-flight ranking
 }
 
@@ -4506,7 +4606,7 @@ function acceptWikiAutocomplete(index) {
     var cursor = cmEditor.getCursor();
     var line = cmEditor.getLine(cursor.line);
     var before = line.substring(0, cursor.ch);
-    var openIdx = before.lastIndexOf('[[');
+    var openIdx = wikiEmbedMode ? before.lastIndexOf('![[') : before.lastIndexOf('[[');
     if (openIdx === -1) return;
 
     var after = line.substring(cursor.ch);
@@ -4516,7 +4616,7 @@ function acceptWikiAutocomplete(index) {
 
     var from = { line: cursor.line, ch: openIdx };
     var to = { line: cursor.line, ch: cursor.ch + extraClose };
-    var insertText = '[[' + selected.title + ']]';
+    var insertText = wikiEmbedMode ? ('![[' + selected.title + ']]') : ('[[' + selected.title + ']]');
     cmEditor.replaceRange(insertText, from, to);
     cmEditor.setCursor({ line: cursor.line, ch: openIdx + insertText.length });
     hideWikiAutocomplete();
