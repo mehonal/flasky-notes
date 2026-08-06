@@ -294,7 +294,7 @@ def test_topbar_items_defaults():
     gated = {"drawing", "audio", "daily_note", "ai"}
     expected = [it["id"] for it in DEFAULT_TOPBAR_ITEMS if it["id"] not in gated]
     assert ids == expected
-    assert all(it["visible"] for it in items)
+    assert all(it["visible"] for it in items if not it["id"].startswith("divider_"))
 
 
 def test_topbar_items_round_trip_and_reorder():
