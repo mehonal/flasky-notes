@@ -531,7 +531,8 @@ function toggleFolder(folder) { folder.classList.toggle('collapsed'); }
 
 var ATTACHMENT_PATH = '__attachments__';
 var ATTACHMENT_ICONS = {
-    image: 'image', video: 'video', drawing: 'palette', other: 'file'
+    image: 'image', video: 'video', audio: 'music', drawing: 'palette',
+    document: 'file-text', archive: 'archive', other: 'file'
 };
 
 function _esc(s) { return (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
@@ -554,13 +555,16 @@ async function renderAttachmentsFolder(fileTree) {
 
     var html;
     if (subcats) {
-        var buckets = { image: [], video: [], drawing: [], other: [] };
+        var buckets = { image: [], video: [], audio: [], drawing: [], document: [], archive: [], other: [] };
         idx.forEach(function (a) { buckets[window.FlaskyAttachments.classify(a.name)].push(a); });
         var subfolders = [
-            { key: 'image', label: 'Images' },
-            { key: 'video', label: 'Videos' },
-            { key: 'drawing', label: 'Drawings' },
-            { key: 'other', label: 'Other' },
+            { key: 'image',    label: 'Images'    },
+            { key: 'video',    label: 'Videos'    },
+            { key: 'audio',    label: 'Audio'     },
+            { key: 'drawing',  label: 'Drawings'  },
+            { key: 'document', label: 'Documents' },
+            { key: 'archive',  label: 'Archives'  },
+            { key: 'other',    label: 'Other'     },
         ];
         var subHtml = '';
         subfolders.forEach(function (sf) {
@@ -677,6 +681,10 @@ function openAttachmentPreview(attId, name) {
             var vid = document.createElement('video');
             vid.src = _previewObjectUrl; vid.controls = true; vid.className = 'attachment-preview-media';
             body.appendChild(vid);
+        } else if (cls === 'audio') {
+            var aud = document.createElement('audio');
+            aud.src = _previewObjectUrl; aud.controls = true; aud.className = 'attachment-preview-media';
+            body.appendChild(aud);
         } else if (cls === 'drawing') {
             try {
                 var text = new TextDecoder().decode(new Uint8Array(decrypted));
@@ -702,12 +710,6 @@ function openAttachmentPreview(attId, name) {
             info.className = 'attachment-preview-info';
             info.textContent = name + ' (' + mime + ')';
             body.appendChild(info);
-            // Audio: try to play.
-            if (mime.indexOf('audio/') === 0) {
-                var aud = document.createElement('audio');
-                aud.src = _previewObjectUrl; aud.controls = true;
-                body.appendChild(aud);
-            }
         }
         if (dlBtn) {
             dlBtn.disabled = false;
@@ -4483,7 +4485,10 @@ function showWikiAutocomplete(cm) {
 function _attTypeLabel(cls) {
     if (cls === 'image') return 'Image';
     if (cls === 'video') return 'Video';
+    if (cls === 'audio') return 'Audio';
     if (cls === 'drawing') return 'Drawing';
+    if (cls === 'document') return 'Document';
+    if (cls === 'archive') return 'Archive';
     return 'File';
 }
 

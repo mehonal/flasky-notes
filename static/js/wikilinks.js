@@ -33,6 +33,25 @@
         if (filename.match(/\.(m4a)$/i)) return 'audio/mp4';
         if (filename.match(/\.(weba|opus)$/i)) return 'audio/webm';
         if (filename.match(/\.(ogg)$/i)) return 'audio/ogg';
+        if (filename.match(/\.(pdf)$/i)) return 'application/pdf';
+        if (filename.match(/\.(doc)$/i)) return 'application/msword';
+        if (filename.match(/\.(docx)$/i)) return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+        if (filename.match(/\.(xls)$/i)) return 'application/vnd.ms-excel';
+        if (filename.match(/\.(xlsx)$/i)) return 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+        if (filename.match(/\.(ppt)$/i)) return 'application/vnd.ms-powerpoint';
+        if (filename.match(/\.(pptx)$/i)) return 'application/vnd.openxmlformats-officedocument.presentationml.presentation';
+        if (filename.match(/\.(txt)$/i)) return 'text/plain';
+        if (filename.match(/\.(md)$/i)) return 'text/markdown';
+        if (filename.match(/\.(rtf)$/i)) return 'application/rtf';
+        if (filename.match(/\.(odt)$/i)) return 'application/vnd.oasis.opendocument.text';
+        if (filename.match(/\.(csv)$/i)) return 'text/csv';
+        if (filename.match(/\.(zip)$/i)) return 'application/zip';
+        if (filename.match(/\.(tar)$/i)) return 'application/x-tar';
+        if (filename.match(/\.(gz|tgz)$/i)) return 'application/gzip';
+        if (filename.match(/\.(7z)$/i)) return 'application/x-7z-compressed';
+        if (filename.match(/\.(rar)$/i)) return 'application/vnd.rar';
+        if (filename.match(/\.(bz2)$/i)) return 'application/x-bzip2';
+        if (filename.match(/\.(xz)$/i)) return 'application/x-xz';
         return 'application/octet-stream';
     }
 

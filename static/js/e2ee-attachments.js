@@ -3,8 +3,9 @@
  *
  * The server stores attachment filenames as E2EE ciphertext and has no mime
  * info, so the decrypted filename + its extension are the only basis for
- * classification (Images / Videos / Drawings / Other). This module owns the
- * single /api/note-map fetch + decryption of the attachments array and
+ * classification (Images / Videos / Audio / Drawings / Documents / Archives /
+ * Other). This module owns the single /api/note-map fetch + decryption of the
+ * attachments array and
  * exposes a cached [{id, name}] list plus mime/extension helpers. Both
  * wikilinks.js (embed resolution) and app.js (virtual sidebar folder)
  * consume it so the work happens once per page load.
@@ -19,9 +20,13 @@
     var _map = null;          // { lowercaseName: {id, name} }
     var _promise = null;      // in-flight fetch promise
 
-    var IMAGE_EXTS = ['png', 'jpg', 'jpeg', 'gif', 'svg', 'webp', 'bmp'];
-    var VIDEO_EXTS = ['mp4', 'webm', 'ogg'];
-    var DRAWING_EXTS = ['fldraw'];
+    var IMAGE_EXTS    = ['png', 'jpg', 'jpeg', 'gif', 'svg', 'webp', 'bmp'];
+    var VIDEO_EXTS    = ['mp4', 'webm'];
+    var AUDIO_EXTS    = ['mp3', 'wav', 'flac', 'm4a', 'weba', 'opus', 'ogg'];
+    var DRAWING_EXTS  = ['fldraw'];
+    var DOCUMENT_EXTS = ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx',
+                         'txt', 'md', 'rtf', 'odt', 'csv'];
+    var ARCHIVE_EXTS  = ['zip', 'tar', 'gz', 'tgz', '7z', 'rar', 'bz2', 'xz'];
 
     function _ext(name) {
         if (!name) return '';
@@ -33,7 +38,10 @@
         var ext = _ext(name);
         if (IMAGE_EXTS.indexOf(ext) >= 0) return 'image';
         if (VIDEO_EXTS.indexOf(ext) >= 0) return 'video';
+        if (AUDIO_EXTS.indexOf(ext) >= 0) return 'audio';
         if (DRAWING_EXTS.indexOf(ext) >= 0) return 'drawing';
+        if (DOCUMENT_EXTS.indexOf(ext) >= 0) return 'document';
+        if (ARCHIVE_EXTS.indexOf(ext) >= 0) return 'archive';
         return 'other';
     }
 
@@ -41,10 +49,23 @@
     var MIME_BY_EXT = {
         png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg',
         gif: 'image/gif', svg: 'image/svg+xml', webp: 'image/webp',
-        mp4: 'video/mp4', webm: 'video/webm', ogg: 'audio/ogg',
-        mp3: 'audio/mpeg', wav: 'audio/wav', flac: 'audio/flac',
-        m4a: 'audio/mp4', weba: 'audio/webm', opus: 'audio/webm',
+        mp4: 'video/mp4', webm: 'video/webm',
+        ogg: 'audio/ogg', mp3: 'audio/mpeg', wav: 'audio/wav',
+        flac: 'audio/flac', m4a: 'audio/mp4', weba: 'audio/webm',
+        opus: 'audio/webm',
         pdf: 'application/pdf',
+        doc: 'application/msword',
+        docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        xls: 'application/vnd.ms-excel',
+        xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        ppt: 'application/vnd.ms-powerpoint',
+        pptx: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+        txt: 'text/plain', md: 'text/markdown', rtf: 'application/rtf',
+        odt: 'application/vnd.oasis.opendocument.text', csv: 'text/csv',
+        zip: 'application/zip', tar: 'application/x-tar',
+        gz: 'application/gzip', tgz: 'application/gzip',
+        '7z': 'application/x-7z-compressed', rar: 'application/vnd.rar',
+        bz2: 'application/x-bzip2', xz: 'application/x-xz',
     };
 
     function mimeForName(name) {
@@ -161,6 +182,9 @@
         ext: _ext,
         IMAGE_EXTS: IMAGE_EXTS,
         VIDEO_EXTS: VIDEO_EXTS,
+        AUDIO_EXTS: AUDIO_EXTS,
         DRAWING_EXTS: DRAWING_EXTS,
+        DOCUMENT_EXTS: DOCUMENT_EXTS,
+        ARCHIVE_EXTS: ARCHIVE_EXTS,
     };
 })();
