@@ -533,7 +533,7 @@ body {
 }
 .right-panel-close svg:hover { stroke: var(--text-primary); }
 
-.right-panel-section { padding: 0; overflow-y: auto; flex: 1; }
+.right-panel-section { padding: 0; overflow-y: auto; flex: 1; min-height: 0; }
 
 .right-panel-section-header {
     font-size: 11px; font-weight: 600; color: var(--text-muted);
@@ -598,43 +598,54 @@ body {
 .panel-widget.collapsed-widget .widget-chevron { transform: translateY(-50%) rotate(-90deg); }
 .panel-widget.collapsed-widget .widget-body { display: none; }
 
-/* Widget config panel */
-.widget-config-panel {
+/* Config popover — shared .config-* classes used by both the right-panel
+ * widget config list and the topbar config list. */
+.config-panel {
     display: none; border-bottom: 1px solid var(--border);
     background: var(--bg-primary); padding: 8px;
 }
-.widget-config-panel.visible { display: block; }
-.widget-config-header {
+.config-panel.visible {
+    display: block; flex: 1; min-height: 0; overflow-y: auto;
+}
+.config-panel.visible + #right-panel-widgets { display: none; }
+.config-header {
     font-size: 11px; font-weight: 600; color: var(--text-muted);
     text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 6px;
 }
-.widget-config-item {
+.config-item {
     display: flex; align-items: center; gap: 8px; padding: 5px 6px;
     border-radius: 4px; font-size: 12px; color: var(--text-secondary);
     cursor: grab; user-select: none;
 }
-.widget-config-item:hover { background: var(--bg-hover); }
-.widget-config-item.dragging { opacity: 0.4; }
-.widget-config-item.drag-over { border-top: 2px solid var(--accent); }
-.widget-config-drag-handle {
+.config-item:hover { background: var(--bg-hover); }
+.config-item.dragging { opacity: 0.4; }
+.config-item.drag-over { border-top: 2px solid var(--accent); }
+.config-drag-handle {
     color: var(--text-muted); display: flex; flex-shrink: 0;
 }
-.widget-config-drag-handle svg { width: 12px; height: 12px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
-.widget-config-label { flex: 1; }
-.widget-config-toggle { position: relative; width: 28px; height: 16px; flex-shrink: 0; }
-.widget-config-toggle input { opacity: 0; width: 0; height: 0; }
-.widget-config-toggle .wc-slider {
+.config-drag-handle svg { width: 12px; height: 12px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.config-label { flex: 1; }
+.config-toggle { position: relative; width: 28px; height: 16px; flex-shrink: 0; }
+.config-toggle input { opacity: 0; width: 0; height: 0; }
+.config-toggle .config-slider {
     position: absolute; top: 0; left: 0; right: 0; bottom: 0;
     background: var(--bg-hover); border-radius: 8px; cursor: pointer;
     transition: background 0.2s;
 }
-.widget-config-toggle .wc-slider::before {
+.config-toggle .config-slider::before {
     content: ''; position: absolute; width: 12px; height: 12px;
     left: 2px; bottom: 2px; background: var(--text-muted);
     border-radius: 50%; transition: transform 0.2s, background 0.2s;
 }
-.widget-config-toggle input:checked + .wc-slider { background: var(--accent-dim); }
-.widget-config-toggle input:checked + .wc-slider::before { transform: translateX(12px); background: var(--accent); }
+.config-toggle input:checked + .config-slider { background: var(--accent-dim); }
+.config-toggle input:checked + .config-slider::before { transform: translateX(12px); background: var(--accent); }
+
+/* Topbar item wrappers — each customizable control sits in a .topbar-item so
+   applyTopbarLayout() can reorder via insertBefore/appendChild. Hidden items
+   collapse to nothing (the flex gap closes up). */
+.topbar-item { display: inline-flex; align-items: center; }
+.hidden-topbar-item { display: none !important; }
+.topbar-divider-item { pointer-events: none; }
 
 /* Right-panel widget header drag-drop reorder */
 .panel-widget.dragging { opacity: 0.4; }

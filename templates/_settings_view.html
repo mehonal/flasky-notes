@@ -112,6 +112,10 @@
                 <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
                 Panel widgets
             </button>
+            <button type="button" class="nav-item nav-item-btn" data-action="settings-tab" data-tab="topbar">
+                <svg viewBox="0 0 24 24"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+                Topbar
+            </button>
             <button type="button" class="nav-item nav-item-btn" data-action="settings-tab" data-tab="timezone">
                 <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
                 Timezone
@@ -643,6 +647,36 @@
                                 <button name="save-widgets" class="btn-sm primary" type="submit">Save widgets</button>
                             </div>
                             <div class="setting-hint">Saving refreshes the page to apply changes.</div>
+                    </div>
+                </div>
+                </form>
+
+                <!-- Topbar items -->
+                <form method="POST" data-spa-form data-requires-refresh style="display:contents">
+                <div class="panel" data-tab="topbar" hidden>
+                    <div class="panel-header">
+                        <div class="panel-title">
+                            <svg viewBox="0 0 24 24"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+                            Topbar
+                        </div>
+                    </div>
+                    <div class="panel-body">
+                            {% set topbars = topbar_items %}
+                            {% for item in topbars %}
+                            <div class="setting-row">
+                                <span class="setting-label">{{ item.label }}</span>
+                                <div class="setting-control">
+                                    <div class="toggle {% if item.visible %}on{% endif %}" data-toggle="topbar-{{ item.id }}">
+                                        <input type="checkbox" id="topbar-{{ item.id }}" name="topbar-{{ item.id }}" value="1" {% if item.visible %}checked{% endif %}>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+
+                            <div class="setting-row">
+                                <button name="save-topbar" class="btn-sm primary" type="submit">Save topbar</button>
+                            </div>
+                            <div class="setting-hint">Saving refreshes the page to apply changes. Reorder via drag in the topbar config popover.</div>
                     </div>
                 </div>
                 </form>

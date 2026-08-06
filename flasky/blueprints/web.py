@@ -48,6 +48,8 @@ from flasky.ui_settings import (
     set_setting,
     get_panel_widgets,
     set_panel_widgets,
+    get_topbar_items,
+    set_topbar_items,
     get_effective_colors,
 )
 
@@ -373,6 +375,7 @@ def _render_shell(initial_view=None):
     ui_settings = get_all_settings(g.user)
     default_category = g.user.get_default_category()
     panel_widgets = get_panel_widgets(g.user)
+    topbar_items = get_topbar_items(g.user)
     return render_template(
         "note_single.html",
         note=None,
@@ -386,6 +389,7 @@ def _render_shell(initial_view=None):
         default_template=None,
         default_category_id=(default_category.id if default_category else 0),
         panel_widgets=panel_widgets,
+        topbar_items=topbar_items,
         encrypted_note_data=None,
         ai_settings=g.user.settings if g.user else None,
         timezone=g.user.get_timezone(as_str=True),
@@ -562,6 +566,12 @@ def settings_page():
                 w["visible"] = ("widget-" + w["id"]) in request.form
             set_panel_widgets(g.user, widgets)
             db.session.commit()
+        elif "save-topbar" in request.form:
+            items = get_topbar_items(g.user)
+            for it in items:
+                it["visible"] = ("topbar-" + it["id"]) in request.form
+            set_topbar_items(g.user, items)
+            db.session.commit()
         elif "generate-api-token" in request.form:
             token_name = request.form.get("token-name", "").strip()
             if not token_name:
@@ -591,6 +601,7 @@ def settings_page():
                     custom_colors=get_effective_colors(ui_settings.custom_colors),
                     custom_css=ui_settings.custom_css,
                     panel_widgets=get_panel_widgets(g.user),
+                    topbar_items=get_topbar_items(g.user),
                     ai_enabled=settings.ai_enabled,
                     ai_settings=settings,
                     drawing_enabled=get_setting(g.user, "drawing_enabled"),
@@ -679,6 +690,7 @@ def settings_page():
             custom_colors=get_effective_colors(ui_settings.custom_colors),
             custom_css=ui_settings.custom_css,
             panel_widgets=get_panel_widgets(g.user),
+            topbar_items=get_topbar_items(g.user),
             ai_enabled=settings.ai_enabled,
             ai_settings=settings,
             drawing_enabled=get_setting(g.user, "drawing_enabled"),
@@ -762,6 +774,7 @@ def note_single_page(note_id):
             category = default_category.name
             category_id = default_category.id
     panel_widgets = get_panel_widgets(g.user)
+    topbar_items = get_topbar_items(g.user)
     # Embed encrypted note data as JSON for client-side decryption.
     # With mandatory E2EE this is always ciphertext; build it whenever a note exists.
     encrypted_note_data = None
@@ -788,6 +801,7 @@ def note_single_page(note_id):
         default_template=default_template,
         default_category_id=(default_category.id if default_category else 0),
         panel_widgets=panel_widgets,
+        topbar_items=topbar_items,
         encrypted_note_data=encrypted_note_data,
         ai_settings=g.user.settings if g.user else None,
         timezone=g.user.get_timezone(as_str=True),

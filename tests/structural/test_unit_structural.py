@@ -280,3 +280,80 @@ def test_delete_attachments_batch_empty_list():
     from flasky.services.attachments import delete_attachments
     user = _make_user("attempty", "testpass", "attempty@test.com")
     assert delete_attachments(user, []) == 0
+
+
+def test_topbar_items_defaults():
+    """A fresh user gets DEFAULT_TOPBAR_ITEMS from the registry on first read,
+    minus feature-gated items (drawing/audio/daily_note/ai) whose features
+    default off."""
+    from flasky.ui_settings import get_topbar_items, DEFAULT_TOPBAR_ITEMS
+    user = _make_user("topbardef", "testpass", "topbardef@test.com")
+    items = get_topbar_items(user)
+    ids = [it["id"] for it in items]
+    # Feature-gated ids are stripped when the feature is off (fresh user).
+    gated = {"drawing", "audio", "daily_note", "ai"}
+    expected = [it["id"] for it in DEFAULT_TOPBAR_ITEMS if it["id"] not in gated]
+    assert ids == expected
+    assert all(it["visible"] for it in items)
+
+
+def test_topbar_items_round_trip_and_reorder():
+    """set_topbar_items persists order + visibility; get_topbar_items reads it back."""
+    from flasky.ui_settings import get_topbar_items, set_topbar_items
+    user = _make_user("topbarrr", "testpass", "topbarrr@test.com")
+    items = get_topbar_items(user)
+    # Reverse the order and hide one item.
+    reordered = list(reversed(items))
+    reordered[0]["visible"] = False
+    assert set_topbar_items(user, reordered) is True
+    back = get_topbar_items(user)
+    assert [it["id"] for it in back] == [it["id"] for it in reordered]
+    assert back[0]["visible"] is False
+
+
+def test_topbar_items_forward_merge_new_defaults():
+    """When a new item is added to DEFAULT_TOPBAR_ITEMS, existing users pick it
+    up on next read (forward-merge) instead of having it hidden forever."""
+    from flasky.ui_settings import get_topbar_items, set_topbar_items, DEFAULT_TOPBAR_ITEMS
+    user = _make_user("topbarfm", "testpass", "topbarfm@test.com")
+    # Save a list missing the last default item (simulate an older saved state).
+    items = get_topbar_items(user)
+    trimmed = [dict(it) for it in items if it["id"] != DEFAULT_TOPBAR_ITEMS[-1]["id"]]
+    set_topbar_items(user, trimmed)
+    # On re-read the missing default is appended at the end.
+    back = get_topbar_items(user)
+    assert back[-1]["id"] == DEFAULT_TOPBAR_ITEMS[-1]["id"]
+
+
+def test_topbar_items_strips_feature_off_items():
+    """Feature-gated items (drawing/audio/daily_note) are stripped when their
+    feature flag is off, so the customizer never offers a no-op toggle."""
+    from flasky.ui_settings import get_topbar_items, set_setting
+    user = _make_user("topbargate", "testpass", "topbargate@test.com")
+    # drawing_enabled defaults off; drawing must not appear.
+    items = get_topbar_items(user)
+    assert "drawing" not in [it["id"] for it in items]
+    # Turn drawing on → drawing reappears (forward-merge from defaults).
+    set_setting(user, "drawing_enabled", True)
+    items = get_topbar_items(user)
+    assert "drawing" in [it["id"] for it in items]
+    # Turn it back off → drawing is stripped again.
+    set_setting(user, "drawing_enabled", False)
+    items = get_topbar_items(user)
+    assert "drawing" not in [it["id"] for it in items]
+
+
+def test_topbar_items_ai_gate_uses_user_settings():
+    """The ai item is gated by UserSettings.ai_enabled (a column), not a
+    ui_settings key, so it is stripped when ai_enabled is False."""
+    from flasky.ui_settings import get_topbar_items
+    user = _make_user("topbarai", "testpass", "topbarai@test.com")
+    # ai_enabled defaults False on a fresh UserSettings.
+    assert not user.settings.ai_enabled
+    items = get_topbar_items(user)
+    assert "ai" not in [it["id"] for it in items]
+    # Enable ai on the settings column → ai reappears.
+    user.settings.ai_enabled = True
+    db.session.commit()
+    items = get_topbar_items(user)
+    assert "ai" in [it["id"] for it in items]

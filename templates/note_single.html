@@ -176,6 +176,7 @@
         "currentNoteIcon": {% if note and note.icon %}{{ note.icon | tojson }}{% else %}null{% endif %},
         "currentNoteIconColor": {% if note and note.icon_color %}{{ note.icon_color | tojson }}{% else %}null{% endif %},
         "panelWidgets": {{ panel_widgets | tojson }},
+        "topbarItems": {{ topbar_items | tojson }},
         "aiEnabled": {% if g.user and g.user.settings and g.user.settings.ai_enabled %}true{% else %}false{% endif %},
         "drawingEnabled": {% if ui_settings and ui_settings.drawing_enabled %}true{% else %}false{% endif %},
         "audioRecordingEnabled": {% if ui_settings and ui_settings.audio_recording_enabled %}true{% else %}false{% endif %},

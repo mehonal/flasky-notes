@@ -12,7 +12,8 @@ from flask import Blueprint, request, g, jsonify
 from flasky import db
 from flasky.utils import login_required
 from flasky.ui_settings import (
-    set_setting, set_panel_widgets, CUSTOMIZABLE_VARS, _load_raw, _save_raw,
+    set_setting, set_panel_widgets, set_topbar_items, CUSTOMIZABLE_VARS,
+    _load_raw, _save_raw,
 )
 from flasky.theme_presets import is_valid_preset_id
 
@@ -112,6 +113,8 @@ def save_ui_state():
             set_setting(g.user, key, bool(data[key]))
     if "panel_widgets" in data and isinstance(data["panel_widgets"], list):
         set_panel_widgets(g.user, data["panel_widgets"])
+    if "topbar_items" in data and isinstance(data["topbar_items"], list):
+        set_topbar_items(g.user, data["topbar_items"])
     db.session.commit()
     return jsonify(success=True)
 

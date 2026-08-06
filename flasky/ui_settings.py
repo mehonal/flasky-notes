@@ -44,6 +44,49 @@ DEFAULT_PANEL_WIDGETS = [
 # injected per-user by get_panel_widgets() below.
 
 
+# Default ordering + visibility of topbar action items (the right-side
+# .toolbar-actions cluster). Compound controls are atomic: font_size is the
+# [- label +] group, ai is the dropdown button + its menu. export and delete
+# are separate items so users can hide one but not the other. dividers are
+# first-class items so users can add/remove/move them like buttons.
+# Feature-gated items (drawing, audio, daily_note, ai) are stripped by
+# get_topbar_items() when their feature is off, mirroring how
+# get_panel_widgets() strips the calendar widget. mobile_save is intentionally
+# NOT here: it stays fixed at the end of .toolbar-actions and is shown/hidden
+# purely via CSS (desktop vs. mobile).
+DEFAULT_TOPBAR_ITEMS = [
+    {"id": "font_size", "label": "Font size", "visible": True},
+    {"id": "divider_1", "label": "Divider", "visible": True},
+    {"id": "mode_toggle", "label": "Edit / Preview", "visible": True},
+    {"id": "divider_2", "label": "Divider", "visible": True},
+    {"id": "search", "label": "Search", "visible": True},
+    {"id": "drawing", "label": "Drawing", "visible": True},
+    {"id": "audio", "label": "Record audio", "visible": True},
+    {"id": "daily_note", "label": "Daily note", "visible": True},
+    {"id": "ai", "label": "Ask AI", "visible": True},
+    {"id": "panel_toggle", "label": "Outline panel", "visible": True},
+    {"id": "theme_toggle", "label": "Theme", "visible": True},
+    {"id": "shortcuts", "label": "Shortcuts", "visible": True},
+    {"id": "divider_3", "label": "Divider", "visible": False},
+    {"id": "export", "label": "Export", "visible": True},
+    {"id": "divider_4", "label": "Divider", "visible": False},
+    {"id": "delete", "label": "Delete", "visible": True},
+    {"id": "divider_5", "label": "Divider", "visible": False},
+]
+
+# Feature gates for topbar items. An item id maps to the ui_settings key whose
+# truthiness determines whether the item is offered. Items not in this map are
+# always available. Honored by get_topbar_items() so the customizer never shows
+# a toggle for a button the feature flag has hidden.
+_TOPBAR_FEATURE_GATES = {
+    "drawing": "drawing_enabled",
+    "audio": "audio_recording_enabled",
+    "daily_note": "daily_note_enabled",
+}
+# ai is gated by UserSettings.ai_enabled (a column, not a ui_settings key), so
+# it is handled separately in get_topbar_items() via the user.settings object.
+
+
 _WIDTH_RE = re.compile(r"^([1-9]\d{0,3})(px|%)?$")
 
 
@@ -96,6 +139,7 @@ REGISTRY: dict[str, SettingDef] = {
     # cursor so it stays editable. Off by default — opt-in.
     "live_preview": SettingDef("live_preview", False, bool),
     "panel_widgets": SettingDef("panel_widgets", DEFAULT_PANEL_WIDGETS, list),
+    "topbar_items": SettingDef("topbar_items", DEFAULT_TOPBAR_ITEMS, list),
     # Daily notes (optional). daily_note_template_id / daily_note_category_id
     # use 0 to mean "none" so they stay plain ints (no nullable coercion needed).
     "daily_note_enabled": SettingDef("daily_note_enabled", False, bool),
@@ -473,5 +517,57 @@ def set_panel_widgets(user, widgets: list[dict]) -> bool:
         return False
     raw = _load_raw(user)
     raw["panel_widgets"] = widgets
+    _save_raw(user, raw)
+    return True
+
+
+def get_topbar_items(user) -> list[dict]:
+    """Return the topbar_items list with feature-off items stripped and new
+    defaults merged.
+
+    Forward-compat mirrors get_panel_widgets(): when a new item is added to
+    DEFAULT_TOPBAR_ITEMS, existing users pick it up on next read instead of
+    having it silently hidden forever. Feature-gated items (drawing/audio/
+    daily_note via ui_settings, ai via UserSettings.ai_enabled) are stripped
+    when their feature is off so the customizer doesn't offer a no-op toggle.
+    """
+    items = get_setting(user, "topbar_items")
+    if not isinstance(items, list):
+        items = [dict(w) for w in DEFAULT_TOPBAR_ITEMS]
+    # Strip feature-gated items whose feature is currently off.
+    gated_ids = set()
+    for item_id, setting_key in _TOPBAR_FEATURE_GATES.items():
+        if not bool(get_setting(user, setting_key)):
+            gated_ids.add(item_id)
+    # ai is gated by a column on UserSettings, not a ui_settings key.
+    settings = getattr(user, "settings", None)
+    if settings is None or not getattr(settings, "ai_enabled", False):
+        gated_ids.add("ai")
+    cleaned = [w for w in items if isinstance(w, dict) and w.get("id") not in gated_ids]
+    # Strip ids no longer in the defaults (e.g. retired after a refactor) so
+    # the config list doesn't show stale entries the toolbar can't render.
+    valid_ids = {w["id"] for w in DEFAULT_TOPBAR_ITEMS}
+    cleaned = [w for w in cleaned if w.get("id") in valid_ids]
+    # Labels are display text defined in DEFAULT_TOPBAR_ITEMS; the DB stores
+    # only id + visible + order. Always take the label from defaults on read
+    # so a stale label (e.g. from a renamed/split item) never leaks to the UI.
+    label_by_id = {w["id"]: w["label"] for w in DEFAULT_TOPBAR_ITEMS}
+    for w in cleaned:
+        if w["id"] in label_by_id:
+            w["label"] = label_by_id[w["id"]]
+    # Forward-merge any new defaults the user doesn't have yet.
+    saved_ids = [w.get("id") for w in cleaned]
+    for default_w in DEFAULT_TOPBAR_ITEMS:
+        if default_w["id"] not in saved_ids and default_w["id"] not in gated_ids:
+            cleaned.append(dict(default_w))
+    return cleaned
+
+
+def set_topbar_items(user, items: list[dict]) -> bool:
+    """Persist the topbar_items list."""
+    if not isinstance(items, list):
+        return False
+    raw = _load_raw(user)
+    raw["topbar_items"] = items
     _save_raw(user, raw)
     return True

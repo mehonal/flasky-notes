@@ -822,8 +822,7 @@ function loadNote(id, category, categoryId) {
             if (!editMode) renderPreview();
             setActiveSidebarItem(null);
             document.getElementById('note-title').focus();
-            var naWrap = document.getElementById('note-actions-wrap');
-            if (naWrap) naWrap.style.display = 'none';
+            document.querySelectorAll('.note-action-item').forEach(function(el) { el.style.display = 'none'; });
             // Refresh right panel
             var rp = document.getElementById('right-panel');
             if (rp && !rp.classList.contains('collapsed')) refreshAllVisibleWidgets();
@@ -889,8 +888,7 @@ function loadNote(id, category, categoryId) {
         if (!editMode) renderPreview();
 
         setActiveSidebarItem(n.id);
-        var naWrap = document.getElementById('note-actions-wrap');
-        if (naWrap) naWrap.style.display = '';
+        document.querySelectorAll('.note-action-item').forEach(function(el) { el.style.display = ''; });
         var rp = document.getElementById('right-panel');
         if (rp && !rp.classList.contains('collapsed')) refreshAllVisibleWidgets();
         refreshCalendarWidget();
@@ -2831,7 +2829,10 @@ function applyWidgetLayout() {
 function toggleWidgetConfig() {
     var panel = document.getElementById('widget-config-panel');
     panel.classList.toggle('visible');
-    if (panel.classList.contains('visible')) renderWidgetConfigList();
+    if (panel.classList.contains('visible')) {
+        renderWidgetConfigList();
+        renderTopbarConfigList();
+    }
 }
 
 // Drag-drop reorder of right-panel widgets by grabbing their section headers.
@@ -2909,25 +2910,25 @@ function initWidgetHeaderDrag() {
 
 function renderWidgetConfigList() {
     var list = document.getElementById('widget-config-list');
+    if (!list) return;
     list.innerHTML = '';
     panelWidgets.forEach(function(w, idx) {
         var item = document.createElement('div');
-        item.className = 'widget-config-item';
+        item.className = 'config-item';
         item.setAttribute('draggable', 'true');
         item.setAttribute('data-widget-idx', idx);
         item.innerHTML =
-            '<span class="widget-config-drag-handle"><svg viewBox="0 0 24 24"><line x1="8" y1="6" x2="8" y2="6.01"/><line x1="16" y1="6" x2="16" y2="6.01"/><line x1="8" y1="12" x2="8" y2="12.01"/><line x1="16" y1="12" x2="16" y2="12.01"/><line x1="8" y1="18" x2="8" y2="18.01"/><line x1="16" y1="18" x2="16" y2="18.01"/></svg></span>' +
-            '<span class="widget-config-label">' + escapeHtml(w.label) + '</span>' +
-            '<label class="widget-config-toggle"><input type="checkbox" ' + (w.visible ? 'checked' : '') + ' data-action="toggle-widget-visibility" data-widget-idx="' + idx + '"><span class="wc-slider"></span></label>';
+            '<span class="config-drag-handle"><svg viewBox="0 0 24 24"><line x1="8" y1="6" x2="8" y2="6.01"/><line x1="16" y1="6" x2="16" y2="6.01"/><line x1="8" y1="12" x2="8" y2="12.01"/><line x1="16" y1="12" x2="16" y2="12.01"/><line x1="8" y1="18" x2="8" y2="18.01"/><line x1="16" y1="18" x2="16" y2="18.01"/></svg></span>' +
+            '<span class="config-label">' + escapeHtml(w.label) + '</span>' +
+            '<label class="config-toggle"><input type="checkbox" ' + (w.visible ? 'checked' : '') + ' data-action="toggle-widget-visibility" data-widget-idx="' + idx + '"><span class="config-slider"></span></label>';
 
-        // Drag events
         item.addEventListener('dragstart', function(e) {
-            e.dataTransfer.setData('text/plain', idx);
+            e.dataTransfer.setData('text/plain', 'wcfg:' + idx);
             item.classList.add('dragging');
         });
         item.addEventListener('dragend', function() {
             item.classList.remove('dragging');
-            list.querySelectorAll('.widget-config-item').forEach(function(el) { el.classList.remove('drag-over'); });
+            list.querySelectorAll('.config-item').forEach(function(el) { el.classList.remove('drag-over'); });
         });
         item.addEventListener('dragover', function(e) {
             e.preventDefault();
@@ -2939,9 +2940,11 @@ function renderWidgetConfigList() {
         item.addEventListener('drop', function(e) {
             e.preventDefault();
             item.classList.remove('drag-over');
-            var fromIdx = parseInt(e.dataTransfer.getData('text/plain'));
+            var raw = e.dataTransfer.getData('text/plain') || '';
+            if (raw.indexOf('wcfg:') !== 0) return;
+            var fromIdx = parseInt(raw.slice(4), 10);
             var toIdx = idx;
-            if (fromIdx === toIdx) return;
+            if (isNaN(fromIdx) || fromIdx === toIdx) return;
             var moved = panelWidgets.splice(fromIdx, 1)[0];
             panelWidgets.splice(toIdx, 0, moved);
             applyWidgetLayout();
@@ -2949,17 +2952,15 @@ function renderWidgetConfigList() {
             saveWidgetConfig();
         });
 
-        // Touch reorder: move up/down on tap-hold (simple approach: up/down buttons for mobile)
         list.appendChild(item);
     });
 
-    // Add mobile move buttons
     if (isMobile) addMobileMoveButtons(list);
 }
 
 function addMobileMoveButtons(list) {
-    list.querySelectorAll('.widget-config-item').forEach(function(item, idx) {
-        var handle = item.querySelector('.widget-config-drag-handle');
+    list.querySelectorAll('.config-item').forEach(function(item, idx) {
+        var handle = item.querySelector('.config-drag-handle');
         handle.innerHTML = '';
         if (idx > 0) {
             var upBtn = document.createElement('button');
@@ -3039,6 +3040,139 @@ function refreshAllVisibleWidgets() {
 function refreshCalendarWidget() {
     var w = panelWidgets.find(function(x) { return x.id === 'calendar'; });
     if (w && w.visible) renderSidebarCalendar();
+}
+
+// ============ Topbar items ============
+// Mirrors the panel_widgets engine: a JSON list of {id,label,visible} items
+// (loaded from _pageData.topbarItems) drives the order + visibility of the
+// right-side .toolbar-actions cluster. Reorder via drag in the config popover.
+// The mobile-save button is intentionally not an item — it stays fixed at the
+// end and CSS controls desktop/mobile display.
+
+var topbarItems = _pageData.topbarItems || [];
+var topbarDragId = null;
+
+function applyTopbarLayout() {
+    var container = document.getElementById('toolbar-actions');
+    if (!container) return;
+    // The mobile-save button is a fixed last child of .toolbar-actions; keep a
+    // reference so reordered items are inserted before it.
+    var mobileSave = document.getElementById('mobile-save-btn');
+    topbarItems.forEach(function(it) {
+        var el = document.getElementById('topbar-btn-' + it.id);
+        if (!el) return; // feature-gated item not in DOM
+        if (mobileSave && mobileSave.parentNode === container) {
+            container.insertBefore(el, mobileSave);
+        } else {
+            container.appendChild(el);
+        }
+        if (it.visible) {
+            el.classList.remove('hidden-topbar-item');
+        } else {
+            el.classList.add('hidden-topbar-item');
+        }
+    });
+}
+
+function renderTopbarConfigList() {
+    var list = document.getElementById('topbar-config-list');
+    if (!list) return;
+    list.innerHTML = '';
+    topbarItems.forEach(function(it, idx) {
+        var item = document.createElement('div');
+        item.className = 'config-item';
+        item.setAttribute('draggable', 'true');
+        item.setAttribute('data-topbar-idx', idx);
+        item.innerHTML =
+            '<span class="config-drag-handle"><svg viewBox="0 0 24 24"><line x1="8" y1="6" x2="8" y2="6.01"/><line x1="16" y1="6" x2="16" y2="6.01"/><line x1="8" y1="12" x2="8" y2="12.01"/><line x1="16" y1="12" x2="16" y2="12.01"/><line x1="8" y1="18" x2="8" y2="18.01"/><line x1="16" y1="18" x2="16" y2="18.01"/></svg></span>' +
+            '<span class="config-label">' + escapeHtml(it.label) + '</span>' +
+            '<label class="config-toggle"><input type="checkbox" ' + (it.visible ? 'checked' : '') + ' data-action="toggle-topbar-visibility" data-topbar-idx="' + idx + '"><span class="config-slider"></span></label>';
+
+        item.addEventListener('dragstart', function(e) {
+            e.dataTransfer.setData('text/plain', 'topbar:' + idx);
+            topbarDragId = idx;
+            item.classList.add('dragging');
+        });
+        item.addEventListener('dragend', function() {
+            item.classList.remove('dragging');
+            topbarDragId = null;
+            list.querySelectorAll('.config-item').forEach(function(el) { el.classList.remove('drag-over'); });
+        });
+        item.addEventListener('dragover', function(e) {
+            if (topbarDragId === null) return;
+            e.preventDefault();
+            item.classList.add('drag-over');
+        });
+        item.addEventListener('dragleave', function() {
+            item.classList.remove('drag-over');
+        });
+        item.addEventListener('drop', function(e) {
+            e.preventDefault();
+            item.classList.remove('drag-over');
+            var raw = e.dataTransfer.getData('text/plain') || '';
+            if (raw.indexOf('topbar:') !== 0) return;
+            var fromIdx = parseInt(raw.slice(7), 10);
+            var toIdx = idx;
+            if (isNaN(fromIdx) || fromIdx === toIdx) return;
+            var moved = topbarItems.splice(fromIdx, 1)[0];
+            topbarItems.splice(toIdx, 0, moved);
+            applyTopbarLayout();
+            renderTopbarConfigList();
+            saveTopbarConfig();
+        });
+
+        list.appendChild(item);
+    });
+
+    if (isMobile) addTopbarMobileMoveButtons(list);
+}
+
+function addTopbarMobileMoveButtons(list) {
+    list.querySelectorAll('.config-item').forEach(function(item, idx) {
+        var handle = item.querySelector('.config-drag-handle');
+        handle.innerHTML = '';
+        if (idx > 0) {
+            var upBtn = document.createElement('button');
+            upBtn.className = 'icon-btn';
+            upBtn.style.cssText = 'padding:2px;';
+            upBtn.innerHTML = '<svg viewBox="0 0 24 24" width="12" height="12"><polyline points="18 15 12 9 6 15"/></svg>';
+            upBtn.onclick = function(e) {
+                e.stopPropagation();
+                var moved = topbarItems.splice(idx, 1)[0];
+                topbarItems.splice(idx - 1, 0, moved);
+                applyTopbarLayout();
+                renderTopbarConfigList();
+                saveTopbarConfig();
+            };
+            handle.appendChild(upBtn);
+        }
+        if (idx < topbarItems.length - 1) {
+            var downBtn = document.createElement('button');
+            downBtn.className = 'icon-btn';
+            downBtn.style.cssText = 'padding:2px;';
+            downBtn.innerHTML = '<svg viewBox="0 0 24 24" width="12" height="12"><polyline points="6 9 12 15 18 9"/></svg>';
+            downBtn.onclick = function(e) {
+                e.stopPropagation();
+                var moved = topbarItems.splice(idx, 1)[0];
+                topbarItems.splice(idx + 1, 0, moved);
+                applyTopbarLayout();
+                renderTopbarConfigList();
+                saveTopbarConfig();
+            };
+            handle.appendChild(downBtn);
+        }
+        item.setAttribute('draggable', 'false');
+    });
+}
+
+function toggleTopbarItemVisibility(idx, visible) {
+    topbarItems[idx].visible = visible;
+    applyTopbarLayout();
+    saveTopbarConfig();
+}
+
+function saveTopbarConfig() {
+    saveUiState({ topbar_items: topbarItems });
 }
 
 // ============ Sidebar calendar widget ============
@@ -5039,6 +5173,7 @@ window.addEventListener('resize', function() { isMobile = window.innerWidth <= 7
     // Apply widget layout from saved config
     applyWidgetLayout();
     initWidgetHeaderDrag();
+    applyTopbarLayout();
     syncQuickSettingsState();
 
     async function _postE2EEInit(ok) {
@@ -5352,6 +5487,9 @@ document.addEventListener('change', function(e) {
         case 'prop-changed': onPropChanged(); break;
         case 'toggle-widget-visibility':
             toggleWidgetVisibility(parseInt(el.dataset.widgetIdx), el.checked);
+            break;
+        case 'toggle-topbar-visibility':
+            toggleTopbarItemVisibility(parseInt(el.dataset.topbarIdx), el.checked);
             break;
         case 'qs-toggle-dark-mode': toggleDarkMode(); break;
         case 'qs-toggle-mode': toggleMode(); break;
