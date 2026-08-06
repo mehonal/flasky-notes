@@ -1210,7 +1210,11 @@ function getEditorContent() {
 // ============ File Upload (E2EE-aware) ============
 
 async function uploadFileToNote(file) {
-    if (!file || !noteId) return;
+    if (!file) return;
+    if (noteId === 0) {
+        var ok = await _ensureNoteSaved();
+        if (!ok) return;
+    }
     var formData = new FormData();
     var filename = file.name || ('upload-' + Date.now());
 
@@ -1390,6 +1394,8 @@ var outlineUpdateTimer = null;
 var linkGraphTimer = null;
 
 var hasBeenSavedOnce = _pageData.hasNote;
+var _pendingEnsureSave = null;
+var _savePromise = null;
 
 function updateMobileSaveBtn(state) {
     var btns = document.querySelectorAll('[data-action="save-note"]');
@@ -1414,8 +1420,7 @@ function markDirty() {
     updateMobileSaveBtn('unsaved');
     updateCounts();
     clearTimeout(autoSaveTimer);
-    // Only autosave if enabled and this note has been saved at least once (not a brand new note)
-    if (autoSaveEnabled && hasBeenSavedOnce) {
+    if (autoSaveEnabled && (hasBeenSavedOnce || noteId === 0)) {
         autoSaveTimer = setTimeout(function() { saveNote(); }, 3000);
     }
 
@@ -1449,10 +1454,36 @@ async function updateOutboundLinksFromContent() {
     } catch(e) { list.innerHTML = '<li class="backlinks-empty">No outbound links</li>'; }
 }
 
+function _ensureNoteSaved() {
+    if (noteId !== 0) return Promise.resolve(true);
+    if (_pendingEnsureSave) return _pendingEnsureSave;
+    _pendingEnsureSave = new Promise(function(resolve) {
+        var onDone = function() {
+            _pendingEnsureSave = null;
+            resolve(noteId !== 0);
+        };
+        if (_savePromise) {
+            _savePromise.then(onDone);
+        } else {
+            var titleInput = document.getElementById('note-title');
+            if (titleInput && !titleInput.value.trim()) titleInput.value = 'Untitled';
+            saveNote(onDone);
+        }
+    });
+    return _pendingEnsureSave;
+}
+
 function saveNote(callback) {
     var title = document.getElementById('note-title');
     if (!title) { if (callback) callback(); return; }
-    if (isSaving) { if (callback) callback(); return; }
+    if (isSaving) {
+        if (_savePromise) {
+            _savePromise.then(function() { if (callback) callback(); });
+        } else if (callback) {
+            callback();
+        }
+        return;
+    }
     if (noteId === 0 && !title.value.trim()) {
         if (callback) callback();
         return;
@@ -1465,7 +1496,15 @@ function saveNote(callback) {
     document.getElementById('save-status').textContent = 'Saving...';
     document.getElementById('save-status').style.color = 'var(--text-muted)';
 
-    _doSaveNote(title.value, content, props, callback);
+    var cb = callback;
+    _savePromise = new Promise(function(resolve) {
+        cb = function() {
+            _savePromise = null;
+            resolve();
+            if (callback) callback();
+        };
+    });
+    _doSaveNote(title.value, content, props, cb);
 }
 
 async function _doSaveNote(titleVal, content, props, callback) {

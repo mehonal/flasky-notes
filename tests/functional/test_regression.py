@@ -329,6 +329,55 @@ def test_settings_links_panel_and_persistence(app_context):
     assert get_setting(user, "autosuggest_show_category") is False
 
 
+# === Attachment upload on new note ===
+
+
+def test_upload_attachment_after_creating_note(app_context):
+    """Regression: attachments can be uploaded against a freshly created note.
+
+    The client-side flow on a new (noteId=0) note is: save the note to obtain
+    a real id, then POST /api/upload_attachment. This verifies the server
+    path the client relies on — create via /api/save_note, then upload.
+    """
+    import io
+    from flasky.models import Attachment, User, UserNote
+
+    client = app_context.test_client()
+    creds = make_e2ee_user(client, "uploadnew", "testpassword123")
+
+    note_r = client.post(
+        "/api/save_note",
+        json={
+            "noteId": 0,
+            "title": enc(creds, "Untitled"),
+            "content": enc(creds, ""),
+            "category": None,
+        },
+    )
+    assert note_r.status_code == 200
+    assert note_r.get_json()["success"] is True
+    note_id = note_r.get_json()["note"]["id"]
+    assert note_id > 0
+
+    r = client.post(
+        "/api/upload_attachment",
+        data={
+            "file": (io.BytesIO(b"fake-encrypted-bytes"), "encrypted"),
+            "filename": enc(creds, "pasted-image.png"),
+        },
+        content_type="multipart/form-data",
+    )
+    assert r.status_code in (200, 201)
+    data = r.get_json()
+    assert data["id"] > 0
+
+    user = User.query.filter_by(username="uploadnew").first()
+    assert Attachment.query.filter_by(id=data["id"], user_id=user.id).first() is not None
+    note = UserNote.query.filter_by(id=note_id).first()
+    assert note is not None
+    assert dec(creds, note.title) == "Untitled"
+
+
 # === Attachment deletion endpoints ===
 
 
