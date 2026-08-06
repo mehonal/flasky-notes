@@ -164,6 +164,7 @@ const wikilinkPlugin = ViewPlugin.fromClass(class {
 const IMAGE_EXT = /\.(png|jpg|jpeg|gif|svg|webp|bmp)$/i;
 const FLDRAW_EXT = /\.fldraw$/i;
 const AUDIO_EXT = /\.(mp3|wav|flac|m4a|weba|opus|ogg)$/i;
+const VIDEO_EXT = /\.(mp4|webm)$/i;
 
 class EmbedWidget extends WidgetType {
   constructor(name, att, fallbackText) {
@@ -254,6 +255,19 @@ class EmbedWidget extends WidgetType {
       return holder;
     }
 
+    if (VIDEO_EXT.test(filename)) {
+      var vid = document.createElement('video');
+      vid.controls = true;
+      vid.className = 'e2ee-attachment cm6-embed';
+      vid.setAttribute('data-encrypted-src', url);
+      vid.setAttribute('data-att-filename', filename);
+      var vidMw = window._getEmbedMaxWidths ? window._getEmbedMaxWidths().img : null;
+      vid.style.maxWidth = vidMw || '100%';
+      holder.appendChild(vid);
+      if (window._decryptAttachments) window._decryptAttachments(holder);
+      return holder;
+    }
+
     // Non-embeddable attachments fall back to a link (matches preview mode).
     var a = document.createElement('a');
     a.href = url;
@@ -262,13 +276,14 @@ class EmbedWidget extends WidgetType {
     return holder;
   }
 
-  // For audio embeds, ignore all DOM events so clicks/keys on the custom
-  // player controls (play/pause, seek, volume) are handled by the player
+  // For audio and video embeds, ignore all DOM events so clicks/keys on the
+  // media controls (play/pause, seek, volume) are handled by the player
   // instead of interpreted as editor actions (cursor movement, selection).
   // For image/fldraw embeds, let CM6 handle events normally (fldraw clicks
   // are dispatched to the drawing modal via data-action delegation in app.js).
   ignoreEvent(event) {
-    return this.att ? AUDIO_EXT.test(this.att.filename) : false;
+    if (!this.att) return false;
+    return AUDIO_EXT.test(this.att.filename) || VIDEO_EXT.test(this.att.filename);
   }
 }
 
@@ -284,7 +299,7 @@ function _embedDeco(raw) {
     att = maps.attachments[name.toLowerCase().trim()];
   }
   if (att) {
-    if (!IMAGE_EXT.test(att.filename) && !FLDRAW_EXT.test(att.filename) && !AUDIO_EXT.test(att.filename)) {
+    if (!IMAGE_EXT.test(att.filename) && !FLDRAW_EXT.test(att.filename) && !AUDIO_EXT.test(att.filename) && !VIDEO_EXT.test(att.filename)) {
       att = null;
     }
   }
