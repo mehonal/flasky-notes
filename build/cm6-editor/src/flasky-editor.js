@@ -116,6 +116,13 @@ const flaskyTheme = EditorView.theme({
   '.cm6-wikilink-live, .cm6-wikilink-live *': {
     color: 'var(--accent) !important',
     fontWeight: '700',
+    cursor: 'pointer',
+  },
+  '.cm6-link[data-href]': {
+    cursor: 'pointer',
+  },
+  '.cm6-wikilink-live:hover, .cm6-link[data-href]:hover': {
+    textDecoration: 'underline',
   },
   // --- Live-preview content styling (applied via Decoration.mark) ---
   '.cm6-h1': { fontWeight: '700' },
@@ -533,7 +540,13 @@ function _decorateLiveWikilinks(state, builder, nodeOnActiveLine, excluded) {
       builder.push(Decoration.replace({}).range(fullFrom, fullFrom + 2));
       builder.push(Decoration.replace({}).range(fullTo - 2, fullTo));
       if (fullFrom + 2 < fullTo - 2) {
-        builder.push(Decoration.mark({ class: 'cm6-wikilink-live' }).range(fullFrom + 2, fullTo - 2));
+        var inner = m[1];
+        var pipeIdx = inner.indexOf('|');
+        var linkTitle = (pipeIdx === -1 ? inner : inner.slice(0, pipeIdx)).trim();
+        builder.push(Decoration.mark({
+          class: 'cm6-wikilink-live',
+          attributes: { 'data-wikilink': linkTitle },
+        }).range(fullFrom + 2, fullTo - 2));
       }
     }
   }
@@ -656,7 +669,7 @@ function _walkTree(state, builder, nodeOnActiveLine, excluded) {
       // --- Links: hide [ ] ( ) and the URL, style the link text ---
       if (name === 'Link') {
         if (nodeOnActiveLine(from, to)) return;
-        _hideLinkMarkers(node, builder);
+        _hideLinkMarkers(node, builder, doc);
         if (excluded) excluded.push({ from: from, to: to });
         return false;
       }
@@ -666,7 +679,7 @@ function _walkTree(state, builder, nodeOnActiveLine, excluded) {
       // are rare in notes; we just hide the leading ! and the URL. ---
       if (name === 'Image') {
         if (nodeOnActiveLine(from, to)) return;
-        _hideLinkMarkers(node, builder);
+        _hideLinkMarkers(node, builder, null);
         if (excluded) excluded.push({ from: from, to: to });
         return false;
       }
@@ -741,13 +754,23 @@ function _hideQuoteMarks(node, builder) {
 // For a Link node: hide [ ] ( ) and the URL inside, keep the link text styled.
 // Link children: LinkMark, LinkLabel (the [text]), LinkMark, URL, LinkMark, ...
 // We hide LinkMark nodes and the URL node, and mark the LinkLabel content.
-function _hideLinkMarkers(node, builder) {
+function _hideLinkMarkers(node, builder, doc) {
   var child = node.node.firstChild;
+  var urlText = null;
+  if (doc) {
+    var c = node.node.firstChild;
+    while (c) {
+      if (c.name === 'URL') { urlText = doc.sliceString(c.from, c.to); break; }
+      c = c.nextSibling;
+    }
+  }
   while (child) {
     if (child.name === 'LinkMark' || child.name === 'URL' || child.name === 'LinkTitle') {
       builder.push(Decoration.replace({}).range(child.from, child.to));
     } else if (child.name === 'LinkLabel') {
-      builder.push(Decoration.mark({ class: 'cm6-link' }).range(child.from, child.to));
+      var spec = { class: 'cm6-link' };
+      if (urlText) spec.attributes = { 'data-href': urlText };
+      builder.push(Decoration.mark(spec).range(child.from, child.to));
     }
     child = child.nextSibling;
   }
@@ -894,6 +917,11 @@ function arrowDownLivePreview(view) {
  * @param {function} options.onInputRead - called on user-typed input (receives adapter)
  * @param {function} options.onCursorActivity - called on cursor/selection changes (receives adapter)
  * @param {function} options.onKeydown - called on keydown (receives adapter, event)
+ * @param {function} options.onLinkClick - called when a live-preview link is
+ *   clicked with the cursor off its line. Receives ('note'|'external', target)
+ *   where target is the note id (string) or the external URL. Return true from
+ *   a 'note' target to consume the event; for 'external' the event is always
+ *   consumed (so the browser doesn't navigate the editor's contentDOM).
  * @param {Object} options.keybindings - map of key strings to handler functions
  * @returns {Object} adapter with CM5-compatible methods
  */
@@ -995,6 +1023,38 @@ export function create(parentElement, options) {
         if (options.onKeydown) {
           options.onKeydown(adapter, e);
           return e.defaultPrevented;
+        }
+      },
+      mousedown: function(e, view) {
+        if (!options.onLinkClick || e.button !== 0) return;
+        var target = e.target;
+        if (!target || !target.closest) return;
+        var el = target.closest('[data-wikilink],[data-href]');
+        if (!el) return;
+        var consumed = false;
+        var wiki = el.getAttribute('data-wikilink');
+        if (wiki != null) {
+          var map = window._getNoteMap ? window._getNoteMap() : null;
+          var entry = map ? map[wiki.toLowerCase()] : null;
+          if (entry) {
+            options.onLinkClick('note', String(entry.id));
+            consumed = true;
+          }
+        } else {
+          var href = el.getAttribute('data-href');
+          if (href) {
+            var m = href.match(/^\/note\/(\d+)$/);
+            if (m) {
+              options.onLinkClick('note', m[1]);
+            } else {
+              options.onLinkClick('external', href);
+            }
+            consumed = true;
+          }
+        }
+        if (consumed) {
+          e.preventDefault();
+          return true;
         }
       }
     })),

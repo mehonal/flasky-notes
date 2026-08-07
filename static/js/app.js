@@ -1095,6 +1095,10 @@ function initCodeMirror() {
         initialContent: textarea ? textarea.value : '',
         renderEmbeds: !!_pageData.renderEmbedsInEditMode,
         livePreview: !!_pageData.livePreview,
+        onLinkClick: function(type, target) {
+            if (type === 'note') openNote(parseInt(target, 10));
+            else window.open(target, '_blank', 'noopener');
+        },
         onChange: function() { markDirty(); },
         onInputRead: function(cm) {
             showWikiAutocomplete(cm);
