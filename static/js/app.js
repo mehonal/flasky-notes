@@ -5720,6 +5720,13 @@ document.addEventListener('click', function(e) {
             var attEl = el.closest('[data-attachment-id]');
             if (attEl) openAttachmentPreview(parseInt(attEl.dataset.attachmentId, 10), attEl.dataset.attachmentName);
             break;
+        case 'open-image-preview':
+            var attId = parseInt(el.getAttribute('data-att-id'), 10);
+            if (attId) {
+                var attName = el.getAttribute('data-att-filename') || el.getAttribute('alt') || '';
+                openAttachmentPreview(attId, attName);
+            }
+            break;
         case 'close-attachment-preview': closeAttachmentPreview(); break;
         case 'download-attachment-preview': break; // handled via onclick set in openAttachmentPreview
         case 'find-attachment-in-notes': break;    // handled via onclick set in openAttachmentPreview

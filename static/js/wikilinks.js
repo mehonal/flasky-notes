@@ -276,7 +276,7 @@
             if (att) {
                 var url = '/attachment/' + att.id + '/' + encodeURIComponent(att.filename);
                 if (att.filename.match(/\.(png|jpg|jpeg|gif|svg|webp|bmp)$/i)) {
-                    return '<img data-encrypted-src="' + url + '" data-att-filename="' + att.filename + '" alt="' + name + '" style="max-width:' + (_attachmentMaxWidth || '100%') + '" class="e2ee-attachment">';
+                    return '<img data-encrypted-src="' + url + '" data-att-id="' + att.id + '" data-att-filename="' + att.filename + '" data-action="open-image-preview" alt="' + name + '" style="max-width:' + (_attachmentMaxWidth || '100%') + '" class="e2ee-attachment">';
                 } else if (att.filename.match(/\.(mp4|webm)$/i)) {
                     return '<video controls data-encrypted-src="' + url + '" class="e2ee-attachment" style="max-width:' + (_attachmentMaxWidth || '100%') + '"></video>';
                 } else if (att.filename.match(/\.(mp3|wav|flac|m4a|weba|opus|ogg)$/i)) {

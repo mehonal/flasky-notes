@@ -221,7 +221,9 @@ class EmbedWidget extends WidgetType {
       var img = document.createElement('img');
       img.className = 'e2ee-attachment cm6-embed';
       img.setAttribute('data-encrypted-src', url);
+      img.setAttribute('data-att-id', String(this.att.id));
       img.setAttribute('data-att-filename', filename);
+      img.setAttribute('data-action', 'open-image-preview');
       img.setAttribute('alt', this.name);
       var imgMw = window._getEmbedMaxWidths ? window._getEmbedMaxWidths().img : null;
       img.style.maxWidth = imgMw || '100%';
@@ -276,14 +278,17 @@ class EmbedWidget extends WidgetType {
     return holder;
   }
 
-  // For audio and video embeds, ignore all DOM events so clicks/keys on the
-  // media controls (play/pause, seek, volume) are handled by the player
-  // instead of interpreted as editor actions (cursor movement, selection).
-  // For image/fldraw embeds, let CM6 handle events normally (fldraw clicks
-  // are dispatched to the drawing modal via data-action delegation in app.js).
+  // For audio, video, and image embeds, ignore all DOM events so clicks on
+  // them aren't interpreted as editor actions (cursor movement, selection).
+  // Image clicks open the preview modal via data-action delegation in app.js,
+  // and we suppress the cursor jump so the user stays where they were.
+  // For fldraw embeds, let CM6 handle events normally (the cursor moves into
+  // the line alongside the edit-fldraw click dispatch in app.js).
   ignoreEvent(event) {
     if (!this.att) return false;
-    return AUDIO_EXT.test(this.att.filename) || VIDEO_EXT.test(this.att.filename);
+    return AUDIO_EXT.test(this.att.filename) ||
+      VIDEO_EXT.test(this.att.filename) ||
+      IMAGE_EXT.test(this.att.filename);
   }
 }
 
