@@ -69,3 +69,17 @@ SetDefaultNoteIconSchema = SetFolderIconSchema  # same shape
 class SetFolderTemplateSchema(Schema):
     categoryId = fields.Integer(required=True)
     templateId = fields.Integer(allow_none=True, data_key="templateId")
+
+
+class RenameAttachmentNoteSchema(Schema):
+    noteId = fields.Integer(required=True)
+    content = fields.String(required=True)
+
+
+class RenameAttachmentSchema(Schema):
+    attachmentId = fields.Integer(required=True)
+    newFilename = fields.String(required=True)
+    notes = fields.List(
+        fields.Nested(RenameAttachmentNoteSchema),
+        load_default=[],
+    )

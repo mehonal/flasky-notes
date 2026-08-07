@@ -634,6 +634,7 @@ function openAttachmentPreview(attId, name) {
     var findBtn = document.getElementById('attachment-preview-find-btn');
     var dlBtn = document.getElementById('attachment-preview-download-btn');
     var delBtn = document.getElementById('attachment-preview-delete-btn');
+    var renBtn = document.getElementById('attachment-preview-rename-btn');
     if (!overlay || !body) return;
     _previewAttachmentId = attId;
     _previewAttachmentName = name || '';
@@ -642,6 +643,7 @@ function openAttachmentPreview(attId, name) {
     if (findBtn) findBtn.disabled = true;
     if (dlBtn) dlBtn.disabled = true;
     if (delBtn) delBtn.disabled = true;
+    if (renBtn) renBtn.disabled = true;
     overlay.classList.add('visible');
 
     var url = '/attachment/' + attId + '/' + encodeURIComponent(name);
@@ -727,6 +729,10 @@ function openAttachmentPreview(attId, name) {
             delBtn.disabled = false;
             delBtn.onclick = function () { _deleteAttachmentFromPreview(); };
         }
+        if (renBtn) {
+            renBtn.disabled = false;
+            renBtn.onclick = function () { ctxRenameAttachment(); };
+        }
     }).catch(function (e) {
         body.innerHTML = '<div class="attachment-preview-info">Failed to load attachment.</div>';
     });
@@ -744,6 +750,8 @@ function closeAttachmentPreview() {
     if (findBtn) findBtn.onclick = null;
     var delBtn = document.getElementById('attachment-preview-delete-btn');
     if (delBtn) delBtn.onclick = null;
+    var renBtn = document.getElementById('attachment-preview-rename-btn');
+    if (renBtn) renBtn.onclick = null;
 }
 
 async function _deleteAttachmentFromPreview() {
@@ -2349,6 +2357,7 @@ function showContextMenu(x, y, target) {
     ctxTarget = target;
     var html = '';
     if (target.type === 'attachment') {
+        html += '<div class="context-menu-item" data-action="ctx-rename-attachment"><svg viewBox="0 0 24 24"><path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>Rename</div>';
         html += '<div class="context-menu-item" data-action="ctx-find-attachment"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>Find in notes</div>';
         html += '<div class="context-menu-item" data-action="ctx-download-attachment"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Download</div>';
         html += '<div class="context-menu-sep"></div>';
@@ -2638,6 +2647,130 @@ async function ctxDeleteAttachment() {
     msg += '\n\nThis cannot be undone.';
     if (!confirm(msg)) return;
     _deleteAttachmentById(id);
+}
+
+async function ctxRenameAttachment() {
+    var id, oldName;
+    if (ctxTarget && ctxTarget.type === 'attachment') {
+        id = ctxTarget.id; oldName = ctxTarget.name;
+        hideContextMenu();
+    } else if (_previewAttachmentId) {
+        id = _previewAttachmentId; oldName = _previewAttachmentName || '';
+    } else {
+        return;
+    }
+    if (!id || !oldName) return;
+    var newName = prompt('Rename attachment:', oldName);
+    if (!newName) return;
+    newName = newName.trim();
+    if (!newName || newName === oldName) return;
+
+    if (window.FlaskyAttachments) {
+        var attMap = window.FlaskyAttachments.getAttachmentMap();
+        if (attMap) {
+            var existing = attMap[newName.toLowerCase()];
+            if (existing && existing.id !== id) {
+                alert('An attachment with that name already exists.');
+                return;
+            }
+        }
+    }
+
+    var isE2EE = typeof FlaskyE2EE !== 'undefined' && FlaskyE2EE.isEncrypted();
+    if (!isE2EE) { alert('Rename requires an unlocked session.'); return; }
+
+    if (typeof FlaskySearch !== 'undefined' && !FlaskySearch.getIndex()) {
+        try { await FlaskySearch.buildIndex(); } catch (e) {}
+    }
+
+    var oldToken = '![[' + oldName + ']]';
+    var newToken = '![[' + newName + ']]';
+    var index = FlaskySearch.getIndex() || [];
+    var noteUpdates = [];
+    for (var i = 0; i < index.length; i++) {
+        var entry = index[i];
+        if (!entry.content || entry.content.indexOf(oldToken) === -1) continue;
+        var newContent = entry.content.split(oldToken).join(newToken);
+        if (newContent === entry.content) continue;
+        noteUpdates.push({ noteId: entry.id, plainContent: newContent });
+    }
+
+    var encNotes = [];
+    for (var k = 0; k < noteUpdates.length; k++) {
+        try {
+            var enc = await FlaskyE2EE.encryptField(noteUpdates[k].plainContent);
+            encNotes.push({ noteId: noteUpdates[k].noteId, content: enc });
+        } catch (e) {
+            alert('Failed to encrypt note content for rename.');
+            return;
+        }
+    }
+
+    var encFilename;
+    try {
+        encFilename = await FlaskyE2EE.encryptField(newName);
+    } catch (e) {
+        alert('Failed to encrypt attachment name.');
+        return;
+    }
+
+    var payload = { attachmentId: id, newFilename: encFilename, notes: encNotes };
+    try {
+        var resp = await fetch('/api/attachment/' + id + '/rename', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        var data = await resp.json();
+        if (!resp.ok) {
+            alert(data.error || 'Rename failed.');
+            return;
+        }
+    } catch (e) {
+        alert('Rename failed.');
+        return;
+    }
+
+    for (var m = 0; m < noteUpdates.length; m++) {
+        var nu = noteUpdates[m];
+        var cached = _noteStore.get(nu.noteId);
+        if (cached) {
+            cached.content = nu.plainContent;
+            _storeNote(cached);
+        }
+        if (typeof FlaskySearch !== 'undefined') {
+            FlaskySearch.updateNote({ id: nu.noteId, content: nu.plainContent });
+        }
+        if (noteId === nu.noteId && cmEditor) {
+            cmEditor.setValue(nu.plainContent);
+            cmEditor.refresh();
+            isDirty = false;
+            if (!editMode) renderPreview();
+        }
+    }
+
+    if (window.FlaskyAttachments) window.FlaskyAttachments.invalidateAttachmentIndex();
+    if (window._invalidateNoteMap) window._invalidateNoteMap();
+    refreshSidebar();
+
+    if (_previewAttachmentId === id) {
+        _previewAttachmentName = newName;
+        var titleEl = document.getElementById('attachment-preview-title');
+        if (titleEl) titleEl.textContent = newName;
+        var dlBtn = document.getElementById('attachment-preview-download-btn');
+        if (dlBtn && dlBtn.onclick) {
+            (function (nm) { dlBtn.onclick = function () {
+                var a = document.createElement('a');
+                if (_previewObjectUrl) { a.href = _previewObjectUrl; a.download = nm; }
+                document.body.appendChild(a); a.click(); a.remove();
+            }; })(newName);
+        }
+        var findBtn = document.getElementById('attachment-preview-find-btn');
+        if (findBtn && findBtn.onclick) {
+            (function (nm) { findBtn.onclick = function () { _findAttachmentInNotes(nm); }; })(newName);
+        }
+    }
+    try { localStorage.setItem('flasky-notes-rev', Date.now().toString()); } catch (e) {}
 }
 
 async function ctxDeleteAllAttachments() {
@@ -5591,6 +5724,7 @@ document.addEventListener('click', function(e) {
         case 'download-attachment-preview': break; // handled via onclick set in openAttachmentPreview
         case 'find-attachment-in-notes': break;    // handled via onclick set in openAttachmentPreview
         case 'delete-attachment-preview': break;   // handled via onclick set in openAttachmentPreview
+        case 'rename-attachment-preview': break;   // handled via onclick set in openAttachmentPreview
         case 'close-modal-self':
             if (e.target === el) {
                 var closeFn = el.dataset.modalClose;
@@ -5617,6 +5751,7 @@ document.addEventListener('click', function(e) {
         case 'ctx-find-attachment': ctxFindAttachment(); break;
         case 'ctx-download-attachment': ctxDownloadAttachment(); break;
         case 'ctx-delete-attachment': ctxDeleteAttachment(); break;
+        case 'ctx-rename-attachment': ctxRenameAttachment(); break;
         case 'ctx-delete-all-attachments': ctxDeleteAllAttachments(); break;
         case 'ctx-delete-attachment-category': ctxDeleteAttachmentCategory(); break;
     }

@@ -7,6 +7,7 @@ import os
 
 from flasky import db
 from flasky.models import Attachment
+from flasky.services import notes as notes_service
 from flask import current_app
 
 
@@ -158,3 +159,41 @@ def delete_attachments(user, ids):
 
 def list_attachments(user):
     return Attachment.query.filter_by(user_id=user.id).all()
+
+
+def rename_attachment(user, attachment_id, new_filename, note_updates):
+    """Rename an attachment and update the encrypted content of every note that
+    references it, in a single transaction. `new_filename` is the E2EE
+    ciphertext of the new display name; `note_updates` is a list of dicts
+    with a note id (`note_id` or `noteId`) and `content` (re-encrypted note body
+    with the new embed name substituted for the old). The on-disk blob is
+    moved after the commit (its path includes the filename). Raises
+    AttachmentNotFound if the attachment is missing or not owned by `user`,
+    NoteNotFound/NotOwner if a referenced note is missing or unowned.
+
+    Returns `(attachment, updated_note_ids)`.
+    """
+    a = get_attachment(user, attachment_id)
+    old_disk = a.disk_path()
+    data = None
+    if os.path.exists(old_disk):
+        with open(old_disk, "rb") as f:
+            data = f.read()
+    a.filename = new_filename
+    updated_ids = []
+    for upd in note_updates:
+        note_id = upd.get("note_id", upd.get("noteId"))
+        notes_service.update_note(
+            user, note_id, content=upd["content"], commit=False
+        )
+        updated_ids.append(note_id)
+    db.session.commit()
+    if data is not None:
+        new_disk = a.disk_path()
+        _write_to_disk(user.id, a, data)
+        if old_disk != new_disk and os.path.exists(old_disk):
+            try:
+                os.remove(old_disk)
+            except OSError:
+                pass
+    return a, updated_ids

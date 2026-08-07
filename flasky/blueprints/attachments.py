@@ -1,9 +1,12 @@
 """Attachments blueprint — upload + delete endpoints (download is on web.py /serve_attachment)."""
 from flask import Blueprint, request, g, jsonify
+from marshmallow import ValidationError
 
 from flasky.utils import login_required
 from flasky.services import attachments as att_service
 from flasky.services.attachments import AttachmentNotFound
+from flasky.services.notes import NoteNotFound, NotOwner
+from flasky.schemas.notes import RenameAttachmentSchema
 
 
 attachments_bp = Blueprint("attachments", __name__, url_prefix="/api")
@@ -52,6 +55,45 @@ def replace_attachment(attachment_id):
         "filename": attachment.filename,
         "file_hash": attachment.file_hash,
         "file_size": attachment.file_size,
+    }), 200
+
+
+@attachments_bp.route("/attachment/<int:attachment_id>/rename", methods=["PUT"])
+@login_required
+def rename_attachment(attachment_id):
+    """Rename an attachment and update the encrypted content of every note
+    that references it, atomically. Body (JSON, validated by
+    RenameAttachmentSchema): {attachmentId, newFilename, notes: [{noteId,
+    content}]}. `newFilename` and each `content` are E2EE ciphertext supplied
+    by the client, which performed the find-and-replace on the decrypted note
+    bodies.
+    """
+    schema = RenameAttachmentSchema()
+    try:
+        data = schema.load(request.get_json(silent=True) or {})
+    except ValidationError as err:
+        return jsonify(error="Validation failed.", details=err.messages), 422
+    if data["attachmentId"] != attachment_id:
+        return jsonify(error="attachmentId mismatch."), 400
+    try:
+        attachment, updated_ids = att_service.rename_attachment(
+            g.user,
+            data["attachmentId"],
+            data["newFilename"],
+            data["notes"],
+        )
+    except AttachmentNotFound:
+        return jsonify(error="Not found"), 404
+    except (NoteNotFound, NotOwner):
+        return jsonify(error="Referenced note not found."), 404
+    except Exception as e:
+        return jsonify(error=str(e)), 500
+    return jsonify({
+        "id": attachment.id,
+        "filename": attachment.filename,
+        "file_hash": attachment.file_hash,
+        "file_size": attachment.file_size,
+        "updated_notes": updated_ids,
     }), 200
 
 

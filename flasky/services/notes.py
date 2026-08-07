@@ -76,7 +76,7 @@ def create_note(user, title, content, category, properties=None, icon=None, icon
 
 
 def update_note(user, note_id, title=None, content=None, category=None,
-                properties=None, icon=None, icon_color=None):
+                properties=None, icon=None, icon_color=None, commit=True):
     note = get_owned_note(user, note_id)
     now = datetime.utcnow()
     if title is not None:
@@ -99,7 +99,10 @@ def update_note(user, note_id, title=None, content=None, category=None,
     if icon is not None:
         note.icon = icon
         note.icon_color = icon_color
-    db.session.commit()
+    if commit:
+        db.session.commit()
+    else:
+        db.session.flush()
     return note
 
 

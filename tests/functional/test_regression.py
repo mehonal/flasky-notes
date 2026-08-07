@@ -456,3 +456,137 @@ def test_delete_attachment_batch_ignores_other_user_ids(auth_client):
     assert r.get_json()["deleted"] == 1  # only user_a's
     # user_b's attachment still exists
     assert Attachment.query.filter_by(id=att_b.id).first() is not None
+
+
+# === Attachment rename endpoint ===
+
+
+def test_rename_attachment_updates_filename_and_notes(auth_client):
+    """PUT /api/attachment/<id>/rename updates the attachment's encrypted
+    filename and atomically rewrites the encrypted content of every note
+    the client supplies in the same transaction.
+    """
+    from flasky.models import User, Attachment, UserNote
+    client, creds = auth_client
+    user = User.query.filter_by(username="testuser").first()
+
+    att = _create_attachment_via_service(user, b"img-bytes", "old-name.png")
+
+    note_r = client.post(
+        "/api/save_note",
+        json={
+            "noteId": 0,
+            "title": enc(creds, "Note with embed"),
+            "content": enc(creds, "Here is ![[old-name.png]] embedded."),
+            "category": None,
+        },
+    )
+    note_id = note_r.get_json()["note"]["id"]
+
+    new_content_plain = "Here is ![[new-name.png]] embedded."
+    r = client.put(
+        f"/api/attachment/{att.id}/rename",
+        json={
+            "attachmentId": att.id,
+            "newFilename": enc(creds, "new-name.png"),
+            "notes": [{"noteId": note_id, "content": enc(creds, new_content_plain)}],
+        },
+    )
+    assert r.status_code == 200
+    data = r.get_json()
+    assert data["id"] == att.id
+    assert data["updated_notes"] == [note_id]
+
+    refreshed = Attachment.query.filter_by(id=att.id).first()
+    assert dec(creds, refreshed.filename) == "new-name.png"
+    assert os.path.exists(refreshed.disk_path())
+
+    note = UserNote.query.filter_by(id=note_id).first()
+    assert dec(creds, note.content) == new_content_plain
+    assert dec(creds, note.previous_content) == "Here is ![[old-name.png]] embedded."
+
+
+def test_rename_attachment_no_notes_updates_name_only(auth_client):
+    """Rename with an empty notes list updates only the attachment filename."""
+    from flasky.models import User, Attachment
+    client, creds = auth_client
+    user = User.query.filter_by(username="testuser").first()
+    att = _create_attachment_via_service(user, b"data", "before.png")
+
+    r = client.put(
+        f"/api/attachment/{att.id}/rename",
+        json={
+            "attachmentId": att.id,
+            "newFilename": enc(creds, "after.png"),
+            "notes": [],
+        },
+    )
+    assert r.status_code == 200
+    assert dec(creds, Attachment.query.filter_by(id=att.id).first().filename) == "after.png"
+
+
+def test_rename_attachment_missing_returns_404(auth_client):
+    """Rename of a nonexistent attachment returns 404."""
+    client, creds = auth_client
+    r = client.put(
+        "/api/attachment/999999/rename",
+        json={
+            "attachmentId": 999999,
+            "newFilename": enc(creds, "x.png"),
+            "notes": [],
+        },
+    )
+    assert r.status_code == 404
+
+
+def test_rename_attachment_id_mismatch_rejected(auth_client):
+    """If the body attachmentId doesn't match the URL id, reject with 400."""
+    from flasky.models import User
+    client, creds = auth_client
+    user = User.query.filter_by(username="testuser").first()
+    att = _create_attachment_via_service(user, b"data", "keep.png")
+
+    r = client.put(
+        f"/api/attachment/{att.id}/rename",
+        json={
+            "attachmentId": att.id + 1,
+            "newFilename": enc(creds, "changed.png"),
+            "notes": [],
+        },
+    )
+    assert r.status_code == 400
+
+
+def test_rename_attachment_validation_error(auth_client):
+    """Missing required fields produce a 422 with structured details."""
+    from flasky.models import User
+    client, creds = auth_client
+    user = User.query.filter_by(username="testuser").first()
+    att = _create_attachment_via_service(user, b"data", "v.png")
+
+    r = client.put(
+        f"/api/attachment/{att.id}/rename",
+        json={"attachmentId": att.id, "notes": []},
+    )
+    assert r.status_code == 422
+    assert "details" in r.get_json()
+
+
+def test_rename_attachment_other_user_not_found(auth_client):
+    """Renaming another user's attachment returns 404 (ownership filter)."""
+    from flasky.models import User, Attachment
+    from flasky.services.auth import create_user
+    client, creds = auth_client
+    user_b = create_user("renameother", "otherpassword123", "ro@test.com")
+    att_b = _create_attachment_via_service(user_b, b"theirs", "theirs.png")
+
+    r = client.put(
+        f"/api/attachment/{att_b.id}/rename",
+        json={
+            "attachmentId": att_b.id,
+            "newFilename": enc(creds, "stolen.png"),
+            "notes": [],
+        },
+    )
+    assert r.status_code == 404
+    assert Attachment.query.filter_by(id=att_b.id).first() is not None
