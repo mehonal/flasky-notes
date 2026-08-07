@@ -36,8 +36,8 @@ DEFAULT_PANEL_WIDGETS = [
     {"id": "properties", "label": "Properties", "visible": True},
     {"id": "todos", "label": "To-dos", "visible": False},
     {"id": "events", "label": "Events", "visible": False},
-    {"id": "quick_settings", "label": "Quick Settings", "visible": False},
-    {"id": "link_graph", "label": "Link Graph", "visible": False},
+    {"id": "quick_settings", "label": "Quick Settings", "visible": True},
+    {"id": "link_graph", "label": "Link Graph", "visible": True},
 ]
 # Note: the calendar widget is NOT in this shared default list because its
 # presence is conditional on the per-user daily_note_enabled setting. It is
@@ -131,13 +131,13 @@ REGISTRY: dict[str, SettingDef] = {
     "preview_mode": SettingDef("preview_mode", False, bool),
     # Render ![[image]] and ![[drawing.fldraw]] embeds inline while editing
     # (CM6 widget decoration replaces the ![[...]] text visually without
-    # altering the underlying document). Off by default — opt-in.
-    "render_embeds_in_edit_mode": SettingDef("render_embeds_in_edit_mode", False, bool),
+    # altering the underlying document).
+    "render_embeds_in_edit_mode": SettingDef("render_embeds_in_edit_mode", True, bool),
     # Live rendering in edit mode: hide markdown syntax (#, **, [](), etc.)
     # and render headings, emphasis, links, code blocks, callouts, and lists
     # as styled output. The raw source is revealed on the line holding the
-    # cursor so it stays editable. Off by default — opt-in.
-    "live_preview": SettingDef("live_preview", False, bool),
+    # cursor so it stays editable.
+    "live_preview": SettingDef("live_preview", True, bool),
     "panel_widgets": SettingDef("panel_widgets", DEFAULT_PANEL_WIDGETS, list),
     "topbar_items": SettingDef("topbar_items", DEFAULT_TOPBAR_ITEMS, list),
     # Daily notes (optional). daily_note_template_id / daily_note_category_id
@@ -230,10 +230,10 @@ REGISTRY: dict[str, SettingDef] = {
     # server has no mime info (filenames are ciphertext), so classification
     # happens in the browser after E2EE decryption.
     "attachments_folder_enabled": SettingDef(
-        "attachments_folder_enabled", False, bool,
+        "attachments_folder_enabled", True, bool,
     ),
     "attachments_folder_subcategories": SettingDef(
-        "attachments_folder_subcategories", False, bool,
+        "attachments_folder_subcategories", True, bool,
     ),
     # Vault Context (client-side RAG) tuning + global consent gate. The global
     # gate (vault_context_allowed) defaults off and must be on before the
