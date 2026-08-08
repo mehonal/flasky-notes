@@ -10,6 +10,12 @@
 
                 <div class="toolbar-row toolbar-row-actions">
                     <div class="toolbar-actions" id="toolbar-actions">
+                    <div class="topbar-item" data-topbar-id="save" id="topbar-btn-save">
+                    <button class="icon-btn save-btn" data-action="save-note" title="Save note (Ctrl+S)" aria-label="Save note">
+                        <svg viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                    </button>
+                    </div>
+
                     <div class="topbar-item" data-topbar-id="font_size" id="topbar-btn-font_size">
                     <div class="font-size-controls">
                         <button class="icon-btn" data-action="change-font-size" data-delta="-1" title="Decrease font size" aria-label="Decrease font size">
@@ -190,10 +196,6 @@
                         <div class="toolbar-divider"></div>
                     </div>
 
-                    <!-- Mobile save — fixed at end, not customizable; CSS hides on desktop -->
-                    <button class="icon-btn mobile-save-btn" id="mobile-save-btn" data-action="save-note" title="Save note" aria-label="Save note">
-                        <svg viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
-                    </button>
                     </div>
                 </div>
             </div>

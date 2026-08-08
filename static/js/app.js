@@ -1419,7 +1419,7 @@ function updateMobileSaveBtn(state) {
         if (state === 'unsaved') btn.classList.add('unsaved');
         else if (state === 'saved') {
             btn.classList.add('saved');
-            if (btn.classList.contains('spotlight-ctrl-btn')) {
+            if (btn.classList.contains('spotlight-ctrl-btn') || btn.classList.contains('save-btn')) {
                 btn.classList.add('save-flash');
                 setTimeout(function() { btn.classList.remove('save-flash'); }, 1000);
             }
@@ -3224,26 +3224,20 @@ function refreshCalendarWidget() {
 // Mirrors the panel_widgets engine: a JSON list of {id,label,visible} items
 // (loaded from _pageData.topbarItems) drives the order + visibility of the
 // right-side .toolbar-actions cluster. Reorder via drag in the config popover.
-// The mobile-save button is intentionally not an item — it stays fixed at the
-// end and CSS controls desktop/mobile display.
+// save and panel_toggle are non-disablable: the server forces visible=true and
+// the config list renders them without a toggle.
 
 var topbarItems = _pageData.topbarItems || [];
 var topbarDragId = null;
+var NON_DISABLABLE_TOPBAR_IDS = {"save": true, "panel_toggle": true};
 
 function applyTopbarLayout() {
     var container = document.getElementById('toolbar-actions');
     if (!container) return;
-    // The mobile-save button is a fixed last child of .toolbar-actions; keep a
-    // reference so reordered items are inserted before it.
-    var mobileSave = document.getElementById('mobile-save-btn');
     topbarItems.forEach(function(it) {
         var el = document.getElementById('topbar-btn-' + it.id);
         if (!el) return; // feature-gated item not in DOM
-        if (mobileSave && mobileSave.parentNode === container) {
-            container.insertBefore(el, mobileSave);
-        } else {
-            container.appendChild(el);
-        }
+        container.appendChild(el);
         if (it.visible) {
             el.classList.remove('hidden-topbar-item');
         } else {
@@ -3261,10 +3255,16 @@ function renderTopbarConfigList() {
         item.className = 'config-item';
         item.setAttribute('draggable', 'true');
         item.setAttribute('data-topbar-idx', idx);
+        var toggleHtml;
+        if (NON_DISABLABLE_TOPBAR_IDS[it.id]) {
+            toggleHtml = '<span class="config-locked">Always on</span>';
+        } else {
+            toggleHtml = '<label class="config-toggle"><input type="checkbox" ' + (it.visible ? 'checked' : '') + ' data-action="toggle-topbar-visibility" data-topbar-idx="' + idx + '"><span class="config-slider"></span></label>';
+        }
         item.innerHTML =
             '<span class="config-drag-handle"><svg viewBox="0 0 24 24"><line x1="8" y1="6" x2="8" y2="6.01"/><line x1="16" y1="6" x2="16" y2="6.01"/><line x1="8" y1="12" x2="8" y2="12.01"/><line x1="16" y1="12" x2="16" y2="12.01"/><line x1="8" y1="18" x2="8" y2="18.01"/><line x1="16" y1="18" x2="16" y2="18.01"/></svg></span>' +
             '<span class="config-label">' + escapeHtml(it.label) + '</span>' +
-            '<label class="config-toggle"><input type="checkbox" ' + (it.visible ? 'checked' : '') + ' data-action="toggle-topbar-visibility" data-topbar-idx="' + idx + '"><span class="config-slider"></span></label>';
+            toggleHtml;
 
         item.addEventListener('dragstart', function(e) {
             e.dataTransfer.setData('text/plain', 'topbar:' + idx);

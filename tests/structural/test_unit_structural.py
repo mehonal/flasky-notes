@@ -357,3 +357,21 @@ def test_topbar_items_ai_gate_uses_user_settings():
     db.session.commit()
     items = get_topbar_items(user)
     assert "ai" in [it["id"] for it in items]
+
+
+def test_topbar_items_non_disablable_forced_visible():
+    """save and panel_toggle can be reordered but never hidden: get and set
+    both force visible=True so a stale or malicious payload can't disable them."""
+    from flasky.ui_settings import get_topbar_items, set_topbar_items, NON_DISABLABLE_TOPBAR_IDS
+    user = _make_user("topbarlock", "testpass", "topbarlock@test.com")
+    items = get_topbar_items(user)
+    for it in items:
+        if it["id"] in NON_DISABLABLE_TOPBAR_IDS:
+            assert it["visible"] is True
+    # Attempt to hide save via set_topbar_items.
+    patched = [dict(it, visible=(it["id"] not in NON_DISABLABLE_TOPBAR_IDS)) for it in items]
+    assert set_topbar_items(user, patched) is True
+    back = get_topbar_items(user)
+    for it in back:
+        if it["id"] in NON_DISABLABLE_TOPBAR_IDS:
+            assert it["visible"] is True

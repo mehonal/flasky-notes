@@ -666,9 +666,13 @@
                             <div class="setting-row">
                                 <span class="setting-label">{{ item.label }}</span>
                                 <div class="setting-control">
+                                    {% if item.id in ('save', 'panel_toggle') %}
+                                    <span class="setting-hint" style="margin:0;">Always on</span>
+                                    {% else %}
                                     <div class="toggle {% if item.visible %}on{% endif %}" data-toggle="topbar-{{ item.id }}">
                                         <input type="checkbox" id="topbar-{{ item.id }}" name="topbar-{{ item.id }}" value="1" {% if item.visible %}checked{% endif %}>
                                     </div>
+                                    {% endif %}
                                 </div>
                             </div>
                             {% endfor %}

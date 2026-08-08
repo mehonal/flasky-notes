@@ -51,10 +51,9 @@ DEFAULT_PANEL_WIDGETS = [
 # first-class items so users can add/remove/move them like buttons.
 # Feature-gated items (drawing, audio, daily_note, ai) are stripped by
 # get_topbar_items() when their feature is off, mirroring how
-# get_panel_widgets() strips the calendar widget. mobile_save is intentionally
-# NOT here: it stays fixed at the end of .toolbar-actions and is shown/hidden
-# purely via CSS (desktop vs. mobile).
+# get_panel_widgets() strips the calendar widget.
 DEFAULT_TOPBAR_ITEMS = [
+    {"id": "save", "label": "Save", "visible": True},
     {"id": "font_size", "label": "Font size", "visible": True},
     {"id": "divider_1", "label": "Divider", "visible": True},
     {"id": "mode_toggle", "label": "Edit / Preview", "visible": True},
@@ -73,6 +72,10 @@ DEFAULT_TOPBAR_ITEMS = [
     {"id": "delete", "label": "Delete", "visible": True},
     {"id": "divider_5", "label": "Divider", "visible": False},
 ]
+
+# Reorderable but never hideable: save is the only save affordance on touch;
+# panel_toggle is the only way to reopen a collapsed right panel.
+NON_DISABLABLE_TOPBAR_IDS = frozenset({"save", "panel_toggle"})
 
 # Feature gates for topbar items. An item id maps to the ui_settings key whose
 # truthiness determines whether the item is offered. Items not in this map are
@@ -555,6 +558,10 @@ def get_topbar_items(user) -> list[dict]:
     for w in cleaned:
         if w["id"] in label_by_id:
             w["label"] = label_by_id[w["id"]]
+    # Force non-disablable items visible on every read.
+    for w in cleaned:
+        if w["id"] in NON_DISABLABLE_TOPBAR_IDS:
+            w["visible"] = True
     # Forward-merge any new defaults the user doesn't have yet.
     saved_ids = [w.get("id") for w in cleaned]
     for default_w in DEFAULT_TOPBAR_ITEMS:
@@ -567,6 +574,9 @@ def set_topbar_items(user, items: list[dict]) -> bool:
     """Persist the topbar_items list."""
     if not isinstance(items, list):
         return False
+    for w in items:
+        if isinstance(w, dict) and w.get("id") in NON_DISABLABLE_TOPBAR_IDS:
+            w["visible"] = True
     raw = _load_raw(user)
     raw["topbar_items"] = items
     _save_raw(user, raw)

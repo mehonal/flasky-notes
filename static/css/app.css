@@ -639,6 +639,7 @@ body {
 }
 .config-toggle input:checked + .config-slider { background: var(--accent-dim); }
 .config-toggle input:checked + .config-slider::before { transform: translateX(12px); background: var(--accent); }
+.config-locked { font-size: 11px; color: var(--text-muted); flex-shrink: 0; }
 
 /* Topbar item wrappers — each customizable control sits in a .topbar-item so
    applyTopbarLayout() can reorder via insertBefore/appendChild. Hidden items
@@ -1119,12 +1120,14 @@ body {
     border-radius: 4px;
 }
 
-/* ============ Mobile-only toolbar buttons ============ */
-.mobile-save-btn { display: none; }
-@media (max-width: 768px) {
-    .mobile-save-btn { display: flex; }
-    .mobile-save-btn.saved { color: var(--green); }
-    .mobile-save-btn.unsaved { color: var(--yellow); }
+/* ============ Save button state colors ============ */
+.save-btn.saved { color: var(--green); }
+.save-btn.unsaved { color: var(--yellow); }
+.save-btn.save-flash { animation: save-flash 1s; }
+@keyframes save-flash {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.2); }
+    100% { transform: scale(1); }
 }
 
 /* ============ Callouts (preview) ============ */
