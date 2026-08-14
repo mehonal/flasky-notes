@@ -4578,6 +4578,25 @@ function _linksAlgo() {
     return (a === 'title_substring' || a === 'full_search') ? a : 'title_prefix';
 }
 
+// Clamp a dropdown's left coordinate so its right edge never extends past
+// the editor's content box (and is also bounded by the viewport). Anchoring
+// to #cm-wrapper keeps the popup visually aligned with the text column
+// rather than letting it drift out over the right-panel gutter.
+function _clampPopupLeft(cursorLeft, popupWidth) {
+    var maxRight = window.innerWidth - 4;
+    var editorEl = document.getElementById('cm-wrapper');
+    if (editorEl) {
+        var r = editorEl.getBoundingClientRect();
+        if (r.right > 0 && r.right < maxRight) maxRight = r.right;
+    }
+    var left = cursorLeft;
+    if (left + popupWidth > maxRight) {
+        left = maxRight - popupWidth;
+    }
+    if (left < 4) left = 4;
+    return left;
+}
+
 // ============ [[ Wikilink Autocomplete ============
 
 function showWikiAutocomplete(cm) {
@@ -4612,7 +4631,8 @@ function showWikiAutocomplete(cm) {
         renderLinksDropdown(wikiAutocomplete, wikiFilteredNotes, _linksShowCategory(), wikiSelectedIndex);
 
         var coords = cm.cursorCoords(true, 'page');
-        wikiAutocomplete.style.left = coords.left + 'px';
+        var popupLeft = _clampPopupLeft(coords.left, wikiAutocomplete.offsetWidth || 200);
+        wikiAutocomplete.style.left = popupLeft + 'px';
         wikiAutocomplete.style.top = (coords.bottom + 4) + 'px';
         wikiAutocomplete.style.display = 'block';
     });
@@ -4730,7 +4750,8 @@ function _showAttachmentSuggestions(cm, query) {
     renderLinksDropdown(wikiAutocomplete, wikiFilteredNotes, _linksShowCategory(), wikiSelectedIndex);
 
     var coords = cm.cursorCoords(true, 'page');
-    wikiAutocomplete.style.left = coords.left + 'px';
+    var popupLeft = _clampPopupLeft(coords.left, wikiAutocomplete.offsetWidth || 200);
+    wikiAutocomplete.style.left = popupLeft + 'px';
     wikiAutocomplete.style.top = (coords.bottom + 4) + 'px';
     wikiAutocomplete.style.display = 'block';
 }
@@ -4849,7 +4870,8 @@ function showAutosuggest(cm) {
         renderLinksDropdown(autosuggestDropdown, autosuggFilteredNotes, _linksShowCategory(), autosuggSelectedIndex);
 
         var coords = cm.cursorCoords(true, 'page');
-        autosuggestDropdown.style.left = coords.left + 'px';
+        var popupLeft = _clampPopupLeft(coords.left, autosuggestDropdown.offsetWidth || 200);
+        autosuggestDropdown.style.left = popupLeft + 'px';
         autosuggestDropdown.style.top = (coords.bottom + 4) + 'px';
         autosuggestDropdown.style.display = 'block';
     });
@@ -5055,11 +5077,7 @@ function showSlashCommands(cm) {
 
     renderSlashCommands();
     var coords = cm.cursorCoords(true, 'page');
-    var popupLeft = coords.left;
-    var popupWidth = slashPopup.offsetWidth || 220;
-    if (popupLeft + popupWidth > window.innerWidth) {
-        popupLeft = Math.max(4, window.innerWidth - popupWidth - 4);
-    }
+    var popupLeft = _clampPopupLeft(coords.left, slashPopup.offsetWidth || 220);
     slashPopup.style.left = popupLeft + 'px';
     slashPopup.style.top = (coords.bottom + 4) + 'px';
     slashPopup.style.display = 'block';
