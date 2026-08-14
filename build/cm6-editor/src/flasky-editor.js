@@ -5,7 +5,7 @@ import { markdown, markdownLanguage } from '@codemirror/lang-markdown';
 import { GFM } from '@lezer/markdown';
 import { syntaxHighlighting, HighlightStyle, defaultHighlightStyle, bracketMatching, syntaxTree } from '@codemirror/language';
 import { closeBrackets, closeBracketsKeymap } from '@codemirror/autocomplete';
-import { tags } from '@lezer/highlight';
+import { tags, styleTags } from '@lezer/highlight';
 // Not importing @codemirror/language-data — it adds ~1MB for fenced code block
 // sub-language highlighting. Preview mode uses highlight.js for that instead.
 
@@ -32,6 +32,33 @@ const flaskyHighlight = HighlightStyle.define([
   { tag: tags.contentSeparator, class: 'cm6-hr' },
   { tag: tags.list, class: 'cm6-list-marker' },
 ]);
+
+// ==highlight== extension for the Lezer markdown parser.
+// Mirrors the GFM Strikethrough extension structure: defines a Highlight
+// node (content) + HighlightMark node (the == delimiters), with an inline
+// parser that adds a delimiter with left/right-flanking constraints.
+const Punctuation = /[!"#$%&'()*+,\-.\/:;<=>?@\[\\\]^_`{|}~\xA1\u2010-\u2027]/;
+const HighlightDelim = { resolve: 'Highlight', mark: 'HighlightMark' };
+const Highlight = {
+  defineNodes: [
+    { name: 'Highlight', style: styleTags({ 'Highlight/...': tags.content }) },
+    { name: 'HighlightMark', style: tags.processingInstruction },
+  ],
+  parseInline: [{
+    name: 'Highlight',
+    parse(cx, next, pos) {
+      if (next != 61 /* '=' */ || cx.char(pos + 1) != 61 || cx.char(pos + 2) == 61)
+        return -1;
+      let before = cx.slice(pos - 1, pos), after = cx.slice(pos + 2, pos + 3);
+      let sBefore = /\s|^$/.test(before), sAfter = /\s|^$/.test(after);
+      let pBefore = Punctuation.test(before), pAfter = Punctuation.test(after);
+      return cx.addDelimiter(HighlightDelim, pos, pos + 2,
+        !sAfter && (!pAfter || sBefore || pBefore),
+        !sBefore && (!pBefore || sAfter || pAfter));
+    },
+    after: 'Emphasis',
+  }],
+};
 
 // Base theme using CSS variables
 const flaskyTheme = EditorView.theme({
@@ -107,6 +134,11 @@ const flaskyTheme = EditorView.theme({
     color: 'var(--text-muted)',
     display: 'block',
   },
+  '.cm6-hr-line': {
+    border: 'none',
+    borderTop: '1px solid var(--border-light)',
+    margin: '1.5em 0',
+  },
   '.cm6-list-marker': {
     color: 'var(--accent)',
   },
@@ -131,6 +163,11 @@ const flaskyTheme = EditorView.theme({
   '.cm6-h4': { fontWeight: '700' },
   '.cm6-h5': { fontWeight: '700' },
   '.cm6-h6': { fontWeight: '700' },
+  '.cm6-mark': {
+    backgroundColor: 'rgba(255, 224, 130, 0.35)',
+    borderRadius: '2px',
+    padding: '1px 2px',
+  },
   // Code block widget (block-level replace)
   '.cm6-codeblock': {
     background: 'var(--bg-secondary)',
@@ -403,6 +440,18 @@ var HEADING_NODES = {
   ATXHeading6: { level: 6, cls: 'cm6-h6' },
 };
 
+// Horizontal rule widget: replaces --- (HorizontalRule node) with a real
+// <hr> element in live preview mode. On the active line the raw text is shown.
+class HrWidget extends WidgetType {
+  eq() { return true; }
+  toDOM() {
+    var hr = document.createElement('hr');
+    hr.className = 'cm6-hr-line';
+    return hr;
+  }
+  ignoreEvent() { return false; }
+}
+
 // Fenced code block widget: replaces ```lang\n...\n``` with a styled <pre>.
 // Reuses the page's hljs (already loaded for preview mode) for syntax
 // highlighting. Falls back to plain monospace when hljs isn't available.
@@ -640,6 +689,16 @@ function _walkTree(state, builder, nodeOnActiveLine, excluded) {
         return false;
       }
 
+      // Horizontal rule: --- / *** / ___  →  render as a real <hr> widget
+      if (name === 'HorizontalRule') {
+        if (nodeOnActiveLine(from, to)) return;
+        builder.push(Decoration.replace({
+          block: true,
+          widget: new HrWidget(),
+        }).range(from, to));
+        return false;
+      }
+
       // --- Headings: hide the leading # marks, style the content ---
       var h = HEADING_NODES[name];
       if (h) {
@@ -649,10 +708,13 @@ function _walkTree(state, builder, nodeOnActiveLine, excluded) {
         return false;
       }
 
-      // --- Inline emphasis / strikethrough: hide the delim markers ---
-      if (name === 'Emphasis' || name === 'StrongEmphasis' || name === 'Strikethrough') {
+      // --- Inline emphasis / strikethrough / highlight: hide the delim markers ---
+      if (name === 'Emphasis' || name === 'StrongEmphasis' || name === 'Strikethrough' || name === 'Highlight') {
         if (nodeOnActiveLine(from, to)) return;
         _hideMarkChildren(node, builder);
+        if (name === 'Highlight') {
+          builder.push(Decoration.mark({ class: 'cm6-mark' }).range(from, to));
+        }
         return false;
       }
 
@@ -961,7 +1023,7 @@ export function create(parentElement, options) {
     // Markdown with GFM
     markdown({
       base: markdownLanguage,
-      extensions: [GFM],
+      extensions: [GFM, Highlight],
     }),
 
     // Styling

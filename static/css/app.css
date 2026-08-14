@@ -498,6 +498,7 @@ body {
 .editor-preview li { margin: 0.15em 0; }
 .editor-preview li > ul, .editor-preview li > ol { margin: 0; }
 .editor-preview hr { border: none; border-top: 1px solid var(--border-light); margin: 1.5em 0; }
+.editor-preview mark { background: rgba(255, 224, 130, 0.35); border-radius: 2px; padding: 1px 2px; }
 .editor-preview table { border-collapse: collapse; width: 100%; margin: 1em 0; font-size: 14px; }
 .editor-preview th, .editor-preview td { border: 1px solid var(--border); padding: 8px 12px; text-align: left; }
 .editor-preview th { background: var(--bg-secondary); font-weight: 600; }

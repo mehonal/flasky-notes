@@ -20,6 +20,7 @@
 
     <!-- Markdown preview -->
     <script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='vendor/marked/marked.min.js') }}"></script>
+    <script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='js/marked-extensions.js') }}"></script>
     <script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='vendor/dompurify/purify.min.js') }}"></script>
     <script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='js/sanitize.js') }}"></script>
     <script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='js/commands.js') }}"></script>
