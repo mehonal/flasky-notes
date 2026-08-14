@@ -19,6 +19,7 @@ var defaultTemplateContent = _pageData.defaultTemplateContent;
 var defaultTemplateProps = _pageData.defaultTemplateProps;
 var currentNoteIcon = _pageData.currentNoteIcon;
 var currentNoteIconColor = _pageData.currentNoteIconColor;
+var _newNoteTemplatePromise = null;
 
 // ============ Daily notes ============
 var dailyNoteConfig = _pageData.dailyNote || { enabled: false, titleFormat: 'YYYY-MM-DD', templateId: 0, categoryId: 0, openOnStart: false };
@@ -128,14 +129,22 @@ async function openDailyNoteFor(date) {
             if (titleEl) { titleEl.value = title; markDirty(); }
             var bc = document.getElementById('breadcrumb-note-title');
             if (bc) bc.textContent = title;
-            // Apply the configured daily template if any; otherwise the folder
-            // default template (if any) is already applied by loadNote's flow.
-            if (dailyNoteConfig.templateId) {
-                applyTemplate(dailyNoteConfig.templateId, function() {
+            var doSave = function() {
+                // Apply the configured daily template if any; otherwise the folder
+                // default template (if any) is already applied by loadNote's flow.
+                if (dailyNoteConfig.templateId) {
+                    applyTemplate(dailyNoteConfig.templateId, function() {
+                        saveNote();
+                    });
+                } else {
                     saveNote();
-                });
+                }
+            };
+            if (_newNoteTemplatePromise) {
+                _newNoteTemplatePromise.then(doSave).catch(doSave);
+                _newNoteTemplatePromise = null;
             } else {
-                saveNote();
+                doSave();
             }
         }, 60);
     };
@@ -804,6 +813,7 @@ function loadNote(id, category, categoryId) {
             isSaving = false;
             currentNoteIcon = null;
             currentNoteIconColor = null;
+            _newNoteTemplatePromise = null;
             updateNoteIconPreview(null, null);
             document.getElementById('note-title').value = '';
             if (cmEditor) { cmEditor.setValue(''); cmEditor.refresh(); }
@@ -841,7 +851,7 @@ function loadNote(id, category, categoryId) {
             if (window.FlaskyRouter && typeof window.FlaskyRouter.finishBar === 'function') window.FlaskyRouter.finishBar();
             // Check for folder default template
             if (categoryId) {
-                fetch('/api/folder_default_template/' + categoryId)
+                _newNoteTemplatePromise = fetch('/api/folder_default_template/' + categoryId)
                 .then(function(r) { return r.json(); })
                 .then(async function(data) {
                     if (data.success && data.template) {
@@ -1604,9 +1614,10 @@ async function _doSaveNote(titleVal, content, props, callback) {
                     title: displayTitle,
                     category: currentCategory || 'Default',
                     category_id: data.note.category_id || currentCategoryId || null,
-                    icon: currentNoteIcon,
-                    icon_color: currentNoteIconColor
+                    icon: currentNoteIcon || data.note.resolved_icon || null,
+                    icon_color: currentNoteIconColor || data.note.resolved_icon_color || null
                 });
+                updateNoteIconPreview(data.note.resolved_icon || currentNoteIcon, data.note.resolved_icon_color || currentNoteIconColor);
                 setActiveSidebarItem(noteId);
                 var bc = document.getElementById('breadcrumb-note-title');
                 if (bc) bc.textContent = displayTitle || 'Untitled';
