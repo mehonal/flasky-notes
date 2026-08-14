@@ -29,6 +29,7 @@
     <script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='js/drawing.js') }}"></script>
     <script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='js/audio-player.js') }}"></script>
     <script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='js/audio-recorder.js') }}"></script>
+    <script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='js/tts.js') }}"></script>
     <link rel="stylesheet" href="{{ url_for('static', filename='vendor/hljs/styles/github-dark.min.css') }}" id="hljs-dark">
     <link rel="stylesheet" href="{{ url_for('static', filename='vendor/hljs/styles/github.min.css') }}" id="hljs-light" disabled>
     <script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='vendor/hljs/highlight.min.js') }}"></script>
@@ -215,6 +216,15 @@
             "openOnStart": {% if ui_settings and ui_settings.daily_note_open_on_start %}true{% else %}false{% endif %}
         },
         "initialView": {{ initial_view|tojson if initial_view else 'null' }}
+    }
+    </script>
+    <script nonce="{{ csp_nonce() }}" type="application/json" id="tts-data">
+    {
+        "ttsEnabled": {% if ui_settings and ui_settings.tts_enabled %}true{% else %}false{% endif %},
+        "rate": {{ (ui_settings.tts_rate if ui_settings else 1.0) or 1.0 }},
+        "volume": {{ (ui_settings.tts_volume if ui_settings else 1.0) or 1.0 }},
+        "voiceURI": {{ (ui_settings.tts_voice_uri if ui_settings else '') | tojson }},
+        "autoplayAI": {% if ui_settings and ui_settings.tts_autoplay_ai %}true{% else %}false{% endif %}
     }
     </script>
     <script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='js/app.js') }}"></script>

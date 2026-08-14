@@ -202,6 +202,22 @@
 
         var COPY_ICON = '<svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
         var REGEN_ICON = '<svg viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>';
+        var SPEAK_ICON = (window.FlaskyTTS && FlaskyTTS.SPEAKER_SVG) || '<svg viewBox="0 0 24 24"><path d="M11 5L6 9H2v6h4l5 4V5z"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>';
+
+        function addSpeakButton(actions, getContent) {
+            if (!window.FlaskyTTS || !FlaskyTTS.isSupported()) return;
+            var btn = document.createElement('button');
+            btn.className = 'ai-message-action-btn'; btn.title = 'Speak message';
+            btn.setAttribute('aria-label', 'Speak message');
+            btn.innerHTML = SPEAK_ICON;
+            btn.addEventListener('click', function () {
+                var text = getContent();
+                if (!text) return;
+                if (FlaskyTTS.isSpeaking()) { FlaskyTTS.stop(); return; }
+                FlaskyTTS.speak(text, { title: 'AI message' });
+            });
+            actions.appendChild(btn);
+        }
 
         function addCopyButtons(c) {
             c.querySelectorAll('pre').forEach(function (pre) {
@@ -243,6 +259,7 @@
                     noteBtn.innerHTML = '<svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>';
                     noteBtn.addEventListener('click', function () { createNoteFromMessage(content, messageId); });
                     actions.appendChild(noteBtn);
+                    addSpeakButton(actions, function () { return content; });
                 }
                 wrapper.appendChild(actions);
             }
@@ -304,6 +321,7 @@
         }
 
         function loadMessages(convId) {
+            if (window.FlaskyTTS && FlaskyTTS.isSpeaking()) FlaskyTTS.stop();
             localMessages = [];
             fetch('/ai/api/conversations/' + convId + '/messages', { headers: { 'X-CSRFToken': getCSRFToken() } }).then(function (r) { return r.json(); }).then(function (msgs) {
                 messagesEl.innerHTML = '';
@@ -684,6 +702,7 @@
                         noteBtn.innerHTML = '<svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>';
                         noteBtn.addEventListener('click', function () { createNoteFromMessage(capturedText, messageId); });
                         actions.appendChild(noteBtn);
+                        addSpeakButton(actions, function () { return capturedText; });
                         var regenBtn = document.createElement('button'); regenBtn.className = 'ai-message-action-btn'; regenBtn.title = 'Regenerate response'; regenBtn.setAttribute('aria-label', 'Regenerate response'); regenBtn.innerHTML = REGEN_ICON;
                         regenBtn.addEventListener('click', function () {
                             if (isStreaming) return;
@@ -696,19 +715,23 @@
                     }
                 }
                 if (isEncrypted && messageId && text) { encryptIfNeeded(text).then(function (enc) { fetch('/ai/api/messages/' + messageId + '/encrypt', { method: 'PUT', headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRFToken() }, body: JSON.stringify({ content: enc }) }).catch(function () {}); }); }
+                if (wasClean && text && window.FlaskyTTS && FlaskyTTS.shouldAutoplayAI && FlaskyTTS.shouldAutoplayAI() && FlaskyTTS.isSupported()) {
+                    try { FlaskyTTS.speak(text, { title: 'AI response' }); } catch (e) {}
+                }
                 isStreaming = false; sendBtn.style.display = 'flex'; stopBtn.style.display = 'none'; inputEl.disabled = false; statusText.textContent = wasClean ? 'Ready' : 'Stopped'; inputEl.focus(); _currentAbortController = null; loadConversations(); updatePanel();
             }
         }
 
         bind(sendBtn, 'click', sendMessage);
         bind(inputEl, 'keydown', function (e) { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } });
-        bind(newChatBtn, 'click', function () { conversationId = null; currentConvData = null; localMessages = []; vaultContextPending = false; clearMessages(); loadConversations(); updateVaultChip(); updatePanel(); inputEl.focus(); if (isMobile()) closeSidebar(); });
+        bind(newChatBtn, 'click', function () { if (window.FlaskyTTS && FlaskyTTS.isSpeaking()) FlaskyTTS.stop(); conversationId = null; currentConvData = null; localMessages = []; vaultContextPending = false; clearMessages(); loadConversations(); updateVaultChip(); updatePanel(); inputEl.focus(); if (isMobile()) closeSidebar(); });
         bind(inputEl, 'input', function () { this.style.height = 'auto'; this.style.height = Math.min(this.scrollHeight, 160) + 'px'; });
         bindDoc(document, 'click', function (e) { var btn = e.target.closest('.ai-suggestion-btn'); if (btn && btn.dataset.prompt) { inputEl.value = btn.dataset.prompt; inputEl.focus(); inputEl.dispatchEvent(new Event('input')); } });
 
         (async function () {
             await initE2EE();
             revealContent();
+            if (window.FlaskyTTS) { try { FlaskyTTS.init(); } catch (e) {} }
             loadConversations();
             updateVaultChip();
             updatePanel();
@@ -717,6 +740,7 @@
     }
 
     function destroy() {
+        if (window.FlaskyTTS && FlaskyTTS.isSpeaking()) FlaskyTTS.stop();
         if (_currentAbortController) { try { _currentAbortController.abort(); } catch (e) {} _currentAbortController = null; }
         unbindAll();
         _root = null;

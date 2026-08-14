@@ -794,6 +794,7 @@ async function _findAttachmentInNotes(filename) {
 
 function loadNote(id, category, categoryId) {
     clearTimeout(autoSaveTimer);
+    if (window.FlaskyTTS && FlaskyTTS.isSpeaking()) FlaskyTTS.stop();
 
     if (id === 0) {
         var setupNewNote = function() {
@@ -5571,6 +5572,11 @@ window.addEventListener('resize', function() { isMobile = window.innerWidth <= 7
             _noteMapPromise = null;
         }
     });
+
+    if (window.FlaskyTTS) { try { window.FlaskyTTS.init(); } catch (e) {} }
+    window.addEventListener('pagehide', function() {
+        if (window.FlaskyTTS && FlaskyTTS.isSpeaking()) FlaskyTTS.stop();
+    });
 })();
 
 // ============ Event Delegation ============
@@ -5610,6 +5616,7 @@ document.addEventListener('click', function(e) {
         case 'exit-spotlight': toggleSpotlightMode(); break;
         case 'open-search': openPalette(); break;
         case 'open-daily-note': openDailyNote(); break;
+        case 'speak-note': speakCurrentNote(); break;
         case 'open-drawing': openDrawingForNew(); break;
         case 'toggle-audio-record':
             if (window.toggleAudioRecord) window.toggleAudioRecord();
@@ -5958,6 +5965,46 @@ function closeExportDropdownOnOutsideClick(e) {
 function _getNoteTitle() {
     var titleEl = document.getElementById('note-title');
     return (titleEl && titleEl.value.trim()) ? titleEl.value.trim() : 'Untitled';
+}
+
+function _stripMarkdownForTTS(md) {
+    if (!md) return '';
+    var text = md
+        .replace(/```[\s\S]*?```/g, ' ')  // code blocks
+        .replace(/`([^`]*)`/g, '$1')       // inline code
+        .replace(/!\[\[[^\]]*\]\]/g, ' ')   // embeds ![[...]]
+        .replace(/\[\[([^\]|]*)(\|[^\]]*)?\]\]/g, '$1')  // wikilinks
+        .replace(/!\[([^\]]*)\]\([^)]*\)/g, '$1')        // images
+        .replace(/\[([^\]]*)\]\([^)]*\)/g, '$1')         // links
+        .replace(/^#{1,6}\s+/gm, '')      // headings
+        .replace(/\*\*([^*]+)\*\*/g, '$1') // bold
+        .replace(/\*([^*]+)\*/g, '$1')     // italic
+        .replace(/__([^_]+)__/g, '$1')
+        .replace(/_([^_]+)_/g, '$1')
+        .replace(/~~([^~]+)~~/g, '$1')     // strikethrough
+        .replace(/^>\s+/gm, '')             // blockquotes
+        .replace(/^[-*+]\s+/gm, '')         // list markers
+        .replace(/^\d+\.\s+/gm, '')         // numbered list
+        .replace(/^---+$/gm, ' ')           // hr
+        .replace(/<[^>]+>/g, ' ')           // html tags
+        .replace(/\s+/g, ' ')
+        .trim();
+    return text;
+}
+
+function speakCurrentNote() {
+    if (!window.FlaskyTTS || !FlaskyTTS.isSupported()) return;
+    if (FlaskyTTS.isSpeaking()) { FlaskyTTS.stop(); return; }
+    if (!FlaskyTTS.hasVoices()) {
+        var s = document.getElementById('save-status');
+        if (s) { s.textContent = '⚠ No TTS voices available in this browser'; s.style.color = 'var(--red)'; setTimeout(function () { s.textContent = ''; s.style.color = ''; }, 4000); }
+        return;
+    }
+    var title = _getNoteTitle();
+    var content = getEditorContent() || '';
+    var clean = _stripMarkdownForTTS(content);
+    var text = (title && title !== 'Untitled' ? title + '. ' : '') + (clean || '(empty note)');
+    FlaskyTTS.speak(text, { title: title });
 }
 
 function _sanitizeFilename(name) {

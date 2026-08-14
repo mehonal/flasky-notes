@@ -292,6 +292,33 @@ def save_appearance():
     if "dark_mode" in data:
         raw["dark_mode"] = bool(data["dark_mode"])
 
+    if "tts_enabled" in data:
+        raw["tts_enabled"] = bool(data["tts_enabled"])
+
+    if "tts_autoplay_ai" in data:
+        raw["tts_autoplay_ai"] = bool(data["tts_autoplay_ai"])
+
+    if "tts_rate" in data:
+        try:
+            r = float(data["tts_rate"])
+            if 0.5 <= r <= 2.0:
+                raw["tts_rate"] = r
+        except (TypeError, ValueError):
+            pass
+
+    if "tts_volume" in data:
+        try:
+            v = float(data["tts_volume"])
+            if 0.0 <= v <= 1.0:
+                raw["tts_volume"] = v
+        except (TypeError, ValueError):
+            pass
+
+    if "tts_voice_uri" in data:
+        uri = data["tts_voice_uri"]
+        if isinstance(uri, str) and len(uri) <= 200:
+            raw["tts_voice_uri"] = uri
+
     _save_raw(g.user, raw)
     db.session.commit()
     return jsonify(success=True)

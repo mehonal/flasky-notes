@@ -219,6 +219,8 @@
                     break;
                 case 'audio-grant': audioGrantAccess(); break;
                 case 'audio-refresh-devices': audioRefreshDevices(); break;
+                case 'tts-test': ttsTest(); break;
+                case 'tts-stop': ttsStop(); break;
             }
         });
 
@@ -282,6 +284,80 @@
         // button to trigger the permission prompt. No-op if the API is missing.
         if (audioDeviceSelect && !audioDeviceSelect.hidden) {
             audioPopulateDevices().catch(function () {});
+        }
+
+        // ============ Text-to-Speech ============
+        var ttsVoiceSelect = _root.querySelector('#tts-voice-uri');
+        var ttsRateSlider = _root.querySelector('#tts-rate');
+        var ttsRateValue = _root.querySelector('#tts-rate-value');
+        var ttsVolumeSlider = _root.querySelector('#tts-volume');
+        var ttsVolumeValue = _root.querySelector('#tts-volume-value');
+
+        function ttsPopulateVoices() {
+            if (!ttsVoiceSelect || !window.FlaskyTTS) return;
+            var voices = FlaskyTTS.getVoices();
+            if (!voices.length) return;
+            var saved = ttsVoiceSelect.dataset.saved || ttsVoiceSelect.value || '';
+            var grouped = {};
+            voices.forEach(function (v) {
+                var lang = v.lang || 'Other';
+                if (!grouped[lang]) grouped[lang] = [];
+                grouped[lang].push(v);
+            });
+            var langs = Object.keys(grouped).sort();
+            var html = '<option value="">System default</option>';
+            langs.forEach(function (lang) {
+                html += '<optgroup label="' + escapeHtml(lang) + '">';
+                grouped[lang].forEach(function (v) {
+                    var sel = (v.voiceURI === saved) ? ' selected' : '';
+                    html += '<option value="' + escapeHtml(v.voiceURI) + '"' + sel + '>' + escapeHtml(v.name || v.voiceURI) + '</option>';
+                });
+                html += '</optgroup>';
+            });
+            ttsVoiceSelect.innerHTML = html;
+        }
+
+        function ttsRefreshFromControls() {
+            if (!window.FlaskyTTS) return;
+            var uri = ttsVoiceSelect ? ttsVoiceSelect.value : '';
+            var rate = ttsRateSlider ? parseFloat(ttsRateSlider.value) : 1.0;
+            var vol = ttsVolumeSlider ? parseFloat(ttsVolumeSlider.value) : 1.0;
+            FlaskyTTS.updatePrefs({ voiceURI: uri, rate: rate, volume: vol });
+        }
+
+        function ttsTest() {
+            if (!window.FlaskyTTS || !FlaskyTTS.isSupported()) { showToast('Text-to-speech is not supported in this browser.', 'danger'); return; }
+            if (!FlaskyTTS.hasVoices()) {
+                showToast('No TTS voices are available. Check that speech synthesis is enabled in your browser or operating system settings.', 'danger');
+                return;
+            }
+            if (FlaskyTTS.isSpeaking()) FlaskyTTS.stop();
+            ttsRefreshFromControls();
+            FlaskyTTS.speak('This is a test of the Flasky Notes text-to-speech feature. Hello world.', { title: 'Test voice' });
+        }
+        function ttsStop() {
+            if (window.FlaskyTTS && FlaskyTTS.isSpeaking()) FlaskyTTS.stop();
+        }
+
+        if (ttsVoiceSelect) {
+            ttsPopulateVoices();
+            if (window.FlaskyTTS && FlaskyTTS.isSupported()) {
+                var _ttsVoiceTimer = null;
+                var _onVoicesChanged = function () {
+                    clearTimeout(_ttsVoiceTimer);
+                    _ttsVoiceTimer = setTimeout(ttsPopulateVoices, 50);
+                };
+                if (typeof speechSynthesis !== 'undefined' && speechSynthesis.addEventListener) {
+                    speechSynthesis.addEventListener('voiceschanged', _onVoicesChanged);
+                }
+            }
+            bind(ttsVoiceSelect, 'change', ttsRefreshFromControls);
+        }
+        if (ttsRateSlider) {
+            bind(ttsRateSlider, 'input', function () { if (ttsRateValue) ttsRateValue.textContent = ttsRateSlider.value; ttsRefreshFromControls(); });
+        }
+        if (ttsVolumeSlider) {
+            bind(ttsVolumeSlider, 'input', function () { if (ttsVolumeValue) ttsVolumeValue.textContent = ttsVolumeSlider.value; ttsRefreshFromControls(); });
         }
 
         // ============ Change password / recovery key ============

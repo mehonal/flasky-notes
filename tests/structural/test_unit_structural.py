@@ -291,7 +291,7 @@ def test_topbar_items_defaults():
     items = get_topbar_items(user)
     ids = [it["id"] for it in items]
     # Feature-gated ids are stripped when the feature is off (fresh user).
-    gated = {"drawing", "audio", "daily_note", "ai"}
+    gated = {"drawing", "audio", "daily_note", "ai", "tts"}
     expected = [it["id"] for it in DEFAULT_TOPBAR_ITEMS if it["id"] not in gated]
     assert ids == expected
     assert all(it["visible"] for it in items if not it["id"].startswith("divider_"))

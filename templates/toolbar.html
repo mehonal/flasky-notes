@@ -79,6 +79,14 @@
                     </div>
                     {% endif %}
 
+                    {% if ui_settings and ui_settings.tts_enabled %}
+                    <div class="topbar-item" data-topbar-id="tts" id="topbar-btn-tts">
+                    <button class="icon-btn" data-action="speak-note" title="Speak note (read aloud)" aria-label="Speak note">
+                        <svg viewBox="0 0 24 24"><path d="M11 5L6 9H2v6h4l5 4V5z"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>
+                    </button>
+                    </div>
+                    {% endif %}
+
                     {% if g.user and g.user.settings and g.user.settings.ai_enabled %}
                     <div class="topbar-item" data-topbar-id="ai" id="topbar-btn-ai">
                     <div class="ai-dropdown-wrap">

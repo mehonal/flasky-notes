@@ -224,5 +224,14 @@
     "vaultContextMaxChars": {{ vault_context_max_chars }}
 }
 </script>
+<script type="application/json" id="tts-data">
+{
+    "ttsEnabled": {% if tts_enabled %}true{% else %}false{% endif %},
+    "rate": {{ tts_rate or 1.0 }},
+    "volume": {{ tts_volume or 1.0 }},
+    "voiceURI": {{ tts_voice_uri | tojson }},
+    "autoplayAI": {% if tts_autoplay_ai %}true{% else %}false{% endif %}
+}
+</script>
 {% endif %}
 </div>

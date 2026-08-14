@@ -498,6 +498,24 @@ def settings_page():
             if mime_pref not in ("auto", "webm-opus", "mp4-aac"):
                 mime_pref = "auto"
             set_setting(g.user, "audio_mime_preference", mime_pref)
+            # Text-to-speech settings
+            set_setting(g.user, "tts_enabled", "tts-enabled" in request.form)
+            set_setting(g.user, "tts_autoplay_ai", "tts-autoplay-ai" in request.form)
+            voice_uri = (request.form.get("tts-voice-uri") or "").strip()
+            if len(voice_uri) <= 200:
+                set_setting(g.user, "tts_voice_uri", voice_uri)
+            try:
+                tts_rate = float(request.form.get("tts-rate", "1.0"))
+                if 0.5 <= tts_rate <= 2.0:
+                    set_setting(g.user, "tts_rate", tts_rate)
+            except (TypeError, ValueError):
+                pass
+            try:
+                tts_volume = float(request.form.get("tts-volume", "1.0"))
+                if 0.0 <= tts_volume <= 1.0:
+                    set_setting(g.user, "tts_volume", tts_volume)
+            except (TypeError, ValueError):
+                pass
             db.session.commit()
         elif "save-editing" in request.form:
             for field in (

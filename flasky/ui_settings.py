@@ -62,6 +62,7 @@ DEFAULT_TOPBAR_ITEMS = [
     {"id": "drawing", "label": "Drawing", "visible": True},
     {"id": "audio", "label": "Record audio", "visible": True},
     {"id": "daily_note", "label": "Daily note", "visible": True},
+    {"id": "tts", "label": "Speak note", "visible": True},
     {"id": "ai", "label": "Ask AI", "visible": True},
     {"id": "panel_toggle", "label": "Outline panel", "visible": True},
     {"id": "theme_toggle", "label": "Theme", "visible": True},
@@ -85,6 +86,7 @@ _TOPBAR_FEATURE_GATES = {
     "drawing": "drawing_enabled",
     "audio": "audio_recording_enabled",
     "daily_note": "daily_note_enabled",
+    "tts": "tts_enabled",
 }
 # ai is gated by UserSettings.ai_enabled (a column, not a ui_settings key), so
 # it is handled separately in get_topbar_items() via the user.settings object.
@@ -300,6 +302,24 @@ REGISTRY: dict[str, SettingDef] = {
         "autosuggest_algorithm", "title_prefix", str,
         lambda v: v in ("title_prefix", "title_substring", "full_search"),
     ),
+    # Text-to-speech (browser-native speechSynthesis). Master toggle gates
+    # the topbar "Speak note" button; the AI view always shows per-message
+    # speak buttons when ai_enabled is on. Voice prefs are persisted so they
+    # carry across views. voice_uri is the SpeechSynthesisVoice.voiceURI
+    # string (empty = system default). tts_autoplay_ai auto-speaks completed
+    # assistant responses in the AI chat view.
+    "tts_enabled": SettingDef("tts_enabled", False, bool),
+    "tts_rate": SettingDef(
+        "tts_rate", 1.0, float, lambda v: 0.5 <= float(v) <= 2.0,
+    ),
+    "tts_volume": SettingDef(
+        "tts_volume", 1.0, float, lambda v: 0.0 <= float(v) <= 1.0,
+    ),
+    "tts_voice_uri": SettingDef(
+        "tts_voice_uri", "", str,
+        lambda v: isinstance(v, str) and len(v) <= 200,
+    ),
+    "tts_autoplay_ai": SettingDef("tts_autoplay_ai", False, bool),
 }
 
 # The CSS variables exposed in the customize UI (curated subset). The dark

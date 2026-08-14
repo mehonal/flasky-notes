@@ -116,6 +116,10 @@
                 <svg viewBox="0 0 24 24"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
                 Topbar
             </button>
+            <button type="button" class="nav-item nav-item-btn" data-action="settings-tab" data-tab="tts">
+                <svg viewBox="0 0 24 24"><path d="M11 5L6 9H2v6h4l5 4V5z"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>
+                Text-to-Speech
+            </button>
             <button type="button" class="nav-item nav-item-btn" data-action="settings-tab" data-tab="timezone">
                 <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
                 Timezone
@@ -381,6 +385,76 @@
                                     </div>
                                 </div>
                                 <div class="setting-desc">Normalizes loudness automatically. Disable for manual gain staging.</div>
+                            </div>
+                            <div class="setting-row">
+                                <button name="update-ui-settings" class="btn-sm primary" type="submit">Save settings</button>
+                            </div>
+                            <div class="setting-hint">Saving refreshes the page to apply changes.</div>
+                    </div>
+                </div>
+
+                <!-- Text-to-Speech -->
+                <div class="panel" data-tab="tts" hidden>
+                    <div class="panel-header">
+                        <div class="panel-title">
+                            <svg viewBox="0 0 24 24"><path d="M11 5L6 9H2v6h4l5 4V5z"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>
+                            Text-to-Speech
+                        </div>
+                    </div>
+                    <div class="panel-body">
+                            <div class="setting-row has-desc">
+                                <span class="setting-label">Speak notes enabled</span>
+                                <div class="setting-control">
+                                    <div class="toggle {% if ui_settings.tts_enabled %}on{% endif %}" data-toggle="tts-enabled">
+                                        <input type="checkbox" id="tts-enabled" name="tts-enabled" value="1" {% if ui_settings.tts_enabled %}checked{% endif %}>
+                                    </div>
+                                </div>
+                                <div class="setting-desc">Shows a <strong>Speak note</strong> button in the editor toolbar that reads the current note aloud using your browser's built-in voice. The AI chat view always shows per-message speak buttons regardless of this toggle.</div>
+                            </div>
+                            <div class="setting-row has-desc">
+                                <label class="setting-label" for="tts-voice-uri">Voice</label>
+                                <div class="setting-control">
+                                    <select name="tts-voice-uri" id="tts-voice-uri" class="setting-input" data-saved="{{ ui_settings.tts_voice_uri }}">
+                                        <option value="">System default</option>
+                                        {% if ui_settings.tts_voice_uri %}
+                                        <option value="{{ ui_settings.tts_voice_uri }}" selected>{{ ui_settings.tts_voice_uri }}</option>
+                                        {% endif %}
+                                    </select>
+                                </div>
+                                <div class="setting-desc">Voices are provided by your browser/OS. If the list is empty, your browser hasn't loaded them yet — reopen this tab or try a different browser.</div>
+                            </div>
+                            <div class="setting-row has-desc">
+                                <label class="setting-label" for="tts-rate">Rate (speed)</label>
+                                <div class="setting-control">
+                                    <input type="range" name="tts-rate" id="tts-rate" min="0.5" max="2" step="0.1" value="{{ ui_settings.tts_rate }}" class="tts-slider">
+                                    <span class="tts-slider-value" id="tts-rate-value">{{ ui_settings.tts_rate }}</span>
+                                </div>
+                                <div class="setting-desc">Speaking speed. 1.0 = normal, 2.0 = double, 0.5 = half.</div>
+                            </div>
+                            <div class="setting-row has-desc">
+                                <label class="setting-label" for="tts-volume">Volume</label>
+                                <div class="setting-control">
+                                    <input type="range" name="tts-volume" id="tts-volume" min="0" max="1" step="0.1" value="{{ ui_settings.tts_volume }}" class="tts-slider">
+                                    <span class="tts-slider-value" id="tts-volume-value">{{ ui_settings.tts_volume }}</span>
+                                </div>
+                                <div class="setting-desc">0 = silent, 1.0 = full volume.</div>
+                            </div>
+                            <div class="setting-row has-desc">
+                                <span class="setting-label">Autoplay AI responses</span>
+                                <div class="setting-control">
+                                    <div class="toggle {% if ui_settings.tts_autoplay_ai %}on{% endif %}" data-toggle="tts-autoplay-ai">
+                                        <input type="checkbox" id="tts-autoplay-ai" name="tts-autoplay-ai" value="1" {% if ui_settings.tts_autoplay_ai %}checked{% endif %}>
+                                    </div>
+                                </div>
+                                <div class="setting-desc">When on, each AI assistant response is spoken automatically once the stream finishes. You can still stop it via the mini-player.</div>
+                            </div>
+                            <div class="setting-row has-desc">
+                                <span class="setting-label">Test voice</span>
+                                <div class="setting-control">
+                                    <button type="button" class="btn-sm" id="tts-test-btn" data-action="tts-test">Speak sample</button>
+                                    <button type="button" class="btn-sm" id="tts-stop-btn" data-action="tts-stop">Stop</button>
+                                </div>
+                                <div class="setting-desc">Preview the selected voice, rate, and volume with a sample sentence. Applies the current slider values (no save needed).</div>
                             </div>
                             <div class="setting-row">
                                 <button name="update-ui-settings" class="btn-sm primary" type="submit">Save settings</button>

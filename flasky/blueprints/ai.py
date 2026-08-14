@@ -142,6 +142,11 @@ def ai_page():
         vault_context_allowed=bool(ui_settings.vault_context_allowed),
         vault_context_top_k=int(ui_settings.ai_vault_context_top_k),
         vault_context_max_chars=int(ui_settings.ai_vault_context_max_chars),
+        tts_enabled=bool(ui_settings.tts_enabled),
+        tts_rate=float(ui_settings.tts_rate),
+        tts_volume=float(ui_settings.tts_volume),
+        tts_voice_uri=ui_settings.tts_voice_uri or "",
+        tts_autoplay_ai=bool(ui_settings.tts_autoplay_ai),
     )
     return render_template("_ai_view.html", **ctx)
 
