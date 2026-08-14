@@ -564,6 +564,16 @@ def settings_page():
                 "autosuggest-show-category" in request.form
                 and request.form["autosuggest-show-category"] == "1",
             )
+            set_setting(
+                g.user, "autosuggest_ghost_notes",
+                "autosuggest-ghost-notes" in request.form
+                and request.form["autosuggest-ghost-notes"] == "1",
+            )
+            set_setting(
+                g.user, "autosuggest_ghost_create",
+                "autosuggest-ghost-create" in request.form
+                and request.form["autosuggest-ghost-create"] == "1",
+            )
             algo = request.form.get("autosuggest-algorithm", "title_prefix")
             if algo not in ("title_prefix", "title_substring", "full_search"):
                 algo = "title_prefix"

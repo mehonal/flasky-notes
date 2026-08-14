@@ -501,7 +501,9 @@ body {
 .editor-preview table { border-collapse: collapse; width: 100%; margin: 1em 0; font-size: 14px; }
 .editor-preview th, .editor-preview td { border: 1px solid var(--border); padding: 8px 12px; text-align: left; }
 .editor-preview th { background: var(--bg-secondary); font-weight: 600; }
-.editor-preview .wikilink-missing { color: var(--red); opacity: 0.7; }
+.wikilink-missing { color: var(--red); opacity: 0.7; }
+.wikilink-missing[data-action="create-ghost-note"] { cursor: pointer; text-decoration: underline; text-decoration-style: dashed; }
+.wikilink-missing[data-action="create-ghost-note"]:hover { opacity: 1; }
 .editor-preview input[type="checkbox"] { margin-right: 6px; accent-color: var(--accent); }
 
 /* Empty state */
@@ -562,6 +564,8 @@ body {
 .backlinks-list { list-style: none; font-size: 13px; }
 .backlinks-list a { color: var(--text-secondary); text-decoration: none; display: block; padding: 4px 6px; border-radius: 4px; transition: all 0.1s ease; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .backlinks-list a:hover { background: var(--bg-hover); color: var(--text-primary); }
+.backlinks-list .wikilink-missing { display: block; padding: 4px 6px; border-radius: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.backlinks-list .wikilink-missing[data-action="create-ghost-note"]:hover { background: var(--bg-hover); }
 
 .link-graph-svg { width: 100%; height: 240px; display: block; }
 .link-graph-empty { color: var(--text-muted); font-size: 12px; font-style: italic; padding: 4px 6px; }
@@ -573,6 +577,8 @@ body {
 .link-graph-in circle { fill: var(--text-primary); }
 .link-graph-out circle { fill: var(--text-secondary); }
 .link-graph-both circle { fill: var(--accent, #4a90d9); opacity: 0.7; }
+.link-graph-ghost circle { fill: var(--bg-secondary); stroke: var(--text-muted); stroke-width: 1.5; stroke-dasharray: 4 3; }
+.link-graph-ghost:hover circle { stroke: var(--accent, #4a90d9); }
 .link-graph-node text { fill: var(--text-secondary); font-size: 9px; pointer-events: none; }
 
 .right-panel-props { font-size: 12px; }
@@ -1008,6 +1014,24 @@ body {
     color: var(--text-muted);
     font-style: italic;
     font-size: 12px;
+}
+.wikilink-autocomplete-item.ghost .ghost-title {
+    color: var(--text-muted);
+    font-style: italic;
+}
+.wikilink-autocomplete-item.ghost .ghost-badge {
+    color: var(--green);
+    font-size: 11px;
+    font-weight: 600;
+    margin-left: auto;
+    flex: 0 0 auto;
+}
+.wikilink-autocomplete-item.ghost.selected {
+    background: var(--accent-dim);
+}
+.wikilink-autocomplete-item.ghost.selected .ghost-title {
+    color: var(--accent);
+    font-style: normal;
 }
 /* The no-[[ autosuggest dropdown inherits .wikilink-autocomplete styling.
    A slightly wider max-width gives room for the category badge. */

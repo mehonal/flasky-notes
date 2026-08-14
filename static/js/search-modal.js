@@ -208,7 +208,11 @@
         if (typeof FlaskySearch === 'undefined') return [];
         if (!FlaskySearch.getIndex()) await FlaskySearch.buildIndex();
         var idx = FlaskySearch.getIndex() || [];
-        var q = (query || '').toLowerCase();
+        var displayQuery = query || '';
+        var pipeIdx = displayQuery.indexOf('|');
+        if (pipeIdx > -1) displayQuery = displayQuery.substring(0, pipeIdx);
+        displayQuery = displayQuery.trim();
+        var q = displayQuery.toLowerCase();
         var matched = [];
         for (var i = 0; i < idx.length; i++) {
             var n = idx[i];
@@ -217,6 +221,14 @@
             }
             if (matched.length >= 50) break;
         }
+        if (openCtx.ghostNotesEnabled && FlaskySearch.getUnresolvedLinks && matched.length < 50) {
+            var ghosts = FlaskySearch.getUnresolvedLinks();
+            for (var gi = 0; gi < ghosts.length && matched.length < 50; gi++) {
+                var gt = (ghosts[gi].title || '').toLowerCase();
+                if (q && gt.indexOf(q) === -1) continue;
+                matched.push({ kind: 'link', id: 0, title: ghosts[gi].title, category: '', _ghost: true });
+            }
+        }
         matched.sort(function (a, b) {
             if (!q) return 0;
             var at = (a.title || '').toLowerCase().indexOf(q);
@@ -224,6 +236,10 @@
             if (at !== bt) return at - bt;
             return (a.title || '').localeCompare(b.title || '');
         });
+        if (matched.length === 0 && q && openCtx.ghostCreateEnabled && typeof openCtx.insertCallback === 'function') {
+            var isExact = idx.some(function (n) { return (n.title || '').toLowerCase() === q; });
+            if (!isExact) matched.push({ kind: 'link', id: 0, title: displayQuery, category: '', _ghost: true });
+        }
         return matched;
     }
 
@@ -250,7 +266,14 @@
             close();
             if (typeof item.run === 'function') item.run(ctx);
         } else if (item.kind === 'link') {
-            if (ctx.editor && typeof ctx.insertCallback === 'function') {
+            if (item._ghost) {
+                if (ctx.editor && typeof ctx.insertCallback === 'function') {
+                    close();
+                    ctx.insertCallback(item.title);
+                } else {
+                    close();
+                }
+            } else if (ctx.editor && typeof ctx.insertCallback === 'function') {
                 close();
                 ctx.insertCallback(item.title);
             } else {
@@ -305,10 +328,12 @@
                 if (item.hint) html += '<span class="flasky-palette-hint">' + escapeHtml(item.hint) + '</span>';
                 html += '</div>';
             } else {
-                html += '<div class="flasky-palette-item link' + sel + '" data-palette-item-id="' + i + '">';
-                html += '<span class="flasky-palette-icon">[[</span>';
+                var ghostCls = item._ghost ? ' ghost' : '';
+                html += '<div class="flasky-palette-item link' + ghostCls + sel + '" data-palette-item-id="' + i + '">';
+                html += '<span class="flasky-palette-icon">' + (item._ghost ? '+' : '[[') + '</span>';
                 html += '<span class="flasky-palette-item-title">' + escapeHtml(item.title) + '</span>';
-                if (item.category) html += '<span class="flasky-palette-cat">' + escapeHtml(item.category) + '</span>';
+                if (item._ghost) html += '<span class="flasky-palette-cat">New note</span>';
+                else if (item.category) html += '<span class="flasky-palette-cat">' + escapeHtml(item.category) + '</span>';
                 html += '</div>';
             }
         });

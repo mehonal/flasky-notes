@@ -199,6 +199,8 @@
         "autosuggestResultCap": {{ (ui_settings.autosuggest_result_cap if ui_settings else 5) or 5 }},
         "autosuggestShowCategory": {% if ui_settings and ui_settings.autosuggest_show_category %}true{% else %}false{% endif %},
         "autosuggestAlgorithm": {{ (ui_settings.autosuggest_algorithm if ui_settings else 'title_prefix') | tojson }},
+        "autosuggestGhostNotes": {% if ui_settings and ui_settings.autosuggest_ghost_notes %}true{% else %}false{% endif %},
+        "autosuggestGhostCreate": {% if ui_settings and ui_settings.autosuggest_ghost_create %}true{% else %}false{% endif %},
         "aiModel": {% if ai_settings and ai_settings.ollama_model %}{{ ai_settings.ollama_model | tojson }}{% else %}"gpt-oss:120b"{% endif %},
         "aiEndpoint": {% if ai_settings and ai_settings.ollama_endpoint %}{{ ai_settings.ollama_endpoint | tojson }}{% else %}""{% endif %},
         "timezone": {{ timezone | tojson }},

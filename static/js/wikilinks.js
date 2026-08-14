@@ -12,6 +12,7 @@
     var _loadPromise = null;
     var _loadResolve = null;
     var _loadXhr = null;
+    var _ghostNotesEnabled = true;
 
     // Cache decrypted blob URLs by attachment id so re-renders (CM6 live
     // preview widgets being torn down and rebuilt as the cursor moves on/off
@@ -75,6 +76,9 @@
     };
     window._getEmbedMaxWidths = function () {
         return { img: _attachmentMaxWidth, draw: _drawingMaxWidth };
+    };
+    window._setGhostNotesEnabled = function (enabled) {
+        _ghostNotesEnabled = !!enabled;
     };
 
     // ============ Embed background (transparent images + .fldraw) ============
@@ -300,7 +304,11 @@
             if (note) {
                 return '<a href="/note/' + note.id + '">' + display + '</a>';
             }
-            return '<span class="wikilink-missing" title="Note not found">' + display + '</span>';
+            var attrTitle = title.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+            if (_ghostNotesEnabled) {
+                return '<span class="wikilink-missing" data-action="create-ghost-note" data-ghost-title="' + attrTitle + '" title="Click to create this note">' + display + '</span>';
+            }
+            return '<span class="wikilink-missing">' + display + '</span>';
         });
 
         return html;

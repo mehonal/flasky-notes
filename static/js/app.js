@@ -31,6 +31,9 @@ if (typeof window._setEmbedMaxWidths === 'function') {
 if (typeof window._setEmbedBgSettings === 'function') {
     window._setEmbedBgSettings(_pageData.embedBgMode, _pageData.embedBgColor, _pageData.darkMode);
 }
+if (typeof window._setGhostNotesEnabled === 'function') {
+    window._setGhostNotesEnabled(!!_pageData.autosuggestGhostNotes);
+}
 
 function formatDailyTitle(fmt, date) {
     var pad = function(n) { return n < 10 ? '0' + n : '' + n; };
@@ -1006,6 +1009,30 @@ function createNewNote() {
     }
 }
 
+function createGhostNoteFromLink(title) {
+    if (!title) return;
+    var doCreate = function() {
+        loadNote(0);
+        setTimeout(function() {
+            var titleEl = document.getElementById('note-title');
+            if (titleEl) titleEl.value = title;
+            isDirty = true;
+            var doSave = function() { saveNote(); };
+            if (_newNoteTemplatePromise) {
+                _newNoteTemplatePromise.then(doSave).catch(doSave);
+                _newNoteTemplatePromise = null;
+            } else {
+                doSave();
+            }
+        }, 0);
+    };
+    if (isDirty) {
+        saveNote(function() { doCreate(); });
+    } else {
+        doCreate();
+    }
+}
+
 var preFilterFolderStates = null;
 
 function filterNotes(query) {
@@ -1108,6 +1135,10 @@ function initCodeMirror() {
         livePreview: !!_pageData.livePreview,
         onLinkClick: function(type, target) {
             if (type === 'note') openNote(parseInt(target, 10));
+            else if (type === 'ghost') {
+                if (_ghostEnabled()) createGhostNoteFromLink(target);
+                else window.location.href = '/note/0';
+            }
             else window.open(target, '_blank', 'noopener');
         },
         onChange: function() { markDirty(); },
@@ -1138,7 +1169,6 @@ function initCodeMirror() {
                 var ctx = computeAutosuggestQuery(cm);
                 var sameWord = ctx && autosuggContext
                     && ctx.from.ch === autosuggContext.from.ch
-                    && ctx.to.ch === autosuggContext.to.ch
                     && ctx.from.line === autosuggContext.from.line;
                 if (!sameWord) hideAutosuggest();
             }
@@ -1470,10 +1500,16 @@ async function updateOutboundLinksFromContent() {
             list.innerHTML = '<li class="backlinks-empty">Loading links...</li>';
         }
         var data = await FlaskySearch.computeOutboundLinks(content);
+        data = data.filter(function(n) { return _ghostEnabled() || !n._ghost; });
         if (data.length === 0) { list.innerHTML = '<li class="backlinks-empty">No outbound links</li>'; return; }
         var html = '';
         data.forEach(function(n) {
-            html += '<li><a href="/note/' + n.id + '" data-action="open-note-link" data-note-id="' + n.id + '">' + escapeHtml(n.title || 'Untitled') + '</a></li>';
+            var escTitle = escapeHtml(n.title || 'Untitled');
+            if (n._ghost) {
+                html += '<li><span class="wikilink-missing" data-action="create-ghost-note" data-ghost-title="' + escTitle + '" title="Click to create this note">' + escTitle + '</span></li>';
+            } else {
+                html += '<li><a href="/note/' + n.id + '" data-action="open-note-link" data-note-id="' + n.id + '">' + escTitle + '</a></li>';
+            }
         });
         list.innerHTML = html;
     } catch(e) { list.innerHTML = '<li class="backlinks-empty">No outbound links</li>'; }
@@ -4045,6 +4081,7 @@ async function loadLinkGraph() {
         }
         var backlinks = noteTitle ? await FlaskySearch.computeBacklinks(noteTitle) : [];
         var outbound = await FlaskySearch.computeOutboundLinks(content || '');
+        outbound = outbound.filter(function(n) { return _ghostEnabled() || !n._ghost; });
 
         // Build node map: center + neighbors. A note may appear in both lists.
         var nodes = {};
@@ -4053,16 +4090,20 @@ async function loadLinkGraph() {
             if (!nodes[n.id]) nodes[n.id] = { id: n.id, title: n.title || 'Untitled', type: 'in' };
         });
         outbound.forEach(function(n) {
-            if (!nodes[n.id]) {
-                nodes[n.id] = { id: n.id, title: n.title || 'Untitled', type: 'out' };
-            } else if (nodes[n.id].type === 'in') {
-                nodes[n.id].type = 'both';
+            var nodeId = n._ghost ? 'ghost:' + (n.title || '').toLowerCase() : n.id;
+            if (!nodes[nodeId]) {
+                nodes[nodeId] = { id: nodeId, title: n.title || 'Untitled', type: 'out', _ghost: !!n._ghost };
+            } else if (nodes[nodeId].type === 'in') {
+                nodes[nodeId].type = 'both';
             }
         });
 
         var edges = [];
         backlinks.forEach(function(n) { edges.push({ from: n.id, to: noteId }); });
-        outbound.forEach(function(n) { edges.push({ from: noteId, to: n.id }); });
+        outbound.forEach(function(n) {
+            var nodeId = n._ghost ? 'ghost:' + (n.title || '').toLowerCase() : n.id;
+            edges.push({ from: noteId, to: nodeId });
+        });
 
         var nodeArr = Object.values(nodes);
         if (edges.length === 0) {
@@ -4198,10 +4239,15 @@ function _layoutAndRenderGraph(svg, nodes, edges) {
     // Nodes
     nodes.forEach(function(node) {
         var a = document.createElementNS(ns, 'a');
-        a.setAttribute('class', 'link-graph-node link-graph-' + node.type);
-        a.setAttribute('href', '/note/' + node.id);
-        a.setAttribute('data-action', 'open-note-link');
-        a.setAttribute('data-note-id', node.id);
+        a.setAttribute('class', 'link-graph-node link-graph-' + node.type + (node._ghost ? ' link-graph-ghost' : ''));
+        if (node._ghost) {
+            a.setAttribute('data-action', 'create-ghost-note');
+            a.setAttribute('data-ghost-title', node.title || '');
+        } else {
+            a.setAttribute('href', '/note/' + node.id);
+            a.setAttribute('data-action', 'open-note-link');
+            a.setAttribute('data-note-id', node.id);
+        }
 
         var circle = document.createElementNS(ns, 'circle');
         circle.setAttribute('cx', node.x);
@@ -4243,6 +4289,8 @@ function openPalette() {
         aiEnabled: !!(typeof _pageData !== 'undefined' && _pageData.aiEnabled),
         drawingEnabled: !!(typeof _pageData !== 'undefined' && _pageData.drawingEnabled),
         audioEnabled: !!(typeof _pageData !== 'undefined' && _pageData.audioRecordingEnabled),
+        ghostNotesEnabled: !!(typeof _pageData !== 'undefined' && _pageData.autosuggestGhostNotes),
+        ghostCreateEnabled: !!(typeof _pageData !== 'undefined' && _pageData.autosuggestGhostCreate),
         onOpenNote: function (id) { openNote(id); },
         insertCallback: function (title) {
             if (!cmEditor) return;
@@ -4491,6 +4539,74 @@ function _recencyBonus(dateLastChanged) {
     return 0;
 }
 
+function _isExactTitleMatch(query) {
+    var q = (query || '').toLowerCase();
+    if (!q) return false;
+    var list = wikiNoteList || [];
+    for (var i = 0; i < list.length; i++) {
+        if ((list[i].title || '').toLowerCase() === q) return true;
+    }
+    return false;
+}
+
+function _ghostEnabled() { return !!_pageData.autosuggestGhostNotes; }
+function _ghostCreateEnabled() { return !!_pageData.autosuggestGhostCreate; }
+
+var _unresolvedGhostsCache = null;
+var _unresolvedGhostsCacheKey = null;
+
+function _getUnresolvedGhosts() {
+    if (typeof FlaskySearch === 'undefined' || !FlaskySearch.getUnresolvedLinks) return [];
+    var v = FlaskySearch.getVersion ? FlaskySearch.getVersion() : 0;
+    if (_unresolvedGhostsCacheKey === v && _unresolvedGhostsCache) {
+        return _unresolvedGhostsCache;
+    }
+    _unresolvedGhostsCache = FlaskySearch.getUnresolvedLinks();
+    _unresolvedGhostsCacheKey = v;
+    return _unresolvedGhostsCache;
+}
+
+function _filterUnresolvedGhosts(query) {
+    if (!_ghostEnabled()) return [];
+    var q = (query || '').toLowerCase();
+    if (!q) return [];
+    var ghosts = _getUnresolvedGhosts();
+    var matched = [];
+    for (var i = 0; i < ghosts.length; i++) {
+        var t = (ghosts[i].title || '').toLowerCase();
+        if (t.indexOf(q) !== -1) {
+            matched.push({ id: 0, title: ghosts[i].title, category: '', date_last_changed: null, _score: 50, _ghost: true });
+        }
+    }
+    matched.sort(function (a, b) {
+        var at = (a.title || '').toLowerCase().indexOf(q);
+        var bt = (b.title || '').toLowerCase().indexOf(q);
+        if (at !== bt) return at - bt;
+        return (a.title || '').localeCompare(b.title || '');
+    });
+    return matched;
+}
+
+function _makeGhostNote(query) {
+    return { id: 0, title: query, category: '', date_last_changed: null, _score: 0, _ghost: true };
+}
+
+function _mergeGhosts(results, query, rawQuery) {
+    var cap = _linksResultCap();
+    if (_ghostEnabled() && results.length < cap) {
+        var ghosts = _filterUnresolvedGhosts(query);
+        for (var gi = 0; gi < ghosts.length && results.length < cap; gi++) {
+            if (!_isExactTitleMatch(ghosts[gi].title.toLowerCase())) {
+                results.push(ghosts[gi]);
+            }
+        }
+    }
+    if (results.length === 0 && _ghostCreateEnabled() && query && !_isExactTitleMatch(query)) {
+        results = [_makeGhostNote(rawQuery)];
+    }
+    return results;
+}
+
 // Unified filter+rank. query is lowercased. algo is one of
 // title_prefix | title_substring | full_search. Returns a Promise<Array>.
 function filterAndRankLinks(query, cap, algo) {
@@ -4566,6 +4682,12 @@ function renderLinksDropdown(container, items, showCategory, selectedIndex) {
     if (!container) return;
     var html = '';
     items.forEach(function(n, i) {
+        if (n._ghost) {
+            html += '<div class="wikilink-autocomplete-item ghost' + (i === selectedIndex ? ' selected' : '') + '" data-index="' + i + '">' +
+                '<span class="link-suggest-title ghost-title">' + _escHtml(n.title || '') + '</span>' +
+                '<span class="link-suggest-cat ghost-badge">New note</span></div>';
+            return;
+        }
         var esc = _escHtml(n.title || '');
         var cat = '';
         if (showCategory && n.category) {
@@ -4620,7 +4742,11 @@ function showWikiAutocomplete(cm) {
     var afterOpen = before.substring(openIdx + 2);
     if (afterOpen.indexOf(']]') > -1) { hideWikiAutocomplete(); return; }
 
-    var query = afterOpen.toLowerCase();
+    var rawQuery = afterOpen;
+    var pipeIdx = rawQuery.indexOf('|');
+    if (pipeIdx > -1) rawQuery = rawQuery.substring(0, pipeIdx);
+    rawQuery = rawQuery.trim();
+    var query = rawQuery.toLowerCase();
     // Token to guard against stale async results rendering for an old query.
     var myReq = ++_wikiReqId;
 
@@ -4631,7 +4757,7 @@ function showWikiAutocomplete(cm) {
 
     filterAndRankLinks(query, _linksResultCap(), _linksAlgo()).then(function(results) {
         if (myReq !== _wikiReqId) return;  // a newer keystroke superseded us
-        wikiFilteredNotes = results;
+        wikiFilteredNotes = _mergeGhosts(results, query, rawQuery);
         if (wikiFilteredNotes.length === 0) { hideWikiAutocomplete(); return; }
 
         // The [[ dropdown takes priority over the no-[[ autosuggest.
@@ -4851,7 +4977,7 @@ function showAutosuggest(cm) {
         // the token while we were ranking.
         if (myReq !== _autosuggReqId) return;
         autosuggContext = ctx;
-        autosuggFilteredNotes = results;
+        autosuggFilteredNotes = _mergeGhosts(results, ctx.query.toLowerCase(), ctx.query);
         if (autosuggFilteredNotes.length === 0) { hideAutosuggest(); return; }
 
         autosuggSelectedIndex = 0;
@@ -4901,8 +5027,34 @@ function acceptAutosuggest(index) {
     var selected = autosuggFilteredNotes[index];
     if (!autosuggContext) return;
     var insertText = '[[' + selected.title + ']]';
-    cmEditor.replaceRange(insertText, autosuggContext.from, autosuggContext.to);
-    cmEditor.setCursor({ line: autosuggContext.to.line, ch: autosuggContext.from.ch + insertText.length });
+
+    // The autosuggest query only captures the last word (stops at whitespace),
+    // but note titles can contain spaces. Extend the replacement range
+    // backwards to cover the longest suffix of the pre-cursor text that
+    // appears anywhere in the selected title, so "one two" → [[one two three]]
+    // and "two three" → [[one two three]] both replace the full typed text.
+    // Only extend to word boundaries so we don't eat a space that separates
+    // the typed text from an unrelated preceding word.
+    var to = autosuggContext.to;
+    var line = cmEditor.getLine(to.line);
+    var beforeLower = line.slice(0, to.ch).toLowerCase();
+    var titleLower = selected.title.toLowerCase();
+    var queryLen = autosuggContext.query.length;
+    var matchLen = queryLen;
+    for (var len = Math.min(beforeLower.length, titleLower.length); len > queryLen; len--) {
+        var suffix = beforeLower.slice(beforeLower.length - len);
+        if (/\s/.test(suffix.charAt(0))) continue;
+        var charBefore = beforeLower.length - len - 1;
+        if (charBefore >= 0 && !/\W/.test(beforeLower.charAt(charBefore))) continue;
+        if (titleLower.indexOf(suffix) !== -1) {
+            matchLen = len;
+            break;
+        }
+    }
+    var fromCh = to.ch - matchLen;
+
+    cmEditor.replaceRange(insertText, { line: to.line, ch: fromCh }, to);
+    cmEditor.setCursor({ line: to.line, ch: fromCh + insertText.length });
     _autosuggDismissedWord = null;
     hideAutosuggest();
     cmEditor.focus();
@@ -5711,6 +5863,12 @@ document.addEventListener('click', function(e) {
         case 'open-note-link':
             e.preventDefault();
             openNote(parseInt(el.dataset.noteId));
+            break;
+        case 'create-ghost-note':
+            e.preventDefault();
+            if (_ghostEnabled()) {
+                createGhostNoteFromLink(el.getAttribute('data-ghost-title') || el.dataset.ghostTitle || '');
+            }
             break;
         case 'new-note-in-folder':
             createNewNoteInFolder(parseInt(el.dataset.categoryId), el.dataset.path);

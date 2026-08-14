@@ -687,6 +687,24 @@
                                 </div>
                                 <div class="setting-desc">Display the note's folder next to each suggestion. Applies to both the no-<code>[[</code> autosuggest and the <code>[[</code> autocomplete.</div>
                             </div>
+                            <div class="setting-row has-desc">
+                                <span class="setting-label">Suggest non-existent notes</span>
+                                <div class="setting-control">
+                                    <div class="toggle {% if ui_settings.autosuggest_ghost_notes %}on{% endif %}" data-toggle="autosuggest-ghost-notes">
+                                        <input type="checkbox" id="autosuggest-ghost-notes" name="autosuggest-ghost-notes" value="1" {% if ui_settings.autosuggest_ghost_notes %}checked{% endif %}>
+                                    </div>
+                                </div>
+                                <div class="setting-desc">Show <em>ghost</em> suggestions for link titles referenced in other notes (<code>[[Project Ideas]]</code>) but not yet created. Accepting inserts the link; clicking it later creates the note. Applies to the autocomplete, autosuggest, and command palette.</div>
+                            </div>
+                            <div class="setting-row has-desc">
+                                <span class="setting-label">Offer new note from typed text</span>
+                                <div class="setting-control">
+                                    <div class="toggle {% if ui_settings.autosuggest_ghost_create %}on{% endif %}" data-toggle="autosuggest-ghost-create">
+                                        <input type="checkbox" id="autosuggest-ghost-create" name="autosuggest-ghost-create" value="1" {% if ui_settings.autosuggest_ghost_create %}checked{% endif %}>
+                                    </div>
+                                </div>
+                                <div class="setting-desc">When no existing note <em>or</em> ghost link matches, offer to create a brand-new note from whatever you typed. Turn off to only surface ghost links already referenced elsewhere.</div>
+                            </div>
                             <div class="setting-row">
                                 <button name="save-links" class="btn-sm primary" type="submit">Save links</button>
                             </div>

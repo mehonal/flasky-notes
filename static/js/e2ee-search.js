@@ -17,6 +17,7 @@
 
     var _index = null;
     var _buildPromise = null;
+    var _version = 0;
 
     var MAX_RESULTS = 50;
     var SNIPPET_RADIUS = 40;
@@ -79,6 +80,7 @@
             _index = null;
         }
 
+        _version++;
         return _index;
     }
 
@@ -215,6 +217,7 @@
     function invalidate() {
         _index = null;
         _buildPromise = null;
+        _version++;
     }
 
     function updateNote(note) {
@@ -226,6 +229,7 @@
                 if (typeof note.content === 'string') _index[i].content = note.content;
                 if (typeof note.category === 'string') _index[i].category = note.category;
                 if (note.date_last_changed) _index[i].date_last_changed = note.date_last_changed;
+                _version++;
                 return;
             }
         }
@@ -237,13 +241,14 @@
                 category: note.category || '',
                 date_last_changed: note.date_last_changed || null
             });
+            _version++;
         }
     }
 
     function deleteNote(id) {
         if (!_index) return;
         for (var i = 0; i < _index.length; i++) {
-            if (_index[i].id === id) { _index.splice(i, 1); return; }
+            if (_index[i].id === id) { _index.splice(i, 1); _version++; return; }
         }
     }
 
@@ -255,15 +260,29 @@
         return _buildPromise !== null;
     }
 
+    function _escapeRegex(s) {
+        return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    }
+
+    var WIKI_LINK_RE = /(?<!!)\[\[([^\]|]+)(?:\|[^\]]+)?\]\]/g;
+
+    function _extractWikiTitles(content) {
+        var matches = content.match(WIKI_LINK_RE) || [];
+        var titles = [];
+        for (var i = 0; i < matches.length; i++) {
+            titles.push(matches[i].replace(/\[\[/, '').replace(/(\|[^\]]+)?\]\]/, ''));
+        }
+        return titles;
+    }
+
     async function computeBacklinks(noteTitle) {
         if (!_index) await buildIndex();
         if (!noteTitle || !_index) return [];
-        var pattern = '[[' + noteTitle + ']]';
-        var patternLower = pattern.toLowerCase();
+        var re = new RegExp('(?<!!)\\[\\[' + _escapeRegex(noteTitle) + '(\\|[^\\]]+)?\\]\\]', 'i');
         var results = [];
         for (var i = 0; i < _index.length; i++) {
             var n = _index[i];
-            if (n.content && n.content.toLowerCase().indexOf(patternLower) !== -1) {
+            if (n.content && re.test(n.content)) {
                 results.push({ id: n.id, title: n.title });
             }
         }
@@ -273,17 +292,40 @@
     async function computeOutboundLinks(content) {
         if (!_index) await buildIndex();
         if (!content || !_index) return [];
-        var matches = content.match(/\[\[([^\]|]+)(?:\|[^\]]+)?\]\]/g) || [];
+        var titles = _extractWikiTitles(content);
         var results = [];
         var seen = {};
-        for (var i = 0; i < matches.length; i++) {
-            var m = matches[i];
-            var title = m.replace(/\[\[/, '').replace(/(\|[^\]]+)?\]\]/, '');
+        for (var i = 0; i < titles.length; i++) {
+            var title = titles[i];
             var key = title.toLowerCase();
             if (seen[key]) continue;
             seen[key] = true;
             var note = _index.find(function(n) { return n.title.toLowerCase() === key; });
-            if (note) results.push({ id: note.id, title: note.title });
+            if (note) {
+                results.push({ id: note.id, title: note.title });
+            } else {
+                results.push({ id: 0, title: title, _ghost: true });
+            }
+        }
+        return results;
+    }
+
+    function getUnresolvedLinks() {
+        if (!_index) return [];
+        var existing = {};
+        for (var i = 0; i < _index.length; i++) {
+            existing[(_index[i].title || '').toLowerCase()] = true;
+        }
+        var seen = {};
+        var results = [];
+        for (var j = 0; j < _index.length; j++) {
+            var titles = _extractWikiTitles(_index[j].content || '');
+            for (var k = 0; k < titles.length; k++) {
+                var key = titles[k].toLowerCase();
+                if (seen[key] || existing[key]) continue;
+                seen[key] = true;
+                results.push({ id: 0, title: titles[k], _ghost: true });
+            }
         }
         return results;
     }
@@ -296,7 +338,9 @@
         deleteNote: deleteNote,
         getIndex: getIndex,
         isBuilding: isBuilding,
+        getVersion: function () { return _version; },
         computeBacklinks: computeBacklinks,
-        computeOutboundLinks: computeOutboundLinks
+        computeOutboundLinks: computeOutboundLinks,
+        getUnresolvedLinks: getUnresolvedLinks
     };
 })();

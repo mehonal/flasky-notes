@@ -302,6 +302,16 @@ REGISTRY: dict[str, SettingDef] = {
         "autosuggest_algorithm", "title_prefix", str,
         lambda v: v in ("title_prefix", "title_substring", "full_search"),
     ),
+    # Suggest non-existent ("ghost") notes in the [[ autocomplete, the no-[[
+    # autosuggest, and the command palette [[ mode. Ghost notes are link
+    # titles referenced in other notes but not yet created. Accepting inserts
+    # the link; the note is created when the link is later clicked.
+    "autosuggest_ghost_notes": SettingDef("autosuggest_ghost_notes", True, bool),
+    # When no existing note and no ghost link matches the typed text, offer to
+    # create a brand-new note from the typed text itself. On by default to
+    # keep the autocomplete dropdown populated while typing; turn off to only
+    # surface ghost links that are already referenced elsewhere.
+    "autosuggest_ghost_create": SettingDef("autosuggest_ghost_create", True, bool),
     # Text-to-speech (browser-native speechSynthesis). Master toggle gates
     # the topbar "Speak note" button; the AI view always shows per-message
     # speak buttons when ai_enabled is on. Voice prefs are persisted so they

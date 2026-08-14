@@ -1039,6 +1039,9 @@ export function create(parentElement, options) {
           if (entry) {
             options.onLinkClick('note', String(entry.id));
             consumed = true;
+          } else {
+            options.onLinkClick('ghost', wiki);
+            consumed = true;
           }
         } else {
           var href = el.getAttribute('data-href');

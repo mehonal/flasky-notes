@@ -36,7 +36,8 @@
     };
     var ALLOWED_ATTRS = {
         'href':1,'src':1,'alt':1,'title':1,'class':1,'id':1,
-        'colspan':1,'rowspan':1,'align':1,'open':1
+        'colspan':1,'rowspan':1,'align':1,'open':1,
+        'data-action':1,'data-ghost-title':1
     };
     var SAFE_URL = /^(?:https?:|\/|#|mailto:)/i;
 

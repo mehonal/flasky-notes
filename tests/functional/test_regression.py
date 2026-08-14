@@ -280,14 +280,18 @@ def test_settings_links_panel_and_persistence(app_context):
     assert 'name="autosuggest-result-cap"' in body
     assert 'name="autosuggest-algorithm"' in body
     assert 'name="autosuggest-show-category"' in body
+    assert 'name="autosuggest-ghost-notes"' in body
+    assert 'name="autosuggest-ghost-create"' in body
 
-    # Defaults before any POST: master toggle off, min 2, cap 5, algo title_prefix, no category.
+    # Defaults before any POST: master toggle off, min 2, cap 5, algo title_prefix, no category, ghost on, ghost-create on.
     user = User.query.filter_by(username="linksettings").first()
     assert get_setting(user, "autosuggest_note_links") is False
     assert get_setting(user, "autosuggest_min_chars") == 2
     assert get_setting(user, "autosuggest_result_cap") == 5
     assert get_setting(user, "autosuggest_algorithm") == "title_prefix"
     assert get_setting(user, "autosuggest_show_category") is False
+    assert get_setting(user, "autosuggest_ghost_notes") is True
+    assert get_setting(user, "autosuggest_ghost_create") is True
 
     # POST: turn everything on and bump the numeric knobs.
     r = client.post(
@@ -299,6 +303,8 @@ def test_settings_links_panel_and_persistence(app_context):
             "autosuggest-result-cap": "10",
             "autosuggest-algorithm": "title_substring",
             "autosuggest-show-category": "1",
+            "autosuggest-ghost-notes": "1",
+            "autosuggest-ghost-create": "1",
         },
         follow_redirects=True,
     )
@@ -308,6 +314,8 @@ def test_settings_links_panel_and_persistence(app_context):
     assert get_setting(user, "autosuggest_result_cap") == 10
     assert get_setting(user, "autosuggest_algorithm") == "title_substring"
     assert get_setting(user, "autosuggest_show_category") is True
+    assert get_setting(user, "autosuggest_ghost_notes") is True
+    assert get_setting(user, "autosuggest_ghost_create") is True
 
     # Omitting the toggles (unchecked checkboxes) turns them back off;
     # out-of-range numerics fall back to the floor; bad algo -> title_prefix.
@@ -327,6 +335,8 @@ def test_settings_links_panel_and_persistence(app_context):
     assert get_setting(user, "autosuggest_result_cap") == 1
     assert get_setting(user, "autosuggest_algorithm") == "title_prefix"
     assert get_setting(user, "autosuggest_show_category") is False
+    assert get_setting(user, "autosuggest_ghost_notes") is False
+    assert get_setting(user, "autosuggest_ghost_create") is False
 
 
 # === Attachment upload on new note ===
@@ -590,3 +600,68 @@ def test_rename_attachment_other_user_not_found(auth_client):
     )
     assert r.status_code == 404
     assert Attachment.query.filter_by(id=att_b.id).first() is not None
+
+
+def test_ghost_notes_setting_injected_into_page(app_context):
+    """The autosuggestGhostNotes and autosuggestGhostCreate flags must be
+    present in _pageData on the note editor page so the client-side JS can
+    gate ghost note surfaces.
+    """
+    client = app_context.test_client()
+    creds = make_e2ee_user(client, "ghostpage", "testpassword123")
+
+    r = client.get("/note/0")
+    assert r.status_code == 200
+    body = r.get_data(as_text=True)
+    assert '"autosuggestGhostNotes"' in body
+    assert '"autosuggestGhostCreate"' in body
+
+    from flasky.models import User
+    from flasky.ui_settings import get_setting, set_setting
+    user = User.query.filter_by(username="ghostpage").first()
+    assert get_setting(user, "autosuggest_ghost_notes") is True
+    assert get_setting(user, "autosuggest_ghost_create") is True
+
+    set_setting(user, "autosuggest_ghost_notes", False)
+    set_setting(user, "autosuggest_ghost_create", False)
+    from flasky import db
+    db.session.commit()
+
+    r = client.get("/note/0")
+    assert r.status_code == 200
+    body = r.get_data(as_text=True)
+    assert '"autosuggestGhostNotes": false' in body
+    assert '"autosuggestGhostCreate": false' in body
+
+
+def test_note_map_returns_encrypted_titles(app_context):
+    """The /api/note-map endpoint returns encrypted note titles that the
+    client-side search index (e2ee-search.js) decrypts and uses for
+    computeOutboundLinks / computeBacklinks. Verify the data shape.
+    """
+    client = app_context.test_client()
+    creds = make_e2ee_user(client, "notemap", "testpassword123")
+
+    r = client.post(
+        "/api/save_note",
+        json={
+            "noteId": 0,
+            "title": enc(creds, "Test Note Title"),
+            "content": enc(creds, "Some content with [[Ghost Link]] inside"),
+            "category": None,
+        },
+    )
+    assert r.status_code == 200
+    note_id = r.get_json()["note"]["id"]
+
+    r = client.get("/api/note-map")
+    assert r.status_code == 200
+    data = r.get_json()
+    assert data["encrypted"] is True
+    assert isinstance(data["notes"], list)
+    assert len(data["notes"]) >= 1
+
+    note_entry = next(n for n in data["notes"] if n["id"] == note_id)
+    assert note_entry["id"] == note_id
+    assert note_entry["title"] != "Test Note Title"
+    assert dec(creds, note_entry["title"]) == "Test Note Title"

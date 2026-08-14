@@ -58,6 +58,9 @@
 .flasky-palette-item.selected .flasky-palette-icon { color: var(--accent); opacity: 1; }
 .flasky-palette-hint { flex-shrink: 0; font-size: 10px; color: var(--text-muted); }
 .flasky-palette-item.link .flasky-palette-cat { font-size: 11px; color: var(--text-muted); }
+.flasky-palette-item.ghost .flasky-palette-item-title { color: var(--text-muted); font-style: italic; }
+.flasky-palette-item.ghost .flasky-palette-cat { color: var(--green); font-weight: 600; }
+.flasky-palette-item.ghost.selected .flasky-palette-item-title { color: var(--accent); font-style: normal; }
 .flasky-palette-empty { padding: 24px 16px; text-align: center; color: var(--text-muted); font-size: 13px; }
 .flasky-palette-hintbox { padding: 14px 18px; display: flex; flex-direction: column; gap: 8px; }
 .flasky-palette-hintbox-title { font-size: 13px; font-weight: 600; color: var(--text-secondary); margin-bottom: 4px; }
