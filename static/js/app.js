@@ -1655,6 +1655,7 @@ async function _doSaveNote(titleVal, content, props, callback) {
                 });
                 updateNoteIconPreview(data.note.resolved_icon || currentNoteIcon, data.note.resolved_icon_color || currentNoteIconColor);
                 setActiveSidebarItem(noteId);
+                document.querySelectorAll('.note-action-item').forEach(function(el) { el.style.display = ''; });
                 var bc = document.getElementById('breadcrumb-note-title');
                 if (bc) bc.textContent = displayTitle || 'Untitled';
                 if (window._updateNoteMapEntry) {
