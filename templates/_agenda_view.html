@@ -273,6 +273,11 @@
       <div class="ai-panel-input-area">
         <textarea id="aiPanelInput" placeholder="Ask AI..." rows="2"></textarea>
         <div class="ai-panel-input-actions">
+          {% if ai_web_search_allowed %}
+          <button class="icon-btn" data-action="toggle-ai-web-search" title="AI Web Search: let the AI search the web when answering">
+            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+          </button>
+          {% endif %}
           <button class="icon-btn" data-action="toggle-ai-context" title="Include agenda context">
             <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
           </button>
@@ -293,6 +298,31 @@
   </div>
 
   <!-- ============ Modals ============ -->
+
+  {% if ai_web_search_allowed %}
+  <!-- AI Web Search Warning Modal -->
+  <div class="modal-overlay" id="aiWebSearchWarnOverlay">
+    <div class="modal-box modal-box-sm">
+      <div class="modal-header">
+        <span class="modal-title">Enable AI Web Search for this chat?</span>
+        <button class="modal-close" data-action="hide-modal" data-modal="aiWebSearchWarnOverlay">
+          <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div class="modal-body">
+        <p>When enabled, the AI may search the web and fetch web pages to answer your questions with up-to-date information.</p>
+        <p><strong>Proceed with caution.</strong> The AI generates its own search queries — including rephrasing your question — and these leave your device, along with the contents of any pages it fetches. Think about what your question reveals before enabling this.</p>
+        <p><strong>Your search provider (Ollama) is responsible for how it handles web searches and fetched pages</strong> — how queries and page contents are processed, retained, logged, or shared is governed by their policies, not by Flasky. Review your provider's privacy policy before enabling.</p>
+        <p><strong>Your Flasky server stores none of it</strong> — queries and fetched page contents pass through your server unencrypted and are not persisted. Only your message and the final answer are stored, end-to-end encrypted as usual.</p>
+        <p>You can turn it off at any time.</p>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-modal" data-action="hide-modal" data-modal="aiWebSearchWarnOverlay">Cancel</button>
+        <button class="btn-modal primary" data-action="websearch-warn-enable">I understand, enable</button>
+      </div>
+    </div>
+  </div>
+  {% endif %}
 
   <!-- Confirm Delete Modal -->
   <div class="modal-overlay" id="confirmDeleteOverlay">

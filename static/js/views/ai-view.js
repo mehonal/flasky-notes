@@ -161,7 +161,7 @@
                 rename.addEventListener('click', function (e) { e.stopPropagation(); decryptIfNeeded(c.title || 'Untitled').then(function (dec) { promptRename(c.id, dec); }); });
                 div.appendChild(rename); div.appendChild(del);
                 div.addEventListener('click', function () {
-                    conversationId = c.id; currentConvData = c; loadMessages(c.id); loadConversations(); updateVaultChip(); updatePanel();
+                    conversationId = c.id; currentConvData = c; loadMessages(c.id); loadConversations(); updateVaultChip(); updateWebSearchChip(); updatePanel();
                     if (isMobile()) closeSidebar();
                 });
                 titleSpan.addEventListener('dblclick', function (e) { e.stopPropagation(); e.preventDefault(); decryptIfNeeded(c.title || 'Untitled').then(function (dec) { promptRename(c.id, dec); }); });
@@ -368,6 +368,57 @@
             if (!vaultContextAllowed) return false;
             if (vaultContextPending) return true;
             return !!(currentConvData && currentConvData.vault_context_enabled);
+        }
+
+        var webSearchChip = document.getElementById('ai-websearch-chip');
+        var webSearchWarnModal = document.getElementById('ai-websearch-warn-modal');
+        var aiWebSearchAllowed = !!data.aiWebSearchAllowed;
+        var webSearchPending = false;
+
+        function webSearchEnabled() {
+            if (!aiWebSearchAllowed) return false;
+            if (webSearchPending) return true;
+            return !!(currentConvData && currentConvData.web_search_enabled);
+        }
+
+        function updateWebSearchChip() {
+            if (!webSearchChip) return;
+            if (!aiWebSearchAllowed) {
+                webSearchChip.style.display = 'none';
+                return;
+            }
+            webSearchChip.style.display = '';
+            var on = webSearchPending || !!(currentConvData && currentConvData.web_search_enabled);
+            webSearchChip.classList.toggle('on', on);
+            webSearchChip.setAttribute('aria-pressed', on ? 'true' : 'false');
+        }
+
+        function setWebSearch(enabled) {
+            if (!conversationId) return Promise.resolve(null);
+            return fetch('/ai/api/conversations/' + conversationId + '/web_search', {
+                method: 'PUT', headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRFToken() },
+                body: JSON.stringify({ enabled: enabled })
+            }).then(function (r) { return r.json(); }).then(function (resp) {
+                if (resp && resp.error) { alert(resp.error); return resp; }
+                if (resp) { currentConvData = resp; updateWebSearchChip(); }
+                return resp;
+            });
+        }
+
+        function showWebSearchWarnModal() {
+            return new Promise(function (resolve) {
+                if (!webSearchWarnModal) { resolve(false); return; }
+                webSearchWarnModal.style.display = 'flex';
+                webSearchWarnModal.querySelectorAll('[data-websearch-warn-action]').forEach(function (btn) {
+                    var action = btn.getAttribute('data-websearch-warn-action');
+                    var handler = function () {
+                        webSearchWarnModal.style.display = 'none';
+                        webSearchWarnModal.querySelectorAll('[data-websearch-warn-action]').forEach(function (b) { b.removeEventListener('click', handler); });
+                        resolve(action === 'enable');
+                    };
+                    btn.addEventListener('click', handler);
+                });
+            });
         }
 
         function updateVaultChip() {
@@ -588,6 +639,20 @@
             });
         }
 
+        if (webSearchChip) {
+            bind(webSearchChip, 'click', async function () {
+                if (webSearchEnabled()) {
+                    if (conversationId) { setWebSearch(false); }
+                    else { webSearchPending = false; updateWebSearchChip(); }
+                    return;
+                }
+                var ok = await showWebSearchWarnModal();
+                if (!ok) return;
+                if (conversationId) { setWebSearch(true); }
+                else { webSearchPending = true; updateWebSearchChip(); }
+            });
+        }
+
         var isGating = false;
         async function sendMessage() {
             var text = inputEl.value.trim();
@@ -610,12 +675,15 @@
                 fetch('/ai/api/conversations', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRFToken() }, body: JSON.stringify({ title: encryptedTitle }) })
                     .then(function (r) { return r.json(); }).then(function (data) {
                         if (data.error) { alert(data.error); statusText.textContent = 'Ready'; return; }
-                        conversationId = data.id; currentConvData = data; updateVaultChip(); updatePanel(); loadConversations();
-                        if (vaultContextPending) {
-                            vaultContextPending = false;
-                            setVaultContext(true).then(function () { streamResponse(encryptedMessage, ctxMsg); });
+                        conversationId = data.id; currentConvData = data; updateVaultChip(); updateWebSearchChip(); updatePanel(); loadConversations();
+                        var proceed = function () { streamResponse(encryptedMessage, ctxMsg); };
+                        if (vaultContextPending || webSearchPending) {
+                            var toggles = [];
+                            if (vaultContextPending) { vaultContextPending = false; toggles.push(setVaultContext(true)); }
+                            if (webSearchPending) { webSearchPending = false; toggles.push(setWebSearch(true)); }
+                            Promise.all(toggles).then(proceed);
                         } else {
-                            streamResponse(encryptedMessage, ctxMsg);
+                            proceed();
                         }
                     });
             } else { streamResponse(encryptedMessage, ctxMsg); }
@@ -630,6 +698,7 @@
             var assistantDiv = addMessageBubble('assistant', '', false);
             assistantDiv.classList.add('ai-cursor-blink');
             var abortController = new AbortController(); _currentAbortController = abortController;
+            var toolStatusEl = null;
             var chatBody = { message: encryptedMessage };
             var msgsForBody = localMessages.slice();
             if (ctxMsg) msgsForBody = [ctxMsg].concat(msgsForBody);
@@ -662,7 +731,30 @@
                                 if (line.startsWith('data: ')) {
                                     try {
                                         var data = JSON.parse(line.substring(6));
-                                        if (data.chunk) { fullText += data.chunk; assistantDiv.textContent = fullText; messagesEl.scrollTop = messagesEl.scrollHeight; statusText.innerHTML = '<span class="ai-status-streaming">Streaming...</span>'; }
+                                        if (data.tool) {
+                                            var label = data.tool === 'web_fetch' ? ('Fetching: ' + (data.url || '')) : ('Searching the web: ' + (data.query || ''));
+                                            if (!toolStatusEl) {
+                                                toolStatusEl = document.createElement('div');
+                                                toolStatusEl.className = 'ai-tool-status';
+                                                assistantDiv.insertBefore(toolStatusEl, assistantDiv.firstChild);
+                                            }
+                                            var lineEl = document.createElement('div');
+                                            lineEl.className = 'ai-tool-status-line';
+                                            lineEl.textContent = label;
+                                            toolStatusEl.appendChild(lineEl);
+                                            statusText.innerHTML = '<span class="ai-status-streaming">Searching the web...</span>';
+                                            messagesEl.scrollTop = messagesEl.scrollHeight;
+                                        }
+                                        else if (data.chunk) {
+                                            fullText += data.chunk;
+                                            if (toolStatusEl) {
+                                                while (toolStatusEl.nextSibling) assistantDiv.removeChild(toolStatusEl.nextSibling);
+                                                assistantDiv.appendChild(document.createTextNode(fullText));
+                                            } else {
+                                                assistantDiv.textContent = fullText;
+                                            }
+                                            messagesEl.scrollTop = messagesEl.scrollHeight; statusText.innerHTML = '<span class="ai-status-streaming">Streaming...</span>';
+                                        }
                                         else if (data.error) { streamFinished = true; assistantDiv.textContent = data.error; assistantDiv.classList.remove('ai-cursor-blink'); isStreaming = false; sendBtn.style.display = 'flex'; stopBtn.style.display = 'none'; inputEl.disabled = false; statusText.textContent = 'Error'; }
                                         else if (data.done) { streamFinished = true; finishStream(assistantDiv, fullText, data.message_id, true); }
                                     } catch (e) {}
@@ -687,6 +779,8 @@
 
             function finishStream(div, text, messageId, wasClean) {
                 div.classList.remove('ai-cursor-blink');
+                if (toolStatusEl && toolStatusEl.parentNode) { toolStatusEl.remove(); }
+                toolStatusEl = null;
                 if (text) { div.innerHTML = renderMarkdown(text); div.querySelectorAll('pre code').forEach(function (b) { hljs.highlightElement(b); }); addCopyButtons(div); localMessages.push({ role: 'assistant', content: text }); }
                 if (messageId) {
                     var wrapper = div.closest('.ai-message');
@@ -724,7 +818,7 @@
 
         bind(sendBtn, 'click', sendMessage);
         bind(inputEl, 'keydown', function (e) { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } });
-        bind(newChatBtn, 'click', function () { if (window.FlaskyTTS && FlaskyTTS.isSpeaking()) FlaskyTTS.stop(); conversationId = null; currentConvData = null; localMessages = []; vaultContextPending = false; clearMessages(); loadConversations(); updateVaultChip(); updatePanel(); inputEl.focus(); if (isMobile()) closeSidebar(); });
+        bind(newChatBtn, 'click', function () { if (window.FlaskyTTS && FlaskyTTS.isSpeaking()) FlaskyTTS.stop(); conversationId = null; currentConvData = null; localMessages = []; vaultContextPending = false; webSearchPending = false; clearMessages(); loadConversations(); updateVaultChip(); updateWebSearchChip(); updatePanel(); inputEl.focus(); if (isMobile()) closeSidebar(); });
         bind(inputEl, 'input', function () { this.style.height = 'auto'; this.style.height = Math.min(this.scrollHeight, 160) + 'px'; });
         bindDoc(document, 'click', function (e) { var btn = e.target.closest('.ai-suggestion-btn'); if (btn && btn.dataset.prompt) { inputEl.value = btn.dataset.prompt; inputEl.focus(); inputEl.dispatchEvent(new Event('input')); } });
 
@@ -734,6 +828,7 @@
             if (window.FlaskyTTS) { try { FlaskyTTS.init(); } catch (e) {} }
             loadConversations();
             updateVaultChip();
+            updateWebSearchChip();
             updatePanel();
             if (conversationId) loadMessages(conversationId);
         })();

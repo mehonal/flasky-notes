@@ -655,6 +655,15 @@
     background: var(--accent);
     color: var(--bg-primary);
 }
+#agenda-root .ai-msg-content .ai-tool-status { margin: 2px 0 6px; }
+#agenda-root .ai-msg-content .ai-tool-status-line {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 11px; color: var(--text-muted); padding: 3px 0;
+}
+#agenda-root .ai-msg-content .ai-tool-status-line::before {
+    content: ''; width: 5px; height: 5px; border-radius: 50%;
+    background: var(--accent); flex-shrink: 0;
+}
 #agenda-root .ai-panel-status {
     padding: 4px 16px 8px;
     font-size: 11px;

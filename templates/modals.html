@@ -123,3 +123,29 @@
             </div>
         </div>
     </div>
+
+    {% if ui_settings and ui_settings.ai_web_search_allowed %}
+    <!-- AI Web Search Warning Modal (notes AI panel) -->
+    <div class="modal-overlay" id="ai-websearch-warn-overlay" data-action="close-modal-self">
+        <div class="agenda-modal">
+            <div class="agenda-modal-header">
+                <span>Enable AI Web Search for this chat?</span>
+                <button class="icon-btn" data-action="close-ai-websearch-warn">
+                    <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+            </div>
+            <div class="agenda-modal-body">
+                <p>When enabled, the AI may search the web and fetch web pages to answer your questions with up-to-date information.</p>
+                <p><strong>Proceed with caution.</strong> The AI generates its own search queries — including rephrasing your question — and these leave your device, along with the contents of any pages it fetches. Think about what your question reveals before enabling this.</p>
+                <p><strong>Your search provider (Ollama) is responsible for how it handles web searches and fetched pages</strong> — how queries and page contents are processed, retained, logged, or shared is governed by their policies, not by Flasky. Review your provider's privacy policy before enabling.</p>
+                <p><strong>Your Flasky server stores none of it</strong> — queries and fetched page contents pass through your server unencrypted and are not persisted. Only your message and the final answer are stored, end-to-end encrypted as usual.</p>
+                <p>You can turn it off at any time.</p>
+            </div>
+            <div class="agenda-modal-footer">
+                <span class="agenda-modal-spacer"></span>
+                <button class="agenda-modal-btn" data-action="close-ai-websearch-warn">Cancel</button>
+                <button class="agenda-modal-btn primary" data-action="enable-ai-websearch">I understand, enable</button>
+            </div>
+        </div>
+    </div>
+    {% endif %}

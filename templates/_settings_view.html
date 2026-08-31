@@ -931,6 +931,36 @@
                                 <div class="setting-hint" style="margin-top:8px;">Saving refreshes the page to apply changes.</div>
                             </div>
                         </form>
+                        <form method="POST" data-spa-form data-requires-refresh style="margin-top:16px;">
+                            <input type="hidden" name="update-ai-web-search-settings" value="1">
+                            <div class="sub-label">AI Web Search</div>
+                            <div style="padding: 0 16px;">
+                                <div class="setting-row">
+                                    <span class="setting-label">Allow AI Web Search</span>
+                                    <div class="setting-control">
+                                        <div class="toggle {% if ui_settings.ai_web_search_allowed %}on{% endif %}" data-toggle="ai-web-search-allowed">
+                                            <input type="checkbox" id="ai-web-search-toggle" name="ai-web-search-allowed" value="1" {% if ui_settings.ai_web_search_allowed %}checked{% endif %} data-spa-auto-submit>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="setting-hint" style="margin-bottom:10px;">
+                                    AI Web Search lets the AI search the web and fetch pages via Ollama's web search API when answering. Use with caution: the AI generates its own search queries (including rephrasing your question), and your search provider (Ollama) is responsible for how it handles those queries and any fetched page contents — review their privacy policy. Your Flasky server relays this traffic but does not store it. Enable per conversation in AI chat after acknowledging a warning.
+                                </div>
+                                {% if ui_settings.ai_web_search_allowed %}
+                                <label class="list-item-sub">Max tool rounds per message</label>
+                                <input name="ai-web-search-max-rounds" class="setting-input" type="number" min="1" max="10" value="{{ ui_settings.ai_web_search_max_rounds }}" style="width:100%; margin-bottom:6px;">
+                                <div class="setting-hint" style="margin-bottom:8px;">How many rounds of web searches/fetches the AI may perform per message (1–10).</div>
+                                <label class="list-item-sub">Max characters per tool result</label>
+                                <input name="ai-web-search-result-max-chars" class="setting-input" type="number" min="500" max="50000" step="500" value="{{ ui_settings.ai_web_search_result_max_chars }}" style="width:100%; margin-bottom:6px;">
+                                <div class="setting-hint" style="margin-bottom:8px;">Each search/fetch result is truncated to this many characters before being fed back to the AI (500–50000).</div>
+                                <label class="list-item-sub">Tool request timeout (seconds)</label>
+                                <input name="ai-web-search-timeout" class="setting-input" type="number" min="5" max="120" value="{{ ui_settings.ai_web_search_timeout }}" style="width:100%; margin-bottom:6px;">
+                                <div class="setting-hint" style="margin-bottom:8px;">How long to wait for each web search/fetch request before giving up (5–120 seconds).</div>
+                                {% endif %}
+                                <button class="btn-sm primary" type="submit">Save</button>
+                                <div class="setting-hint" style="margin-top:8px;">Saving refreshes the page to apply changes.</div>
+                            </div>
+                        </form>
                         {% endif %}
                     </div>
                 </div>

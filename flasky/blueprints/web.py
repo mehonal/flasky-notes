@@ -688,6 +688,25 @@ def settings_page():
                 max_chars = 20000
             set_setting(g.user, "ai_vault_context_max_chars", max_chars)
             db.session.commit()
+        elif "update-ai-web-search-settings" in request.form:
+            allowed = "ai-web-search-allowed" in request.form
+            set_setting(g.user, "ai_web_search_allowed", allowed)
+            try:
+                max_rounds = int(request.form.get("ai-web-search-max-rounds", "4"))
+            except (TypeError, ValueError):
+                max_rounds = 4
+            set_setting(g.user, "ai_web_search_max_rounds", max_rounds)
+            try:
+                result_max_chars = int(request.form.get("ai-web-search-result-max-chars", "8000"))
+            except (TypeError, ValueError):
+                result_max_chars = 8000
+            set_setting(g.user, "ai_web_search_result_max_chars", result_max_chars)
+            try:
+                timeout = int(request.form.get("ai-web-search-timeout", "30"))
+            except (TypeError, ValueError):
+                timeout = 30
+            set_setting(g.user, "ai_web_search_timeout", timeout)
+            db.session.commit()
         elif "resolve-conflict" in request.form:
             conflict_id = request.form.get("conflict-id")
             resolution = request.form.get("resolution")
@@ -891,6 +910,7 @@ def agenda_page():
             ai_enabled=ai_enabled,
             ai_settings=settings,
             ai_models=_ai_models(g.user),
+            ai_web_search_allowed=bool(get_all_settings(g.user).ai_web_search_allowed),
         )
     return _render_shell(initial_view="/agenda")
 

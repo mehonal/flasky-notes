@@ -774,6 +774,7 @@
                 case 'dismiss-toast': el.closest('.toast').remove(); break;
                 case 'toggle-ai-panel': toggleAIPanel(); break;
                 case 'close-ai-panel': closeAIPanel(); break;
+                case 'toggle-ai-web-search': toggleAIWebSearch(); break;
                 case 'new-ai-chat': newAIChat(); break;
                 case 'toggle-ai-context': toggleAgendaContext(); break;
                 case 'remove-ai-context': if (aiAgendaContext) toggleAgendaContext(); break;
@@ -831,6 +832,61 @@
             }
         }
 
+        var aiWebSearchBtn = _root.querySelector('[data-action="toggle-ai-web-search"]');
+        var aiWebSearchWarnOverlay = document.getElementById('aiWebSearchWarnOverlay');
+        var aiWebSearchPending = false;
+        var aiWebSearchOn = false;
+
+        function updateAIWebSearchBtn() {
+            if (!aiWebSearchBtn) return;
+            var on = aiWebSearchPending || aiWebSearchOn;
+            aiWebSearchBtn.classList.toggle('active', on);
+            aiWebSearchBtn.setAttribute('aria-pressed', on ? 'true' : 'false');
+        }
+
+        function aiWebSearchWarnModal() {
+            return new Promise(function (resolve) {
+                if (!aiWebSearchWarnOverlay) { resolve(false); return; }
+                showModal('aiWebSearchWarnOverlay');
+                var cleanup = function (result) {
+                    hideModal('aiWebSearchWarnOverlay');
+                    document.removeEventListener('click', onDocClick, true);
+                    resolve(result);
+                };
+                var onDocClick = function (e) {
+                    var el = e.target.closest('[data-action]');
+                    if (e.target === aiWebSearchWarnOverlay) { e.stopPropagation(); cleanup(false); return; }
+                    if (!el) return;
+                    if (el.dataset.action === 'websearch-warn-enable') { e.stopPropagation(); cleanup(true); }
+                    else if (el.dataset.action === 'hide-modal' && el.dataset.modal === 'aiWebSearchWarnOverlay') { e.stopPropagation(); cleanup(false); }
+                };
+                document.addEventListener('click', onDocClick, true);
+            });
+        }
+
+        async function toggleAIWebSearch() {
+            if (!aiWebSearchBtn) return;
+            if (aiWebSearchPending || aiWebSearchOn) {
+                var wasOn = aiWebSearchOn;
+                aiWebSearchPending = false;
+                aiWebSearchOn = false;
+                updateAIWebSearchBtn();
+                if (wasOn && aiConversationId) {
+                    try {
+                        await fetch('/ai/api/conversations/' + aiConversationId + '/web_search', {
+                            method: 'PUT', headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ enabled: false })
+                        });
+                    } catch (e) { /* server flag stays on; local UI is off */ }
+                }
+                return;
+            }
+            var ok = await aiWebSearchWarnModal();
+            if (!ok) return;
+            aiWebSearchPending = true;
+            updateAIWebSearchBtn();
+        }
+
         function aiRenderMarkdown(text) {
                 var html = typeof marked !== 'undefined' ? marked(text) : escapeHtml(text).replace(/\n/g, '<br>');
                 return typeof sanitizeMarkdown === 'function' ? sanitizeMarkdown(html) : html;
@@ -871,6 +927,9 @@
 
             function newAIChat() {
                 aiConversationId = null; aiLocalMessages = []; aiAgendaContext = null; aiStreamCallback = null;
+                aiWebSearchPending = false;
+                aiWebSearchOn = false;
+                if (aiWebSearchBtn) aiWebSearchBtn.classList.remove('active');
                 var c = document.getElementById('aiPanelMessages'); if (c) c.innerHTML = '';
                 var ctx = document.getElementById('aiPanelContext'); if (ctx) ctx.style.display = 'none';
                 var ctxBtn = _root.querySelector('[data-action="toggle-ai-context"]'); if (ctxBtn) ctxBtn.classList.remove('active');
@@ -952,6 +1011,17 @@
                         aiConversationId = data.id;
                     } catch (e) { aiAddMessage('system', 'Failed to create conversation.', false); if (st) st.textContent = 'Ready'; return; }
                 }
+                if (aiWebSearchPending) {
+                    aiWebSearchPending = false;
+                    aiWebSearchOn = true;
+                    updateAIWebSearchBtn();
+                    try {
+                        await fetch('/ai/api/conversations/' + aiConversationId + '/web_search', {
+                            method: 'PUT', headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ enabled: true })
+                        });
+                    } catch (e) {}
+                }
                 aiStreamResponse(encryptedMessage);
             }
 
@@ -978,7 +1048,7 @@
                     if (!response.ok) { aiFinishStream(assistantDiv, 'Error: ' + response.status, null, false, silent); return; }
                     var reader = response.body.getReader();
                     var decoder = new TextDecoder();
-                    var fullText = ''; var streamFinished = false;
+                    var fullText = ''; var streamFinished = false; var toolStatusEl = null;
                     function read() {
                         reader.read().then(function (result) {
                             if (result.done) { if (!streamFinished) aiFinishStream(assistantDiv, fullText, null, false, silent); return; }
@@ -987,9 +1057,31 @@
                                 if (line.startsWith('data: ')) {
                                     try {
                                         var data = JSON.parse(line.substring(6));
-                                        if (data.chunk) {
+                                        if (data.tool) {
+                                            var label = data.tool === 'web_fetch' ? ('Fetching: ' + (data.url || '')) : ('Searching the web: ' + (data.query || ''));
+                                            if (assistantDiv) {
+                                                if (!toolStatusEl) {
+                                                    toolStatusEl = document.createElement('div');
+                                                    toolStatusEl.className = 'ai-tool-status';
+                                                    assistantDiv.insertBefore(toolStatusEl, assistantDiv.firstChild);
+                                                }
+                                                var lineEl = document.createElement('div');
+                                                lineEl.className = 'ai-tool-status-line';
+                                                lineEl.textContent = label;
+                                                toolStatusEl.appendChild(lineEl);
+                                                if (st) st.innerHTML = '<span class="streaming">Searching the web...</span>';
+                                                var mc = document.getElementById('aiPanelMessages'); if (mc) mc.scrollTop = mc.scrollHeight;
+                                            }
+                                        } else if (data.chunk) {
                                             fullText += data.chunk;
-                                            if (assistantDiv) assistantDiv.textContent = fullText;
+                                            if (assistantDiv) {
+                                                if (toolStatusEl) {
+                                                    while (toolStatusEl.nextSibling) assistantDiv.removeChild(toolStatusEl.nextSibling);
+                                                    assistantDiv.appendChild(document.createTextNode(fullText));
+                                                } else {
+                                                    assistantDiv.textContent = fullText;
+                                                }
+                                            }
                                             var mc = document.getElementById('aiPanelMessages'); if (mc) mc.scrollTop = mc.scrollHeight;
                                             if (st) st.innerHTML = '<span class="streaming">Streaming...</span>';
                                         } else if (data.error) {

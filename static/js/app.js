@@ -5927,6 +5927,8 @@ document.addEventListener('click', function(e) {
             }
             break;
         case 'close-attachment-preview': closeAttachmentPreview(); break;
+        case 'enable-ai-websearch': break;     // handled via capture listener in aiWebSearchWarnModal
+        case 'close-ai-websearch-warn': break; // handled via capture listener in aiWebSearchWarnModal
         case 'download-attachment-preview': break; // handled via onclick set in openAttachmentPreview
         case 'find-attachment-in-notes': break;    // handled via onclick set in openAttachmentPreview
         case 'delete-attachment-preview': break;   // handled via onclick set in openAttachmentPreview
@@ -6467,6 +6469,62 @@ var aiLocalMessages = [];
 var aiIsStreaming = false;
 var aiAbortController = null;
 var aiNoteContext = null;
+var aiWebSearchBtn = document.getElementById('ai-panel-websearch-btn');
+var aiWebSearchPending = false;
+var aiWebSearchOn = false;
+
+function aiWebSearchWarnModal() {
+    return new Promise(function (resolve) {
+        var overlay = document.getElementById('ai-websearch-warn-overlay');
+        if (!overlay) { resolve(false); return; }
+        overlay.classList.add('visible');
+        var cleanup = function (result) {
+            overlay.classList.remove('visible');
+            document.removeEventListener('click', onDocClick, true);
+            resolve(result);
+        };
+        var onDocClick = function (e) {
+            if (e.target === overlay) { e.stopPropagation(); cleanup(false); return; }
+            var el = e.target.closest('[data-action]');
+            if (!el) return;
+            if (el.dataset.action === 'enable-ai-websearch') { e.stopPropagation(); cleanup(true); }
+            else if (el.dataset.action === 'close-ai-websearch-warn') { e.stopPropagation(); cleanup(false); }
+        };
+        document.addEventListener('click', onDocClick, true);
+    });
+}
+
+function updateAIWebSearchBtn() {
+    if (!aiWebSearchBtn) return;
+    var on = aiWebSearchPending || aiWebSearchOn;
+    aiWebSearchBtn.classList.toggle('active', on);
+    aiWebSearchBtn.setAttribute('aria-pressed', on ? 'true' : 'false');
+}
+
+if (aiWebSearchBtn) {
+    aiWebSearchBtn.addEventListener('click', async function () {
+        if (aiWebSearchPending || aiWebSearchOn) {
+            var wasOn = aiWebSearchOn;
+            aiWebSearchPending = false;
+            aiWebSearchOn = false;
+            updateAIWebSearchBtn();
+            if (wasOn && aiConversationId) {
+                try {
+                    await fetch('/ai/api/conversations/' + aiConversationId + '/web_search', {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': aiGetCSRF() },
+                        body: JSON.stringify({ enabled: false })
+                    });
+                } catch (err) { /* server flag stays on; local UI is off */ }
+            }
+            return;
+        }
+        var ok = await aiWebSearchWarnModal();
+        if (!ok) return;
+        aiWebSearchPending = true;
+        updateAIWebSearchBtn();
+    });
+}
 
 // Resizable AI panel
 (function() {
@@ -6570,6 +6628,9 @@ if (aiPanelContextDismiss) {
 function aiNewChat() {
     aiConversationId = null;
     aiLocalMessages = [];
+    aiWebSearchPending = false;
+    aiWebSearchOn = false;
+    updateAIWebSearchBtn();
     if (aiPanelMessages) {
         aiPanelMessages.innerHTML = '';
     }
@@ -6647,6 +6708,9 @@ function aiRenderConversationList(convs) {
         item.appendChild(del);
         item.addEventListener('click', function() {
             aiConversationId = c.id;
+            aiWebSearchPending = false;
+            aiWebSearchOn = !!c.web_search_enabled;
+            updateAIWebSearchBtn();
             aiLoadMessages(c.id);
             aiHistoryDropdown.classList.remove('open');
         });
@@ -6932,6 +6996,7 @@ async function aiSendPanelMessage() {
             var decoder = new TextDecoder();
             var fullText = '';
             var streamFinished = false;
+            var toolStatusEl = null;
 
             function read() {
                 reader.read().then(function(result) {
@@ -6944,9 +7009,27 @@ async function aiSendPanelMessage() {
                         if (line.startsWith('data: ')) {
                             try {
                                 var data = JSON.parse(line.substring(6));
-                                if (data.chunk) {
+                                if (data.tool) {
+                                    var label = data.tool === 'web_fetch' ? ('Fetching: ' + (data.url || '')) : ('Searching the web: ' + (data.query || ''));
+                                    if (!toolStatusEl) {
+                                        toolStatusEl = document.createElement('div');
+                                        toolStatusEl.className = 'ai-tool-status';
+                                        assistantDiv.insertBefore(toolStatusEl, assistantDiv.firstChild);
+                                    }
+                                    var lineEl = document.createElement('div');
+                                    lineEl.className = 'ai-tool-status-line';
+                                    lineEl.textContent = label;
+                                    toolStatusEl.appendChild(lineEl);
+                                    aiPanelMessages.scrollTop = aiPanelMessages.scrollHeight;
+                                    aiPanelStatus.innerHTML = '<span class="streaming">Searching the web...</span>';
+                                } else if (data.chunk) {
                                     fullText += data.chunk;
-                                    assistantDiv.textContent = fullText;
+                                    if (toolStatusEl) {
+                                        while (toolStatusEl.nextSibling) assistantDiv.removeChild(toolStatusEl.nextSibling);
+                                        assistantDiv.appendChild(document.createTextNode(fullText));
+                                    } else {
+                                        assistantDiv.textContent = fullText;
+                                    }
                                     aiPanelMessages.scrollTop = aiPanelMessages.scrollHeight;
                                     aiPanelStatus.innerHTML = '<span class="streaming">Streaming...</span>';
                                 } else if (data.error) {
@@ -6992,15 +7075,29 @@ async function aiSendPanelMessage() {
             if (data.error) { aiShowToast(data.error); aiPanelStatus.textContent = 'Error'; return; }
             aiConversationId = data.id;
             aiLoadConversations();
-            doStream();
+            aiApplyWebSearchPending().then(doStream);
         });
     } else {
-        doStream();
+        aiApplyWebSearchPending().then(doStream);
     }
+}
+
+function aiApplyWebSearchPending() {
+    if (!aiWebSearchPending || !aiConversationId) return Promise.resolve();
+    aiWebSearchPending = false;
+    aiWebSearchOn = true;
+    updateAIWebSearchBtn();
+    return fetch('/ai/api/conversations/' + aiConversationId + '/web_search', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': aiGetCSRF() },
+        body: JSON.stringify({ enabled: true })
+    }).catch(function() {});
 }
 
 function aiFinishStream(div, text, messageId, wasClean) {
     if (div) {
+        var toolStatus = div.querySelector('.ai-tool-status');
+        if (toolStatus) toolStatus.remove();
         div.classList.remove('ai-cursor-blink');
         if (text) {
             div.innerHTML = aiRenderMarkdown(text);

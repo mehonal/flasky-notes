@@ -157,6 +157,12 @@
                 <span class="ai-vault-chip-label">Vault</span>
             </button>
             {% endif %}
+            {% if ai_web_search_allowed %}
+            <button class="ai-vault-chip ai-websearch-chip" id="ai-websearch-chip" title="AI Web Search: let the AI search the web when answering" aria-label="Toggle AI Web Search" aria-pressed="false" type="button">
+                <svg viewBox="0 0 24 24" width="16" height="16"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+                <span class="ai-vault-chip-label">Web</span>
+            </button>
+            {% endif %}
             <button class="ai-send-btn" id="ai-send-btn" title="Send message" aria-label="Send message">
                 <svg viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
             </button>
@@ -214,6 +220,30 @@
 </div>
 {% endif %}
 
+{% if ai_web_search_allowed %}
+<div class="modal-overlay" id="ai-websearch-warn-modal" style="display:none; z-index:2100;">
+    <div class="modal-card ai-vault-modal-card">
+        <div class="modal-header">
+            <span class="modal-title">Enable AI Web Search for this conversation?</span>
+            <button class="modal-close" data-websearch-warn-action="cancel" aria-label="Close">
+                <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+        </div>
+        <div class="modal-body">
+            <p>When enabled, the AI may search the web and fetch web pages to answer your questions with up-to-date information.</p>
+            <p><strong>Proceed with caution.</strong> The AI generates its own search queries — including rephrasing your question — and these leave your device, along with the contents of any pages it fetches. Think about what your question reveals before enabling this for a conversation.</p>
+            <p><strong>Your search provider (Ollama) is responsible for how it handles web searches and fetched pages</strong> — how queries and page contents are processed, retained, logged, or shared is governed by their policies, not by Flasky. Review your provider's privacy policy before enabling.</p>
+            <p><strong>Your Flasky server stores none of it</strong> — queries and fetched page contents pass through your server unencrypted and are not persisted. Only your message and the final answer are stored, end-to-end encrypted as usual.</p>
+            <p>This applies to this conversation only. You can turn it off at any time.</p>
+        </div>
+        <div class="modal-footer">
+            <button class="btn-sm" data-websearch-warn-action="cancel" type="button">Cancel</button>
+            <button class="btn-sm primary" data-websearch-warn-action="enable" type="button">I understand, enable</button>
+        </div>
+    </div>
+</div>
+{% endif %}
+
 <script type="application/json" id="ai-view-data">
 {
     "conversationId": {{ current_conversation_id }},
@@ -221,7 +251,8 @@
     "conversations": {{ conversations_json | tojson }},
     "vaultContextAllowed": {% if vault_context_allowed %}true{% else %}false{% endif %},
     "vaultContextTopK": {{ vault_context_top_k }},
-    "vaultContextMaxChars": {{ vault_context_max_chars }}
+    "vaultContextMaxChars": {{ vault_context_max_chars }},
+    "aiWebSearchAllowed": {% if ai_web_search_allowed %}true{% else %}false{% endif %}
 }
 </script>
 <script type="application/json" id="tts-data">

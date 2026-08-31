@@ -140,6 +140,11 @@
                     </div>
                     <div class="ai-panel-input-area">
                         <textarea class="ai-panel-input" id="ai-panel-input" placeholder="Ask AI..." rows="1"></textarea>
+                        {% if ui_settings and ui_settings.ai_web_search_allowed %}
+                        <button class="icon-btn ai-panel-websearch-btn" id="ai-panel-websearch-btn" title="AI Web Search: let the AI search the web when answering" aria-label="Toggle AI Web Search" aria-pressed="false">
+                            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+                        </button>
+                        {% endif %}
                         <button class="ai-panel-send-btn" id="ai-panel-send-btn" title="Send message" aria-label="Send message">
                             <svg viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
                         </button>

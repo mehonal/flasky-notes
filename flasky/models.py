@@ -503,6 +503,9 @@ class AiConversation(db.Model):
     # default; toggled via a chip in the AI view, gated by the global
     # user_settings.vault_context_allowed flag.
     vault_context_enabled = db.Column(db.Boolean, default=False)
+    # Per-conversation opt-in for AI Web Search, gated by the global
+    # user_settings.ai_web_search_allowed flag.
+    web_search_enabled = db.Column(db.Boolean, default=False)
     user = db.relationship("User", backref="ai_conversations")
 
     def return_json(self):
@@ -512,6 +515,7 @@ class AiConversation(db.Model):
             "created_at": self.created_at.isoformat() + "Z" if self.created_at else None,
             "updated_at": self.updated_at.isoformat() + "Z" if self.updated_at else None,
             "vault_context_enabled": bool(self.vault_context_enabled),
+            "web_search_enabled": bool(self.web_search_enabled),
         }
 
 

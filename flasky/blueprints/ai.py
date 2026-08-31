@@ -13,6 +13,7 @@ import json
 import logging
 import re
 
+import requests
 from marshmallow import ValidationError
 
 from flasky import db
@@ -27,6 +28,52 @@ from flasky.blueprints.web import _render_shell
 logger = logging.getLogger(__name__)
 
 ai_bp = Blueprint("ai", __name__, url_prefix="/ai")
+
+WEB_SEARCH_TOOLS = [
+    {
+        "type": "function",
+        "function": {
+            "name": "web_search",
+            "description": "Search the web for current information.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "query": {
+                        "type": "string",
+                        "description": "The search query string.",
+                    },
+                    "max_results": {
+                        "type": "integer",
+                        "description": "Maximum results to return (default 5, max 10).",
+                    },
+                },
+                "required": ["query"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "web_fetch",
+            "description": "Fetch the content of a single web page by URL.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "url": {
+                        "type": "string",
+                        "description": "The URL of the page to fetch.",
+                    },
+                },
+                "required": ["url"],
+            },
+        },
+    },
+]
+
+# Tool rounds per message, result size, and HTTP timeout are per-user
+# tunables (ui_settings: ai_web_search_max_rounds /
+# ai_web_search_result_max_chars / ai_web_search_timeout) — defaults live in
+# the SettingDef registry.
 
 OLLAMA_CLOUD_MODELS = [
     "gpt-oss:120b",
@@ -87,6 +134,40 @@ def _get_ollama_client(settings):
     return Client(host=base_url, headers=headers)
 
 
+def _call_web_tool(settings, name, arguments, timeout=30):
+    """Execute a web_search/web_fetch tool call against the Ollama REST API.
+
+    Returns the raw JSON response dict, or None on a transport/HTTP error
+    (the caller degrades to an error string for the model).
+    """
+    base_url = (settings.ollama_base_url or "https://ollama.com").rstrip("/")
+    headers = {"Content-Type": "application/json"}
+    if settings.ollama_api_key:
+        headers["Authorization"] = "Bearer " + settings.ollama_api_key
+    if name == "web_search":
+        payload = {"query": arguments.get("query", "")}
+        max_results = arguments.get("max_results")
+        if isinstance(max_results, bool):
+            max_results = None
+        elif isinstance(max_results, float):
+            max_results = int(max_results)
+        if isinstance(max_results, int) and 1 <= max_results <= 10:
+            payload["max_results"] = max_results
+        endpoint = f"{base_url}/api/web_search"
+    elif name == "web_fetch":
+        payload = {"url": arguments.get("url", "")}
+        endpoint = f"{base_url}/api/web_fetch"
+    else:
+        return None
+    try:
+        resp = requests.post(endpoint, headers=headers, json=payload, timeout=timeout)
+        resp.raise_for_status()
+        return resp.json()
+    except Exception as e:
+        logger.warning("AI Web Search tool %s failed: %s", name, e)
+        return None
+
+
 def _parse_model_names(models_resp) -> list[str]:
     """ollama lib <0.7 drops the wire "name" key (only "model" is declared),
     so fall back across both to stay version-agnostic."""
@@ -138,6 +219,7 @@ def ai_page():
             vault_context_allowed=bool(ui_settings.vault_context_allowed) if ui_settings else False,
             vault_context_top_k=int(ui_settings.ai_vault_context_top_k) if ui_settings else 8,
             vault_context_max_chars=int(ui_settings.ai_vault_context_max_chars) if ui_settings else 20000,
+            ai_web_search_allowed=bool(ui_settings.ai_web_search_allowed) if ui_settings else False,
         )
         return render_template("_ai_view.html", **ctx)
     conversations = (
@@ -169,6 +251,7 @@ def ai_page():
         vault_context_allowed=bool(ui_settings.vault_context_allowed),
         vault_context_top_k=int(ui_settings.ai_vault_context_top_k),
         vault_context_max_chars=int(ui_settings.ai_vault_context_max_chars),
+        ai_web_search_allowed=bool(ui_settings.ai_web_search_allowed),
         tts_enabled=bool(ui_settings.tts_enabled),
         tts_rate=float(ui_settings.tts_rate),
         tts_volume=float(ui_settings.tts_volume),
@@ -260,6 +343,28 @@ def set_vault_context(conv_id):
     return jsonify(conv.return_json())
 
 
+@ai_bp.route("/api/conversations/<int:conv_id>/web_search", methods=["PUT"])
+def set_web_search(conv_id):
+    """Toggle per-conversation AI Web Search opt-in.
+
+    Records consent only. Enabling requires the global
+    ``ai_web_search_allowed`` gate (a ui_settings SettingDef) to be on.
+    """
+    err = _check_ai_enabled()
+    if err:
+        return err
+    conv = AiConversation.query.filter_by(id=conv_id, user_id=g.user.id).first()
+    if not conv:
+        return jsonify(error="Conversation not found."), 404
+    data = request.get_json(silent=True) or {}
+    enabled = bool(data.get("enabled"))
+    if enabled and not get_setting(g.user, "ai_web_search_allowed"):
+        return jsonify(error="AI Web Search is not enabled in Settings."), 403
+    conv.web_search_enabled = enabled
+    db.session.commit()
+    return jsonify(conv.return_json())
+
+
 @ai_bp.route("/api/conversations/<int:conv_id>/messages", methods=["GET"])
 def get_messages(conv_id):
     err = _check_ai_enabled()
@@ -321,19 +426,61 @@ def chat(conv_id):
         ), 400
     ollama_messages = client_messages
     model = settings.ollama_model or "gpt-oss:120b"
+    web_search_on = bool(conv.web_search_enabled) and get_setting(
+        g.user, "ai_web_search_allowed"
+    )
+    max_tool_rounds = get_setting(g.user, "ai_web_search_max_rounds")
+    tool_result_max_chars = get_setting(g.user, "ai_web_search_result_max_chars")
+    web_tool_timeout = get_setting(g.user, "ai_web_search_timeout")
     conv_id = conv.id
     user_id = g.user.id
+    ai_settings = settings
 
     def generate():
         full_response = []
         try:
-            client = _get_ollama_client(settings)
-            stream = client.chat(model=model, messages=ollama_messages, stream=True)
-            for part in stream:
-                chunk = part.get("message", {}).get("content", "")
-                if chunk:
-                    full_response.append(chunk)
-                    yield f"data: {json.dumps({'chunk': chunk})}\n\n"
+            client = _get_ollama_client(ai_settings)
+            messages = list(ollama_messages)
+            rounds = 0
+            while True:
+                kwargs = dict(model=model, messages=messages, stream=True)
+                if web_search_on:
+                    kwargs["tools"] = WEB_SEARCH_TOOLS
+                stream = client.chat(**kwargs)
+                tool_calls = []
+                assistant_msg = {"role": "assistant", "content": ""}
+                for part in stream:
+                    message = part.get("message", {})
+                    chunk = message.get("content", "")
+                    if chunk:
+                        assistant_msg["content"] += chunk
+                        full_response.append(chunk)
+                        yield f"data: {json.dumps({'chunk': chunk})}\n\n"
+                    for tc in message.get("tool_calls") or []:
+                        tool_calls.append(tc)
+                if not tool_calls:
+                    break
+                if not web_search_on or rounds >= max_tool_rounds:
+                    break
+                rounds += 1
+                assistant_msg["tool_calls"] = tool_calls
+                messages.append(assistant_msg)
+                for tc in tool_calls:
+                    fn = tc.get("function", {})
+                    name = fn.get("name", "")
+                    arguments = fn.get("arguments", {}) or {}
+                    if name == "web_search":
+                        yield f"data: {json.dumps({'tool': 'web_search', 'query': arguments.get('query', '')})}\n\n"
+                    elif name == "web_fetch":
+                        yield f"data: {json.dumps({'tool': 'web_fetch', 'url': arguments.get('url', '')})}\n\n"
+                    result = _call_web_tool(ai_settings, name, arguments, timeout=web_tool_timeout)
+                    if result is None:
+                        content = f"Tool {name} failed."
+                    else:
+                        content = json.dumps(result)[:tool_result_max_chars]
+                    messages.append(
+                        {"role": "tool", "content": content, "tool_name": name}
+                    )
             complete_text = "".join(full_response)
             conv_obj = db.session.get(AiConversation, conv_id)
             if conv_obj and conv_obj.user_id == user_id:

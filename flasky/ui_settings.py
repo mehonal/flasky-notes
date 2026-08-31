@@ -253,6 +253,21 @@ REGISTRY: dict[str, SettingDef] = {
     "ai_vault_context_max_chars": SettingDef(
         "ai_vault_context_max_chars", 20000, int, _is_int_in_range(1000, 200000),
     ),
+    # AI Web Search global consent gate. Defaults off; must be on before the
+    # per-conversation ai_conversation.web_search_enabled flag has any effect.
+    "ai_web_search_allowed": SettingDef("ai_web_search_allowed", False, bool),
+    # AI Web Search tunables. Cap the tool-call rounds per message, the size
+    # of each tool result fed back to the model, and the HTTP timeout for
+    # each web_search/web_fetch request.
+    "ai_web_search_max_rounds": SettingDef(
+        "ai_web_search_max_rounds", 4, int, _is_int_in_range(1, 10),
+    ),
+    "ai_web_search_result_max_chars": SettingDef(
+        "ai_web_search_result_max_chars", 8000, int, _is_int_in_range(500, 50000),
+    ),
+    "ai_web_search_timeout": SettingDef(
+        "ai_web_search_timeout", 30, int, _is_int_in_range(5, 120),
+    ),
     # Cached list of available AI models (populated by the "Refresh from
     # Ollama" action in Settings, or manually edited). Empty list = not yet
     # fetched; callers fall back to the hardcoded OLLAMA_CLOUD_MODELS.
