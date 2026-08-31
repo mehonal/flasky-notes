@@ -1,6 +1,6 @@
 # About
 
-Flasky Notes is an end-to-end-encrypted (E2EE) note-taking app built with a Flask backend, featuring Obsidian sync, todos/events, AI chat (Ollama), and a rich markdown editor with `[[wiki-link]]` support. The server never sees plaintext note content — all encryption/decryption happens client-side via Web Crypto.
+Flasky Notes is an end-to-end-encrypted (E2EE) note-taking app built with a Flask backend, featuring Obsidian sync, todos/events, AI chat, and a rich markdown editor with `[[wiki-link]]` support. The server never sees plaintext note content — all encryption/decryption happens client-side via Web Crypto.
 
 # Philosophy
 
@@ -25,7 +25,7 @@ Ciphertext format: `base64(0x01 || IV[12] || ciphertext || GCM-tag[16])`.
 - **Attachments** (stored as encrypted blobs)
 - **Drawings** — full-screen canvas, embedded in notes as `.fldraw` vector files, editable inline, exportable to PNG/JPG (opt-in via settings)
 - **Client-side search** (server can't read ciphertext to search)
-- **AI chat** (Ollama, opt-in via settings) with SSE streaming, conversation history, and note-context inclusion
+- **AI chat** (Ollama / Ollama Cloud only for now, opt-in via settings) with SSE streaming, conversation history, and note-context inclusion
 - **Obsidian sync** via a standalone sync client
 - **Export** to decrypted or encrypted .zip
 - **Dark mode**, adjustable font size/family, responsive mobile layout

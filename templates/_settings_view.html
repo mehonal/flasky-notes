@@ -870,6 +870,9 @@
                         {% if ai_enabled %}
                         <form method="POST" data-spa-form data-requires-refresh>
                             <div class="sub-label">Ollama settings</div>
+                            <div class="setting-hint" style="padding: 0 16px; margin-bottom:8px;">
+                                AI integration currently supports <strong>Ollama and Ollama Cloud only</strong> — other providers (OpenAI-compatible APIs, etc.) are not supported yet. Point the Base URL at a local Ollama instance (<code>http://localhost:11434</code>) or leave the default for Ollama Cloud (<code>https://ollama.com</code>). Web Search additionally requires Ollama Cloud.
+                            </div>
                             <div style="padding: 0 16px;">
                                 <label class="list-item-sub">API key</label>
                                 <input name="ollama-api-key" class="setting-input password" type="password" placeholder="••••••••" value="{{ ai_settings.ollama_api_key or '' }}" style="width:100%; margin-bottom:6px;">
