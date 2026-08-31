@@ -874,7 +874,27 @@
                                 <label class="list-item-sub">API key</label>
                                 <input name="ollama-api-key" class="setting-input password" type="password" placeholder="••••••••" value="{{ ai_settings.ollama_api_key or '' }}" style="width:100%; margin-bottom:6px;">
                                 <label class="list-item-sub">Model</label>
-                                <input name="ollama-model" class="setting-input" type="text" value="{{ ai_settings.ollama_model or '' }}" style="width:100%; margin-bottom:6px;">
+                                <div style="display:flex; gap:6px; margin-bottom:6px;">
+                                    <select name="ollama-model" class="setting-input" id="ollama-model-select" style="flex:1;">
+                                        {% for model in ai_models %}
+                                        <option value="{{ model }}" {% if ai_settings.ollama_model == model %}selected{% endif %}>{{ model }}</option>
+                                        {% endfor %}
+                                        {% if ai_settings.ollama_model and ai_settings.ollama_model not in ai_models %}
+                                        <option value="{{ ai_settings.ollama_model }}" selected>{{ ai_settings.ollama_model }}</option>
+                                        {% endif %}
+                                    </select>
+                                    <button type="button" class="btn-sm" id="ai-models-refresh-btn" title="Fetch the model list from Ollama">Refresh</button>
+                                    <button type="button" class="btn-sm" id="ai-models-edit-btn" title="Manually edit the model list">Edit</button>
+                                </div>
+                                <div id="ai-models-edit-wrap" hidden style="margin-bottom:8px;">
+                                    <textarea id="ai-models-edit-area" class="setting-input" rows="6" placeholder="One model name per line" style="width:100%; font-family:var(--font-mono, monospace); font-size:12px;">{% for m in ai_models %}{{ m }}
+{% endfor %}</textarea>
+                                    <div style="display:flex; gap:6px; margin-top:4px;">
+                                        <button type="button" class="btn-sm primary" id="ai-models-save-btn">Save list</button>
+                                        <button type="button" class="btn-sm" id="ai-models-cancel-btn">Cancel</button>
+                                    </div>
+                                </div>
+                                <div id="ai-models-status" class="setting-hint" style="margin-bottom:6px; min-height:0;"></div>
                                 <label class="list-item-sub">Base URL</label>
                                 <input name="ollama-base-url" class="setting-input" type="text" value="{{ ai_settings.ollama_base_url or '' }}" style="width:100%; margin-bottom:8px;">
                                 <div style="display:flex; gap:8px;">

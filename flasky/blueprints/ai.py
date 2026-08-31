@@ -13,10 +13,13 @@ import json
 import logging
 import re
 
+from marshmallow import ValidationError
+
 from flasky import db
 from flasky.models import AiConversation, AiMessage
+from flasky.schemas.ai import SaveAiModelsSchema
 from flasky.ui_settings import (
-    get_setting, get_all_settings, get_effective_colors,
+    get_setting, set_setting, get_all_settings, get_effective_colors,
     DEFAULT_COLORS, CUSTOMIZABLE_VARS,
 )
 from flasky.blueprints.web import _render_shell
@@ -84,6 +87,15 @@ def _get_ollama_client(settings):
     return Client(host=base_url, headers=headers)
 
 
+def _get_models(user):
+    """Return the user's persisted AI model list, falling back to the
+    hardcoded OLLAMA_CLOUD_MODELS when the persisted list is empty."""
+    persisted = get_setting(user, "ai_models")
+    if persisted:
+        return persisted
+    return list(OLLAMA_CLOUD_MODELS)
+
+
 @ai_bp.route("")
 def ai_page():
     if not g.user:
@@ -105,7 +117,7 @@ def ai_page():
             current_conversation_json="null",
             current_theme_dark=dark_mode,
             font_size=font_size,
-            models=OLLAMA_CLOUD_MODELS,
+            models=_get_models(g.user),
             custom_colors=get_effective_colors(ui_settings.custom_colors) if ui_settings else {},
             custom_css=ui_settings.custom_css if ui_settings else "",
             vault_context_allowed=bool(ui_settings.vault_context_allowed) if ui_settings else False,
@@ -136,7 +148,7 @@ def ai_page():
         current_conversation_json=current_conversation_json,
         current_theme_dark=dark_mode,
         font_size=font_size,
-        models=OLLAMA_CLOUD_MODELS,
+        models=_get_models(g.user),
         custom_colors=get_effective_colors(ui_settings.custom_colors),
         custom_css=ui_settings.custom_css,
         vault_context_allowed=bool(ui_settings.vault_context_allowed),
@@ -373,21 +385,63 @@ def list_models():
     err = _check_ai_enabled()
     if err:
         return err
+    persisted = get_setting(g.user, "ai_models")
+    models = persisted if persisted else list(OLLAMA_CLOUD_MODELS)
+    source = "persisted" if persisted else "fallback"
+    return jsonify({"models": models, "source": source})
+
+
+@ai_bp.route("/api/models/refresh", methods=["POST"])
+def refresh_models():
+    """Pull the model list from Ollama once and persist it. The only endpoint
+    that contacts the Ollama API; all other read paths serve the persisted list."""
+    err = _check_ai_enabled()
+    if err:
+        return err
     settings = g.user.return_settings()
+    if not settings.ollama_api_key:
+        return jsonify(error="Ollama API key not configured. Set it in Settings."), 400
     try:
         client = _get_ollama_client(settings)
         models_resp = client.list()
-        remote_models = []
-        for m in models_resp.get("models", []):
-            name = m.get("name", "")
-            if name:
-                remote_models.append(name)
-        if remote_models:
-            remote_models.sort()
-            return jsonify({"models": remote_models, "source": "api"})
-    except Exception:
-        pass
-    return jsonify({"models": OLLAMA_CLOUD_MODELS, "source": "fallback"})
+    except Exception as e:
+        logger.error("Ollama list models error: %s", e)
+        return jsonify(
+            models=_get_models(g.user),
+            source="error",
+            error="Could not reach the AI provider. The saved model list is unchanged.",
+        ), 502
+    remote_models = sorted(
+        m.get("name", "")
+        for m in models_resp.get("models", [])
+        if m.get("name")
+    )
+    if not remote_models:
+        return jsonify(
+            models=_get_models(g.user),
+            source="error",
+            error="The AI provider returned no models.",
+        ), 502
+    set_setting(g.user, "ai_models", remote_models)
+    db.session.commit()
+    return jsonify({"models": remote_models, "source": "api"})
+
+
+@ai_bp.route("/api/models", methods=["PUT"])
+def save_models():
+    """Persist a manually-edited model list."""
+    err = _check_ai_enabled()
+    if err:
+        return err
+    data = request.get_json(silent=True) or {}
+    try:
+        validated = SaveAiModelsSchema().load(data)
+    except ValidationError as e:
+        return jsonify(error="Invalid model list.", details=e.messages), 422
+    models = validated["models"]
+    set_setting(g.user, "ai_models", models)
+    db.session.commit()
+    return jsonify({"models": models, "source": "manual"})
 
 
 @ai_bp.route("/api/create_note", methods=["POST"])

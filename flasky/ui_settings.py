@@ -253,6 +253,15 @@ REGISTRY: dict[str, SettingDef] = {
     "ai_vault_context_max_chars": SettingDef(
         "ai_vault_context_max_chars", 20000, int, _is_int_in_range(1000, 200000),
     ),
+    # Cached list of available AI models (populated by the "Refresh from
+    # Ollama" action in Settings, or manually edited). Empty list = not yet
+    # fetched; callers fall back to the hardcoded OLLAMA_CLOUD_MODELS.
+    "ai_models": SettingDef(
+        "ai_models", [], list,
+        lambda v: isinstance(v, list)
+        and len(v) <= 200
+        and all(isinstance(s, str) and 0 < len(s) <= 200 for s in v),
+    ),
     # Audio recording (optional). Off by default; the toolbar mic button and
     # slash command are hidden unless audio_recording_enabled is on. The
     # device_id is the MediaTrackConstraints.deviceId string from

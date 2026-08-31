@@ -392,10 +392,20 @@ def _render_shell(initial_view=None):
         topbar_items=topbar_items,
         encrypted_note_data=None,
         ai_settings=g.user.settings if g.user else None,
+        ai_models=_ai_models(g.user),
         timezone=g.user.get_timezone(as_str=True),
         daily=0,
         initial_view=initial_view,
     )
+
+
+def _ai_models(user):
+    """Return the user's persisted AI model list, falling back to the
+    Ollama Cloud hardcoded list when empty. Lazy import avoids a circular
+    import (ai.py imports from web.py at module level)."""
+    from flasky.blueprints.ai import _get_models
+
+    return _get_models(user)
 
 
 @web_bp.route("/settings", methods=["GET", "POST"])
@@ -632,6 +642,7 @@ def settings_page():
                     topbar_items=get_topbar_items(g.user),
                     ai_enabled=settings.ai_enabled,
                     ai_settings=settings,
+                    ai_models=_ai_models(g.user),
                     drawing_enabled=get_setting(g.user, "drawing_enabled"),
                 )
             return redirect(url_for("web.settings_page") + "?saved=1")
@@ -721,6 +732,7 @@ def settings_page():
             topbar_items=get_topbar_items(g.user),
             ai_enabled=settings.ai_enabled,
             ai_settings=settings,
+            ai_models=_ai_models(g.user),
             drawing_enabled=get_setting(g.user, "drawing_enabled"),
         )
     return _render_shell(initial_view="/settings")
@@ -832,6 +844,7 @@ def note_single_page(note_id):
         topbar_items=topbar_items,
         encrypted_note_data=encrypted_note_data,
         ai_settings=g.user.settings if g.user else None,
+        ai_models=_ai_models(g.user),
         timezone=g.user.get_timezone(as_str=True),
         daily=request.args.get("daily", type=int) or 0,
         initial_view=None,
@@ -877,6 +890,7 @@ def agenda_page():
             events=events,
             ai_enabled=ai_enabled,
             ai_settings=settings,
+            ai_models=_ai_models(g.user),
         )
     return _render_shell(initial_view="/agenda")
 

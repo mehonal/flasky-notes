@@ -541,6 +541,97 @@
             populateDefaultCategorySelect();
         });
 
+        // ============ AI models management ============
+        var modelSelect = _root.querySelector('#ollama-model-select');
+        var refreshBtn = _root.querySelector('#ai-models-refresh-btn');
+        var editBtn = _root.querySelector('#ai-models-edit-btn');
+        var editWrap = _root.querySelector('#ai-models-edit-wrap');
+        var editArea = _root.querySelector('#ai-models-edit-area');
+        var saveBtn = _root.querySelector('#ai-models-save-btn');
+        var cancelBtn = _root.querySelector('#ai-models-cancel-btn');
+        var statusEl = _root.querySelector('#ai-models-status');
+
+        function setStatus(msg, type) {
+            if (!statusEl) return;
+            statusEl.textContent = msg || '';
+            statusEl.style.color = type === 'error' ? 'var(--red, #f38ba8)'
+                : type === 'ok' ? 'var(--green, #a6e3a1)' : '';
+        }
+
+        function populateSelect(models, keepSelected) {
+            if (!modelSelect) return;
+            var prev = keepSelected ? modelSelect.value : '';
+            modelSelect.innerHTML = '';
+            models.forEach(function (m) {
+                var opt = document.createElement('option');
+                opt.value = m; opt.textContent = m;
+                if (m === prev) opt.selected = true;
+                modelSelect.appendChild(opt);
+            });
+            if (!modelSelect.value && prev) {
+                var opt = document.createElement('option');
+                opt.value = prev; opt.textContent = prev; opt.selected = true;
+                modelSelect.appendChild(opt);
+            }
+        }
+
+        if (refreshBtn) bind(refreshBtn, 'click', function () {
+            refreshBtn.disabled = true;
+            setStatus('Fetching models from Ollama…');
+            fetch('/ai/api/models/refresh', {
+                method: 'POST',
+                headers: { 'X-CSRFToken': getCSRFToken() },
+            }).then(function (r) { return r.json(); }).then(function (data) {
+                refreshBtn.disabled = false;
+                if (data.error) { setStatus(data.error, 'error'); return; }
+                populateSelect(data.models || [], true);
+                if (editArea) editArea.value = (data.models || []).join('\n');
+                setStatus('Loaded ' + (data.models || []).length + ' models from Ollama.', 'ok');
+            }).catch(function () {
+                refreshBtn.disabled = false;
+                setStatus('Network error while refreshing models.', 'error');
+            });
+        });
+
+        if (editBtn) bind(editBtn, 'click', function () {
+            if (!editWrap) return;
+            editWrap.hidden = !editWrap.hidden;
+            if (!editWrap.hidden && editArea && !editArea.value.trim() && modelSelect) {
+                var current = [];
+                for (var i = 0; i < modelSelect.options.length; i++) current.push(modelSelect.options[i].value);
+                editArea.value = current.join('\n');
+            }
+            setStatus('');
+        });
+
+        if (cancelBtn) bind(cancelBtn, 'click', function () {
+            if (editWrap) editWrap.hidden = true;
+            setStatus('');
+        });
+
+        if (saveBtn) bind(saveBtn, 'click', function () {
+            if (!editArea) return;
+            var models = editArea.value.split('\n')
+                .map(function (s) { return s.trim(); })
+                .filter(Boolean);
+            saveBtn.disabled = true;
+            setStatus('Saving model list…');
+            fetch('/ai/api/models', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRFToken() },
+                body: JSON.stringify({ models: models }),
+            }).then(function (r) { return r.json(); }).then(function (data) {
+                saveBtn.disabled = false;
+                if (data.error) { setStatus(data.error, 'error'); return; }
+                populateSelect(data.models || []);
+                setStatus('Saved ' + (data.models || []).length + ' models.', 'ok');
+                if (editWrap) editWrap.hidden = true;
+            }).catch(function () {
+                saveBtn.disabled = false;
+                setStatus('Network error while saving models.', 'error');
+            });
+        });
+
         // Customize tab is handled by customize.js (document-level delegation
         // that persists across fragment swaps). Re-trigger populate so the
         // preset grid and color grid render after the fragment is injected.

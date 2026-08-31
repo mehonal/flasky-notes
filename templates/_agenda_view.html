@@ -251,7 +251,12 @@
       </div>
       <div class="ai-panel-model-row">
         <select id="aiModelSelect" class="ai-model-select" title="Select model">
-          <option value="{{ ai_settings.ollama_model if ai_settings and ai_settings.ollama_model else 'gpt-oss:120b' }}">{{ ai_settings.ollama_model if ai_settings and ai_settings.ollama_model else 'gpt-oss:120b' }}</option>
+          {% for model in ai_models %}
+          <option value="{{ model }}" {% if ai_settings and ai_settings.ollama_model == model %}selected{% endif %}>{{ model }}</option>
+          {% endfor %}
+          {% if ai_settings and ai_settings.ollama_model and ai_settings.ollama_model not in ai_models %}
+          <option value="{{ ai_settings.ollama_model }}" selected>{{ ai_settings.ollama_model }}</option>
+          {% endif %}
         </select>
       </div>
       <div class="ai-panel-messages" id="aiPanelMessages"></div>

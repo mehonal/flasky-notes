@@ -112,7 +112,14 @@
                             </button>
                             <div class="ai-panel-history-dropdown" id="ai-panel-history-dropdown"></div>
                         </div>
-                        <select class="ai-panel-model-select" id="ai-panel-model"></select>
+                        <select class="ai-panel-model-select" id="ai-panel-model">
+                            {% for model in ai_models %}
+                            <option value="{{ model }}" {% if ai_settings and ai_settings.ollama_model == model %}selected{% endif %}>{{ model }}</option>
+                            {% endfor %}
+                            {% if ai_settings and ai_settings.ollama_model and ai_settings.ollama_model not in ai_models %}
+                            <option value="{{ ai_settings.ollama_model }}" selected>{{ ai_settings.ollama_model }}</option>
+                            {% endif %}
+                        </select>
                         <span class="ai-panel-top-spacer"></span>
                         <button class="icon-btn" data-action="close-ai-panel" title="Close AI panel" aria-label="Close AI panel">
                             <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>

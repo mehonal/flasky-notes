@@ -820,23 +820,6 @@
         if (aiPanelEl) {
             if (typeof marked !== 'undefined' && typeof marked.setOptions === 'function') marked.setOptions({ breaks: true, gfm: true });
 
-            (function () {
-                var select = document.getElementById('aiModelSelect');
-                if (!select) return;
-                var currentModel = select.value;
-                fetch('/ai/api/models').then(function (r) { return r.json(); }).then(function (data) {
-                    var models = data.models || [];
-                    if (models.length === 0) return;
-                    select.innerHTML = '';
-                    models.forEach(function (m) {
-                        var opt = document.createElement('option');
-                        opt.value = m; opt.textContent = m;
-                        if (m === currentModel) opt.selected = true;
-                        select.appendChild(opt);
-                    });
-                }).catch(function () {});
-            })();
-
             var aiModelSelect = document.getElementById('aiModelSelect');
             if (aiModelSelect) {
                 bind(aiModelSelect, 'change', function () {

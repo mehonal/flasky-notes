@@ -7096,29 +7096,6 @@ if (aiPanelInput) {
     });
 }
 
-// Load AI models
-if (aiPanelModel && _pageData.aiEnabled) {
-    fetch('/ai/api/models', { headers: { 'X-CSRFToken': aiGetCSRF() } })
-        .then(function(r) { return r.json(); })
-        .then(function(data) {
-            var models = data.models || [];
-            aiPanelModel.innerHTML = '';
-            models.forEach(function(m) {
-                var opt = document.createElement('option');
-                opt.value = m; opt.textContent = m;
-                if (m === _pageData.aiModel) opt.selected = true;
-                aiPanelModel.appendChild(opt);
-            });
-        }).catch(function() {
-            if (_pageData.aiModel) {
-                var opt = document.createElement('option');
-                opt.value = _pageData.aiModel;
-                opt.textContent = _pageData.aiModel;
-                aiPanelModel.appendChild(opt);
-            }
-        });
-}
-
 // Save AI model selection
 if (aiPanelModel) {
     aiPanelModel.addEventListener('change', function() {
