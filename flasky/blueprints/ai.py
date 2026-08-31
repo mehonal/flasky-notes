@@ -87,6 +87,21 @@ def _get_ollama_client(settings):
     return Client(host=base_url, headers=headers)
 
 
+def _parse_model_names(models_resp) -> list[str]:
+    """ollama lib <0.7 drops the wire "name" key (only "model" is declared),
+    so fall back across both to stay version-agnostic."""
+    raw_models = models_resp.get("models", []) if models_resp else []
+    names = set()
+    for m in raw_models:
+        if isinstance(m, dict):
+            name = m.get("name") or m.get("model")
+        else:
+            name = getattr(m, "name", None) or getattr(m, "model", None)
+        if name:
+            names.add(name)
+    return sorted(names)
+
+
 def _get_models(user):
     """Return the user's persisted AI model list, falling back to the
     hardcoded OLLAMA_CLOUD_MODELS when the persisted list is empty."""
@@ -411,11 +426,7 @@ def refresh_models():
             source="error",
             error="Could not reach the AI provider. The saved model list is unchanged.",
         ), 502
-    remote_models = sorted(
-        m.get("name", "")
-        for m in models_resp.get("models", [])
-        if m.get("name")
-    )
+    remote_models = _parse_model_names(models_resp)
     if not remote_models:
         return jsonify(
             models=_get_models(g.user),

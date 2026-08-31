@@ -665,3 +665,86 @@ def test_note_map_returns_encrypted_titles(app_context):
     assert note_entry["id"] == note_id
     assert note_entry["title"] != "Test Note Title"
     assert dec(creds, note_entry["title"]) == "Test Note Title"
+
+
+def _enable_ai_models(auth_client):
+    from flasky import db
+    from flasky.models import User
+
+    u = User.query.filter_by(username="testuser").first()
+    u.settings.ai_enabled = True
+    u.settings.ollama_api_key = "fake-key"
+    db.session.commit()
+    return u
+
+
+def test_refresh_models_parses_wire_format(auth_client, monkeypatch):
+    """Regression: ollama lib <0.7 drops the "name" key via pydantic parsing;
+    refresh must fall back to "model" instead of always 502-ing."""
+    from ollama._types import ListResponse
+    from flasky.blueprints import ai as ai_bp
+
+    client, _ = auth_client
+    _enable_ai_models(auth_client)
+
+    captured = {}
+
+    def fake_get_ollama_client(settings):
+        captured["auth"] = settings.ollama_api_key
+        return _FakeClient(
+            ListResponse(models=[ListResponse.Model(model="glm-5.2")])
+        )
+
+    monkeypatch.setattr(ai_bp, "_get_ollama_client", fake_get_ollama_client)
+
+    r = client.post("/ai/api/models/refresh")
+    assert r.status_code == 200, r.get_json()
+    assert captured["auth"] == "fake-key"
+    data = r.get_json()
+    assert data["models"] == ["glm-5.2"]
+    assert data["source"] == "api"
+
+
+def test_refresh_models_handles_dict_response(auth_client, monkeypatch):
+    """Newer ollama libs (or raw dicts) that keep "name" must also work."""
+    from flasky.blueprints import ai as ai_bp
+
+    client, _ = auth_client
+    _enable_ai_models(auth_client)
+
+    monkeypatch.setattr(
+        ai_bp,
+        "_get_ollama_client",
+        lambda settings: _FakeClient(
+            {"models": [{"name": "b-model"}, {"model": "a-model"}, {}]}
+        ),
+    )
+
+    r = client.post("/ai/api/models/refresh")
+    assert r.status_code == 200, r.get_json()
+    data = r.get_json()
+    assert data["models"] == ["a-model", "b-model"]
+    assert data["source"] == "api"
+
+
+def test_refresh_models_502_when_provider_returns_no_models(auth_client, monkeypatch):
+    from flasky.blueprints import ai as ai_bp
+
+    client, _ = auth_client
+    _enable_ai_models(auth_client)
+
+    monkeypatch.setattr(
+        ai_bp, "_get_ollama_client", lambda settings: _FakeClient({"models": []})
+    )
+
+    r = client.post("/ai/api/models/refresh")
+    assert r.status_code == 502
+    assert "no models" in r.get_json()["error"].lower()
+
+
+class _FakeClient:
+    def __init__(self, list_response):
+        self._list_response = list_response
+
+    def list(self):
+        return self._list_response
