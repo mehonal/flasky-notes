@@ -534,6 +534,7 @@ def settings_page():
                 "live_preview",
                 "hide_title",
                 "auto_save",
+                "emoji_autocomplete",
             ):
                 form_key = field.replace("_", "-")
                 set_setting(g.user, field, form_key in request.form and request.form[form_key] == "1")

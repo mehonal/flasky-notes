@@ -339,6 +339,39 @@ def test_settings_links_panel_and_persistence(app_context):
     assert get_setting(user, "autosuggest_ghost_create") is False
 
 
+def test_settings_emoji_autocomplete_toggle(app_context):
+    """The emoji autocomplete setting defaults on and round-trips via the
+    Editing panel form."""
+    from flasky.models import User
+    from flasky.ui_settings import get_setting
+    client = app_context.test_client()
+    make_e2ee_user(client, "emojisetting", "testpassword123")
+
+    # Default: on.
+    user = User.query.filter_by(username="emojisetting").first()
+    assert get_setting(user, "emoji_autocomplete") is True
+
+    # The Editing panel renders the toggle.
+    r = client.get("/settings?_fragment=1")
+    assert r.status_code == 200
+    assert 'name="emoji-autocomplete"' in r.get_data(as_text=True)
+
+    # POST without the checkbox turns it off.
+    r = client.post("/settings", data={"save-editing": "Save editing"},
+                    follow_redirects=True)
+    assert r.status_code == 200
+    assert get_setting(user, "emoji_autocomplete") is False
+
+    # POST with the checkbox turns it back on.
+    r = client.post(
+        "/settings",
+        data={"save-editing": "Save editing", "emoji-autocomplete": "1"},
+        follow_redirects=True,
+    )
+    assert r.status_code == 200
+    assert get_setting(user, "emoji_autocomplete") is True
+
+
 # === Attachment upload on new note ===
 
 

@@ -336,6 +336,11 @@ REGISTRY: dict[str, SettingDef] = {
     # keep the autocomplete dropdown populated while typing; turn off to only
     # surface ghost links that are already referenced elsewhere.
     "autosuggest_ghost_create": SettingDef("autosuggest_ghost_create", True, bool),
+    # Emoji shortcode autocomplete. Typing ":" followed by letters (e.g.
+    # ":sm") shows a dropdown of matching shortcodes (":smiley:", ":smile:");
+    # accepting one replaces the typed fragment with the emoji character.
+    # On by default. A lone ":" never triggers, so times and ratios stay quiet.
+    "emoji_autocomplete": SettingDef("emoji_autocomplete", True, bool),
     # Text-to-speech (browser-native speechSynthesis). Master toggle gates
     # the topbar "Speak note" button; the AI view always shows per-message
     # speak buttons when ai_enabled is on. Voice prefs are persisted so they

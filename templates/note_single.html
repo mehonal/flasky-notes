@@ -214,6 +214,7 @@
         "autosuggestAlgorithm": {{ (ui_settings.autosuggest_algorithm if ui_settings else 'title_prefix') | tojson }},
         "autosuggestGhostNotes": {% if ui_settings and ui_settings.autosuggest_ghost_notes %}true{% else %}false{% endif %},
         "autosuggestGhostCreate": {% if ui_settings and ui_settings.autosuggest_ghost_create %}true{% else %}false{% endif %},
+        "emojiAutocomplete": {% if ui_settings and ui_settings.emoji_autocomplete %}true{% else %}false{% endif %},
         "aiModel": {% if ai_settings and ai_settings.ollama_model %}{{ ai_settings.ollama_model | tojson }}{% else %}"gpt-oss:120b"{% endif %},
         "aiEndpoint": {% if ai_settings and ai_settings.ollama_endpoint %}{{ ai_settings.ollama_endpoint | tojson }}{% else %}""{% endif %},
         "timezone": {{ timezone | tojson }},

@@ -1146,6 +1146,7 @@ function initCodeMirror() {
             showWikiAutocomplete(cm);
             showSlashCommands(cm);
             showAutosuggest(cm);
+            showEmojiAutocomplete(cm);
         },
         onCursorActivity: function(cm) {
             if (isSlashCommandVisible()) {
@@ -1172,6 +1173,14 @@ function initCodeMirror() {
                     && ctx.from.line === autosuggContext.from.line;
                 if (!sameWord) hideAutosuggest();
             }
+            if (isEmojiAutocompleteVisible()) {
+                var cursor3 = cm.getCursor();
+                var line3 = cm.getLine(cursor3.line);
+                var before3 = line3.substring(0, cursor3.ch);
+                if (!_emojiTriggerMatch(before3)) {
+                    hideEmojiAutocomplete();
+                }
+            }
             // Clear the per-word dismissal sentinel whenever the cursor
             // leaves the dismissed word (different word or new boundary),
             // so suggestions re-arm for the next word the user types.
@@ -1196,6 +1205,22 @@ function initCodeMirror() {
                 } else if (e.key === 'Escape') {
                     e.preventDefault();
                     hideSlashCommands();
+                }
+                return;
+            }
+            if (isEmojiAutocompleteVisible()) {
+                if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    if (emojiSelectedIndex < emojiFiltered.length - 1) { emojiSelectedIndex++; renderEmojiAutocomplete(); }
+                } else if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    if (emojiSelectedIndex > 0) { emojiSelectedIndex--; renderEmojiAutocomplete(); }
+                } else if (e.key === 'Enter' || e.key === 'Tab') {
+                    e.preventDefault();
+                    acceptEmojiAutocomplete(emojiSelectedIndex);
+                } else if (e.key === 'Escape') {
+                    e.preventDefault();
+                    hideEmojiAutocomplete();
                 }
                 return;
             }
@@ -4951,6 +4976,9 @@ function computeAutosuggestQuery(cm) {
     var line = cm.getLine(cursor.line);
     var before = line.substring(0, cursor.ch);
     if (_isInsideWikilinkContext(before)) return null;
+    // Emoji shortcode typing (":query") is handled by its own popup; don't
+    // double-trigger the note autosuggest on the same fragment.
+    if (_emojiTriggerMatch(before)) return null;
 
     // Walk back from cursor to the last word boundary. A boundary is the
     // start of the line, or any non-word character (\W == whitespace or
@@ -5291,6 +5319,152 @@ function acceptSlashCommand(index) {
     if (typeof cmd.run === 'function') {
         cmd.run({ editor: cmEditor, page: 'editor' });
     }
+}
+
+// ============ Emoji Shortcode Autocomplete ============
+//
+// Typing ":" followed by letters (e.g. ":sm") shows a dropdown of matching
+// shortcodes (":smiley:", ":smile:"); accepting replaces the typed fragment
+// with the emoji character itself. Never triggers inside [[ ]] contexts.
+
+var emojiPopup = null;
+var emojiSelectedIndex = -1;
+var emojiFiltered = [];         // [{ shortcode, emoji }] for the current query
+var emojiActiveQuery = null;    // query the visible dropdown was built for
+var emojiDataPromise = null;
+var _emojiReqId = 0;            // monotonic token to drop stale async results
+
+var EMOJI_RESULT_CAP = 8;
+
+function _emojiTriggerMatch(before) {
+    // The lone \w inside the shortcode class requires at least one word
+    // char, so bare ":-" / ":+" stay quiet while ":-1" / ":+1" still match.
+    return before.match(/(^|\s):([\w+-]*\w[\w+-]*)$/);
+}
+
+function _loadEmojiData() {
+    if (!emojiDataPromise) {
+        emojiDataPromise = fetch('/static/js/emoji-shortcodes.json')
+            .then(function(r) { return r.json(); })
+            .catch(function() { return {}; });
+    }
+    return emojiDataPromise;
+}
+
+function showEmojiAutocomplete(cm) {
+    if (!_pageData.emojiAutocomplete) return;
+    if (isSlashCommandVisible() || isWikiAutocompleteVisible() || isAutosuggestVisible()) return;
+    var cursor = cm.getCursor();
+    var line = cm.getLine(cursor.line);
+    var before = line.substring(0, cursor.ch);
+
+    if (_isInsideWikilinkContext(before)) { hideEmojiAutocomplete(); return; }
+
+    var m = _emojiTriggerMatch(before);
+    if (!m) { hideEmojiAutocomplete(); return; }
+
+    var query = m[2].toLowerCase();
+    emojiActiveQuery = query;
+
+    var myReq = ++_emojiReqId;
+    _loadEmojiData().then(function(data) {
+        // Drop stale results: a newer keystroke or hideEmojiAutocomplete()
+        // bumped the token while the JSON was resolving.
+        if (myReq !== _emojiReqId) return;
+        var entries = [];
+        for (var sc in data) {
+            if (Object.prototype.hasOwnProperty.call(data, sc)) {
+                if (query.length === 0 || sc.indexOf(query) === 0) {
+                    entries.push({ shortcode: sc, emoji: data[sc] });
+                }
+            }
+        }
+        // Prefix matches in alphabetical order; exact matches surface first
+        entries.sort(function(a, b) {
+            var ae = a.shortcode === query ? 0 : 1;
+            var be = b.shortcode === query ? 0 : 1;
+            if (ae !== be) return ae - be;
+            return a.shortcode < b.shortcode ? -1 : 1;
+        });
+        emojiFiltered = entries.slice(0, EMOJI_RESULT_CAP);
+        if (emojiFiltered.length === 0) { hideEmojiAutocomplete(); return; }
+        emojiSelectedIndex = 0;
+
+        if (!emojiPopup) {
+            emojiPopup = document.createElement('div');
+            emojiPopup.className = 'emoji-autocomplete';
+            document.body.appendChild(emojiPopup);
+            emojiPopup.addEventListener('mousedown', function(e) {
+                var item = e.target.closest('.emoji-autocomplete-item');
+                if (item) { e.preventDefault(); acceptEmojiAutocomplete(parseInt(item.getAttribute('data-index'))); }
+            });
+            emojiPopup.addEventListener('mouseover', function(e) {
+                var item = e.target.closest('.emoji-autocomplete-item');
+                if (item) {
+                    var newIdx = parseInt(item.getAttribute('data-index'));
+                    if (newIdx !== emojiSelectedIndex) {
+                        var prev = emojiPopup.querySelector('.emoji-autocomplete-item.selected');
+                        if (prev) prev.classList.remove('selected');
+                        emojiSelectedIndex = newIdx;
+                        item.classList.add('selected');
+                    }
+                }
+            });
+        }
+
+        renderEmojiAutocomplete();
+        var coords = cm.cursorCoords(true, 'page');
+        var popupLeft = _clampPopupLeft(coords.left, emojiPopup.offsetWidth || 200);
+        emojiPopup.style.left = popupLeft + 'px';
+        emojiPopup.style.top = (coords.bottom + 4) + 'px';
+        emojiPopup.style.display = 'block';
+    });
+}
+
+function renderEmojiAutocomplete() {
+    if (!emojiPopup) return;
+    var html = '';
+    emojiFiltered.forEach(function(entry, i) {
+        html += '<div class="emoji-autocomplete-item' + (i === emojiSelectedIndex ? ' selected' : '') + '" data-index="' + i + '">';
+        html += '<span class="emoji-autocomplete-glyph">' + entry.emoji + '</span>';
+        html += '<span class="emoji-autocomplete-label">:' + _esc(entry.shortcode) + ':</span>';
+        html += '</div>';
+    });
+    emojiPopup.innerHTML = html;
+    var sel = emojiPopup.querySelector('.emoji-autocomplete-item.selected');
+    if (sel) sel.scrollIntoView({ block: 'nearest' });
+}
+
+function hideEmojiAutocomplete() {
+    if (emojiPopup) emojiPopup.style.display = 'none';
+    emojiFiltered = [];
+    emojiSelectedIndex = -1;
+    emojiActiveQuery = null;
+    _emojiReqId++;  // invalidate any in-flight filter
+}
+
+function isEmojiAutocompleteVisible() {
+    return emojiPopup && emojiPopup.style.display === 'block';
+}
+
+function acceptEmojiAutocomplete(index) {
+    if (!cmEditor || index < 0 || index >= emojiFiltered.length) return;
+    var entry = emojiFiltered[index];
+
+    // Re-locate the ":query" fragment from the current cursor rather than
+    // trusting stored offsets — the user may have kept typing or moved.
+    var cursor = cmEditor.getCursor();
+    var line = cmEditor.getLine(cursor.line);
+    var before = line.substring(0, cursor.ch);
+    var m = _emojiTriggerMatch(before);
+    if (!m) { hideEmojiAutocomplete(); return; }
+    var colonStart = cursor.ch - m[0].length + m[1].length;
+
+    hideEmojiAutocomplete();
+
+    cmEditor.replaceRange(entry.emoji, { line: cursor.line, ch: colonStart }, cursor);
+    cmEditor.setCursor({ line: cursor.line, ch: colonStart + entry.emoji.length });
+    cmEditor.focus();
 }
 
 // ============ Template Picker ============

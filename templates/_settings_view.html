@@ -573,6 +573,15 @@
                                     </div>
                                 </div>
                             </div>
+                            <div class="setting-row has-desc">
+                                <span class="setting-label">Emoji autocomplete</span>
+                                <div class="setting-control">
+                                    <div class="toggle {% if ui_settings.emoji_autocomplete %}on{% endif %}" data-toggle="emoji-autocomplete">
+                                        <input type="checkbox" id="emoji-autocomplete" name="emoji-autocomplete" value="1" {% if ui_settings.emoji_autocomplete %}checked{% endif %}>
+                                    </div>
+                                </div>
+                                <div class="setting-desc">Type <code>:</code> followed by letters (e.g. <code>:sm</code>) to get a dropdown of emoji shortcodes like <code>:smiley:</code>. Selecting one inserts the emoji itself.</div>
+                            </div>
 
                             <div class="sub-label">New notes</div>
                             <div class="setting-row has-desc">
