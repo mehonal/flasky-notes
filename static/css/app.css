@@ -1198,6 +1198,8 @@ body {
 }
 
 /* ============ Callouts (preview) ============ */
+/* Shared with live-preview mode, where the cm6-block-spacer wrapper in the
+   codemirror6 bundle zeroes this margin (block widgets must not use margin). */
 .callout {
     border-left: 4px solid var(--accent);
     border-radius: 6px;

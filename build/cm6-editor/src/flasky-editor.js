@@ -134,10 +134,15 @@ const flaskyTheme = EditorView.theme({
     color: 'var(--text-muted)',
     display: 'block',
   },
+  // Spacing via padding, not margin — see _spacer below. Content-box is
+  // required so the global border-box sizing doesn't collapse the 1px line.
   '.cm6-hr-line': {
     border: 'none',
-    borderTop: '1px solid var(--border-light)',
-    margin: '1.5em 0',
+    boxSizing: 'content-box',
+    height: '1px',
+    padding: '1.5em 0',
+    background: 'var(--border-light)',
+    backgroundClip: 'content-box',
   },
   '.cm6-list-marker': {
     color: 'var(--accent)',
@@ -168,19 +173,20 @@ const flaskyTheme = EditorView.theme({
     borderRadius: '2px',
     padding: '1px 2px',
   },
-  // Code block widget (block-level replace)
   '.cm6-codeblock': {
     background: 'var(--bg-secondary)',
     border: '1px solid var(--border)',
     borderRadius: '8px',
     padding: '16px 20px',
     overflowX: 'auto',
-    margin: '0.5em 0',
     fontFamily: '"JetBrains Mono", "Fira Code", "SF Mono", monospace',
     fontSize: '13px',
     lineHeight: '1.6',
   },
   '.cm6-codeblock code': { background: 'none', padding: '0', fontFamily: 'inherit', fontSize: 'inherit' },
+  // The spacer wrapper already provides vertical spacing; the widget's own
+  // margin (e.g. .callout's, shared with preview mode) would add to it.
+  '.cm6-block-spacer > *': { margin: '0' },
 });
 
 // Wikilink decoration: styles [[...]] brackets and content consistently
@@ -452,6 +458,19 @@ class HrWidget extends WidgetType {
   ignoreEvent() { return false; }
 }
 
+// Vertical spacing wrapper for block widgets. CM6 measures widget height
+// via getBoundingClientRect(), which excludes margins — untracked margin
+// makes clicks below the widget resolve to the wrong position. Padding is
+// measured, so block widgets get their spacing from this wrapper instead.
+function _spacer(el, em) {
+  var wrap = document.createElement('div');
+  wrap.className = 'cm6-block-spacer';
+  wrap.style.paddingTop = em + 'em';
+  wrap.style.paddingBottom = em + 'em';
+  wrap.appendChild(el);
+  return wrap;
+}
+
 // Fenced code block widget: replaces ```lang\n...\n``` with a styled <pre>.
 // Reuses the page's hljs (already loaded for preview mode) for syntax
 // highlighting. Falls back to plain monospace when hljs isn't available.
@@ -476,7 +495,7 @@ class CodeBlockWidget extends WidgetType {
     if (window.hljs) {
       try { window.hljs.highlightElement(code); } catch (e) { /* ignore */ }
     }
-    return pre;
+    return _spacer(pre, 0.5);
   }
 
   ignoreEvent() { return false; }
@@ -528,7 +547,7 @@ class CalloutWidget extends WidgetType {
       }
       callout.appendChild(contentDiv);
     }
-    return callout;
+    return _spacer(callout, 0.8);
   }
 
   ignoreEvent() { return false; }
