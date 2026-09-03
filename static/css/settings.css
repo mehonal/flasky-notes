@@ -1,34 +1,9 @@
 /* Settings view styles — scoped under #settings-root.
    Renders inside the note_single SPA shell, so shared chrome (.sidebar,
-   .icon-btn, .sidebar-backdrop, .status-bar) is styled by app.css; only
-   settings-specific rules live here. */
+   .icon-btn, .sidebar-backdrop, .nav-item, .status-bar) is styled by
+   app.css; only settings-specific rules live here. */
 
-/* Shared nav-item style (sidebar navigation links). app.css has no
-   .nav-item, so it is defined once here and in agenda.css. */
-.nav-item {
-    display: flex; align-items: center; gap: 8px;
-    padding: 6px 10px; border-radius: var(--radius-sm); cursor: pointer;
-    color: var(--text-secondary); font-size: 13px;
-    text-decoration: none; transition: background 0.12s ease, color 0.12s ease;
-}
-.nav-item:hover { background: var(--bg-hover); color: var(--text-primary); }
-.nav-item.active { background: var(--accent-dim); color: var(--accent); }
-.nav-item svg {
-    width: 16px; height: 16px; stroke: currentColor; fill: none;
-    stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; flex-shrink: 0;
-}
-button.nav-item {
-    width: 100%; background: none; border: none; font: inherit;
-    font-size: 13px; text-align: left;
-}
-
-.sidebar-section-label {
-    font-size: 11px; font-weight: 600; color: var(--text-muted);
-    text-transform: uppercase; letter-spacing: 0.8px; padding: 12px 8px 6px;
-}
-.sidebar-divider { height: 1px; background: var(--border); margin: 6px 8px; }
-
-#settings-root .sidebar-nav { flex: 1; overflow-y: auto; padding: 4px 8px; }
+#settings-root .sidebar-nav { flex: 1; overflow-y: auto; }
 
 #settings-root .app { display: flex; height: 100vh; height: 100dvh; }
 

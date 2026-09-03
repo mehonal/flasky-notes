@@ -15,6 +15,11 @@
                 </div>
             </div>
 
+            <div class="sidebar-nav">
+                {% set nav_active = 'notes' %}
+                {% include '_nav.html' %}
+            </div>
+
             <div class="sidebar-search">
                 <input type="text" id="search-input" placeholder="Filter..." data-action="filter-notes">
             </div>
@@ -45,11 +50,6 @@
             </div>
 
             <div class="sidebar-footer">
-                {% if g.user and g.user.settings and g.user.settings.ai_enabled %}
-                <a href="/ai">AI Chat</a>
-                {% endif %}
-                <a href="/settings">Settings</a>
-                <a href="/agenda">Agenda</a>
                 <a href="/logout">Logout</a>
             </div>
         </div>

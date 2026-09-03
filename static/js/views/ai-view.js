@@ -25,13 +25,9 @@
         _root = container.querySelector('#ai-root');
         if (!_root) return;
 
-        // If AI is disabled, just wire the settings link + back button; nothing else.
+        // If AI is disabled, the template renders only a settings link; nothing to wire.
         var dataEl = container.querySelector('#ai-view-data');
-        if (!dataEl) {
-            var backBtn = container.querySelector('[data-action="router-back"]');
-            if (backBtn) backBtn.addEventListener('click', function () { history.back(); });
-            return;
-        }
+        if (!dataEl) return;
         var data = JSON.parse(dataEl.textContent);
 
         var conversationId = data.conversationId;
@@ -95,10 +91,6 @@
         bind(document.getElementById('ai-toggle-panel'), 'click', togglePanel);
         var closePanelBtn = document.getElementById('ai-close-panel-btn');
         if (closePanelBtn) bind(closePanelBtn, 'click', function () { panel.classList.add('collapsed'); });
-
-        // Back button
-        var backBtn = container.querySelector('[data-action="router-back"]');
-        if (backBtn) bind(backBtn, 'click', function () { history.back(); });
 
         // Dark mode
         var toggleDark = document.getElementById('ai-toggle-dark');

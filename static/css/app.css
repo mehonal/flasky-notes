@@ -289,6 +289,49 @@ body {
 
 .sidebar-footer a:hover { background: var(--bg-hover); color: var(--text-secondary); }
 
+/* Shared sidebar navigation (uniform across notes/agenda/settings/AI/export) */
+.sidebar-nav { padding: 4px 8px; flex-shrink: 0; }
+.sidebar-nav.scroll { flex: 1; overflow-y: auto; }
+
+.nav-item {
+    display: flex; align-items: center; gap: 8px;
+    padding: 6px 10px; border-radius: var(--radius-sm); cursor: pointer;
+    color: var(--text-secondary); font-size: 13px;
+    text-decoration: none; transition: background 0.12s ease, color 0.12s ease;
+}
+.nav-item:hover { background: var(--bg-hover); color: var(--text-primary); }
+.nav-item.active { background: var(--accent-dim); color: var(--accent); }
+.nav-item svg {
+    width: 16px; height: 16px; stroke: currentColor; fill: none;
+    stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; flex-shrink: 0;
+}
+button.nav-item {
+    width: 100%; background: none; border: none; font: inherit;
+    font-size: 13px; text-align: left;
+}
+
+.sidebar-section-label {
+    font-size: 11px; font-weight: 600; color: var(--text-muted);
+    text-transform: uppercase; letter-spacing: 0.8px; padding: 12px 8px 6px;
+}
+.sidebar-divider { height: 1px; background: var(--border); margin: 20px 8px 16px; }
+
+/* Collapsible Navigation section (shared _nav.html) */
+.sidebar-nav-section > summary {
+    list-style: none; cursor: pointer; user-select: none;
+    display: flex; align-items: center; justify-content: space-between;
+    padding-right: 14px;
+}
+.sidebar-nav-section > summary::-webkit-details-marker { display: none; }
+.sidebar-nav-section > summary:hover { color: var(--text-secondary); }
+.sidebar-nav-chevron {
+    width: 14px; height: 14px; stroke: currentColor; fill: none;
+    stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;
+    transition: transform 0.15s ease; flex-shrink: 0;
+}
+.sidebar-nav-section:not([open]) .sidebar-nav-chevron { transform: rotate(-90deg); }
+.sidebar-nav-items { display: flex; flex-direction: column; gap: 1px; }
+
 /* Mobile overlay backdrop */
 .sidebar-backdrop {
     display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0;

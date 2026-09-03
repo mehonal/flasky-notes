@@ -24,29 +24,28 @@
 
 <div class="ai-app">
     <!-- Mobile sidebar backdrop -->
-    <div class="ai-sidebar-backdrop" id="ai-sidebar-backdrop"></div>
+    <div class="sidebar-backdrop ai-sidebar-backdrop" id="ai-sidebar-backdrop"></div>
 
     <!-- Sidebar -->
-    <div class="ai-sidebar" id="ai-sidebar">
-        <div class="ai-sidebar-header">
-            <span class="ai-sidebar-title">Conversations</span>
-            <div class="ai-sidebar-actions">
-                <button class="icon-btn" data-action="router-back" title="Back to notes" aria-label="Back to notes">
-                    <svg viewBox="0 0 24 24"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
-                </button>
+    <div class="sidebar" id="ai-sidebar">
+        <div class="sidebar-header">
+            <span class="sidebar-title">Conversations</span>
+            <div class="sidebar-actions">
                 <button class="icon-btn" id="ai-close-sidebar-btn" title="Close sidebar" aria-label="Close sidebar">
                     <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                 </button>
             </div>
+        </div>
+        <div class="sidebar-nav">
+            {% set nav_active = 'ai' %}
+            {% include '_nav.html' %}
         </div>
         <button class="ai-new-chat-btn" id="ai-new-chat-btn">
             <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
             New Chat
         </button>
         <div class="ai-conversation-list" id="ai-conversation-list"></div>
-        <div class="ai-sidebar-footer">
-            <a href="/note/0">Notes</a>
-            <a href="/settings">Settings</a>
+        <div class="sidebar-footer">
             <a href="/logout">Logout</a>
         </div>
     </div>

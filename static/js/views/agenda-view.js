@@ -746,7 +746,6 @@
             if (!el) return;
             var action = el.dataset.action;
             switch (action) {
-                case 'router-back': history.back(); break;
                 case 'toggle-sidebar': toggleSidebar(); break;
                 case 'toggle-theme': toggleTheme(); break;
                 case 'open-search-modal': e.preventDefault(); if (window.FlaskySearchModal) FlaskySearchModal.open(); break;

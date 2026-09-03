@@ -207,7 +207,6 @@
             if (!el) return;
             var action = el.dataset.action;
             switch (action) {
-                case 'router-back': history.back(); break;
                 case 'toggle-sidebar': toggleSidebar(); break;
                 case 'toggle-theme': toggleTheme(); break;
                 case 'copy-token':

@@ -1,30 +1,59 @@
-<div class="export-view" data-view="export">
-    <div class="export-view-header">
-        <button class="icon-btn export-view-close" data-action="router-back" title="Back" aria-label="Back">
-            <svg viewBox="0 0 24 24" width="20" height="20"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
-        </button>
-        <h1>Export Notes</h1>
-    </div>
-    <div class="export-page">
-        <p>Download a zip archive of your notes, categories, and attachments.</p>
+<div class="export-view-root" id="export-root" data-view="export">
+    <div class="sidebar-backdrop" id="sidebar-backdrop" data-action="toggle-sidebar"></div>
 
-        <div class="export-card">
-            <h2>What's included</h2>
-            <ul>
-                <li>All notes as <strong>.md</strong> files (with frontmatter)</li>
-                <li>Categories and subcategories as folders</li>
-                <li>All attachments in an <strong>attachments/</strong> folder</li>
-            </ul>
-        </div>
+    <div class="app">
+        <nav class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <span class="sidebar-title">Export</span>
+                <div class="sidebar-actions">
+                    <button class="icon-btn" data-action="toggle-theme" title="Toggle theme">
+                        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
+                    </button>
+                </div>
+            </div>
 
-        <div class="export-buttons">
-            <button class="btn-export" id="btn-export-decrypted">Download Decrypted .zip</button>
-            <button class="btn-export btn-export-secondary" id="btn-export-encrypted">Download Encrypted .zip</button>
-        </div>
+            <div class="sidebar-nav">
+                {% include '_nav.html' %}
+            </div>
 
-        <div class="export-progress" id="export-progress">
-            <span id="export-status">Preparing export...</span>
-            <div class="bar"><div class="bar-fill" id="export-bar"></div></div>
+            <div class="sidebar-footer">
+                <a href="/logout">Logout</a>
+            </div>
+        </nav>
+
+        <div class="main">
+            <div class="toolbar">
+                <button class="icon-btn" data-action="toggle-sidebar" title="Toggle sidebar">
+                    <svg viewBox="0 0 24 24"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+                </button>
+                <span class="toolbar-title">Export</span>
+                <div class="toolbar-spacer"></div>
+            </div>
+
+            <div class="content-area">
+                <div class="export-view">
+                    <p>Download a zip archive of your notes, categories, and attachments.</p>
+
+                    <div class="export-card">
+                        <h2>What's included</h2>
+                        <ul>
+                            <li>All notes as <strong>.md</strong> files (with frontmatter)</li>
+                            <li>Categories and subcategories as folders</li>
+                            <li>All attachments in an <strong>attachments/</strong> folder</li>
+                        </ul>
+                    </div>
+
+                    <div class="export-buttons">
+                        <button class="btn-export" id="btn-export-decrypted">Download Decrypted .zip</button>
+                        <button class="btn-export btn-export-secondary" id="btn-export-encrypted">Download Encrypted .zip</button>
+                    </div>
+
+                    <div class="export-progress" id="export-progress">
+                        <span id="export-status">Preparing export...</span>
+                        <div class="bar"><div class="bar-fill" id="export-bar"></div></div>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 </div>

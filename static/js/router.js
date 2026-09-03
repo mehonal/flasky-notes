@@ -146,6 +146,7 @@
         el.innerHTML = html;
         el.removeAttribute('hidden');
         document.body.classList.add('app-view-open');
+        applyNavState(el);
         if (viewModule && typeof viewModule.init === 'function') {
             try { viewModule.init(el); } catch (e) { console.error('view init failed', e); }
         }
@@ -261,6 +262,30 @@
         showBar();
     }
 
+    // ---- collapsible sidebar sections (shared _nav.html) ----
+    var NAV_STATE_KEY = 'flasky:nav-sections';
+
+    function readNavState() {
+        try { return JSON.parse(localStorage.getItem(NAV_STATE_KEY)) || {}; }
+        catch (e) { return {}; }
+    }
+
+    function applyNavState(scope) {
+        var state = readNavState();
+        (scope || document).querySelectorAll('details.sidebar-nav-section').forEach(function (d) {
+            var key = d.dataset.navKey;
+            if (key && key in state) d.open = !!state[key];
+        });
+    }
+
+    function onNavToggle(e) {
+        var d = e.target.closest ? e.target.closest('details.sidebar-nav-section') : null;
+        if (!d || !d.dataset.navKey) return;
+        var state = readNavState();
+        state[d.dataset.navKey] = d.open;
+        try { localStorage.setItem(NAV_STATE_KEY, JSON.stringify(state)); } catch (e2) {}
+    }
+
     function registerView(prefix, module) {
         _views[prefix] = module || {};
     }
@@ -269,8 +294,10 @@
         window.addEventListener('popstate', handlePopState);
         document.addEventListener('click', onDocClick, false);
         document.addEventListener('click', onDocClickCapture, true);
+        document.addEventListener('toggle', onNavToggle, true);
         var container = getContainer();
         if (container) container.setAttribute('hidden', '');
+        applyNavState(document);
 
         // If the shell was loaded for a non-editor page (e.g. direct URL to
         // /agenda), auto-navigate to that view after the shell finishes

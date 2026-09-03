@@ -24,10 +24,34 @@
     function init(container) {
         on('#btn-export-decrypted', 'click', function () { startExport(true); });
         on('#btn-export-encrypted', 'click', function () { startExport(false); });
-        var backBtn = container.querySelector('[data-action="router-back"]');
-        if (backBtn) backBtn.addEventListener('click', function () {
-            history.back();
-        });
+
+        var sidebar = container.querySelector('#sidebar');
+        var backdrop = container.querySelector('#sidebar-backdrop');
+        if (sidebar && backdrop) {
+            function toggleSidebar() {
+                sidebar.classList.toggle('collapsed');
+                if (window.innerWidth <= 768) backdrop.classList.toggle('visible');
+            }
+            if (window.innerWidth <= 768) sidebar.classList.add('collapsed');
+            container.querySelectorAll('[data-action="toggle-sidebar"]').forEach(function (el) {
+                el.addEventListener('click', toggleSidebar);
+                _bound.push([el, 'click', toggleSidebar]);
+            });
+            container.querySelectorAll('[data-action="toggle-theme"]').forEach(function (el) {
+                el.addEventListener('click', toggleTheme);
+                _bound.push([el, 'click', toggleTheme]);
+            });
+        }
+    }
+
+    function toggleTheme() {
+        var html = document.documentElement;
+        var isDark = html.getAttribute('data-theme') === 'dark';
+        html.setAttribute('data-theme', isDark ? 'light' : 'dark');
+        fetch('/api/save_dark_mode/' + (isDark ? '0' : '1'));
+        var darkCSS = document.getElementById('hljs-dark');
+        var lightCSS = document.getElementById('hljs-light');
+        if (darkCSS && lightCSS) { darkCSS.disabled = !isDark; lightCSS.disabled = isDark; }
     }
 
     function destroy() {
