@@ -118,7 +118,7 @@ body {
 }
 
 .auth-btn {
-    width: 100%; padding: 11px 16px; margin-top: 4px;
+    width: 100%; padding: 11px 16px; margin-top: 20px;
     background: var(--accent); color: #101018;
     border: none; border-radius: var(--radius-sm);
     font-size: 14px; font-weight: 600; font-family: inherit;
