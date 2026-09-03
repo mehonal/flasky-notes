@@ -1,46 +1,57 @@
 {% extends "template-loggedout.html" %}
 {% block body %}
-<div class="p-5" style="max-width:400px;margin:0 auto">
-<div class="text-center"><img class="mb-4" src="/static/images/amazing_logo.png" alt="Flasky Notes" width="128" height="128">
-</div>
+<div class="auth-card">
+<div class="auth-logo"><img src="/static/images/amazing_logo.png" alt="Flasky Notes" width="96" height="96"></div>
+<h1 class="auth-title">Create your vault</h1>
+<p class="auth-subtitle">All encryption happens in your browser — the server only ever stores ciphertext.</p>
 <form id="register-form">
 <!-- Honeypot field: hidden from humans, bots will fill it -->
 <input type="text" name="website" id="reg-honeypot" style="display:none" tabindex="-1" autocomplete="off">
 
-<input type="text" class="form-control mb-2" id="reg-username" placeholder="Username..." autocomplete="username" required>
+<div class="auth-field">
+  <input type="text" class="auth-input" id="reg-username" placeholder="Username..." autocomplete="username" required>
+</div>
 
-<input type="email" class="form-control mb-2" id="reg-email" placeholder="Email Address..." autocomplete="email" required>
+<div class="auth-field">
+  <input type="email" class="auth-input" id="reg-email" placeholder="Email Address..." autocomplete="email" required>
+</div>
 
-<input type="password" class="form-control mb-2" id="reg-password" placeholder="Password (min 8 chars)..." autocomplete="new-password" required>
+<div class="auth-field">
+  <input type="password" class="auth-input" id="reg-password" placeholder="Password (min 8 chars)..." autocomplete="new-password" required>
+</div>
 
-<input type="password" class="form-control mb-2" id="reg-password-confirm" placeholder="Confirm password..." autocomplete="new-password" required>
+<div class="auth-field">
+  <input type="password" class="auth-input" id="reg-password-confirm" placeholder="Confirm password..." autocomplete="new-password" required>
+</div>
 
-<input type="text" class="form-control mb-2" id="reg-hint" placeholder="Password hint (optional)..." maxlength="200">
+<div class="auth-field">
+  <input type="text" class="auth-input" id="reg-hint" placeholder="Password hint (optional)..." maxlength="200">
+</div>
 
 {% if recaptcha_enabled %}
 <div class="g-recaptcha mb-2" data-sitekey="{{ recaptcha_site_key }}"></div>
 {% endif %}
 
-<div id="reg-error" class="alert alert-danger mb-2" style="display:none"></div>
-<div id="reg-status" class="text-muted text-center mb-2" style="display:none"></div>
+<div id="reg-error" class="auth-error"></div>
+<div id="reg-status" class="auth-status"></div>
 
-<p class="text-center">Already got an account? <a href="/login">Log in!</a></p>
+<p class="auth-alt">Already got an account? <a class="auth-link" href="/login">Log in!</a></p>
 
-<button class="w-100 btn btn-primary" type="submit" id="reg-btn">Create Account</button>
+<button class="auth-btn" type="submit" id="reg-btn">Create Account</button>
 </form>
 
 <!-- Recovery key display (shown after registration) -->
-<div id="recovery-display" style="display:none" class="mt-4 p-3 border rounded">
-    <h5 class="text-danger">Save Your Recovery Key</h5>
-    <p class="small">If you lose your password, this is the <strong>only way</strong> to recover your data. Save it somewhere safe. It will not be shown again.</p>
-    <textarea class="form-control mb-2" id="recovery-key-text" rows="3" readonly style="font-family:monospace;font-size:0.85rem"></textarea>
-    <button class="btn btn-outline-primary btn-sm mb-2" id="copy-recovery-btn">Copy to clipboard</button>
-    <br>
-    <label class="form-check-label">
-        <input type="checkbox" id="recovery-confirm" class="form-check-input"> I have saved my recovery key
-    </label>
-    <br>
-    <button class="btn btn-success w-100 mt-2" id="continue-btn" disabled>Continue to Login</button>
+<div id="recovery-display" class="auth-recovery-key">
+    <h2>Save Your Recovery Key</h2>
+    <p>If you lose your password, this is the <strong>only way</strong> to recover your data. Save it somewhere safe. It will not be shown again.</p>
+    <textarea class="auth-textarea" id="recovery-key-text" rows="3" readonly></textarea>
+    <div class="auth-recovery-actions">
+      <button class="auth-btn-secondary" id="copy-recovery-btn">Copy to clipboard</button>
+      <label>
+          <input type="checkbox" id="recovery-confirm"> I have saved my recovery key
+      </label>
+    </div>
+    <button class="auth-btn auth-btn-success" id="continue-btn" disabled>Continue to Login</button>
 </div>
 </div>
 

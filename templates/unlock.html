@@ -1,23 +1,23 @@
 {% extends "template-loggedout.html" %}
 {% block body %}
-<div class="p-5" style="max-width:400px;margin:0 auto">
-<div class="text-center">
-    <img class="mb-4" src="/static/images/amazing_logo.png" alt="Flasky Notes" width="128" height="128">
-    <h4 class="mb-1">Vault Locked</h4>
-    <p class="text-muted small mb-3">Re-enter your password to decrypt your notes.</p>
-</div>
+<div class="auth-card">
+<div class="auth-logo"><img src="/static/images/amazing_logo.png" alt="Flasky Notes" width="96" height="96"></div>
+<h1 class="auth-title">Vault Locked</h1>
+<p class="auth-subtitle">Re-enter your password to decrypt your notes.</p>
 <form id="unlock-form">
-    <input type="password" class="form-control mb-2" id="unlock-password" placeholder="Password..." autocomplete="current-password" autofocus required>
+    <div class="auth-field">
+      <input type="password" class="auth-input" id="unlock-password" placeholder="Password..." autocomplete="current-password" autofocus required>
+    </div>
 
     {% if password_hint %}
-    <p class="text-muted small">Hint: {{ password_hint }}</p>
+    <p class="auth-hint">Hint: {{ password_hint }}</p>
     {% endif %}
 
-    <div id="unlock-error" class="alert alert-danger mb-2" style="display:none"></div>
-    <div id="unlock-status" class="text-muted text-center mb-2" style="display:none">Deriving keys...</div>
+    <div id="unlock-error" class="auth-error"></div>
+    <div id="unlock-status" class="auth-status">Deriving keys...</div>
 
-    <button class="w-100 btn btn-primary" type="submit" id="unlock-btn">Unlock</button>
-    <a href="/logout" class="d-block text-center mt-2 text-muted small">Log out instead</a>
+    <button class="auth-btn" type="submit" id="unlock-btn">Unlock</button>
+    <a href="/logout" class="auth-logout">Log out instead</a>
 </form>
 </div>
 

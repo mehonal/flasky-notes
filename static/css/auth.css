@@ -1,0 +1,201 @@
+/* Auth pages (login / register / unlock) — standalone stylesheet.
+   These pages render outside the note_single shell, so app.css and its
+   per-user custom-theme injection are not loaded. The palette below mirrors
+   the app.css dark defaults (flasky/ui_settings.py DEFAULT_COLORS.dark);
+   keep them in sync when the base palette changes. */
+:root {
+    --bg-primary: #16161e;
+    --bg-secondary: #1c1c26;
+    --bg-input: #1a1a23;
+    --text-primary: #dde1f2;
+    --text-secondary: #b6bcd2;
+    --text-muted: #6d7288;
+    --accent: #a5b4fc;
+    --accent-hover: #c4b5fd;
+    --accent-dim: rgba(165,180,252,0.12);
+    --border: rgba(255,255,255,0.07);
+    --border-light: rgba(255,255,255,0.13);
+    --red: #f28ba4;
+    --green: #86d69c;
+    --yellow: #f2d99c;
+    --radius-sm: 8px;
+    --radius-md: 12px;
+    --radius-lg: 16px;
+    --shadow-2: 0 8px 28px rgba(0,0,0,0.32);
+}
+
+@media (prefers-color-scheme: light) {
+    :root {
+        --bg-primary: #faf9f7;
+        --bg-secondary: #f2f0ec;
+        --bg-input: #ffffff;
+        --text-primary: #211f26;
+        --text-secondary: #3d3a45;
+        --text-muted: #6e6a78;
+        --accent: #5b5bd6;
+        --accent-hover: #7c3aed;
+        --accent-dim: rgba(91,91,214,0.12);
+        --border: rgba(33,31,38,0.10);
+        --border-light: rgba(33,31,38,0.16);
+        --red: #d1344b;
+        --green: #2f8a4c;
+        --yellow: #b97d10;
+        --shadow-2: 0 8px 28px rgba(33,31,38,0.13);
+    }
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', system-ui, sans-serif;
+    background:
+        radial-gradient(ellipse 80% 50% at 50% -10%, var(--accent-dim), transparent),
+        var(--bg-primary);
+    color: var(--text-primary);
+    min-height: 100vh;
+    min-height: 100dvh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    -webkit-font-smoothing: antialiased;
+}
+
+.auth-card {
+    width: 100%;
+    max-width: 400px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-2);
+    padding: 40px 32px 32px;
+}
+
+.auth-logo { text-align: center; margin-bottom: 24px; }
+.auth-logo img { width: 96px; height: 96px; border-radius: var(--radius-md); }
+
+.auth-title {
+    font-size: 22px; font-weight: 700; letter-spacing: -0.02em;
+    text-align: center; margin-bottom: 4px;
+}
+
+.auth-subtitle {
+    font-size: 13px; color: var(--text-muted);
+    text-align: center; margin-bottom: 24px;
+}
+
+.auth-field { margin-bottom: 12px; }
+
+.auth-input {
+    width: 100%; padding: 10px 14px;
+    background: var(--bg-input); border: 1px solid var(--border);
+    border-radius: var(--radius-sm); color: var(--text-primary);
+    font-size: 14px; font-family: inherit; outline: none;
+    transition: border-color 0.16s ease;
+}
+.auth-input:focus { border-color: var(--accent); }
+.auth-input::placeholder { color: var(--text-muted); }
+
+.auth-textarea {
+    width: 100%; padding: 10px 14px;
+    background: var(--bg-input); border: 1px solid var(--border);
+    border-radius: var(--radius-sm); color: var(--text-primary);
+    font-size: 13px; font-family: monospace; outline: none; resize: vertical;
+}
+.auth-textarea:focus { border-color: var(--accent); }
+
+.auth-error {
+    display: none; padding: 10px 14px; margin-bottom: 12px;
+    background: color-mix(in srgb, var(--red) 12%, transparent);
+    border: 1px solid color-mix(in srgb, var(--red) 35%, transparent);
+    border-radius: var(--radius-sm); color: var(--red);
+    font-size: 13px; word-break: break-word;
+}
+
+.auth-status {
+    display: none; padding: 8px 0; margin-bottom: 8px;
+    color: var(--text-muted); font-size: 13px; text-align: center;
+}
+
+.auth-btn {
+    width: 100%; padding: 11px 16px; margin-top: 4px;
+    background: var(--accent); color: #101018;
+    border: none; border-radius: var(--radius-sm);
+    font-size: 14px; font-weight: 600; font-family: inherit;
+    cursor: pointer; transition: background 0.16s ease, transform 0.1s ease;
+}
+.auth-btn:hover { background: var(--accent-hover); }
+.auth-btn:active { transform: scale(0.98); }
+.auth-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.auth-link {
+    color: var(--accent); text-decoration: none; font-weight: 500;
+}
+.auth-link:hover { text-decoration: underline; }
+
+.auth-alt {
+    text-align: center; font-size: 13px; color: var(--text-secondary);
+    margin: 16px 0 0;
+}
+
+.auth-recovery {
+    display: none; margin-top: 20px; padding: 18px;
+    background: var(--bg-primary); border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+}
+.auth-recovery h2 {
+    font-size: 15px; font-weight: 600; color: var(--text-primary);
+    margin-bottom: 12px;
+}
+.auth-recovery .auth-recovery-note {
+    font-size: 12px; color: var(--text-muted); margin-bottom: 12px;
+    line-height: 1.5;
+}
+
+.auth-hint { font-size: 12px; color: var(--text-muted); margin-bottom: 12px; }
+
+.auth-recovery-key {
+    display: none; margin-top: 20px; padding: 18px;
+    background: var(--bg-primary); border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+}
+.auth-recovery-key h2 {
+    font-size: 15px; font-weight: 600; color: var(--yellow);
+    margin-bottom: 8px;
+}
+.auth-recovery-key p {
+    font-size: 12px; color: var(--text-muted); margin-bottom: 12px; line-height: 1.5;
+}
+.auth-recovery-actions {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 12px; margin-top: 12px; flex-wrap: wrap;
+}
+.auth-recovery-actions label {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 12px; color: var(--text-secondary); cursor: pointer;
+}
+.auth-recovery-actions input[type="checkbox"] { accent-color: var(--accent); }
+.auth-btn-secondary {
+    background: none; border: 1px solid var(--border-light);
+    color: var(--text-secondary); border-radius: var(--radius-sm);
+    padding: 7px 14px; font-size: 12px; font-weight: 500;
+    font-family: inherit; cursor: pointer; transition: background 0.16s ease, color 0.16s ease;
+}
+.auth-btn-secondary:hover { background: var(--accent-dim); color: var(--accent); }
+.auth-btn-success {
+    background: var(--green); color: #10130f;
+}
+.auth-btn-success:hover { background: var(--green); opacity: 0.9; }
+.auth-btn-warning {
+    background: none; border: 1px solid color-mix(in srgb, var(--yellow) 45%, transparent);
+    color: var(--yellow);
+}
+.auth-btn-warning:hover { background: color-mix(in srgb, var(--yellow) 12%, transparent); }
+
+.auth-logout {
+    display: block; text-align: center; margin-top: 16px;
+    font-size: 12px; color: var(--text-muted); text-decoration: none;
+}
+.auth-logout:hover { color: var(--text-secondary); text-decoration: underline; }
+
+.g-recaptcha { margin-bottom: 12px; }

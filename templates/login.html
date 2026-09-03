@@ -1,33 +1,44 @@
 
 {% extends "template-loggedout.html" %}
 {% block body %}
-<div class="p-5" style="max-width:400px;margin:0 auto">
-<div class="text-center"><img class="mb-4" src="/static/images/amazing_logo.png" alt="Flasky Notes" width="128" height="128">
-</div>
+<div class="auth-card">
+<div class="auth-logo"><img src="/static/images/amazing_logo.png" alt="Flasky Notes" width="96" height="96"></div>
+<h1 class="auth-title">Flasky Notes</h1>
+<p class="auth-subtitle">End-to-end encrypted notes — sign in to your vault.</p>
 <form id="login-form">
 
-  <input type="text" class="form-control mb-2" id="login-username" name="username" placeholder="Username..." autocomplete="username" required>
+  <div class="auth-field">
+    <input type="text" class="auth-input" id="login-username" name="username" placeholder="Username..." autocomplete="username" required>
+  </div>
 
-<input type="password" class="form-control mb-2" id="login-password" name="password" placeholder="Password..." autocomplete="current-password" required>
+  <div class="auth-field">
+    <input type="password" class="auth-input" id="login-password" name="password" placeholder="Password..." autocomplete="current-password" required>
+  </div>
 
-<div id="login-error" class="alert alert-danger mb-2" style="display:none"></div>
-<div id="login-status" class="text-muted text-center mb-2" style="display:none">Deriving keys...</div>
+  <div id="login-error" class="auth-error"></div>
+  <div id="login-status" class="auth-status">Deriving keys...</div>
 
-<p class="text-center">Need an account? <a href="/register">Register now!</a></p>
-<p class="text-center"><a href="#" id="show-recovery" style="font-size:0.85rem">Forgot password? Use recovery key</a></p>
+  <p class="auth-alt">Need an account? <a class="auth-link" href="/register">Register now!</a></p>
+  <p class="auth-alt"><a class="auth-link" href="#" id="show-recovery" style="font-size:12px">Forgot password? Use recovery key</a></p>
 
-<button class="w-100 btn btn-primary" type="submit" id="login-btn">Sign in</button>
+  <button class="auth-btn" type="submit" id="login-btn">Sign in</button>
 </form>
 
-<!-- Recovery modal -->
-<div id="recovery-section" style="display:none" class="mt-4 p-3 border rounded">
-    <h5>Account Recovery</h5>
-    <input type="text" class="form-control mb-2" id="recovery-username" placeholder="Username..." autocomplete="username">
-    <textarea class="form-control mb-2" id="recovery-key-input" rows="3" placeholder="Paste your recovery key..."></textarea>
-    <input type="password" class="form-control mb-2" id="recovery-new-password" placeholder="New password (min 8 chars)..." autocomplete="new-password">
-    <div id="recovery-error" class="alert alert-danger mb-2" style="display:none"></div>
-    <div id="recovery-status" class="text-muted text-center mb-2" style="display:none"></div>
-    <button class="btn btn-warning w-100" id="recovery-btn">Recover Account</button>
+<!-- Recovery key section -->
+<div id="recovery-section" class="auth-recovery">
+    <h2>Account Recovery</h2>
+    <div class="auth-field">
+      <input type="text" class="auth-input" id="recovery-username" placeholder="Username..." autocomplete="username">
+    </div>
+    <div class="auth-field">
+      <textarea class="auth-textarea" id="recovery-key-input" rows="3" placeholder="Paste your recovery key..."></textarea>
+    </div>
+    <div class="auth-field">
+      <input type="password" class="auth-input" id="recovery-new-password" placeholder="New password (min 8 chars)..." autocomplete="new-password">
+    </div>
+    <div id="recovery-error" class="auth-error"></div>
+    <div id="recovery-status" class="auth-status"></div>
+    <button class="auth-btn auth-btn-warning" id="recovery-btn">Recover Account</button>
 </div>
 </div>
 
