@@ -33,6 +33,11 @@
     // of the round that replaced it.
     var roundGen = 0;
     var _roundPartial = '';
+    // Tool context for the in-flight round, one entry per tool iteration
+    // (the server mirrors each assistant tool-call message): an assistant
+    // message with tool_calls plus its tool results, reconstructed into the
+    // transcript so later rounds reuse the raw sources instead of re-searching.
+    var _roundToolContext = [];
 
     function getCSRFToken() {
         var cookie = document.cookie.split('; ').find(function (c) { return c.startsWith('X-CSRF-Token='); });
@@ -156,8 +161,6 @@
         runRound(false);
     }
 
-    var _pendingInstruction = null;
-
     function abortCurrentRound() {
         if (_currentAbortController) {
             roundGen += 1;
@@ -166,8 +169,9 @@
             // round produced right here before nulling the controller.
             _currentAbortController.abort();
             _currentAbortController = null;
-            salvagePartial(_roundPartial);
+            salvageRound(_roundPartial, _roundToolContext);
             _roundPartial = '';
+            _roundToolContext = [];
         }
     }
 
@@ -221,6 +225,7 @@
         _currentAbortController = abortController;
         var gen = roundGen;
         _roundPartial = '';
+        _roundToolContext = [];
 
         var toolLinesEl = null;
 
@@ -247,7 +252,7 @@
             function read() {
                 reader.read().then(function (result) {
                     if (gen !== roundGen) { reader.cancel(); return; }
-                    if (result.done) { if (!roundFinished) { roundFinished = true; roundFailed('Connection lost.', _roundPartial); } return; }
+                    if (result.done) { if (!roundFinished) { roundFinished = true; roundFailed('Connection lost.', _roundPartial, _roundToolContext); } return; }
                     var chunk = decoder.decode(result.value, { stream: true });
                     chunk.split('\n').forEach(function (line) {
                         if (line.startsWith('data: ')) {
@@ -267,17 +272,28 @@
                                     feedEl.scrollTop = feedEl.scrollHeight;
                                     setStatus('running-text', 'Round ' + roundCount + ' — ' + label.toLowerCase() + '...');
                                 }
+                                else if (data.tool_calls) {
+                                    // Server mirrors the assistant tool-call
+                                    // message; hold it until its results arrive.
+                                    _roundToolContext.push({ role: 'assistant', content: data.text || '', tool_calls: data.tool_calls, results: [] });
+                                }
+                                else if (data.tool_result) {
+                                    var ctx = _roundToolContext[_roundToolContext.length - 1];
+                                    if (ctx) {
+                                        ctx.results.push({ role: 'tool', content: data.content, tool_name: data.name });
+                                    }
+                                }
                                 else if (data.chunk) {
                                     _roundPartial += data.chunk;
                                     setStatus('running-text', 'Round ' + roundCount + ' — thinking...');
                                 }
                                 else if (data.error) {
                                     roundFinished = true;
-                                    roundFailed(data.error, data.content || '');
+                                    roundFailed(data.error, _roundPartial, _roundToolContext);
                                 }
                                 else if (data.round_done) {
                                     roundFinished = true;
-                                    roundComplete(data.content, data.final, finish);
+                                    roundComplete(data.content, data.last_text, data.final, finish);
                                 }
                             } catch (e) {}
                         }
@@ -295,37 +311,54 @@
         }).catch(function (err) {
             if (gen !== roundGen) return;
             if (err.name === 'AbortError') return;
-            roundFailed('Connection error. Please try again.', _roundPartial);
+            roundFailed('Connection error. Please try again.', _roundPartial, _roundToolContext);
         });
     }
 
-    // Salvage partial findings into the transcript and the feed so nothing
-    // is lost when a round ends unexpectedly.
-    function salvagePartial(content) {
-        if (!content || !content.trim()) return false;
-        transcript.push({ role: 'assistant', content: content });
-        addFeedEntry('ai-research-feed-round', 'Round ' + roundCount + ' findings (partial, preserved):');
-        var entry = document.createElement('div');
-        entry.className = 'ai-research-feed-content';
-        entry.innerHTML = renderMarkdown(content);
-        feedEl.appendChild(entry);
-        entry.querySelectorAll('pre code').forEach(function (b) { if (window.hljs) hljs.highlightElement(b); });
-        feedEl.scrollTop = feedEl.scrollHeight;
-        return true;
+    // Salvage a round that ended unexpectedly: keep whatever the model
+    // produced (text so far + tool call/result context) in the transcript
+    // so later rounds can build on it without re-searching.
+    function salvageRound(partialContent, toolContext) {
+        var iterations = Array.isArray(toolContext) ? toolContext : [];
+        var iterText = '';
+        iterations.forEach(function (ctx) {
+            transcript.push({ role: 'assistant', content: ctx.content || '', tool_calls: ctx.tool_calls });
+            ctx.results.forEach(function (r) { transcript.push(r); });
+            iterText += ctx.content || '';
+        });
+        // _roundPartial accumulates text across all iterations; the suffix
+        // beyond the flushed iterations is the in-flight iteration's text.
+        var currentPartial = (partialContent && partialContent.startsWith(iterText))
+            ? partialContent.substring(iterText.length)
+            : (partialContent || '');
+        if (currentPartial && currentPartial.trim()) {
+            transcript.push({ role: 'assistant', content: currentPartial });
+        }
+        var shown = currentPartial.trim() ? currentPartial : (iterations.length ? '' : (partialContent || ''));
+        if (shown && shown.trim()) {
+            addFeedEntry('ai-research-feed-round', 'Round ' + roundCount + ' findings (partial, preserved):');
+            var entry = document.createElement('div');
+            entry.className = 'ai-research-feed-content';
+            entry.innerHTML = renderMarkdown(shown);
+            feedEl.appendChild(entry);
+            entry.querySelectorAll('pre code').forEach(function (b) { if (window.hljs) hljs.highlightElement(b); });
+            feedEl.scrollTop = feedEl.scrollHeight;
+        }
     }
 
-    function roundFailed(errorMsg, partialContent) {
+    function roundFailed(errorMsg, partialContent, toolContext) {
         _currentAbortController = null;
-        salvagePartial(partialContent);
+        var iterations = Array.isArray(toolContext) ? toolContext : [];
+        var preserved = (partialContent && partialContent.trim()) || iterations.some(function (c) { return c.content.trim() || c.results.length; });
+        salvageRound(partialContent, toolContext);
         state = 'paused';
-        setStatus('error', errorMsg + (partialContent && partialContent.trim() ? ' Partial findings preserved. Resume, redirect, or finish.' : ' Resume, redirect, or finish.'));
+        setStatus('error', errorMsg + (preserved ? ' Partial findings preserved. Resume, redirect, or finish.' : ' Resume, redirect, or finish.'));
         addFeedEntry('ai-research-feed-error', errorMsg);
         updateControls();
     }
 
-    function roundComplete(content, final, wasFinish) {
+    function roundComplete(content, lastText, final, wasFinish) {
         _currentAbortController = null;
-        _pendingInstruction = null;
         if (content && content.trim()) {
             addFeedEntry('ai-research-feed-round', 'Round ' + roundCount + ' findings:');
             var entry = document.createElement('div');
@@ -335,10 +368,22 @@
             entry.querySelectorAll('pre code').forEach(function (b) { if (window.hljs) hljs.highlightElement(b); });
             feedEl.scrollTop = feedEl.scrollHeight;
         }
-        transcript.push({ role: 'assistant', content: content || '' });
+        // Reconstruct the round in the transcript exactly as the server built
+        // it for the model: for each tool iteration an assistant message
+        // (text + tool_calls) followed by the tool results, then the final
+        // assistant text.
+        _roundToolContext.forEach(function (ctx) {
+            transcript.push({ role: 'assistant', content: ctx.content || '', tool_calls: ctx.tool_calls });
+            ctx.results.forEach(function (r) { transcript.push(r); });
+        });
+        _roundToolContext = [];
+        transcript.push({ role: 'assistant', content: (lastText && lastText.trim()) ? lastText : (content || '') });
 
         if (final || wasFinish || roundCount >= maxRounds) {
-            researchDone(content || '');
+            // last_text is the model's final segment for this round (not
+            // accumulated prior iterations) — the result block and export
+            // use it, avoiding duplicated interim text.
+            researchDone((lastText && lastText.trim()) ? lastText : (content || ''));
         } else {
             transcript.push({ role: 'user', content: 'Continue researching based on your findings so far. If you have enough information, give your final answer without calling tools.' });
             state = 'running';
@@ -431,7 +476,8 @@
         transcript = [];
         roundCount = 0;
         topic = '';
-        _pendingInstruction = null;
+        _roundPartial = '';
+        _roundToolContext = [];
         topicInput.value = '';
         redirectInput.value = '';
         feedEl.innerHTML = '';

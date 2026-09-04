@@ -548,6 +548,30 @@ RESEARCH_SYSTEM_PROMPT = (
 )
 
 
+def _plain_tool_calls(tool_calls):
+    """Normalize Ollama tool calls (pydantic ToolCall objects or plain
+    dicts) into JSON-serializable dicts."""
+    plain = []
+    for tc in tool_calls or []:
+        if isinstance(tc, dict):
+            fn = tc.get("function", {}) or {}
+            name = fn.get("name", "")
+            arguments = fn.get("arguments", {}) or {}
+        else:
+            fn = getattr(tc, "function", None)
+            name = getattr(fn, "name", "") if fn else ""
+            arguments = getattr(fn, "arguments", {}) if fn else {}
+        if hasattr(arguments, "model_dump"):
+            arguments = arguments.model_dump()
+        elif not isinstance(arguments, dict):
+            try:
+                arguments = dict(arguments)
+            except (TypeError, ValueError):
+                arguments = {}
+        plain.append({"function": {"name": name, "arguments": arguments}})
+    return plain
+
+
 @ai_bp.route("/api/research/round", methods=["POST"])
 def research_round():
     """Run one bounded round of client-driven research.
@@ -598,22 +622,30 @@ def research_round():
                 stream = client.chat(**kwargs)
                 tool_calls = []
                 assistant_msg = {"role": "assistant", "content": ""}
+                iteration_text = []
                 for part in stream:
                     message = part.get("message", {})
                     chunk = message.get("content", "")
                     if chunk:
                         assistant_msg["content"] += chunk
                         full_response.append(chunk)
+                        iteration_text.append(chunk)
                         yield f"data: {json.dumps({'chunk': chunk})}\n\n"
                     for tc in message.get("tool_calls") or []:
                         tool_calls.append(tc)
-                if not tool_calls:
-                    break
-                if rounds >= research_max_rounds:
+                last_text = "".join(iteration_text)
+                complete_text = "".join(full_response)
+                if not tool_calls or rounds >= research_max_rounds:
+                    yield f"data: {json.dumps({'round_done': True, 'content': complete_text, 'last_text': last_text, 'final': not tool_calls})}\n\n"
                     break
                 rounds += 1
+                tool_calls = _plain_tool_calls(tool_calls)
                 assistant_msg["tool_calls"] = tool_calls
                 messages.append(assistant_msg)
+                # Mirror the assistant tool-call message to the client so it
+                # can reconstruct the conversation (incl. tool results) in
+                # its transcript and reuse the raw sources on later rounds.
+                yield f"data: {json.dumps({'tool_calls': tool_calls, 'text': last_text})}\n\n"
                 for tc in tool_calls:
                     fn = tc.get("function", {})
                     name = fn.get("name", "")
@@ -630,8 +662,7 @@ def research_round():
                     messages.append(
                         {"role": "tool", "content": content, "tool_name": name}
                     )
-            complete_text = "".join(full_response)
-            yield f"data: {json.dumps({'round_done': True, 'content': complete_text, 'final': not tool_calls})}\n\n"
+                    yield f"data: {json.dumps({'tool_result': True, 'name': name, 'content': content})}\n\n"
         except Exception as e:
             logger.error("Ollama research round error: %s", e)
             payload = {"error": "An error occurred while researching. Please try again."}

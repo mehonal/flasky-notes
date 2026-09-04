@@ -137,10 +137,19 @@ def test_research_round_tool_then_final(monkeypatch, auth_client):
     events = _sse_events(r)
     assert "error" not in events[-1]
 
-    tool_events = [e for e in events if "tool" in e]
+    tool_events = [e for e in events if "tool" in e and "tool_calls" not in e and not e.get("tool_result")]
     assert len(tool_events) == 1
     assert tool_events[0]["tool"] == "web_search"
     assert tool_events[0]["query"] == "flask notes"
+
+    tool_call_events = [e for e in events if "tool_calls" in e]
+    assert len(tool_call_events) == 1
+    assert tool_call_events[0]["tool_calls"][0]["function"]["name"] == "web_search"
+
+    tool_result_events = [e for e in events if e.get("tool_result")]
+    assert len(tool_result_events) == 1
+    assert tool_result_events[0]["name"] == "web_search"
+    assert "flask notes" in tool_result_events[0]["content"] or tool_result_events[0]["content"]
 
     text = "".join(e["chunk"] for e in events if "chunk" in e)
     assert text == "Final answer."
@@ -149,6 +158,7 @@ def test_research_round_tool_then_final(monkeypatch, auth_client):
     assert done
     assert done[0]["final"] is True
     assert done[0]["content"] == "Final answer."
+    assert done[0]["last_text"] == "Final answer."
 
     from flasky.models import AiMessage, AiConversation
     assert AiMessage.query.count() == 0
@@ -317,6 +327,96 @@ def test_research_round_error_preserves_partial_content(monkeypatch, auth_client
     errors = [e for e in events if "error" in e]
     assert errors, "expected an error event"
     assert errors[0]["content"] == "Partial finding: the topic is about encrypted notes."
+
+
+def test_research_round_serializes_pydantic_like_tool_calls(monkeypatch, auth_client):
+    """The ollama SDK returns pydantic ToolCall objects, not dicts; the
+    tool_calls SSE event must still serialize (regression: 'Object of type
+    ToolCall is not JSON serializable')."""
+    client, _ = auth_client
+    u = _enable_ai(auth_client)
+    _enable_research(u)
+
+    import flasky.blueprints.ai as ai_bp_mod
+
+    class FakeFunction:
+        name = "web_search"
+        arguments = {"query": "maduro"}
+
+    class FakeToolCall:
+        function = FakeFunction()
+
+    class FakeClient:
+        calls = 0
+
+        def chat(self, **kwargs):
+            FakeClient.calls += 1
+            if kwargs.get("tools") and FakeClient.calls == 1:
+                return iter([
+                    {"message": {"content": "Searching...", "tool_calls": [FakeToolCall()]}},
+                ])
+            return iter([{"message": {"content": "Answer after tools."}}])
+
+    monkeypatch.setattr(ai_bp_mod, "_get_ollama_client", lambda settings: FakeClient())
+
+    monkeypatch.setattr(
+        ai_bp_mod.requests, "post",
+        lambda endpoint, headers=None, json=None, timeout=None: type("R", (), {
+            "raise_for_status": lambda self: None,
+            "json": lambda self: {"results": [{"title": "t", "url": "u", "content": "c"}]},
+        })(),
+    )
+
+    r = client.post("/ai/api/research/round", json={"messages": [
+        {"role": "user", "content": "Research this topic thoroughly: maduro"},
+    ]})
+    assert r.status_code == 200
+    events = _sse_events(r)
+    assert "error" not in events[0], events
+    tool_call_events = [e for e in events if "tool_calls" in e]
+    assert len(tool_call_events) == 1
+    assert tool_call_events[0]["tool_calls"] == [
+        {"function": {"name": "web_search", "arguments": {"query": "maduro"}}}
+    ]
+    done = [e for e in events if e.get("round_done")]
+    assert done
+    assert done[0]["content"] == "Searching...Answer after tools."
+    assert done[0]["last_text"] == "Answer after tools."
+
+
+def test_research_round_accepts_transcript_with_tool_context(monkeypatch, auth_client):
+    """The client mirrors tool_calls/tool_result events back as transcript
+    messages on later rounds; the server must accept that shape."""
+    client, _ = auth_client
+    u = _enable_ai(auth_client)
+    _enable_research(u)
+
+    import flasky.blueprints.ai as ai_bp_mod
+
+    seen_messages = []
+
+    class FakeClient:
+        def chat(self, **kwargs):
+            seen_messages.append(kwargs["messages"])
+            return iter([{"message": {"content": "Follow-up answer."}}])
+
+    monkeypatch.setattr(ai_bp_mod, "_get_ollama_client", lambda settings: FakeClient())
+
+    r = client.post("/ai/api/research/round", json={"messages": [
+        {"role": "user", "content": "Research this topic thoroughly: x"},
+        {"role": "assistant", "content": "Searching for x.", "tool_calls": [
+            {"function": {"name": "web_search", "arguments": {"query": "x"}}},
+        ]},
+        {"role": "tool", "content": '{"results": []}', "tool_name": "web_search"},
+        {"role": "assistant", "content": "Interim findings about x."},
+        {"role": "user", "content": "Redirect instruction: focus on y"},
+    ]})
+    assert r.status_code == 200
+    events = _sse_events(r)
+    assert "error" not in events[0]
+    msgs = seen_messages[0]
+    assert [m["role"] for m in msgs] == ["system", "user", "assistant", "tool", "assistant", "user"]
+    assert msgs[2]["tool_calls"][0]["function"]["name"] == "web_search"
 
 
 def test_ai_page_fragment_includes_research_flag(auth_client):
