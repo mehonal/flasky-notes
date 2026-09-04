@@ -617,6 +617,9 @@
     letter-spacing: 0.04em; margin-bottom: 8px;
 }
 #ai-root .ai-research-result-body { font-size: 13px; color: var(--text-secondary); line-height: 1.6; }
+#ai-root .ai-research-result-body p { margin: 0 0 6px; }
+#ai-root .ai-research-result-body p:last-child { margin-bottom: 0; }
+#ai-root .ai-research-result-body ul, #ai-root .ai-research-result-body ol { margin: 4px 0; padding-left: 20px; }
 #ai-root .ai-research-result-body pre {
     background: var(--bg-secondary); border: 1px solid var(--border);
     border-radius: var(--radius-sm); padding: 10px; overflow-x: auto;
