@@ -12,6 +12,7 @@ from flask import (
 import json
 import logging
 import re
+from datetime import datetime, timedelta
 
 import requests
 from marshmallow import ValidationError
@@ -412,7 +413,6 @@ def chat(conv_id):
         return jsonify(error="Message cannot be empty."), 400
     user_msg = AiMessage(conversation_id=conv.id, role="user", content=user_content)
     db.session.add(user_msg)
-    from datetime import datetime
 
     conv.updated_at = datetime.utcnow()
     db.session.commit()
@@ -679,6 +679,54 @@ def research_round():
             "X-Accel-Buffering": "no",
         },
     )
+
+
+@ai_bp.route("/api/research/conversation", methods=["POST"])
+def research_to_conversation():
+    """Convert a client-side research transcript into an AI chat conversation.
+
+    The client sends the title and user/assistant messages it wants
+    preserved (already E2EE-encrypted when enabled — the server stores
+    opaque ciphertext). Tool-call/tool-result context is research-loop
+    internal state; the client strips it before sending.
+    """
+    err = _check_ai_enabled()
+    if err:
+        return err
+    data = request.get_json(silent=True) or {}
+    title = (data.get("title") or "").strip() or "AI Research"
+    client_messages = data.get("messages")
+    if not isinstance(client_messages, list) or not client_messages:
+        return jsonify(error="messages is required."), 400
+    clean = []
+    for m in client_messages:
+        if (
+            not isinstance(m, dict)
+            or m.get("role") not in ("user", "assistant")
+            or not isinstance(m.get("content"), str)
+            or not m["content"].strip()
+        ):
+            return jsonify(
+                error="Each message must have role user/assistant and non-empty string content."
+            ), 400
+        clean.append({"role": m["role"], "content": m["content"]})
+    if len(clean) > 500:
+        return jsonify(error="Too many messages."), 400
+    conv = AiConversation(user_id=g.user.id, title=title[:500])
+    db.session.add(conv)
+    db.session.flush()
+    base = datetime.utcnow()
+    for i, m in enumerate(clean):
+        db.session.add(
+            AiMessage(
+                conversation_id=conv.id,
+                role=m["role"],
+                content=m["content"],
+                created_at=base + timedelta(seconds=i),
+            )
+        )
+    db.session.commit()
+    return jsonify(conv.return_json())
 
 
 @ai_bp.route("/api/messages/<int:message_id>/encrypt", methods=["PUT"])

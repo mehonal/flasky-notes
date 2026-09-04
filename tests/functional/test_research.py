@@ -82,6 +82,56 @@ def test_research_round_requires_api_key(auth_client):
     assert r.status_code == 400
 
 
+def test_research_to_conversation(auth_client):
+    client, _ = auth_client
+    _enable_ai(auth_client)
+    from flasky.models import AiConversation, AiMessage
+    r = client.post("/ai/api/research/conversation", json={
+        "title": "Maduro research",
+        "messages": [
+            {"role": "user", "content": "Research topic: who is Maduro"},
+            {"role": "assistant", "content": "Findings about Maduro."},
+            {"role": "user", "content": "Follow-up: his cabinet"},
+            {"role": "assistant", "content": "Cabinet details."},
+        ],
+    })
+    assert r.status_code == 200
+    conv_id = r.json["id"]
+    conv = AiConversation.query.get(conv_id)
+    assert conv is not None and conv.user_id is not None
+    msgs = AiMessage.query.filter_by(conversation_id=conv_id).order_by(AiMessage.created_at.asc()).all()
+    assert [m.role for m in msgs] == ["user", "assistant", "user", "assistant"]
+    assert msgs[0].content == "Research topic: who is Maduro"
+    assert msgs[3].content == "Cabinet details."
+
+
+def test_research_to_conversation_rejects_tool_messages(auth_client):
+    client, _ = auth_client
+    _enable_ai(auth_client)
+    r = client.post("/ai/api/research/conversation", json={
+        "title": "x",
+        "messages": [
+            {"role": "user", "content": "topic"},
+            {"role": "tool", "content": '{"results": []}', "tool_name": "web_search"},
+        ],
+    })
+    assert r.status_code == 400
+    r = client.post("/ai/api/research/conversation", json={"title": "x", "messages": []})
+    assert r.status_code == 400
+    r = client.post("/ai/api/research/conversation", json={
+        "title": "x", "messages": [{"role": "user", "content": "   "}],
+    })
+    assert r.status_code == 400
+
+
+def test_research_to_conversation_requires_ai_enabled(auth_client):
+    client, _ = auth_client
+    r = client.post("/ai/api/research/conversation", json={
+        "title": "x", "messages": [{"role": "user", "content": "topic"}],
+    })
+    assert r.status_code == 403
+
+
 def _install_fake_client(monkeypatch, responses):
     """responses: list of iterables of stream parts, one per model call."""
     import flasky.blueprints.ai as ai_bp_mod

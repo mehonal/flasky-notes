@@ -33,6 +33,11 @@
     // of the round that replaced it.
     var roundGen = 0;
     var _roundPartial = '';
+    // Readable log of the research session for chat export: topic,
+    // redirect/follow-up instructions (user turns), and each round's
+    // findings/final text (assistant turns). Kept separate from the
+    // model transcript, which contains tool-call plumbing.
+    var chatLog = [];
     // Tool context for the in-flight round, one entry per tool iteration
     // (the server mirrors each assistant tool-call message): an assistant
     // message with tool_calls plus its tool results, reconstructed into the
@@ -51,6 +56,7 @@
 
     var COPY_ICON = '<svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
     var EXPORT_ICON = '<svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>';
+    var CHAT_ICON = '<svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>';
 
     var modal, startSection, sessionSection, topicInput, depthSelect, formatSelect,
         toneSelect, extraInput, optionsDisplay, startBtn, topicDisplay,
@@ -212,6 +218,7 @@
         var tone = toneSelect ? toneSelect.value : 'neutral';
         var extra = extraInput ? extraInput.value.trim() : '';
         transcript = [{ role: 'user', content: buildInitialPrompt(t, depth, format, tone, extra) }];
+        chatLog = [{ role: 'user', content: 'Research topic: ' + t }];
         roundCount = 0;
         feedEl.innerHTML = '';
         topicDisplay.textContent = t;
@@ -286,6 +293,7 @@
 
     function applyInstruction(instruction) {
         transcript.push({ role: 'user', content: 'Redirect instruction: ' + instruction + '\n\nContinue the research accordingly. If you already have enough information, give your final answer without calling tools.' });
+        chatLog.push({ role: 'user', content: (state === 'done' ? 'Follow-up: ' : 'Redirect: ') + instruction });
         addFeedEntry('ai-research-feed-redirect', (state === 'done' ? 'Follow-up: ' : 'Redirect: ') + instruction);
         runRound(false);
     }
@@ -410,6 +418,7 @@
         }
         var shown = currentPartial.trim() ? currentPartial : (iterations.length ? '' : (partialContent || ''));
         if (shown && shown.trim()) {
+            chatLog.push({ role: 'assistant', content: shown });
             addFeedEntry('ai-research-feed-round', 'Round ' + roundCount + ' findings (partial, preserved):');
             var entry = document.createElement('div');
             entry.className = 'ai-research-feed-content';
@@ -452,6 +461,7 @@
         });
         _roundToolContext = [];
         transcript.push({ role: 'assistant', content: (lastText && lastText.trim()) ? lastText : (content || '') });
+        chatLog.push({ role: 'assistant', content: (lastText && lastText.trim()) ? lastText : (content || '') });
 
         if (final || wasFinish || roundCount >= maxRounds) {
             // last_text is the model's final segment for this round (not
@@ -507,6 +517,10 @@
             exportBtn.className = 'ai-message-action-btn'; exportBtn.title = 'Export result to a note'; exportBtn.innerHTML = EXPORT_ICON;
             exportBtn.addEventListener('click', function () { exportToNote(text); });
             actions.appendChild(exportBtn);
+            var chatBtn = document.createElement('button');
+            chatBtn.className = 'ai-message-action-btn'; chatBtn.title = 'Continue as AI chat'; chatBtn.innerHTML = CHAT_ICON;
+            chatBtn.addEventListener('click', function () { exportToChat(); });
+            actions.appendChild(chatBtn);
         }
         var newBtn = document.createElement('button');
         newBtn.className = 'ai-research-new-btn'; newBtn.textContent = 'New research';
@@ -514,6 +528,29 @@
         actions.appendChild(newBtn);
         wrap.appendChild(actions);
         return wrap;
+    }
+
+    function exportToChat() {
+        if (!chatLog.length) return;
+        // Collapse consecutive same-role turns so the chat reads like a
+        // conversation (e.g. salvaged partial + next round's text).
+        var collapsed = [];
+        chatLog.forEach(function (m) {
+            var content = (m.content || '').trim();
+            if (!content) return;
+            var last = collapsed[collapsed.length - 1];
+            if (last && last.role === m.role) last.content += '\n\n' + content;
+            else collapsed.push({ role: m.role, content: content });
+        });
+        if (!collapsed.length) return;
+        var evt;
+        try {
+            evt = new CustomEvent('flasky:research-to-chat', { detail: { title: topic, messages: collapsed } });
+        } catch (e) {
+            evt = document.createEvent('CustomEvent');
+            evt.initCustomEvent('flasky:research-to-chat', true, false, { title: topic, messages: collapsed });
+        }
+        document.dispatchEvent(evt);
     }
 
     function exportToNote(text) {
@@ -548,6 +585,7 @@
     function resetSession() {
         state = 'idle';
         transcript = [];
+        chatLog = [];
         roundCount = 0;
         topic = '';
         _roundPartial = '';

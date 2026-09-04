@@ -179,6 +179,38 @@
             });
         }
 
+        bindDoc(document, 'flasky:research-to-chat', async function (e) {
+            var detail = e.detail || {};
+            var title = (detail.title || 'AI Research').substring(0, 100);
+            var messages = Array.isArray(detail.messages) ? detail.messages : [];
+            if (!messages.length) return;
+            try {
+                var payloadTitle = title;
+                if (isEncrypted) payloadTitle = await encryptIfNeeded(title);
+                var payloadMessages = [];
+                for (var i = 0; i < messages.length; i++) {
+                    var content = messages[i].content || '';
+                    payloadMessages.push({ role: messages[i].role, content: isEncrypted ? await encryptIfNeeded(content) : content });
+                }
+                var r = await fetch('/ai/api/research/conversation', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRFToken() },
+                    body: JSON.stringify({ title: payloadTitle, messages: payloadMessages })
+                });
+                var data = await r.json();
+                if (!r.ok || data.error) { alert(data.error || 'Failed to create chat.'); return; }
+                conversationId = data.id; currentConvData = data;
+                loadMessages(data.id);
+                loadConversations();
+                updatePanel();
+                var toast = document.createElement('div');
+                toast.className = 'ai-toast'; toast.textContent = 'Research saved as chat.';
+                document.body.appendChild(toast);
+                setTimeout(function () { toast.style.opacity = '0'; toast.style.transition = 'opacity 0.3s'; setTimeout(function () { toast.remove(); }, 300); }, 5000);
+            } catch (err) {
+                alert('Failed to create chat.');
+            }
+        });
+
         function clearMessages() {
             messagesEl.innerHTML = ''; localMessages = [];
             var empty = document.createElement('div');
