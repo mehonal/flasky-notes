@@ -537,9 +537,14 @@ RESEARCH_SYSTEM_PROMPT = (
     "as appropriate, cite sources (title + URL) for key claims, and note "
     "confidence or gaps.\n"
     "4. If the user sends a redirect instruction, incorporate it immediately "
-    "and steer your next searches accordingly.\n"
+    "and steer your next searches accordingly. A redirect may arrive while "
+    "you were mid-investigation — treat your last message as interrupted "
+    "work-in-progress and build on it, do not restart from scratch.\n"
     "5. If the user asks you to finish now, stop searching and produce the "
     "final answer from what you have already found.\n"
+    "6. After giving a final answer, the user may ask follow-up questions "
+    "about the result — answer them, searching again only if needed, and "
+    "produce an updated final answer without calling tools when you can.\n"
 )
 
 
@@ -629,7 +634,11 @@ def research_round():
             yield f"data: {json.dumps({'round_done': True, 'content': complete_text, 'final': not tool_calls})}\n\n"
         except Exception as e:
             logger.error("Ollama research round error: %s", e)
-            yield f"data: {json.dumps({'error': 'An error occurred while researching. Please try again.'})}\n\n"
+            payload = {"error": "An error occurred while researching. Please try again."}
+            partial = "".join(full_response)
+            if partial:
+                payload["content"] = partial
+            yield f"data: {json.dumps(payload)}\n\n"
 
     return Response(
         stream_with_context(generate()),

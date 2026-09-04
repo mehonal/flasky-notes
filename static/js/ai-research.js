@@ -5,7 +5,11 @@
  * POST /ai/api/research/round request per round, maintains the full
  * transcript locally, and renders streamed chunks/tool activity live.
  * The server persists nothing. The user can stop the current round,
- * redirect the research between rounds, or force a final answer.
+ * steer the research live (mid-round or between rounds), force a final
+ * answer, or follow up on a finished result. Partial findings are
+ * always preserved: on errors, connection loss, or user-initiated
+ * aborts, whatever the model produced so far is salvaged into the
+ * transcript and the user can resume without losing progress.
  */
 (function () {
     'use strict';
@@ -23,6 +27,12 @@
     var roundCount = 0;
     var maxRounds = 10;
     var topic = '';
+    // Round generation guard: incremented whenever a round is superseded
+    // (aborted/reset). In-flight async handlers compare their captured gen
+    // and no-op if stale, so an aborted round can never clobber the state
+    // of the round that replaced it.
+    var roundGen = 0;
+    var _roundPartial = '';
 
     function getCSRFToken() {
         var cookie = document.cookie.split('; ').find(function (c) { return c.startsWith('X-CSRF-Token='); });
@@ -38,7 +48,7 @@
     var EXPORT_ICON = '<svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>';
 
     var modal, startSection, sessionSection, topicInput, startBtn, topicDisplay,
-        statusEl, feedEl, stopBtn, finishBtn, redirectBtn, redirectRow,
+        statusEl, feedEl, stopBtn, finishBtn, resumeBtn, redirectRow,
         redirectInput, redirectSendBtn, closeBtn, chip;
 
     function $(id) { return document.getElementById(id); }
@@ -62,7 +72,7 @@
         feedEl = $('ai-research-feed');
         stopBtn = $('ai-research-stop-btn');
         finishBtn = $('ai-research-finish-btn');
-        redirectBtn = $('ai-research-redirect-btn');
+        resumeBtn = $('ai-research-resume-btn');
         redirectRow = $('ai-research-redirect-row');
         redirectInput = $('ai-research-redirect-input');
         redirectSendBtn = $('ai-research-redirect-send-btn');
@@ -78,22 +88,21 @@
         });
         bind(stopBtn, 'click', stopRound);
         bind(finishBtn, 'click', finishNow);
-        bind(redirectBtn, 'click', toggleRedirectRow);
-        bind(redirectSendBtn, 'click', applyRedirect);
+        bind(resumeBtn, 'click', resumeResearch);
+        bind(redirectSendBtn, 'click', sendInstruction);
         bind(redirectInput, 'keydown', function (e) {
-            if (e.key === 'Enter') { e.preventDefault(); applyRedirect(); }
+            if (e.key === 'Enter') { e.preventDefault(); sendInstruction(); }
         });
     }
 
-    function openModal() { modal.style.display = 'flex'; if (state === 'idle') topicInput.focus(); }
+    function openModal() { modal.style.display = 'flex'; if (state === 'idle') topicInput.focus(); else redirectInput.focus(); }
 
     function closeModal() {
         if (state === 'running') {
-            if (!confirm('Research is still running. Close the panel? (The current round will be stopped.)')) return;
+            if (!confirm('Research is still running. Close the panel? (The current round will be stopped; partial findings are preserved and you can resume.)')) return;
             stopRound();
         }
         modal.style.display = 'none';
-        redirectRow.style.display = 'none';
     }
 
     function showStart() {
@@ -124,8 +133,14 @@
         var busy = state === 'running';
         stopBtn.style.display = busy ? '' : 'none';
         finishBtn.style.display = (state === 'paused' || busy) ? '' : 'none';
-        redirectBtn.style.display = state === 'paused' ? '' : 'none';
-        if (state !== 'paused') redirectRow.style.display = 'none';
+        resumeBtn.style.display = state === 'paused' ? '' : 'none';
+        // Instruct row: live steering while running, redirect while paused,
+        // follow-up when done. Hidden only in idle.
+        redirectRow.style.display = (state === 'running' || state === 'paused' || state === 'done') ? 'flex' : 'none';
+        redirectSendBtn.textContent = busy ? 'Send' : (state === 'done' ? 'Follow up' : 'Apply');
+        redirectInput.placeholder = busy
+            ? 'Steer the research live (applied after current output is preserved)'
+            : (state === 'done' ? 'Ask a follow-up question about the result' : 'e.g. Focus on pricing, skip the history');
     }
 
     function startResearch() {
@@ -141,37 +156,59 @@
         runRound(false);
     }
 
-    function stopRound() {
-        if (_currentAbortController) { _currentAbortController.abort(); _currentAbortController = null; }
-        if (state === 'running') {
-            state = 'paused';
-            setStatus('paused', 'Stopped. You can redirect, finish, or close.');
-            addFeedEntry('ai-research-feed-note', '— Stopped by user —');
-            updateControls();
+    var _pendingInstruction = null;
+
+    function abortCurrentRound() {
+        if (_currentAbortController) {
+            roundGen += 1;
+            // Salvage synchronously: the reader's abort handler may or may
+            // not have fired yet, so capture whatever partial content the
+            // round produced right here before nulling the controller.
+            _currentAbortController.abort();
+            _currentAbortController = null;
+            salvagePartial(_roundPartial);
+            _roundPartial = '';
         }
     }
 
+    function stopRound() {
+        if (state !== 'running') return;
+        abortCurrentRound();
+        state = 'paused';
+        setStatus('paused', 'Stopped. Partial findings preserved. Redirect, resume, or finish.');
+        addFeedEntry('ai-research-feed-note', '— Stopped by user —');
+        updateControls();
+    }
+
     function finishNow() {
-        if (state !== 'paused') return;
+        if (state !== 'paused' && state !== 'running') return;
+        abortCurrentRound();
         runRound(true);
     }
 
-    function toggleRedirectRow() {
-        redirectRow.style.display = redirectRow.style.display === 'none' ? 'flex' : 'none';
-        if (redirectRow.style.display !== 'none') redirectInput.focus();
+    function resumeResearch() {
+        if (state !== 'paused') return;
+        transcript.push({ role: 'user', content: 'Continue researching based on your findings so far. If you have enough information, give your final answer without calling tools.' });
+        runRound(false);
     }
 
-    function applyRedirect() {
-        if (state !== 'paused') return;
+    function sendInstruction() {
         var instruction = redirectInput.value.trim();
         if (!instruction) { redirectInput.focus(); return; }
-        redirectInput.value = '';
-        redirectRow.style.display = 'none';
+        if (state === 'running') {
+            redirectInput.value = '';
+            abortCurrentRound();
+            addFeedEntry('ai-research-feed-note', '— Round stopped —');
+            applyInstruction(instruction);
+        } else if (state === 'paused' || state === 'done') {
+            redirectInput.value = '';
+            applyInstruction(instruction);
+        }
+    }
+
+    function applyInstruction(instruction) {
         transcript.push({ role: 'user', content: 'Redirect instruction: ' + instruction + '\n\nContinue the research accordingly. If you already have enough information, give your final answer without calling tools.' });
-        addFeedEntry('ai-research-feed-redirect', 'Redirect: ' + instruction);
-        setStatus('running-text', 'Researching...');
-        state = 'running';
-        updateControls();
+        addFeedEntry('ai-research-feed-redirect', (state === 'done' ? 'Follow-up: ' : 'Redirect: ') + instruction);
         runRound(false);
     }
 
@@ -182,8 +219,9 @@
         setStatus('running-text', 'Round ' + roundCount + ' — researching...');
         var abortController = new AbortController();
         _currentAbortController = abortController;
+        var gen = roundGen;
+        _roundPartial = '';
 
-        var roundContent = '';
         var toolLinesEl = null;
 
         fetch('/ai/api/research/round', {
@@ -192,11 +230,13 @@
             body: JSON.stringify({ messages: transcript, finish: finish }),
             signal: abortController.signal
         }).then(function (response) {
+            if (gen !== roundGen) return;
             if (!response.ok) {
                 response.text().then(function (t) {
+                    if (gen !== roundGen) return;
                     var errorMsg = 'Something went wrong. Please try again.';
                     try { var errData = JSON.parse(t); errorMsg = errData.error || errorMsg; } catch (e) {}
-                    roundFailed(errorMsg);
+                    roundFailed(errorMsg, '');
                 });
                 return;
             }
@@ -206,7 +246,8 @@
 
             function read() {
                 reader.read().then(function (result) {
-                    if (result.done) { if (!roundFinished) { roundFinished = true; roundFailed('Connection lost.'); } return; }
+                    if (gen !== roundGen) { reader.cancel(); return; }
+                    if (result.done) { if (!roundFinished) { roundFinished = true; roundFailed('Connection lost.', _roundPartial); } return; }
                     var chunk = decoder.decode(result.value, { stream: true });
                     chunk.split('\n').forEach(function (line) {
                         if (line.startsWith('data: ')) {
@@ -227,12 +268,12 @@
                                     setStatus('running-text', 'Round ' + roundCount + ' — ' + label.toLowerCase() + '...');
                                 }
                                 else if (data.chunk) {
-                                    roundContent += data.chunk;
+                                    _roundPartial += data.chunk;
                                     setStatus('running-text', 'Round ' + roundCount + ' — thinking...');
                                 }
                                 else if (data.error) {
                                     roundFinished = true;
-                                    roundFailed(data.error);
+                                    roundFailed(data.error, data.content || '');
                                 }
                                 else if (data.round_done) {
                                     roundFinished = true;
@@ -243,33 +284,48 @@
                     });
                     read();
                 }).catch(function (err) {
-                    if (err.name === 'AbortError' && !roundFinished) { roundFinished = true; reader.cancel(); roundAborted(); }
+                    if (gen !== roundGen) return;
+                    // Abort handling (salvage + state transition) is done
+                    // synchronously by the caller that aborted; nothing to
+                    // do here.
+                    if (err.name === 'AbortError') { try { reader.cancel(); } catch (e) {} }
                 });
             }
             read();
         }).catch(function (err) {
+            if (gen !== roundGen) return;
             if (err.name === 'AbortError') return;
-            roundFailed('Connection error. Please try again.');
+            roundFailed('Connection error. Please try again.', _roundPartial);
         });
     }
 
-    function roundAborted() {
-        if (state !== 'running') return;
-        state = 'paused';
-        setStatus('paused', 'Round stopped. You can redirect, finish, or close.');
-        addFeedEntry('ai-research-feed-note', '— Round stopped —');
-        updateControls();
+    // Salvage partial findings into the transcript and the feed so nothing
+    // is lost when a round ends unexpectedly.
+    function salvagePartial(content) {
+        if (!content || !content.trim()) return false;
+        transcript.push({ role: 'assistant', content: content });
+        addFeedEntry('ai-research-feed-round', 'Round ' + roundCount + ' findings (partial, preserved):');
+        var entry = document.createElement('div');
+        entry.className = 'ai-research-feed-content';
+        entry.innerHTML = renderMarkdown(content);
+        feedEl.appendChild(entry);
+        entry.querySelectorAll('pre code').forEach(function (b) { if (window.hljs) hljs.highlightElement(b); });
+        feedEl.scrollTop = feedEl.scrollHeight;
+        return true;
     }
 
-    function roundFailed(errorMsg) {
+    function roundFailed(errorMsg, partialContent) {
+        _currentAbortController = null;
+        salvagePartial(partialContent);
         state = 'paused';
-        setStatus('error', errorMsg);
+        setStatus('error', errorMsg + (partialContent && partialContent.trim() ? ' Partial findings preserved. Resume, redirect, or finish.' : ' Resume, redirect, or finish.'));
         addFeedEntry('ai-research-feed-error', errorMsg);
         updateControls();
     }
 
     function roundComplete(content, final, wasFinish) {
         _currentAbortController = null;
+        _pendingInstruction = null;
         if (content && content.trim()) {
             addFeedEntry('ai-research-feed-round', 'Round ' + roundCount + ' findings:');
             var entry = document.createElement('div');
@@ -293,10 +349,11 @@
     function researchDone(finalText) {
         state = 'done';
         _currentAbortController = null;
-        setStatus('done', 'Research complete.');
+        setStatus('done', 'Research complete. Ask a follow-up, or export the result.');
         updateControls();
         feedEl.appendChild(buildResultBlock(finalText));
         feedEl.scrollTop = feedEl.scrollHeight;
+        redirectInput.focus();
     }
 
     function buildResultBlock(text) {
@@ -374,7 +431,9 @@
         transcript = [];
         roundCount = 0;
         topic = '';
+        _pendingInstruction = null;
         topicInput.value = '';
+        redirectInput.value = '';
         feedEl.innerHTML = '';
         setStatus('', '');
         showStart();

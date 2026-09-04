@@ -279,6 +279,46 @@ def test_research_round_tool_failure_degrades_gracefully(monkeypatch, auth_clien
     assert done[0]["content"] == "Recovered."
 
 
+def test_research_round_error_preserves_partial_content(monkeypatch, auth_client):
+    client, _ = auth_client
+    u = _enable_ai(auth_client)
+    _enable_research(u)
+
+    import flasky.blueprints.ai as ai_bp_mod
+
+    class ExplodingClient:
+        def chat(self, **kwargs):
+            return iter([
+                {"message": {"content": "Partial finding: the topic is about "}},
+                {"message": {"content": "encrypted notes."}},
+            ])
+
+    def boom_after_stream(it):
+        def gen():
+            for x in it:
+                yield x
+            raise Exception("stream exploded")
+        return gen()
+
+    class FakeClient:
+        def chat(self, **kwargs):
+            return boom_after_stream([
+                {"message": {"content": "Partial finding: the topic is about "}},
+                {"message": {"content": "encrypted notes."}},
+            ])
+
+    monkeypatch.setattr(ai_bp_mod, "_get_ollama_client", lambda settings: FakeClient())
+
+    r = client.post("/ai/api/research/round", json={"messages": [
+        {"role": "user", "content": "Research this topic thoroughly: x"},
+    ]})
+    assert r.status_code == 200
+    events = _sse_events(r)
+    errors = [e for e in events if "error" in e]
+    assert errors, "expected an error event"
+    assert errors[0]["content"] == "Partial finding: the topic is about encrypted notes."
+
+
 def test_ai_page_fragment_includes_research_flag(auth_client):
     client, _ = auth_client
     u = _enable_ai(auth_client)
