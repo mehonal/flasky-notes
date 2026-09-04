@@ -494,12 +494,13 @@
 
 /* ============ AI Research Mode ============ */
 #ai-root .ai-research-chip svg { fill: none; }
+#ai-research-modal { align-items: center; justify-content: center; padding-top: 0; }
 #ai-root .ai-research-modal-card {
-    width: 640px; max-width: 92vw; max-height: 85vh; display: flex; flex-direction: column;
+    width: 96vw; max-width: 96vw; max-height: 92vh; display: flex; flex-direction: column;
     background: var(--bg-primary); border: 1px solid var(--border-light);
     border-radius: var(--radius-md); box-shadow: var(--shadow-3); overflow: hidden;
 }
-#ai-root .ai-research-body { display: flex; flex-direction: column; min-height: 0; }
+#ai-root .ai-research-body { flex: 1; display: flex; flex-direction: column; min-height: 0; overflow-y: auto; }
 #ai-root .ai-research-start { display: flex; flex-direction: column; gap: 10px; }
 #ai-root .ai-research-topic {
     width: 100%; resize: vertical; min-height: 70px; padding: 10px 12px;
@@ -522,7 +523,7 @@
 #ai-root .ai-research-status-error { color: var(--danger, #e5534b); }
 #ai-root .ai-research-status-done { color: var(--success, #3fb950); }
 #ai-root .ai-research-feed {
-    flex: 1; min-height: 180px; max-height: 50vh; overflow-y: auto; margin-top: 8px;
+    flex: 1; min-height: 180px; overflow-y: auto; margin-top: 8px;
     padding: 10px 12px; border: 1px solid var(--border);
     border-radius: var(--radius-sm); background: var(--bg-secondary);
     display: flex; flex-direction: column; gap: 8px;
