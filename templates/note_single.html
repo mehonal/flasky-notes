@@ -51,6 +51,7 @@
     <script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='js/views/export-view.js') }}"></script>
     <script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='js/views/agenda-view.js') }}"></script>
     <script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='js/views/ai-view.js') }}"></script>
+    <script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='js/ai-research.js') }}"></script>
     <script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='js/views/settings-view.js') }}"></script>
     <script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='js/views/unlock-view.js') }}"></script>
     <style nonce="{{ csp_nonce() }}">:root { --font-size: {{ font_size or 15 }}px; {% if ui_settings.font %}--editor-font: {{ ui_settings.font }};{% endif %} }</style>

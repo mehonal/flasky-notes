@@ -818,6 +818,7 @@
             await initE2EE();
             revealContent();
             if (window.FlaskyTTS) { try { FlaskyTTS.init(); } catch (e) {} }
+            if (window.FlaskyResearch) { try { FlaskyResearch.init(container); } catch (e) {} }
             loadConversations();
             updateVaultChip();
             updateWebSearchChip();
@@ -828,6 +829,7 @@
 
     function destroy() {
         if (window.FlaskyTTS && FlaskyTTS.isSpeaking()) FlaskyTTS.stop();
+        if (window.FlaskyResearch) { try { FlaskyResearch.destroy(); } catch (e) {} }
         if (_currentAbortController) { try { _currentAbortController.abort(); } catch (e) {} _currentAbortController = null; }
         unbindAll();
         _root = null;

@@ -708,6 +708,15 @@ def settings_page():
                 timeout = 30
             set_setting(g.user, "ai_web_search_timeout", timeout)
             db.session.commit()
+        elif "update-ai-research-settings" in request.form:
+            allowed = "ai-research-allowed" in request.form
+            set_setting(g.user, "ai_research_allowed", allowed)
+            try:
+                max_rounds = int(request.form.get("ai-research-max-rounds", "10"))
+            except (TypeError, ValueError):
+                max_rounds = 10
+            set_setting(g.user, "ai_research_max_rounds", max_rounds)
+            db.session.commit()
         elif "resolve-conflict" in request.form:
             conflict_id = request.form.get("conflict-id")
             resolution = request.form.get("resolution")

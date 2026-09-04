@@ -156,10 +156,49 @@
                 <span class="ai-vault-chip-label">Vault</span>
             </button>
             {% endif %}
-            {% if ai_web_search_allowed %}
+{% if ai_research_allowed %}
+<div class="modal-overlay" id="ai-research-modal" style="display:none; z-index:2100;">
+    <div class="modal-card ai-research-modal-card">
+        <div class="modal-header">
+            <span class="modal-title">AI Research</span>
+            <button class="modal-close" id="ai-research-close-btn" aria-label="Close">
+                <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+        </div>
+        <div class="modal-body ai-research-body">
+            <div id="ai-research-start" class="ai-research-start">
+                <textarea class="ai-research-topic" id="ai-research-topic" rows="3" placeholder="What should the AI research?"></textarea>
+                <button class="btn-sm primary" id="ai-research-start-btn" type="button">Start research</button>
+            </div>
+            <div id="ai-research-session" style="display:none;">
+                <div class="ai-research-topic-display" id="ai-research-topic-display"></div>
+                <div class="ai-research-status" id="ai-research-status"></div>
+                <div class="ai-research-feed" id="ai-research-feed"></div>
+                <div class="ai-research-controls" id="ai-research-controls">
+                    <button class="btn-sm" id="ai-research-stop-btn" type="button">Stop</button>
+                    <button class="btn-sm" id="ai-research-finish-btn" type="button" style="display:none;">Finish now</button>
+                    <button class="btn-sm" id="ai-research-redirect-btn" type="button" style="display:none;">Redirect</button>
+                </div>
+                <div class="ai-research-redirect-row" id="ai-research-redirect-row" style="display:none;">
+                    <input type="text" class="ai-research-redirect-input" id="ai-research-redirect-input" placeholder="e.g. Focus on pricing, skip the history">
+                    <button class="btn-sm primary" id="ai-research-redirect-send-btn" type="button">Apply</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% if ai_web_search_allowed %}
             <button class="ai-vault-chip ai-websearch-chip" id="ai-websearch-chip" title="AI Web Search: let the AI search the web when answering" aria-label="Toggle AI Web Search" aria-pressed="false" type="button">
                 <svg viewBox="0 0 24 24" width="16" height="16"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
                 <span class="ai-vault-chip-label">Web</span>
+            </button>
+            {% endif %}
+            {% if ai_research_allowed %}
+            <button class="ai-vault-chip ai-research-chip" id="ai-research-chip" title="Research mode: have the AI research a topic in the background, watch findings live, and steer or stop it" aria-label="Open Research mode" type="button">
+                <svg viewBox="0 0 24 24" width="16" height="16"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                <span class="ai-vault-chip-label">Research</span>
             </button>
             {% endif %}
             <button class="ai-send-btn" id="ai-send-btn" title="Send message" aria-label="Send message">
@@ -251,7 +290,9 @@
     "vaultContextAllowed": {% if vault_context_allowed %}true{% else %}false{% endif %},
     "vaultContextTopK": {{ vault_context_top_k }},
     "vaultContextMaxChars": {{ vault_context_max_chars }},
-    "aiWebSearchAllowed": {% if ai_web_search_allowed %}true{% else %}false{% endif %}
+    "aiWebSearchAllowed": {% if ai_web_search_allowed %}true{% else %}false{% endif %},
+    "aiResearchAllowed": {% if ai_research_allowed %}true{% else %}false{% endif %},
+    "aiResearchMaxRounds": {{ ai_research_max_rounds }}
 }
 </script>
 <script type="application/json" id="tts-data">

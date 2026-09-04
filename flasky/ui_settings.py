@@ -268,6 +268,17 @@ REGISTRY: dict[str, SettingDef] = {
     "ai_web_search_timeout": SettingDef(
         "ai_web_search_timeout", 30, int, _is_int_in_range(5, 120),
     ),
+    # AI Research Mode global consent gate. Defaults off; must be on before
+    # the Research chip is offered in the AI view. Research drives the same
+    # web_search/web_fetch tools as AI Web Search (the per-conversation
+    # web_search toggle does not apply — research is separately opt-in).
+    "ai_research_allowed": SettingDef("ai_research_allowed", False, bool),
+    # Client-driven research loop: the browser issues one bounded
+    # /ai/api/research/round request per round and decides when to stop.
+    # This caps the rounds the server will execute within a single request.
+    "ai_research_max_rounds": SettingDef(
+        "ai_research_max_rounds", 10, int, _is_int_in_range(1, 50),
+    ),
     # Cached list of available AI models (populated by the "Refresh from
     # Ollama" action in Settings, or manually edited). Empty list = not yet
     # fetched; callers fall back to the hardcoded OLLAMA_CLOUD_MODELS.

@@ -220,6 +220,8 @@ def ai_page():
             vault_context_top_k=int(ui_settings.ai_vault_context_top_k) if ui_settings else 8,
             vault_context_max_chars=int(ui_settings.ai_vault_context_max_chars) if ui_settings else 20000,
             ai_web_search_allowed=bool(ui_settings.ai_web_search_allowed) if ui_settings else False,
+            ai_research_allowed=False,
+            ai_research_max_rounds=10,
         )
         return render_template("_ai_view.html", **ctx)
     conversations = (
@@ -252,6 +254,8 @@ def ai_page():
         vault_context_top_k=int(ui_settings.ai_vault_context_top_k),
         vault_context_max_chars=int(ui_settings.ai_vault_context_max_chars),
         ai_web_search_allowed=bool(ui_settings.ai_web_search_allowed),
+        ai_research_allowed=bool(ui_settings.ai_research_allowed),
+        ai_research_max_rounds=int(ui_settings.ai_research_max_rounds),
         tts_enabled=bool(ui_settings.tts_enabled),
         tts_rate=float(ui_settings.tts_rate),
         tts_volume=float(ui_settings.tts_volume),
@@ -496,6 +500,136 @@ def chat(conv_id):
         except Exception as e:
             logger.error("Ollama chat error: %s", e)
             yield f"data: {json.dumps({'error': 'An error occurred while generating a response. Please try again.'})}\n\n"
+
+    return Response(
+        stream_with_context(generate()),
+        mimetype="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",
+        },
+    )
+
+
+# ---------------------------------------------------------------------------
+# AI Research Mode (client-driven loop). The browser runs the research loop:
+# one POST /ai/api/research/round per round, feeding the transcript it wants
+# the model to see. The server is stateless — it persists nothing, executes
+# the model call plus any web tool calls within the request, and streams
+# back chunk / tool / round_done events. The client decides whether to issue
+# another round (model still researching), stop, redirect, or finish.
+# Research uses the same web tools as AI Web Search but is gated by its own
+# ai_research_allowed setting; the per-conversation web_search toggle does
+# not apply.
+# ---------------------------------------------------------------------------
+
+RESEARCH_SYSTEM_PROMPT = (
+    "You are a thorough research agent. Your goal is to investigate a topic "
+    "using the web_search and web_fetch tools, then produce a final answer.\n\n"
+    "Rules:\n"
+    "1. While researching: make targeted searches, fetch the most promising "
+    "pages, and report interim findings concisely (a few sentences or "
+    "bullets) in your response for that round.\n"
+    "2. Keep going if the findings so far are incomplete, contradictory, or "
+    "missing key aspects — refine your queries based on what you learned.\n"
+    "3. When you have enough information, respond with your final answer "
+    "WITHOUT calling any tools. Structure it clearly with headings/bullets "
+    "as appropriate, cite sources (title + URL) for key claims, and note "
+    "confidence or gaps.\n"
+    "4. If the user sends a redirect instruction, incorporate it immediately "
+    "and steer your next searches accordingly.\n"
+    "5. If the user asks you to finish now, stop searching and produce the "
+    "final answer from what you have already found.\n"
+)
+
+
+@ai_bp.route("/api/research/round", methods=["POST"])
+def research_round():
+    """Run one bounded round of client-driven research.
+
+    Takes the client-maintained transcript ({"messages": [...], "finish":
+    bool}), prepends the research system prompt, executes one model call
+    plus any tool-call rounds (bounded by ai_research_max_rounds and the
+    web-search tunables), and streams chunk / tool / round_done events.
+    Persists nothing — the client keeps all state.
+    """
+    err = _check_ai_enabled()
+    if err:
+        return err
+    if not get_setting(g.user, "ai_research_allowed"):
+        return jsonify(error="AI Research is not enabled in Settings."), 403
+    settings = g.user.return_settings()
+    if not settings.ollama_api_key:
+        return jsonify(error="Ollama API key not configured. Set it in Settings."), 400
+    data = request.get_json(silent=True) or {}
+    client_messages = data.get("messages")
+    if not isinstance(client_messages, list) or not client_messages:
+        return jsonify(error="messages is required."), 400
+    messages = [
+        {"role": "system", "content": RESEARCH_SYSTEM_PROMPT},
+    ] + list(client_messages)
+    for m in messages[1:]:
+        if not isinstance(m, dict) or m.get("role") not in (
+            "user", "assistant", "tool",
+        ) or not isinstance(m.get("content"), str):
+            return jsonify(error="Each message must have a valid role and string content."), 400
+
+    model = settings.ollama_model or "gpt-oss:120b"
+    tool_result_max_chars = get_setting(g.user, "ai_web_search_result_max_chars")
+    web_tool_timeout = get_setting(g.user, "ai_web_search_timeout")
+    research_max_rounds = get_setting(g.user, "ai_research_max_rounds")
+    ai_settings = settings
+    finish_requested = bool(data.get("finish"))
+
+    def generate():
+        full_response = []
+        try:
+            client = _get_ollama_client(ai_settings)
+            rounds = 0
+            while True:
+                kwargs = dict(model=model, messages=messages, stream=True)
+                if not finish_requested:
+                    kwargs["tools"] = WEB_SEARCH_TOOLS
+                stream = client.chat(**kwargs)
+                tool_calls = []
+                assistant_msg = {"role": "assistant", "content": ""}
+                for part in stream:
+                    message = part.get("message", {})
+                    chunk = message.get("content", "")
+                    if chunk:
+                        assistant_msg["content"] += chunk
+                        full_response.append(chunk)
+                        yield f"data: {json.dumps({'chunk': chunk})}\n\n"
+                    for tc in message.get("tool_calls") or []:
+                        tool_calls.append(tc)
+                if not tool_calls:
+                    break
+                if rounds >= research_max_rounds:
+                    break
+                rounds += 1
+                assistant_msg["tool_calls"] = tool_calls
+                messages.append(assistant_msg)
+                for tc in tool_calls:
+                    fn = tc.get("function", {})
+                    name = fn.get("name", "")
+                    arguments = fn.get("arguments", {}) or {}
+                    if name == "web_search":
+                        yield f"data: {json.dumps({'tool': 'web_search', 'query': arguments.get('query', '')})}\n\n"
+                    elif name == "web_fetch":
+                        yield f"data: {json.dumps({'tool': 'web_fetch', 'url': arguments.get('url', '')})}\n\n"
+                    result = _call_web_tool(ai_settings, name, arguments, timeout=web_tool_timeout)
+                    if result is None:
+                        content = f"Tool {name} failed."
+                    else:
+                        content = json.dumps(result)[:tool_result_max_chars]
+                    messages.append(
+                        {"role": "tool", "content": content, "tool_name": name}
+                    )
+            complete_text = "".join(full_response)
+            yield f"data: {json.dumps({'round_done': True, 'content': complete_text, 'final': not tool_calls})}\n\n"
+        except Exception as e:
+            logger.error("Ollama research round error: %s", e)
+            yield f"data: {json.dumps({'error': 'An error occurred while researching. Please try again.'})}\n\n"
 
     return Response(
         stream_with_context(generate()),

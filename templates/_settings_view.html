@@ -949,6 +949,30 @@
                                 <div class="setting-hint" style="margin-top:8px;">Saving refreshes the page to apply changes.</div>
                             </div>
                         </form>
+                        <form method="POST" data-spa-form data-requires-refresh style="margin-top:16px;">
+                            <input type="hidden" name="update-ai-research-settings" value="1">
+                            <div class="sub-label">AI Research Mode</div>
+                            <div style="padding: 0 16px;">
+                                <div class="setting-row">
+                                    <span class="setting-label">Allow AI Research Mode</span>
+                                    <div class="setting-control">
+                                        <div class="toggle {% if ui_settings.ai_research_allowed %}on{% endif %}" data-toggle="ai-research-allowed">
+                                            <input type="checkbox" id="ai-research-toggle" name="ai-research-allowed" value="1" {% if ui_settings.ai_research_allowed %}checked{% endif %} data-spa-auto-submit>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="setting-hint" style="margin-bottom:10px;">
+                                    Research mode lets you give the AI a topic to investigate on its own using web searches: you watch its findings live, and can stop, redirect, or ask it to wrap up at any time. Same privacy tradeoffs as AI Web Search apply — the AI generates its own queries and your search provider (Ollama) handles them per their policies. Your Flasky server relays this traffic but stores nothing; research progress lives only in your browser while the panel is open.
+                                </div>
+                                {% if ui_settings.ai_research_allowed %}
+                                <label class="list-item-sub">Max search rounds within one research round</label>
+                                <input name="ai-research-max-rounds" class="setting-input" type="number" min="1" max="50" value="{{ ui_settings.ai_research_max_rounds }}" style="width:100%; margin-bottom:6px;">
+                                <div class="setting-hint" style="margin-bottom:8px;">How many rounds of web searches/fetches the AI may perform within a single research round request (1–50).</div>
+                                {% endif %}
+                                <button class="btn-sm primary" type="submit">Save</button>
+                                <div class="setting-hint" style="margin-top:8px;">Saving refreshes the page to apply changes.</div>
+                            </div>
+                        </form>
                         {% endif %}
                     </div>
                 </div>

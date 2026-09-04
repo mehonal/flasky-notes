@@ -31,7 +31,7 @@ Ciphertext format: `base64(0x01 || IV[12] || ciphertext || GCM-tag[16])`.
 - **Dark mode**, adjustable font size/family, responsive mobile layout
 - **Dynamic UI settings** — new preferences added via a registry with no database migration
 
-### Shortcuts
+# Shortcuts
 - Ctrl + s: Save Note
 - Ctrl + k: Search Notes
 - Ctrl + b: Toggle Sidebar
