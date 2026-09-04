@@ -55,7 +55,8 @@
     var modal, startSection, sessionSection, topicInput, depthSelect, formatSelect,
         toneSelect, extraInput, optionsDisplay, startBtn, topicDisplay,
         statusEl, feedEl, stopBtn, finishBtn, resumeBtn, redirectRow,
-        redirectInput, redirectSendBtn, closeBtn, chip;
+        redirectInput, redirectSendBtn, closeBtn, chip, warnModal;
+    var _warnAccepted = false;
 
     var DEPTH_LABELS = { quick: 'Quick', standard: 'Standard', deep: 'Deep', exhaustive: 'Exhaustive' };
     var FORMAT_LABELS = { freeform: 'Freeform text', bullets: 'Bullet points', report: 'Structured report', table: 'Table' };
@@ -93,9 +94,24 @@
         redirectSendBtn = $('ai-research-redirect-send-btn');
         closeBtn = $('ai-research-close-btn');
         chip = $('ai-research-chip');
+        warnModal = $('ai-research-warn-modal');
         if (!modal || !chip) return;
 
-        bind(chip, 'click', openModal);
+        bind(chip, 'click', function () {
+            if (_warnAccepted || !warnModal) { openModal(); return; }
+            warnModal.style.display = 'flex';
+        });
+        if (warnModal) {
+            bind(warnModal, 'click', function (e) {
+                var btn = e.target.closest('[data-research-warn-action]');
+                if (!btn) return;
+                warnModal.style.display = 'none';
+                if (btn.getAttribute('data-research-warn-action') === 'start') {
+                    _warnAccepted = true;
+                    openModal();
+                }
+            });
+        }
         bind(closeBtn, 'click', closeModal);
         bind(startBtn, 'click', startResearch);
         bind(topicInput, 'keydown', function (e) {
@@ -113,9 +129,10 @@
     function openModal() { modal.style.display = 'flex'; if (state === 'idle') topicInput.focus(); else redirectInput.focus(); }
 
     function closeModal() {
-        if (state === 'running') {
-            if (!confirm('Research is still running. Close the panel? (The current round will be stopped; partial findings are preserved and you can resume.)')) return;
-            stopRound();
+        if (state !== 'idle') {
+            if (!confirm('Closing the research panel will stop the current research and all findings will be lost. Close anyway?')) return;
+            abortCurrentRound();
+            resetSession();
         }
         modal.style.display = 'none';
     }
