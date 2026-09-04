@@ -52,9 +52,14 @@
     var COPY_ICON = '<svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
     var EXPORT_ICON = '<svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>';
 
-    var modal, startSection, sessionSection, topicInput, startBtn, topicDisplay,
+    var modal, startSection, sessionSection, topicInput, depthSelect, formatSelect,
+        toneSelect, extraInput, optionsDisplay, startBtn, topicDisplay,
         statusEl, feedEl, stopBtn, finishBtn, resumeBtn, redirectRow,
         redirectInput, redirectSendBtn, closeBtn, chip;
+
+    var DEPTH_LABELS = { quick: 'Quick', standard: 'Standard', deep: 'Deep', exhaustive: 'Exhaustive' };
+    var FORMAT_LABELS = { freeform: 'Freeform text', bullets: 'Bullet points', report: 'Structured report', table: 'Table' };
+    var TONE_LABELS = { neutral: 'Neutral', formal: 'Formal', informal: 'Informal', technical: 'Technical' };
 
     function $(id) { return document.getElementById(id); }
 
@@ -71,6 +76,11 @@
         startSection = $('ai-research-start');
         sessionSection = $('ai-research-session');
         topicInput = $('ai-research-topic');
+        depthSelect = $('ai-research-depth');
+        formatSelect = $('ai-research-format');
+        toneSelect = $('ai-research-tone');
+        extraInput = $('ai-research-extra');
+        optionsDisplay = $('ai-research-options-display');
         startBtn = $('ai-research-start-btn');
         topicDisplay = $('ai-research-topic-display');
         statusEl = $('ai-research-status');
@@ -148,15 +158,62 @@
             : (state === 'done' ? 'Ask a follow-up question about the result' : 'e.g. Focus on pricing, skip the history');
     }
 
+    function buildInitialPrompt(topic, depth, format, tone, extra) {
+        var lines = [];
+        if (depth === 'quick') {
+            lines.push('Research this topic with a quick pass (a couple of targeted searches, no deep-dives): ' + topic);
+        } else if (depth === 'deep') {
+            lines.push('Research this topic thoroughly and in depth, covering multiple angles and primary sources where possible: ' + topic);
+        } else if (depth === 'exhaustive') {
+            lines.push('Research this topic exhaustively: leave no significant angle unexplored, cross-check claims across sources, and resolve contradictions before concluding: ' + topic);
+        } else {
+            lines.push('Research this topic thoroughly: ' + topic);
+        }
+        var prefs = [];
+        if (format === 'bullets') prefs.push('present findings as concise bullet points');
+        else if (format === 'report') prefs.push('present findings as a structured report with clear section headings');
+        else if (format === 'table') prefs.push('present findings as a markdown table (with a short summary)');
+        if (tone === 'formal') prefs.push('use a formal, professional tone');
+        else if (tone === 'informal') prefs.push('use an informal, conversational tone');
+        else if (tone === 'technical') prefs.push('use a technical tone, assuming a technically literate reader');
+        if (prefs.length) {
+            lines.push('In your final answer, ' + prefs.join(', ') + '.');
+        }
+        if (extra) {
+            lines.push('Additional output requirements: ' + extra);
+        }
+        return lines.join('\n');
+    }
+
     function startResearch() {
         if (state === 'running') return;
         var t = topicInput.value.trim();
         if (!t) { topicInput.focus(); return; }
         topic = t;
-        transcript = [{ role: 'user', content: 'Research this topic thoroughly: ' + t }];
+        var depth = depthSelect ? depthSelect.value : 'standard';
+        var format = formatSelect ? formatSelect.value : 'freeform';
+        var tone = toneSelect ? toneSelect.value : 'neutral';
+        var extra = extraInput ? extraInput.value.trim() : '';
+        transcript = [{ role: 'user', content: buildInitialPrompt(t, depth, format, tone, extra) }];
         roundCount = 0;
         feedEl.innerHTML = '';
         topicDisplay.textContent = t;
+        if (optionsDisplay) {
+            optionsDisplay.innerHTML = '';
+            [DEPTH_LABELS[depth], FORMAT_LABELS[format], TONE_LABELS[tone]].filter(Boolean).forEach(function (lbl) {
+                var pill = document.createElement('span');
+                pill.className = 'ai-research-options-pill';
+                pill.textContent = lbl;
+                optionsDisplay.appendChild(pill);
+            });
+            if (extra) {
+                var extraPill = document.createElement('span');
+                extraPill.className = 'ai-research-options-pill ai-research-options-pill-extra';
+                extraPill.textContent = extra;
+                optionsDisplay.appendChild(extraPill);
+            }
+            optionsDisplay.style.display = '';
+        }
         showSession();
         runRound(false);
     }
@@ -479,6 +536,11 @@
         _roundPartial = '';
         _roundToolContext = [];
         topicInput.value = '';
+        if (extraInput) extraInput.value = '';
+        if (depthSelect) depthSelect.value = 'standard';
+        if (formatSelect) formatSelect.value = 'freeform';
+        if (toneSelect) toneSelect.value = 'neutral';
+        if (optionsDisplay) optionsDisplay.style.display = 'none';
         redirectInput.value = '';
         feedEl.innerHTML = '';
         setStatus('', '');

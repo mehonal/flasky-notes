@@ -168,10 +168,41 @@
         <div class="modal-body ai-research-body">
             <div id="ai-research-start" class="ai-research-start">
                 <textarea class="ai-research-topic" id="ai-research-topic" rows="3" placeholder="What should the AI research?"></textarea>
+                <div class="ai-research-options">
+                    <label class="ai-research-option">
+                        <span>Depth</span>
+                        <select id="ai-research-depth">
+                            <option value="quick">Quick</option>
+                            <option value="standard" selected>Standard</option>
+                            <option value="deep">Deep</option>
+                            <option value="exhaustive">Exhaustive</option>
+                        </select>
+                    </label>
+                    <label class="ai-research-option">
+                        <span>Output</span>
+                        <select id="ai-research-format">
+                            <option value="freeform" selected>Freeform text</option>
+                            <option value="bullets">Bullet points</option>
+                            <option value="report">Structured report</option>
+                            <option value="table">Table</option>
+                        </select>
+                    </label>
+                    <label class="ai-research-option">
+                        <span>Tone</span>
+                        <select id="ai-research-tone">
+                            <option value="neutral" selected>Neutral</option>
+                            <option value="formal">Formal</option>
+                            <option value="informal">Informal</option>
+                            <option value="technical">Technical</option>
+                        </select>
+                    </label>
+                </div>
+                <textarea class="ai-research-extra" id="ai-research-extra" rows="2" placeholder="Optional: extra output requests (e.g. include a comparison table, add a sources list, keep it under 500 words)"></textarea>
                 <button class="btn-sm primary" id="ai-research-start-btn" type="button">Start research</button>
             </div>
             <div id="ai-research-session" style="display:none;">
                 <div class="ai-research-topic-display" id="ai-research-topic-display"></div>
+                <div class="ai-research-options-display" id="ai-research-options-display" style="display:none;"></div>
                 <div class="ai-research-status" id="ai-research-status"></div>
                 <div class="ai-research-feed" id="ai-research-feed"></div>
                 <div class="ai-research-controls" id="ai-research-controls">
