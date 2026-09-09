@@ -1,6 +1,8 @@
-from wsgi import app
-from flasky import db
+"""Local dev server: applies committed migrations, then serves with debug."""
+import subprocess
 
-with app.app_context():
-    db.create_all()
+from wsgi import app
+
+
+subprocess.run(["flask", "--app", "wsgi", "db", "upgrade"], check=True)
 app.run(host="127.0.0.1", port=5000, debug=True)

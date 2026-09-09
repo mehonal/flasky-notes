@@ -930,6 +930,11 @@ def manifest_json():
     return redirect("/static/script/manifest.json")
 
 
+@web_bp.route("/healthz")
+def healthz():
+    return jsonify(status="ok")
+
+
 @web_bp.route("/attachment/<int:attachment_id>/<filename>")
 @login_required
 def serve_attachment(attachment_id, filename):
