@@ -512,3 +512,97 @@ def test_research_defaults():
     u = User(username="defaults_probe")
     assert get_setting(u, "ai_research_allowed") is False
     assert get_setting(u, "ai_research_max_rounds") == 10
+
+
+def test_sse_heartbeat_emitted_during_idle_gap(monkeypatch, auth_client):
+    """A slow model response must not stall the SSE stream silently:
+    heartbeat comments are interleaved so proxies don't kill idle
+    connections, and the round still completes normally afterwards."""
+    client, _ = auth_client
+    u = _enable_ai(auth_client)
+    _enable_research(u)
+
+    import time
+    import flasky.blueprints.ai as ai_bp_mod
+
+    class SlowClient:
+        def chat(self, **kwargs):
+            def parts():
+                yield {"message": {"content": "thinking..."}}
+                time.sleep(0.3)
+                yield {"message": {"content": "done."}}
+            return parts()
+
+    monkeypatch.setattr(ai_bp_mod, "_get_ollama_client", lambda settings: SlowClient())
+    monkeypatch.setattr(ai_bp_mod, "SSE_HEARTBEAT_SECONDS", 0.1)
+
+    r = client.post("/ai/api/research/round", json={"messages": [
+        {"role": "user", "content": "Research this topic thoroughly: something"},
+    ]})
+    assert r.status_code == 200
+    raw = r.data.decode()
+    assert ": heartbeat" in raw
+    events = _sse_events(r)
+    assert "error" not in events[-1]
+    done = [e for e in events if e.get("round_done")]
+    assert done and done[0]["final"] is True
+    assert done[0]["content"] == "thinking...done."
+
+
+def test_sse_abort_stops_worker_and_releases_thread(monkeypatch, auth_client):
+    """Abandoning the SSE response (client abort) must promptly stop the
+    worker: it must not keep running web tools or model calls for a
+    stream nobody is reading, and must not wedge the DB session."""
+    client, _ = auth_client
+    u = _enable_ai(auth_client)
+    _enable_research(u)
+
+    import threading
+    import time
+    import flasky.blueprints.ai as ai_bp_mod
+
+    stopped_seen = threading.Event()
+    worker_thread = {}
+
+    class SlowClient:
+        def chat(self, **kwargs):
+            def parts():
+                yield {"message": {"content": "starting..."}}
+                # Block long enough for the abort to land mid-model-call.
+                for _ in range(30):
+                    time.sleep(0.1)
+                    if stopped_seen.is_set():
+                        break
+                yield {"message": {"content": "too late."}}
+            return parts()
+
+    real_thread = ai_bp_mod.threading.Thread
+
+    class TrackingThread(real_thread):
+        def __init__(self, *a, **kw):
+            super().__init__(*a, **kw)
+            worker_thread["t"] = self
+
+    def fake_client_factory(settings):
+        return SlowClient()
+
+    monkeypatch.setattr(ai_bp_mod, "_get_ollama_client", fake_client_factory)
+    monkeypatch.setattr(ai_bp_mod.threading, "Thread", TrackingThread)
+
+    # Consume the stream with a raw iterator, then abandon it mid-stream.
+    r = client.post("/ai/api/research/round", json={"messages": [
+        {"role": "user", "content": "Research this topic thoroughly: something"},
+    ]})
+    assert r.status_code == 200
+    gen = r.response
+    first = next(gen)
+    assert b"chunk" in first
+
+    # Abort: closing the response iterator raises GeneratorExit in the
+    # generator, which must set the stop event and unblock the worker.
+    r.close()
+    stopped_seen.set()  # let the fake model call return to observe exit
+
+    t = worker_thread["t"]
+    t.join(timeout=5)
+    assert not t.is_alive(), "worker thread kept running after client abort"
