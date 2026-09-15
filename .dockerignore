@@ -21,7 +21,6 @@ ENV/
 
 # Flask & SQLite
 instance/
-migrations/
 *.db
 *.sqlite3
 
