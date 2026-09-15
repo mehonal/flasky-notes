@@ -518,8 +518,8 @@
     background: var(--bg-primary); border: 1px solid var(--border-light);
     border-radius: var(--radius-md); box-shadow: var(--shadow-3); overflow: hidden;
 }
-#ai-root .ai-research-body { flex: 1; display: flex; flex-direction: column; min-height: 0; overflow-y: auto; }
-#ai-root .ai-research-start { display: flex; flex-direction: column; gap: 10px; }
+#ai-root .ai-research-body { flex: 1; display: flex; flex-direction: column; min-height: 0; overflow-y: auto; padding-bottom: 0; }
+#ai-root .ai-research-start { display: flex; flex-direction: column; gap: 10px; padding-bottom: 16px; }
 #ai-root .ai-research-topic {
     width: 100%; resize: vertical; min-height: 70px; padding: 10px 12px;
     border: 1px solid var(--border-light); border-radius: var(--radius-sm);
@@ -589,7 +589,7 @@
 }
 #ai-root .ai-research-footer {
     position: sticky; bottom: 0; margin-top: auto;
-    padding: 8px 0 2px;
+    padding: 8px 0 16px;
     background: var(--bg-primary);
     flex-shrink: 0;
 }
