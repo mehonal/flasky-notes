@@ -518,7 +518,7 @@
     background: var(--bg-primary); border: 1px solid var(--border-light);
     border-radius: var(--radius-md); box-shadow: var(--shadow-3); overflow: hidden;
 }
-#ai-root .ai-research-body { flex: 1; display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
+#ai-root .ai-research-body { flex: 1; display: flex; flex-direction: column; min-height: 0; overflow-y: auto; }
 #ai-root .ai-research-start { display: flex; flex-direction: column; gap: 10px; }
 #ai-root .ai-research-topic {
     width: 100%; resize: vertical; min-height: 70px; padding: 10px 12px;
@@ -580,21 +580,27 @@
     padding: 8px 12px; border: 1px solid var(--border);
     border-radius: var(--radius-sm); background: var(--bg-secondary);
 }
-#ai-root .ai-research-session { display: flex; flex-direction: column; min-height: 0; flex: 1; }
+#ai-root .ai-research-session { display: flex; flex-direction: column; min-height: 100%; }
+#ai-root .ai-research-feed {
+    margin-top: 8px;
+    padding: 10px 12px; border: 1px solid var(--border);
+    border-radius: var(--radius-sm); background: var(--bg-secondary);
+    display: flex; flex-direction: column; gap: 8px;
+}
+#ai-root .ai-research-footer {
+    position: sticky; bottom: 0; margin-top: auto;
+    padding: 8px 0 2px;
+    background: var(--bg-primary);
+    flex-shrink: 0;
+}
+#ai-root .ai-research-controls, #ai-root .ai-research-redirect-row { flex-shrink: 0; }
 #ai-root .ai-research-status {
-    font-size: 12px; color: var(--text-muted); min-height: 18px; margin-top: 8px; flex-shrink: 0;
+    font-size: 12px; color: var(--text-muted); min-height: 18px; margin-top: 8px;
 }
 #ai-root .ai-research-status-running-text { color: var(--accent); }
 #ai-root .ai-research-status-paused { color: var(--warning, #e6a700); }
 #ai-root .ai-research-status-error { color: var(--danger, #e5534b); }
 #ai-root .ai-research-status-done { color: var(--success, #3fb950); }
-#ai-root .ai-research-feed {
-    flex: 1; min-height: 180px; overflow-y: auto; margin-top: 8px;
-    padding: 10px 12px; border: 1px solid var(--border);
-    border-radius: var(--radius-sm); background: var(--bg-secondary);
-    display: flex; flex-direction: column; gap: 8px;
-}
-#ai-root .ai-research-controls, #ai-root .ai-research-redirect-row { flex-shrink: 0; }
 #ai-root .ai-research-feed-round {
     font-size: 11px; font-weight: 600; color: var(--accent); text-transform: uppercase;
     letter-spacing: 0.04em; margin-top: 4px;
