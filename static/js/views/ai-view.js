@@ -43,6 +43,8 @@
         var stopBtn = document.getElementById('ai-stop-btn');
         var newChatBtn = document.getElementById('ai-new-chat-btn');
         var convListEl = document.getElementById('ai-conversation-list');
+        var searchInputEl = document.getElementById('ai-conversation-search-input');
+        var decryptedTitles = {};
         var emptyState = document.getElementById('ai-empty-state');
         var toolbarTitle = document.getElementById('ai-toolbar-title');
         var statusText = document.getElementById('ai-status-text');
@@ -125,15 +127,24 @@
         });
 
         function renderConversationList(convData) {
+            var query = (searchInputEl && searchInputEl.value ? searchInputEl.value : '').trim().toLowerCase();
             convListEl.innerHTML = '';
+            convListEl.classList.remove('ai-list-empty');
             convData.forEach(function (c) {
+                var decryptedTitle = decryptedTitles[c.id] || 'Untitled';
+                if (query && decryptedTitle.toLowerCase().indexOf(query) === -1) return;
                 var div = document.createElement('div');
                 div.className = 'ai-conversation-item' + (c.id === conversationId ? ' active' : '');
                 div.dataset.id = c.id;
                 var titleSpan = document.createElement('span');
                 titleSpan.className = 'ai-conversation-title';
                 var displayTitle = c.title || 'Untitled';
-                decryptIfNeeded(displayTitle).then(function (dec) { titleSpan.textContent = dec; });
+                decryptIfNeeded(displayTitle).then(function (dec) {
+                    decryptedTitles[c.id] = dec;
+                    var newQuery = (searchInputEl && searchInputEl.value ? searchInputEl.value : '').trim().toLowerCase();
+                    if (newQuery && dec.toLowerCase().indexOf(newQuery) === -1) { div.remove(); return; }
+                    titleSpan.textContent = dec;
+                });
                 div.appendChild(titleSpan);
                 var del = document.createElement('button');
                 del.className = 'ai-conversation-delete'; del.title = 'Delete';
@@ -159,10 +170,20 @@
                 titleSpan.addEventListener('dblclick', function (e) { e.stopPropagation(); e.preventDefault(); decryptIfNeeded(c.title || 'Untitled').then(function (dec) { promptRename(c.id, dec); }); });
                 convListEl.appendChild(div);
             });
+            if (query && !convListEl.children.length) {
+                convListEl.classList.add('ai-list-empty');
+                convListEl.textContent = 'No chats match your search.';
+            }
         }
 
         function loadConversations() {
             fetch('/ai/api/conversations', { headers: { 'X-CSRFToken': getCSRFToken() } }).then(function (r) { return r.json(); }).then(function (convData) { conversations = convData; renderConversationList(convData); });
+        }
+
+        if (searchInputEl) {
+            bind(searchInputEl, 'input', function () {
+                if (Array.isArray(conversations)) renderConversationList(conversations);
+            });
         }
 
         function promptRename(convId, currentTitle) {
