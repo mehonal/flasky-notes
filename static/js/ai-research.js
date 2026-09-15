@@ -153,12 +153,21 @@
         sessionSection.style.display = '';
     }
 
+    function scrollFeedBottom() {
+        var el = feedEl, scroller = null;
+        while (el && el !== modal) {
+            if (getComputedStyle(el).overflowY === 'auto' || getComputedStyle(el).overflowY === 'scroll') { scroller = el; break; }
+            el = el.parentElement;
+        }
+        if (scroller) scroller.scrollTop = scroller.scrollHeight;
+    }
+
     function addFeedEntry(className, text) {
         var div = document.createElement('div');
         div.className = className;
         div.textContent = text;
         feedEl.appendChild(div);
-        feedEl.scrollTop = feedEl.scrollHeight;
+        scrollFeedBottom();
         return div;
     }
 
@@ -351,7 +360,7 @@
                                     lineEl.className = 'ai-research-feed-tool';
                                     lineEl.textContent = label;
                                     toolLinesEl.appendChild(lineEl);
-                                    feedEl.scrollTop = feedEl.scrollHeight;
+                                    scrollFeedBottom();
                                     setStatus('running-text', 'Round ' + roundCount + ' — ' + label.toLowerCase() + '...');
                                 }
                                 else if (data.tool_calls) {
@@ -425,7 +434,7 @@
             entry.innerHTML = renderMarkdown(shown);
             feedEl.appendChild(entry);
             entry.querySelectorAll('pre code').forEach(function (b) { if (window.hljs) hljs.highlightElement(b); });
-            feedEl.scrollTop = feedEl.scrollHeight;
+            scrollFeedBottom();
         }
     }
 
@@ -449,7 +458,7 @@
             entry.innerHTML = renderMarkdown(content);
             feedEl.appendChild(entry);
             entry.querySelectorAll('pre code').forEach(function (b) { if (window.hljs) hljs.highlightElement(b); });
-            feedEl.scrollTop = feedEl.scrollHeight;
+            scrollFeedBottom();
         }
         // Reconstruct the round in the transcript exactly as the server built
         // it for the model: for each tool iteration an assistant message
@@ -481,7 +490,7 @@
         setStatus('done', 'Research complete. Ask a follow-up, or export the result.');
         updateControls();
         feedEl.appendChild(buildResultBlock(finalText));
-        feedEl.scrollTop = feedEl.scrollHeight;
+        scrollFeedBottom();
         redirectInput.focus();
     }
 
