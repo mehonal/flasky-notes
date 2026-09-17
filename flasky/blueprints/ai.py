@@ -5,13 +5,15 @@ from flask import (
     g,
     jsonify,
     Response,
-    stream_with_context,
     redirect,
     url_for,
+    current_app,
 )
 import json
 import logging
+import queue
 import re
+import threading
 from datetime import datetime, timedelta
 
 import requests
@@ -167,6 +169,70 @@ def _call_web_tool(settings, name, arguments, timeout=30):
     except Exception as e:
         logger.warning("AI Web Search tool %s failed: %s", name, e)
         return None
+
+
+# SSE streams can idle for minutes while the model "thinks" silently before
+# the first token or while blocking web tools run — proxies, load balancers
+# and browsers with idle timeouts then drop the connection mid-stream, which
+# the client surfaces as "Connection lost." Emit a heartbeat comment (SSE
+# comment lines are ignored by all EventSource/fetch-based readers) whenever
+# the producer hasn't sent anything for this long.
+SSE_HEARTBEAT_SECONDS = 15
+
+
+def _sse_with_heartbeat(produce, app):
+    """Run the blocking SSE producer in a worker thread, yielding its
+    events with heartbeat comments during silent gaps.
+
+    The Ollama SDK and requests calls are blocking, so the producer can't
+    also drive heartbeat timing — it emits payloads via emit() and this
+    generator serializes them. The worker needs its own app context:
+    Flask-SQLAlchemy sessions are scoped per app-context, and sharing the
+    streaming request's session across threads would corrupt state.
+
+    On client disconnect, the worker is halted at its next emit().
+    emit() raises GeneratorExit — a BaseException — so a producer's
+    `except Exception` handlers can't swallow the stop signal. A
+    producer blocked inside one long SDK call is not interruptible; it
+    exits at the first emit after the call returns.
+    """
+    out = queue.Queue()
+    stopped = threading.Event()
+
+    def emit(payload):
+        if stopped.is_set():
+            raise GeneratorExit
+        out.put(payload)
+
+    def worker():
+        try:
+            with app.app_context():
+                produce(emit)
+        except GeneratorExit:
+            pass
+        except Exception as e:
+            logger.error("SSE worker error: %s", e)
+        finally:
+            out.put(None)
+
+    t = threading.Thread(target=worker, daemon=True)
+    t.start()
+    try:
+        while True:
+            try:
+                payload = out.get(timeout=SSE_HEARTBEAT_SECONDS)
+            except queue.Empty:
+                yield ": heartbeat\n\n"
+                continue
+            if payload is None:
+                break
+            yield f"data: {json.dumps(payload)}\n\n"
+    finally:
+        stopped.set()
+        try:
+            out.put_nowait(None)
+        except queue.Full:
+            pass
 
 
 def _parse_model_names(models_resp) -> list[str]:
@@ -439,8 +505,9 @@ def chat(conv_id):
     conv_id = conv.id
     user_id = g.user.id
     ai_settings = settings
+    app = current_app._get_current_object()
 
-    def generate():
+    def produce(emit):
         full_response = []
         try:
             client = _get_ollama_client(ai_settings)
@@ -459,7 +526,7 @@ def chat(conv_id):
                     if chunk:
                         assistant_msg["content"] += chunk
                         full_response.append(chunk)
-                        yield f"data: {json.dumps({'chunk': chunk})}\n\n"
+                        emit({"chunk": chunk})
                     for tc in message.get("tool_calls") or []:
                         tool_calls.append(tc)
                 if not tool_calls:
@@ -474,9 +541,9 @@ def chat(conv_id):
                     name = fn.get("name", "")
                     arguments = fn.get("arguments", {}) or {}
                     if name == "web_search":
-                        yield f"data: {json.dumps({'tool': 'web_search', 'query': arguments.get('query', '')})}\n\n"
+                        emit({"tool": "web_search", "query": arguments.get("query", "")})
                     elif name == "web_fetch":
-                        yield f"data: {json.dumps({'tool': 'web_fetch', 'url': arguments.get('url', '')})}\n\n"
+                        emit({"tool": "web_fetch", "url": arguments.get("url", "")})
                     result = _call_web_tool(ai_settings, name, arguments, timeout=web_tool_timeout)
                     if result is None:
                         content = f"Tool {name} failed."
@@ -494,15 +561,15 @@ def chat(conv_id):
                 db.session.add(assistant_msg)
                 conv_obj.updated_at = datetime.utcnow()
                 db.session.commit()
-                yield f"data: {json.dumps({'done': True, 'encrypted': True, 'message_id': assistant_msg.id})}\n\n"
+                emit({"done": True, "encrypted": True, "message_id": assistant_msg.id})
             else:
-                yield f"data: {json.dumps({'error': 'Conversation not found.'})}\n\n"
+                emit({"error": "Conversation not found."})
         except Exception as e:
             logger.error("Ollama chat error: %s", e)
-            yield f"data: {json.dumps({'error': 'An error occurred while generating a response. Please try again.'})}\n\n"
+            emit({"error": "An error occurred while generating a response. Please try again."})
 
     return Response(
-        stream_with_context(generate()),
+        _sse_with_heartbeat(produce, app),
         mimetype="text/event-stream",
         headers={
             "Cache-Control": "no-cache",
@@ -609,8 +676,9 @@ def research_round():
     research_max_rounds = get_setting(g.user, "ai_research_max_rounds")
     ai_settings = settings
     finish_requested = bool(data.get("finish"))
+    app = current_app._get_current_object()
 
-    def generate():
+    def produce(emit):
         full_response = []
         try:
             client = _get_ollama_client(ai_settings)
@@ -630,13 +698,13 @@ def research_round():
                         assistant_msg["content"] += chunk
                         full_response.append(chunk)
                         iteration_text.append(chunk)
-                        yield f"data: {json.dumps({'chunk': chunk})}\n\n"
+                        emit({"chunk": chunk})
                     for tc in message.get("tool_calls") or []:
                         tool_calls.append(tc)
                 last_text = "".join(iteration_text)
                 complete_text = "".join(full_response)
                 if not tool_calls or rounds >= research_max_rounds:
-                    yield f"data: {json.dumps({'round_done': True, 'content': complete_text, 'last_text': last_text, 'final': not tool_calls})}\n\n"
+                    emit({"round_done": True, "content": complete_text, "last_text": last_text, "final": not tool_calls})
                     break
                 rounds += 1
                 tool_calls = _plain_tool_calls(tool_calls)
@@ -645,15 +713,15 @@ def research_round():
                 # Mirror the assistant tool-call message to the client so it
                 # can reconstruct the conversation (incl. tool results) in
                 # its transcript and reuse the raw sources on later rounds.
-                yield f"data: {json.dumps({'tool_calls': tool_calls, 'text': last_text})}\n\n"
+                emit({"tool_calls": tool_calls, "text": last_text})
                 for tc in tool_calls:
                     fn = tc.get("function", {})
                     name = fn.get("name", "")
                     arguments = fn.get("arguments", {}) or {}
                     if name == "web_search":
-                        yield f"data: {json.dumps({'tool': 'web_search', 'query': arguments.get('query', '')})}\n\n"
+                        emit({"tool": "web_search", "query": arguments.get("query", "")})
                     elif name == "web_fetch":
-                        yield f"data: {json.dumps({'tool': 'web_fetch', 'url': arguments.get('url', '')})}\n\n"
+                        emit({"tool": "web_fetch", "url": arguments.get("url", "")})
                     result = _call_web_tool(ai_settings, name, arguments, timeout=web_tool_timeout)
                     if result is None:
                         content = f"Tool {name} failed."
@@ -662,17 +730,17 @@ def research_round():
                     messages.append(
                         {"role": "tool", "content": content, "tool_name": name}
                     )
-                    yield f"data: {json.dumps({'tool_result': True, 'name': name, 'content': content})}\n\n"
+                    emit({"tool_result": True, "name": name, "content": content})
         except Exception as e:
             logger.error("Ollama research round error: %s", e)
             payload = {"error": "An error occurred while researching. Please try again."}
             partial = "".join(full_response)
             if partial:
                 payload["content"] = partial
-            yield f"data: {json.dumps(payload)}\n\n"
+            emit(payload)
 
     return Response(
-        stream_with_context(generate()),
+        _sse_with_heartbeat(produce, app),
         mimetype="text/event-stream",
         headers={
             "Cache-Control": "no-cache",
