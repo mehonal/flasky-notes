@@ -4,12 +4,12 @@ services:
     image: flasky-notes
     restart: unless-stopped
     ports:
-      - "${PORT:-5000}:${PORT:-5000}"
+      # Host port only; the container always listens on 5000.
+      - "${PORT:-5000}:5000"
     volumes:
       - flasky_data:/app/instance
     environment:
       - FLASK_ENV=${FLASK_ENV:-production}
-      - PORT=${PORT:-5000}
       # Fixed so .env interpolation can't redirect it to a host-relative
       # path outside the volume (breaks persistence).
       - DATABASE_URI=sqlite:////app/instance/db.sqlite3
