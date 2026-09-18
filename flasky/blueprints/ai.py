@@ -262,7 +262,7 @@ def _get_models(user):
 @ai_bp.route("")
 def ai_page():
     if not g.user:
-        return "You must be logged in to access this page.", 401
+        return redirect(url_for("web.login_page"))
     settings = g.user.return_settings()
     ai_enabled = settings.ai_enabled if settings else False
     is_fragment = request.args.get("_fragment") == "1"
