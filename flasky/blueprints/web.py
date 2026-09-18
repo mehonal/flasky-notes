@@ -675,6 +675,9 @@ def settings_page():
         elif "remove-ai-api-key" in request.form:
             settings.ollama_api_key = None
             db.session.commit()
+        elif "update-ai-slash-settings" in request.form:
+            set_setting(g.user, "ai_slash_commands", "ai-slash-commands" in request.form)
+            db.session.commit()
         elif "update-vault-context-settings" in request.form:
             allowed = "vault-context-allowed" in request.form
             set_setting(g.user, "vault_context_allowed", allowed)

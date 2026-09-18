@@ -893,6 +893,23 @@
                             </div>
                         </form>
                         <form method="POST" data-spa-form data-requires-refresh style="margin-top:16px;">
+                            <input type="hidden" name="update-ai-slash-settings" value="1">
+                            <div class="sub-label">AI Chat Commands</div>
+                            <div style="padding: 0 16px;">
+                                <div class="setting-row">
+                                    <span class="setting-label">Slash commands</span>
+                                    <div class="setting-control">
+                                        <div class="toggle {% if ui_settings.ai_slash_commands %}on{% endif %}" data-toggle="ai-slash-commands">
+                                            <input type="checkbox" id="ai-slash-toggle" name="ai-slash-commands" value="1" {% if ui_settings.ai_slash_commands %}checked{% endif %} data-spa-auto-submit>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="setting-hint" style="margin-bottom:10px;">
+                                    When on, typing "/" in the AI chat input shows a command menu: toggle vault context or web search, start research, start a new chat, rename or export the conversation, or insert prompt templates (/summarize, /explain, /brainstorm, /write).
+                                </div>
+                            </div>
+                        </form>
+                        <form method="POST" data-spa-form data-requires-refresh style="margin-top:16px;">
                             <input type="hidden" name="update-vault-context-settings" value="1">
                             <div class="sub-label">Vault Context (let AI read your notes)</div>
                             <div style="padding: 0 16px;">

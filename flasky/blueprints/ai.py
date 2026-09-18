@@ -289,6 +289,7 @@ def ai_page():
             ai_web_search_allowed=bool(ui_settings.ai_web_search_allowed) if ui_settings else False,
             ai_research_allowed=False,
             ai_research_max_rounds=10,
+            ai_slash_commands=False,
         )
         return render_template("_ai_view.html", **ctx)
     conversations = (
@@ -323,6 +324,7 @@ def ai_page():
         ai_web_search_allowed=bool(ui_settings.ai_web_search_allowed),
         ai_research_allowed=bool(ui_settings.ai_research_allowed),
         ai_research_max_rounds=int(ui_settings.ai_research_max_rounds),
+        ai_slash_commands=bool(ui_settings.ai_slash_commands),
         tts_enabled=bool(ui_settings.tts_enabled),
         tts_rate=float(ui_settings.tts_rate),
         tts_volume=float(ui_settings.tts_volume),

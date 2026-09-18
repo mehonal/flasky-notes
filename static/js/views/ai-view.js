@@ -862,10 +862,192 @@
         }
 
         bind(sendBtn, 'click', sendMessage);
-        bind(inputEl, 'keydown', function (e) { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } });
+        var slashCommandsEnabled = !!data.aiSlashCommands;
+        bind(inputEl, 'keydown', function (e) {
+            if (slashMenuEl) {
+                if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); moveSlashActive(e.key === 'ArrowDown' ? 1 : -1); return; }
+                if (e.key === 'Tab') { e.preventDefault(); selectSlashItem(slashMatches[slashMenuActive]); return; }
+                if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); destroySlashMenu(); return; }
+                if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); selectSlashItem(slashMatches[slashMenuActive]); return; }
+                return;
+            }
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                if (slashCommandsEnabled) {
+                    var parsed = parseSlashInput(inputEl.value);
+                    var cmd = parsed ? findSlashCommand(parsed.query) : null;
+                    if (cmd) { inputEl.value = ''; inputEl.style.height = 'auto'; runSlashCommand(cmd, parsed.arg); return; }
+                }
+                sendMessage();
+            }
+        });
         bind(newChatBtn, 'click', function () { if (window.FlaskyTTS && FlaskyTTS.isSpeaking()) FlaskyTTS.stop(); conversationId = null; currentConvData = null; localMessages = []; vaultContextPending = false; webSearchPending = false; clearMessages(); loadConversations(); updateVaultChip(); updateWebSearchChip(); updatePanel(); inputEl.focus(); if (isMobile()) closeSidebar(); });
-        bind(inputEl, 'input', function () { this.style.height = 'auto'; this.style.height = Math.min(this.scrollHeight, 160) + 'px'; });
+        bind(inputEl, 'input', function () { this.style.height = 'auto'; this.style.height = Math.min(this.scrollHeight, 160) + 'px'; if (slashCommandsEnabled) slashMenuInput(); });
         bindDoc(document, 'click', function (e) { var btn = e.target.closest('.ai-suggestion-btn'); if (btn && btn.dataset.prompt) { inputEl.value = btn.dataset.prompt; inputEl.focus(); inputEl.dispatchEvent(new Event('input')); } });
+
+        var SLASH_COMMANDS = [
+            { name: 'vault', title: 'Toggle vault context', desc: 'Include relevant notes from your vault', when: function () { return vaultContextAllowed; } },
+            { name: 'web', title: 'Toggle web search', desc: 'Let the AI search the web', when: function () { return aiWebSearchAllowed; } },
+            { name: 'research', takesArg: true, title: 'Start AI research', desc: 'Open Research mode, optionally with a topic', when: function () { return !!data.aiResearchAllowed; } },
+            { name: 'new', title: 'New chat', desc: 'Start a fresh conversation' },
+            { name: 'rename', takesArg: true, title: 'Rename conversation', desc: 'Set the title of this chat' },
+            { name: 'export', title: 'Export to note', desc: 'Save this conversation as a note', when: function () { return !!conversationId; } },
+            { name: 'summarize', takesArg: true, prompt: 'Summarize the following text: ', title: 'Summarize', desc: 'Ask the AI to summarize text' },
+            { name: 'explain', takesArg: true, prompt: 'Explain the following concept in simple terms: ', title: 'Explain', desc: 'Ask the AI to explain a concept' },
+            { name: 'brainstorm', takesArg: true, prompt: 'Help me brainstorm ideas for ', title: 'Brainstorm', desc: 'Ask the AI to brainstorm ideas' },
+            { name: 'write', takesArg: true, prompt: 'Help me write a note about ', title: 'Help me write', desc: 'Ask the AI to help write a note' }
+        ];
+
+        function activeSlashCommands() {
+            return SLASH_COMMANDS.filter(function (c) { return !c.when || c.when(); });
+        }
+
+        function findSlashCommand(query) {
+            if (!query) return null;
+            return activeSlashCommands().find(function (c) { return c.name === query; }) || null;
+        }
+
+        function parseSlashInput(value) {
+            if (!value || value.charAt(0) !== '/') return null;
+            var m = value.match(/^\/([a-z0-9-]*)([\s\S]*)$/i);
+            if (!m) return null;
+            return { query: m[1].toLowerCase(), arg: m[2].trim() };
+        }
+
+        var slashMenuEl = null;
+        var slashMatches = [];
+        var slashMenuActive = 0;
+        var slashCommitted = null;
+
+        function destroySlashMenu() {
+            if (slashMenuEl && slashMenuEl.parentNode) slashMenuEl.parentNode.removeChild(slashMenuEl);
+            slashMenuEl = null; slashMatches = []; slashMenuActive = 0;
+        }
+
+        function slashMenuInput() {
+            var value = inputEl.value;
+            if (slashCommitted !== null && value === slashCommitted) { destroySlashMenu(); return; }
+            if (slashCommitted !== null && value.length > slashCommitted.length && value.indexOf(slashCommitted) === 0) { destroySlashMenu(); return; }
+            if (slashCommitted !== null) slashCommitted = null;
+            if (!value || value.charAt(0) !== '/' || value.indexOf('\n') !== -1) { destroySlashMenu(); return; }
+            var parsed = parseSlashInput(value);
+            if (!parsed) { destroySlashMenu(); return; }
+            if (parsed.arg && findSlashCommand(parsed.query)) { destroySlashMenu(); return; }
+            var active = activeSlashCommands();
+            var matches = active.filter(function (c) { return c.name.indexOf(parsed.query) === 0; });
+            if (!matches.length && parsed.query) matches = active.filter(function (c) { return c.name.indexOf(parsed.query) !== -1; });
+            if (!matches.length) { destroySlashMenu(); return; }
+            renderSlashMenu(matches);
+        }
+
+        function renderSlashMenu(matches) {
+            if (!slashMenuEl) {
+                slashMenuEl = document.createElement('div');
+                slashMenuEl.className = 'ai-slash-menu';
+                slashMenuEl.setAttribute('role', 'listbox');
+                inputEl.parentNode.appendChild(slashMenuEl);
+            }
+            slashMenuEl.innerHTML = '';
+            slashMatches = matches;
+            slashMenuActive = 0;
+            matches.forEach(function (c) {
+                var item = document.createElement('div');
+                item.className = 'ai-slash-item';
+                item.setAttribute('role', 'option');
+                var nameSpan = document.createElement('span');
+                nameSpan.className = 'ai-slash-item-name';
+                nameSpan.textContent = '/' + c.name;
+                var titleSpan = document.createElement('span');
+                titleSpan.className = 'ai-slash-item-title';
+                titleSpan.textContent = c.title;
+                var descSpan = document.createElement('span');
+                descSpan.className = 'ai-slash-item-desc';
+                descSpan.textContent = c.desc;
+                item.appendChild(nameSpan); item.appendChild(titleSpan); item.appendChild(descSpan);
+                item.addEventListener('mousedown', function (e) { e.preventDefault(); selectSlashItem(c); });
+                slashMenuEl.appendChild(item);
+            });
+            updateSlashActive();
+        }
+
+        function moveSlashActive(delta) {
+            slashMenuActive = (slashMenuActive + delta + slashMatches.length) % slashMatches.length;
+            updateSlashActive();
+        }
+
+        function updateSlashActive() {
+            if (!slashMenuEl) return;
+            var items = slashMenuEl.children;
+            for (var i = 0; i < items.length; i++) items[i].classList.toggle('active', i === slashMenuActive);
+            var el = items[slashMenuActive];
+            if (el) {
+                var bottom = el.offsetTop + el.offsetHeight;
+                if (bottom > slashMenuEl.scrollTop + slashMenuEl.clientHeight) slashMenuEl.scrollTop = bottom - slashMenuEl.clientHeight;
+                else if (el.offsetTop < slashMenuEl.scrollTop) slashMenuEl.scrollTop = el.offsetTop;
+            }
+        }
+
+        function selectSlashItem(cmd) {
+            destroySlashMenu();
+            var parsed = parseSlashInput(inputEl.value) || { query: '', arg: '' };
+            if (cmd.takesArg && cmd.prompt) {
+                inputEl.value = parsed.arg ? cmd.prompt + parsed.arg : cmd.prompt;
+                slashCommitted = null;
+                inputEl.focus();
+                inputEl.setSelectionRange(inputEl.value.length, inputEl.value.length);
+                inputEl.dispatchEvent(new Event('input'));
+                return;
+            }
+            if (cmd.takesArg && !parsed.arg) {
+                inputEl.value = '/' + cmd.name + ' ';
+                slashCommitted = inputEl.value;
+                inputEl.focus();
+                inputEl.setSelectionRange(inputEl.value.length, inputEl.value.length);
+                return;
+            }
+            inputEl.value = '';
+            inputEl.style.height = 'auto';
+            runSlashCommand(cmd, parsed.arg);
+            inputEl.focus();
+        }
+
+        function runSlashCommand(cmd, arg) {
+            switch (cmd.name) {
+                case 'vault':
+                    if (vaultChip) vaultChip.click();
+                    break;
+                case 'web':
+                    if (webSearchChip) webSearchChip.click();
+                    break;
+                case 'research':
+                    var researchChip = document.getElementById('ai-research-chip');
+                    if (researchChip) researchChip.click();
+                    if (arg) {
+                        var topicEl = document.getElementById('ai-research-topic');
+                        if (topicEl) topicEl.value = arg;
+                    }
+                    break;
+                case 'new':
+                    newChatBtn.click();
+                    break;
+                case 'rename':
+                    if (!conversationId) { statusText.textContent = 'No active conversation to rename.'; break; }
+                    if (arg) { encryptIfNeeded(arg).then(function (enc) { doRename(conversationId, enc); }); }
+                    else (currentConvData && currentConvData.title ? decryptIfNeeded(currentConvData.title) : Promise.resolve('Untitled')).then(function (dec) { promptRename(conversationId, dec || 'Untitled'); });
+                    break;
+                case 'export':
+                    exportConversationToNote();
+                    break;
+                default:
+                    if (cmd.prompt) {
+                        inputEl.value = cmd.prompt + (arg || '');
+                        sendMessage();
+                    }
+                    break;
+            }
+        }
+
+        bindDoc(document, 'click', function (e) { if (slashMenuEl && !slashMenuEl.contains(e.target) && e.target !== inputEl) destroySlashMenu(); });
 
         (async function () {
             await initE2EE();

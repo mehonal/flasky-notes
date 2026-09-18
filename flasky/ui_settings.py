@@ -273,6 +273,9 @@ REGISTRY: dict[str, SettingDef] = {
     # web_search/web_fetch tools as AI Web Search (the per-conversation
     # web_search toggle does not apply — research is separately opt-in).
     "ai_research_allowed": SettingDef("ai_research_allowed", False, bool),
+    # Slash commands in the AI chat input (e.g. /new, /rename, /export,
+    # /summarize). On by default; turn off to only allow plain messages.
+    "ai_slash_commands": SettingDef("ai_slash_commands", True, bool),
     # Client-driven research loop: the browser issues one bounded
     # /ai/api/research/round request per round and decides when to stop.
     # This caps the rounds the server will execute within a single request.
