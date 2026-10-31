@@ -284,7 +284,7 @@ REGISTRY: dict[str, SettingDef] = {
     ),
     # Cached list of available AI models (populated by the "Refresh"
     # action in Settings, or manually edited). Empty list = not yet
-    # fetched; callers fall back to the hardcoded DEFAULT_AI_MODELS.
+    # fetched; callers fall back to the hardcoded default model list.
     "ai_models": SettingDef(
         "ai_models", [], list,
         lambda v: isinstance(v, list)

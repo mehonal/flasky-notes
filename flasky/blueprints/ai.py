@@ -185,7 +185,7 @@ def _sse_with_heartbeat(produce, app):
     """Run the blocking SSE producer in a worker thread, yielding its
     events with heartbeat comments during silent gaps.
 
-    The Ollama SDK and requests calls are blocking, so the producer can't
+    The provider HTTP calls are blocking, so the producer can't
     also drive heartbeat timing — it emits payloads via emit() and this
     generator serializes them. The worker needs its own app context:
     Flask-SQLAlchemy sessions are scoped per app-context, and sharing the
