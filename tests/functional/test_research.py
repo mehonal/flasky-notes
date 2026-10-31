@@ -147,7 +147,7 @@ def _install_fake_client(monkeypatch, responses):
         def chat(self, **kwargs):
             return fake_chat(**kwargs)
 
-    monkeypatch.setattr(ai_bp_mod, "_get_ollama_client", lambda settings: FakeClient())
+    monkeypatch.setattr(ai_bp_mod, "_get_ai_client", lambda settings: FakeClient())
     return state
 
 
@@ -268,7 +268,7 @@ def test_research_round_finish_skips_tools(monkeypatch, auth_client):
             seen_kwargs.update(kwargs)
             return iter([{"message": {"content": "The wrap-up answer."}}])
 
-    monkeypatch.setattr(ai_bp_mod, "_get_ollama_client", lambda settings: FakeClient())
+    monkeypatch.setattr(ai_bp_mod, "_get_ai_client", lambda settings: FakeClient())
 
     r = client.post("/ai/api/research/round", json={
         "messages": [{"role": "user", "content": "Research this topic thoroughly: x"}],
@@ -297,7 +297,7 @@ def test_research_round_prepends_system_prompt(monkeypatch, auth_client):
             seen_messages.append(kwargs["messages"])
             return iter([{"message": {"content": "done"}}])
 
-    monkeypatch.setattr(ai_bp_mod, "_get_ollama_client", lambda settings: FakeClient())
+    monkeypatch.setattr(ai_bp_mod, "_get_ai_client", lambda settings: FakeClient())
 
     r = client.post("/ai/api/research/round", json={"messages": [
         {"role": "user", "content": "topic"},
@@ -367,7 +367,7 @@ def test_research_round_error_preserves_partial_content(monkeypatch, auth_client
                 {"message": {"content": "encrypted notes."}},
             ])
 
-    monkeypatch.setattr(ai_bp_mod, "_get_ollama_client", lambda settings: FakeClient())
+    monkeypatch.setattr(ai_bp_mod, "_get_ai_client", lambda settings: FakeClient())
 
     r = client.post("/ai/api/research/round", json={"messages": [
         {"role": "user", "content": "Research this topic thoroughly: x"},
@@ -407,7 +407,7 @@ def test_research_round_serializes_pydantic_like_tool_calls(monkeypatch, auth_cl
                 ])
             return iter([{"message": {"content": "Answer after tools."}}])
 
-    monkeypatch.setattr(ai_bp_mod, "_get_ollama_client", lambda settings: FakeClient())
+    monkeypatch.setattr(ai_bp_mod, "_get_ai_client", lambda settings: FakeClient())
 
     monkeypatch.setattr(
         ai_bp_mod.requests, "post",
@@ -450,7 +450,7 @@ def test_research_round_accepts_transcript_with_tool_context(monkeypatch, auth_c
             seen_messages.append(kwargs["messages"])
             return iter([{"message": {"content": "Follow-up answer."}}])
 
-    monkeypatch.setattr(ai_bp_mod, "_get_ollama_client", lambda settings: FakeClient())
+    monkeypatch.setattr(ai_bp_mod, "_get_ai_client", lambda settings: FakeClient())
 
     r = client.post("/ai/api/research/round", json={"messages": [
         {"role": "user", "content": "Research this topic thoroughly: x"},
@@ -533,7 +533,7 @@ def test_sse_heartbeat_emitted_during_idle_gap(monkeypatch, auth_client):
                 yield {"message": {"content": "done."}}
             return parts()
 
-    monkeypatch.setattr(ai_bp_mod, "_get_ollama_client", lambda settings: SlowClient())
+    monkeypatch.setattr(ai_bp_mod, "_get_ai_client", lambda settings: SlowClient())
     monkeypatch.setattr(ai_bp_mod, "SSE_HEARTBEAT_SECONDS", 0.1)
 
     r = client.post("/ai/api/research/round", json={"messages": [
@@ -586,7 +586,7 @@ def test_sse_abort_stops_worker_and_releases_thread(monkeypatch, auth_client):
     def fake_client_factory(settings):
         return SlowClient()
 
-    monkeypatch.setattr(ai_bp_mod, "_get_ollama_client", fake_client_factory)
+    monkeypatch.setattr(ai_bp_mod, "_get_ai_client", fake_client_factory)
     monkeypatch.setattr(ai_bp_mod.threading, "Thread", TrackingThread)
 
     # Consume the stream with a raw iterator, then abandon it mid-stream.

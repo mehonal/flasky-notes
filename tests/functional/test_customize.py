@@ -146,7 +146,7 @@ def test_generate_css_returns_css(auth_client):
     mock_resp = {"message": {"content": ":root { --accent: #00ff00; }"}}
     mock_client = MagicMock()
     mock_client.chat.return_value = mock_resp
-    with patch("flasky.blueprints.ai._get_ollama_client", return_value=mock_client):
+    with patch("flasky.blueprints.ai._get_ai_client", return_value=mock_client):
         r = client.post("/ai/api/generate_css", json={
             "prompt": "green accent", "theme": "dark"
         })
@@ -166,7 +166,7 @@ def test_generate_css_strips_code_fence(auth_client):
     mock_resp = {"message": {"content": "```css\n:root { --accent: #123; }\n```"}}
     mock_client = MagicMock()
     mock_client.chat.return_value = mock_resp
-    with patch("flasky.blueprints.ai._get_ollama_client", return_value=mock_client):
+    with patch("flasky.blueprints.ai._get_ai_client", return_value=mock_client):
         r = client.post("/ai/api/generate_css", json={"prompt": "x"})
     assert r.status_code == 200
     assert "```" not in r.json["css"]
@@ -184,7 +184,7 @@ def test_generate_css_rejects_unbalanced_braces(auth_client):
     mock_resp = {"message": {"content": ".x { color: red"}}
     mock_client = MagicMock()
     mock_client.chat.return_value = mock_resp
-    with patch("flasky.blueprints.ai._get_ollama_client", return_value=mock_client):
+    with patch("flasky.blueprints.ai._get_ai_client", return_value=mock_client):
         r = client.post("/ai/api/generate_css", json={"prompt": "x"})
     assert r.status_code == 200
     assert r.json["valid"] is False
@@ -202,7 +202,7 @@ def test_generate_css_uses_selected_model(auth_client):
     mock_resp = {"message": {"content": ":root { --accent: #abc; }"}}
     mock_client = MagicMock()
     mock_client.chat.return_value = mock_resp
-    with patch("flasky.blueprints.ai._get_ollama_client", return_value=mock_client):
+    with patch("flasky.blueprints.ai._get_ai_client", return_value=mock_client):
         r = client.post("/ai/api/generate_css", json={
             "prompt": "x", "model": "chosen-model"
         })
@@ -223,7 +223,7 @@ def test_generate_css_falls_back_to_settings_model(auth_client):
     mock_resp = {"message": {"content": ":root { --accent: #abc; }"}}
     mock_client = MagicMock()
     mock_client.chat.return_value = mock_resp
-    with patch("flasky.blueprints.ai._get_ollama_client", return_value=mock_client):
+    with patch("flasky.blueprints.ai._get_ai_client", return_value=mock_client):
         r = client.post("/ai/api/generate_css", json={"prompt": "x"})
     assert r.status_code == 200
     _, kwargs = mock_client.chat.call_args
@@ -242,7 +242,7 @@ def test_generate_css_includes_current_css_when_requested(auth_client):
     mock_resp = {"message": {"content": ":root { --accent: #abc; }"}}
     mock_client = MagicMock()
     mock_client.chat.return_value = mock_resp
-    with patch("flasky.blueprints.ai._get_ollama_client", return_value=mock_client):
+    with patch("flasky.blueprints.ai._get_ai_client", return_value=mock_client):
         r = client.post("/ai/api/generate_css", json={
             "prompt": "x", "include_current_css": True
         })
@@ -265,7 +265,7 @@ def test_generate_css_includes_color_overrides_when_requested(auth_client):
     mock_resp = {"message": {"content": ":root { --accent: #abc; }"}}
     mock_client = MagicMock()
     mock_client.chat.return_value = mock_resp
-    with patch("flasky.blueprints.ai._get_ollama_client", return_value=mock_client):
+    with patch("flasky.blueprints.ai._get_ai_client", return_value=mock_client):
         r = client.post("/ai/api/generate_css", json={
             "prompt": "x", "theme": "dark", "include_color_overrides": True
         })
@@ -286,7 +286,7 @@ def test_generate_css_omits_current_css_by_default(auth_client):
     mock_resp = {"message": {"content": ":root { --accent: #abc; }"}}
     mock_client = MagicMock()
     mock_client.chat.return_value = mock_resp
-    with patch("flasky.blueprints.ai._get_ollama_client", return_value=mock_client):
+    with patch("flasky.blueprints.ai._get_ai_client", return_value=mock_client):
         r = client.post("/ai/api/generate_css", json={"prompt": "x"})
     assert r.status_code == 200
     _, kwargs = mock_client.chat.call_args

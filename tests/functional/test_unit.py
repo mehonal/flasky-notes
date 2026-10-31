@@ -63,3 +63,21 @@ def test_valid_email():
     assert valid_email("user@sub.domain.org") is True
     assert valid_email("notanemail") is False
     assert valid_email("@missing.com") is False
+
+def test_provider_content_parts_normalization():
+    """Reasoning models behind OpenAI-compatible APIs (e.g. zai-glm-5-3 on
+    Mistral) send content as typed parts lists instead of strings."""
+    from flasky.services.provider import _content_to_text
+
+    assert _content_to_text("hello") == "hello"
+    assert _content_to_text("") == ""
+    assert _content_to_text(None) == ""
+    assert (
+        _content_to_text(
+            [{"type": "thinking", "thinking": "hmm"}, {"type": "text", "text": "hi"}]
+        )
+        == "hi"
+    )
+    assert _content_to_text([{"type": "text", "text": "a"}, {"type": "text", "text": "b"}]) == "ab"
+    assert _content_to_text(["raw", {"type": "text", "text": "parts"}]) == "rawparts"
+    assert _content_to_text([{"type": "thinking", "thinking": "only"}]) == ""

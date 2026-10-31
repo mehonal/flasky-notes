@@ -401,7 +401,7 @@ def _render_shell(initial_view=None):
 
 def _ai_models(user):
     """Return the user's persisted AI model list, falling back to the
-    Ollama Cloud hardcoded list when empty. Lazy import avoids a circular
+    hardcoded default list when empty. Lazy import avoids a circular
     import (ai.py imports from web.py at module level)."""
     from flasky.blueprints.ai import _get_models
 

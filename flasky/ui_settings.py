@@ -282,9 +282,9 @@ REGISTRY: dict[str, SettingDef] = {
     "ai_research_max_rounds": SettingDef(
         "ai_research_max_rounds", 10, int, _is_int_in_range(1, 50),
     ),
-    # Cached list of available AI models (populated by the "Refresh from
-    # Ollama" action in Settings, or manually edited). Empty list = not yet
-    # fetched; callers fall back to the hardcoded OLLAMA_CLOUD_MODELS.
+    # Cached list of available AI models (populated by the "Refresh"
+    # action in Settings, or manually edited). Empty list = not yet
+    # fetched; callers fall back to the hardcoded default model list.
     "ai_models": SettingDef(
         "ai_models", [], list,
         lambda v: isinstance(v, list)

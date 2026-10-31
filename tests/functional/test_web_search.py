@@ -212,7 +212,7 @@ def test_chat_tool_loop_searches_and_streams(monkeypatch, auth_client):
         def chat(self, **kwargs):
             return fake_chat(**kwargs)
 
-    monkeypatch.setattr(ai_bp_mod, "_get_ollama_client", lambda settings: FakeClient())
+    monkeypatch.setattr(ai_bp_mod, "_get_ai_client", lambda settings: FakeClient())
 
     def fake_requests_post(endpoint, headers=None, json=None, timeout=None):
         assert endpoint.endswith("/api/web_search")
@@ -265,7 +265,7 @@ def test_chat_without_web_search_passes_no_tools(monkeypatch, auth_client):
             assert "tools" not in kwargs, "tools must not be passed when web search is off"
             return iter([{"message": {"content": "plain answer"}}])
 
-    monkeypatch.setattr(ai_bp_mod, "_get_ollama_client", lambda settings: FakeClient())
+    monkeypatch.setattr(ai_bp_mod, "_get_ai_client", lambda settings: FakeClient())
 
     r = client.post(
         f"/ai/api/conversations/{conv.id}/chat",
@@ -298,7 +298,7 @@ def test_chat_tool_loop_survives_tool_failure(monkeypatch, auth_client):
                 ])
             return iter([{"message": {"content": "fallback."}}])
 
-    monkeypatch.setattr(ai_bp_mod, "_get_ollama_client", lambda settings: FakeClient())
+    monkeypatch.setattr(ai_bp_mod, "_get_ai_client", lambda settings: FakeClient())
 
     def boom(*a, **kw):
         raise RuntimeError("network down")
@@ -338,7 +338,7 @@ def test_chat_tool_loop_caps_rounds(monkeypatch, auth_client):
             ])
 
     fake = FakeClient()
-    monkeypatch.setattr(ai_bp_mod, "_get_ollama_client", lambda settings: fake)
+    monkeypatch.setattr(ai_bp_mod, "_get_ai_client", lambda settings: fake)
 
     def ok(*a, **kw):
         class R:
@@ -386,7 +386,7 @@ def test_chat_tool_loop_honors_custom_rounds(monkeypatch, auth_client):
             ])
 
     fake = FakeClient()
-    monkeypatch.setattr(ai_bp_mod, "_get_ollama_client", lambda settings: fake)
+    monkeypatch.setattr(ai_bp_mod, "_get_ai_client", lambda settings: fake)
 
     class R:
         def raise_for_status(self):

@@ -15,7 +15,7 @@
         <a href="/settings" class="ai-disabled-btn">Enable in Settings</a>
         {% else %}
         <div class="ai-disabled-title">API Key Required</div>
-        <div class="ai-disabled-text">Please configure your Ollama Cloud API key in Settings to start chatting. AI integration currently supports Ollama and Ollama Cloud only.</div>
+        <div class="ai-disabled-text">Please configure your AI provider API key in Settings to start chatting. AI integration works with any OpenAI-compatible provider.</div>
         <a href="/settings" class="ai-disabled-btn">Configure in Settings</a>
         {% endif %}
     </div>
@@ -264,7 +264,7 @@
         </div>
         <div class="modal-body">
             <p>When enabled, each message you send triggers a private, on-device search of your notes. The most relevant notes (titles + contents) are decrypted and included as context for the AI to read.</p>
-            <p><strong>Your Flasky server never sees this plaintext</strong> — it stays end-to-end encrypted. But your AI provider (Ollama) will receive and read the relevant note contents.</p>
+            <p><strong>Your Flasky server never sees this plaintext</strong> — it stays end-to-end encrypted. But your AI provider will receive and read the relevant note contents.</p>
             <p>Before each message where notes are actually shared, you'll see exactly which notes will be sent and can choose to share them, send without context, or cancel.</p>
             <p>This applies to this conversation only. You can turn it off at any time.</p>
         </div>
@@ -284,7 +284,7 @@
             </button>
         </div>
         <div class="modal-body">
-            <p>The following notes from your vault are relevant to your message. To use them as context, their titles and contents will be decrypted and sent to your AI provider (Ollama). Your Flasky server won't see them.</p>
+            <p>The following notes from your vault are relevant to your message. To use them as context, their titles and contents will be decrypted and sent to your AI provider. Your Flasky server won't see them.</p>
             <div class="ai-vault-notes-list" id="ai-vault-notes-list"></div>
         </div>
         <div class="modal-footer">
@@ -306,9 +306,9 @@
             </button>
         </div>
         <div class="modal-body">
-            <p>When enabled, the AI may search the web and fetch web pages to answer your questions with up-to-date information.</p>
+            <p>When enabled, the AI may search the web and fetch web pages to answer your questions with up-to-date information. <strong>This feature only works with Ollama Cloud</strong> — other AI providers do not offer it.</p>
             <p><strong>Proceed with caution.</strong> The AI generates its own search queries — including rephrasing your question — and these leave your device, along with the contents of any pages it fetches. Think about what your question reveals before enabling this for a conversation.</p>
-            <p><strong>Your search provider (Ollama) is responsible for how it handles web searches and fetched pages</strong> — how queries and page contents are processed, retained, logged, or shared is governed by their policies, not by Flasky. Review your provider's privacy policy before enabling.</p>
+            <p><strong>Ollama is responsible for how it handles web searches and fetched pages</strong> — how queries and page contents are processed, retained, logged, or shared is governed by their policies, not by Flasky. Review your provider's privacy policy before enabling.</p>
             <p><strong>Your Flasky server stores none of it</strong> — queries and fetched page contents pass through your server unencrypted and are not persisted. Only your message and the final answer are stored, end-to-end encrypted as usual.</p>
             <p>This applies to this conversation only. You can turn it off at any time.</p>
         </div>
@@ -330,9 +330,9 @@
             </button>
         </div>
         <div class="modal-body">
-            <p>Research mode has the AI autonomously search the web and fetch pages to investigate your topic in depth, over multiple rounds.</p>
+            <p>Research mode has the AI autonomously search the web and fetch pages to investigate your topic in depth, over multiple rounds. <strong>Like AI Web Search, this only works with Ollama Cloud</strong>.</p>
             <p><strong>Proceed with caution.</strong> The AI generates its own search queries — including rephrasing your topic — and these leave your device, along with the contents of any pages it fetches. Think about what your topic reveals before starting.</p>
-            <p><strong>Your search provider (Ollama) is responsible for how it handles web searches and fetched pages</strong> — how queries and page contents are processed, retained, logged, or shared is governed by their policies, not by Flasky. Review your provider's privacy policy before starting.</p>
+            <p><strong>Ollama is responsible for how it handles web searches and fetched pages</strong> — how queries and page contents are processed, retained, logged, or shared is governed by their policies, not by Flasky. Review your provider's privacy policy before starting.</p>
             <p><strong>Your Flasky server stores none of it</strong> — queries and fetched page contents pass through your server unencrypted and are not persisted. Nothing about the research is stored anywhere; the transcript lives only in this browser tab, so the research is lost when you leave the page.</p>
         </div>
         <div class="modal-footer">

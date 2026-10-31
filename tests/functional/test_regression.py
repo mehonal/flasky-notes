@@ -714,7 +714,6 @@ def _enable_ai_models(auth_client):
 def test_refresh_models_parses_wire_format(auth_client, monkeypatch):
     """Regression: ollama lib <0.7 drops the "name" key via pydantic parsing;
     refresh must fall back to "model" instead of always 502-ing."""
-    from ollama._types import ListResponse
     from flasky.blueprints import ai as ai_bp
 
     client, _ = auth_client
@@ -722,13 +721,13 @@ def test_refresh_models_parses_wire_format(auth_client, monkeypatch):
 
     captured = {}
 
-    def fake_get_ollama_client(settings):
+    def fake_get_ai_client(settings):
         captured["auth"] = settings.ollama_api_key
         return _FakeClient(
-            ListResponse(models=[ListResponse.Model(model="glm-5.2")])
+            {"models": [{"name": "glm-5.2"}]}
         )
 
-    monkeypatch.setattr(ai_bp, "_get_ollama_client", fake_get_ollama_client)
+    monkeypatch.setattr(ai_bp, "_get_ai_client", fake_get_ai_client)
 
     r = client.post("/ai/api/models/refresh")
     assert r.status_code == 200, r.get_json()
@@ -747,7 +746,7 @@ def test_refresh_models_handles_dict_response(auth_client, monkeypatch):
 
     monkeypatch.setattr(
         ai_bp,
-        "_get_ollama_client",
+        "_get_ai_client",
         lambda settings: _FakeClient(
             {"models": [{"name": "b-model"}, {"model": "a-model"}, {}]}
         ),
@@ -767,7 +766,7 @@ def test_refresh_models_502_when_provider_returns_no_models(auth_client, monkeyp
     _enable_ai_models(auth_client)
 
     monkeypatch.setattr(
-        ai_bp, "_get_ollama_client", lambda settings: _FakeClient({"models": []})
+        ai_bp, "_get_ai_client", lambda settings: _FakeClient({"models": []})
     )
 
     r = client.post("/ai/api/models/refresh")

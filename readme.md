@@ -25,7 +25,7 @@ Ciphertext format: `base64(0x01 || IV[12] || ciphertext || GCM-tag[16])`.
 - **Attachments** (stored as encrypted blobs)
 - **Drawings** — full-screen canvas, embedded in notes as `.fldraw` vector files, editable inline, exportable to PNG/JPG (opt-in via settings)
 - **Client-side search** (server can't read ciphertext to search)
-- **AI chat** (Ollama / Ollama Cloud only for now, opt-in via settings) with SSE streaming, conversation history, and note-context inclusion
+- **AI chat** (any OpenAI-compatible provider, opt-in via settings) with SSE streaming, conversation history, and note-context inclusion. AI Web Search and Research Mode additionally require Ollama Cloud — other providers don't offer a compatible web-search API.
 - **Obsidian sync** via a standalone sync client
 - **Export** to decrypted or encrypted .zip
 - **Dark mode**, adjustable font size/family, responsive mobile layout
