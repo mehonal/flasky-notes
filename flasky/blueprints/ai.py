@@ -27,6 +27,7 @@ from flasky.ui_settings import (
     DEFAULT_COLORS, CUSTOMIZABLE_VARS,
 )
 from flasky.blueprints.web import _render_shell
+from flasky.services.provider import OpenAICompatClient
 
 logger = logging.getLogger(__name__)
 
@@ -133,8 +134,6 @@ def _get_ai_client(settings):
     Any OpenAI-compatible provider works — point ``ollama_base_url`` at the
     provider's base URL and set ``ollama_api_key``.
     """
-    from flasky.services.provider import OpenAICompatClient
-
     return OpenAICompatClient(settings)
 
 

@@ -1,11 +1,8 @@
-"""Provider abstraction: OpenAI-compatible chat-completions client.
+"""AI provider client for any OpenAI-compatible chat-completions API.
 
-Replaces the Ollama SDK. Any OpenAI-compatible provider works: point
-``ollama_base_url`` (the existing settings column) at the provider's base
-URL and set ``ollama_api_key`` to the provider API key. Both the blocking
-and streaming helpers return/emit OpenAI-style message dicts, translated
-into the ollama-shaped ``{"message": {...}}`` parts the rest of the app
-already consumes.
+Uses the provider base URL and API key from user settings.
+The blocking and streaming helpers emit ``{"message": {"role", "content"}}``
+dicts, the message shape the rest of the app consumes.
 """
 
 import json
@@ -50,7 +47,7 @@ def _payload(model, messages, tools=None, stream=False):
 
 
 def chat_completion(settings, model, messages, tools=None, timeout=60):
-    """Blocking chat completion. Returns an ollama-shaped response dict:
+    """Blocking chat completion. Returns a response dict:
     ``{"message": {"role": "assistant", "content": ...}}``."""
     resp = requests.post(
         _base_url(settings) + "/chat/completions",
@@ -67,7 +64,7 @@ def chat_completion(settings, model, messages, tools=None, timeout=60):
 
 
 def chat_stream(settings, model, messages, tools=None, timeout=120):
-    """Streaming chat completion. Yields ollama-shaped parts:
+    """Streaming chat completion. Yields parts:
     ``{"message": {"content": ..., "tool_calls": [...]}}``."""
     resp = requests.post(
         _base_url(settings) + "/chat/completions",

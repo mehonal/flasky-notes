@@ -15,7 +15,6 @@ dependencies = [
     "gunicorn",
     "flask-talisman",
     "PyYAML",
-    "openai",
     "marshmallow",
     "flask-smorest",
     "cryptography",
