@@ -856,7 +856,7 @@
                         <form method="POST" data-spa-form data-requires-refresh>
                             <div class="sub-label">AI provider settings</div>
                             <div class="setting-hint" style="padding: 0 16px; margin-bottom:8px;">
-                                AI integration works with <strong>any OpenAI-compatible provider</strong> — point the Base URL at your provider's API endpoint (e.g. <code>https://api.openai.com/v1</code>, <code>http://localhost:11434/v1</code>) and set your API key. Web Search additionally requires a provider that supports it (e.g. Ollama Cloud, <code>https://ollama.com</code>).
+                                AI integration works with <strong>any OpenAI-compatible provider</strong> — point the Base URL at your provider's API endpoint (e.g. <code>https://api.openai.com/v1</code>, <code>http://localhost:11434/v1</code>) and set your API key. <strong>AI Web Search and Research Mode additionally require Ollama</strong> — these features only work with Ollama Cloud (<code>https://ollama.com</code>) or a local Ollama instance, as they rely on Ollama's web-tools API.
                             </div>
                             <div style="padding: 0 16px;">
                                 <label class="list-item-sub">API key</label>
@@ -949,7 +949,7 @@
                                     </div>
                                 </div>
                                 <div class="setting-hint" style="margin-bottom:10px;">
-                                    AI Web Search lets the AI search the web and fetch pages via Ollama's web search API when answering. Use with caution: the AI generates its own search queries (including rephrasing your question), and your search provider (Ollama) is responsible for how it handles those queries and any fetched page contents — review their privacy policy. Your Flasky server relays this traffic but does not store it. Enable per conversation in AI chat after acknowledging a warning.
+                                    AI Web Search lets the AI search the web and fetch pages when answering. <strong>This feature only works with Ollama</strong> — it uses Ollama's web search API (Ollama Cloud or a local instance); other providers do not offer it. Use with caution: the AI generates its own search queries (including rephrasing your question), and Ollama is responsible for how it handles those queries and any fetched page contents — review their privacy policy. Your Flasky server relays this traffic but does not store it. Enable per conversation in AI chat after acknowledging a warning.
                                 </div>
                                 {% if ui_settings.ai_web_search_allowed %}
                                 <label class="list-item-sub">Max tool rounds per message</label>
@@ -979,7 +979,7 @@
                                     </div>
                                 </div>
                                 <div class="setting-hint" style="margin-bottom:10px;">
-                                    Research mode lets you give the AI a topic to investigate on its own using web searches: you watch its findings live, and can stop, redirect, or ask it to wrap up at any time. Same privacy tradeoffs as AI Web Search apply — the AI generates its own queries and your search provider handles them per their policies. Your Flasky server relays this traffic but stores nothing; research progress lives only in your browser while the panel is open.
+                                    Research mode lets you give the AI a topic to investigate on its own using web searches: you watch its findings live, and can stop, redirect, or ask it to wrap up at any time. <strong>Like AI Web Search, this only works with Ollama</strong> (Ollama Cloud or a local instance). Same privacy tradeoffs apply — the AI generates its own queries and Ollama handles them per their policies. Your Flasky server relays this traffic but stores nothing; research progress lives only in your browser while the panel is open.
                                 </div>
                                 {% if ui_settings.ai_research_allowed %}
                                 <label class="list-item-sub">Max search rounds within one research round</label>
