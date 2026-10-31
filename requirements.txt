@@ -7,7 +7,7 @@ python-dotenv
 gunicorn
 flask-talisman
 PyYAML
-ollama
+openai
 marshmallow
 flask-smorest
 cryptography

@@ -127,18 +127,20 @@ def _check_ai_enabled():
     return None
 
 
-def _get_ollama_client(settings):
-    from ollama import Client
+def _get_ai_client(settings):
+    """Build an OpenAI-compatible client from the user's AI settings.
 
-    base_url = settings.ollama_base_url or "https://ollama.com"
-    headers = {}
-    if settings.ollama_api_key:
-        headers["Authorization"] = "Bearer " + settings.ollama_api_key
-    return Client(host=base_url, headers=headers)
+    Any OpenAI-compatible provider works — point ``ollama_base_url`` at the
+    provider's base URL and set ``ollama_api_key``.
+    """
+    from flasky.services.provider import OpenAICompatClient
+
+    return OpenAICompatClient(settings)
 
 
 def _call_web_tool(settings, name, arguments, timeout=30):
-    """Execute a web_search/web_fetch tool call against the Ollama REST API.
+    """Execute a web_search/web_fetch tool call against the provider's
+    web-tools REST API.
 
     Returns the raw JSON response dict, or None on a transport/HTTP error
     (the caller degrades to an error string for the model).
@@ -471,7 +473,7 @@ def chat(conv_id):
         return err
     settings = g.user.return_settings()
     if not settings.ollama_api_key:
-        return jsonify(error="Ollama API key not configured. Set it in Settings."), 400
+        return jsonify(error="AI provider API key not configured. Set it in Settings."), 400
     conv = AiConversation.query.filter_by(id=conv_id, user_id=g.user.id).first()
     if not conv:
         return jsonify(error="Conversation not found."), 404
@@ -512,7 +514,7 @@ def chat(conv_id):
     def produce(emit):
         full_response = []
         try:
-            client = _get_ollama_client(ai_settings)
+            client = _get_ai_client(ai_settings)
             messages = list(ollama_messages)
             rounds = 0
             while True:
@@ -567,7 +569,7 @@ def chat(conv_id):
             else:
                 emit({"error": "Conversation not found."})
         except Exception as e:
-            logger.error("Ollama chat error: %s", e)
+            logger.error("AI provider chat error: %s", e)
             emit({"error": "An error occurred while generating a response. Please try again."})
 
     return Response(
@@ -658,7 +660,7 @@ def research_round():
         return jsonify(error="AI Research is not enabled in Settings."), 403
     settings = g.user.return_settings()
     if not settings.ollama_api_key:
-        return jsonify(error="Ollama API key not configured. Set it in Settings."), 400
+        return jsonify(error="AI provider API key not configured. Set it in Settings."), 400
     data = request.get_json(silent=True) or {}
     client_messages = data.get("messages")
     if not isinstance(client_messages, list) or not client_messages:
@@ -683,7 +685,7 @@ def research_round():
     def produce(emit):
         full_response = []
         try:
-            client = _get_ollama_client(ai_settings)
+            client = _get_ai_client(ai_settings)
             rounds = 0
             while True:
                 kwargs = dict(model=model, messages=messages, stream=True)
@@ -734,7 +736,7 @@ def research_round():
                     )
                     emit({"tool_result": True, "name": name, "content": content})
         except Exception as e:
-            logger.error("Ollama research round error: %s", e)
+            logger.error("AI provider research round error: %s", e)
             payload = {"error": "An error occurred while researching. Please try again."}
             partial = "".join(full_response)
             if partial:
@@ -847,19 +849,19 @@ def list_models():
 
 @ai_bp.route("/api/models/refresh", methods=["POST"])
 def refresh_models():
-    """Pull the model list from Ollama once and persist it. The only endpoint
-    that contacts the Ollama API; all other read paths serve the persisted list."""
+    """Pull the model list from the provider once and persist it. The only endpoint
+    that contacts the provider API; all other read paths serve the persisted list."""
     err = _check_ai_enabled()
     if err:
         return err
     settings = g.user.return_settings()
     if not settings.ollama_api_key:
-        return jsonify(error="Ollama API key not configured. Set it in Settings."), 400
+        return jsonify(error="AI provider API key not configured. Set it in Settings."), 400
     try:
-        client = _get_ollama_client(settings)
+        client = _get_ai_client(settings)
         models_resp = client.list()
     except Exception as e:
-        logger.error("Ollama list models error: %s", e)
+        logger.error("AI provider list models error: %s", e)
         return jsonify(
             models=_get_models(g.user),
             source="error",
@@ -1088,7 +1090,7 @@ def generate_css():
         return err
     settings = g.user.return_settings()
     if not settings.ollama_api_key:
-        return jsonify(error="Ollama API key not configured. Set it in Settings."), 400
+        return jsonify(error="AI provider API key not configured. Set it in Settings."), 400
     data = request.get_json(silent=True) or {}
     prompt = (data.get("prompt") or "").strip()
     if not prompt:
@@ -1114,14 +1116,14 @@ def generate_css():
         {"role": "user", "content": f"Prompt: {prompt}\n\nContext:\n{context}"},
     ]
     try:
-        client = _get_ollama_client(settings)
+        client = _get_ai_client(settings)
         resp = client.chat(
             model=model,
             messages=messages,
             stream=False,
         )
     except Exception as e:
-        logger.error("Ollama generate_css error: %s", e)
+        logger.error("AI provider generate_css error: %s", e)
         return jsonify(
             error="An error occurred while generating CSS. Please try again."
         ), 500
