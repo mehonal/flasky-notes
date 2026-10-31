@@ -24,6 +24,28 @@ def _base_url(settings):
     return base_url
 
 
+def _content_to_text(content):
+    """Normalize message content to plain text.
+
+    OpenAI-compatible providers normally send content as a string, but
+    some reasoning models served behind an OpenAI-compatible API (e.g.
+    zai-glm-5-3 on Mistral) send it as a list of typed parts like
+    ``[{"type": "thinking", ...}, {"type": "text", "text": ...}]``.
+    Concatenate the text parts and drop thinking/reasoning parts.
+    """
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        texts = []
+        for part in content:
+            if isinstance(part, str):
+                texts.append(part)
+            elif isinstance(part, dict) and part.get("type") == "text":
+                texts.append(part.get("text") or "")
+        return "".join(texts)
+    return ""
+
+
 def build_chat_messages(messages):
     """Normalize client messages into OpenAI-style plain dicts."""
     return [
@@ -60,7 +82,7 @@ def chat_completion(settings, model, messages, tools=None, timeout=60):
     choice = (data.get("choices") or [{}])[0]
     message = choice.get("message") or {}
     return {"message": {"role": message.get("role", "assistant"),
-                        "content": message.get("content", "")}}
+                        "content": _content_to_text(message.get("content"))}}
 
 
 def chat_stream(settings, model, messages, tools=None, timeout=120):
@@ -83,7 +105,7 @@ def chat_stream(settings, model, messages, tools=None, timeout=120):
             break
         chunk = json.loads(data)
         delta = ((chunk.get("choices") or [{}])[0].get("delta")) or {}
-        content = delta.get("content") or ""
+        content = _content_to_text(delta.get("content"))
         for tc in delta.get("tool_calls") or []:
             fn = tc.get("function", {}) or {}
             name = fn.get("name", "")
