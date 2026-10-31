@@ -854,9 +854,9 @@
                         </form>
                         {% if ai_enabled %}
                         <form method="POST" data-spa-form data-requires-refresh>
-                            <div class="sub-label">Ollama settings</div>
+                            <div class="sub-label">AI provider settings</div>
                             <div class="setting-hint" style="padding: 0 16px; margin-bottom:8px;">
-                                AI integration works with <strong>any OpenAI-compatible provider</strong> — point the Base URL at your provider's API endpoint (e.g. <code>https://api.openai.com/v1</code>, <code>http://localhost:11434/v1</code>) and set your API key. Point the Base URL at a local Ollama instance (<code>http://localhost:11434</code>) or leave the default for Ollama Cloud (<code>https://ollama.com</code>). Web Search additionally requires Ollama Cloud.
+                                AI integration works with <strong>any OpenAI-compatible provider</strong> — point the Base URL at your provider's API endpoint (e.g. <code>https://api.openai.com/v1</code>, <code>http://localhost:11434/v1</code>) and set your API key. Web Search additionally requires a provider that supports it (e.g. Ollama Cloud, <code>https://ollama.com</code>).
                             </div>
                             <div style="padding: 0 16px;">
                                 <label class="list-item-sub">API key</label>
@@ -871,7 +871,7 @@
                                         <option value="{{ ai_settings.ollama_model }}" selected>{{ ai_settings.ollama_model }}</option>
                                         {% endif %}
                                     </select>
-                                    <button type="button" class="btn-sm" id="ai-models-refresh-btn" title="Fetch the model list from Ollama">Refresh</button>
+                                    <button type="button" class="btn-sm" id="ai-models-refresh-btn" title="Fetch the model list from your AI provider">Refresh</button>
                                     <button type="button" class="btn-sm" id="ai-models-edit-btn" title="Manually edit the model list">Edit</button>
                                 </div>
                                 <div id="ai-models-edit-wrap" hidden style="margin-bottom:8px;">
@@ -922,7 +922,7 @@
                                     </div>
                                 </div>
                                 <div class="setting-hint" style="margin-bottom:10px;">
-                                    Vault Context lets the AI read relevant notes from your vault when answering. Each message triggers a private on-device search; the most relevant notes (titles + contents) are decrypted and sent to your AI provider (Ollama) as context. Your Flasky server never sees this plaintext. The AI provider will receive and read the relevant note contents. Enable per conversation in AI chat.
+                                    Vault Context lets the AI read relevant notes from your vault when answering. Each message triggers a private on-device search; the most relevant notes (titles + contents) are decrypted and sent to your AI provider as context. Your Flasky server never sees this plaintext. The AI provider will receive and read the relevant note contents. Enable per conversation in AI chat.
                                 </div>
                                 {% if ui_settings.vault_context_allowed %}
                                 <label class="list-item-sub">Notes to include per message (top-K)</label>
@@ -979,7 +979,7 @@
                                     </div>
                                 </div>
                                 <div class="setting-hint" style="margin-bottom:10px;">
-                                    Research mode lets you give the AI a topic to investigate on its own using web searches: you watch its findings live, and can stop, redirect, or ask it to wrap up at any time. Same privacy tradeoffs as AI Web Search apply — the AI generates its own queries and your search provider (Ollama) handles them per their policies. Your Flasky server relays this traffic but stores nothing; research progress lives only in your browser while the panel is open.
+                                    Research mode lets you give the AI a topic to investigate on its own using web searches: you watch its findings live, and can stop, redirect, or ask it to wrap up at any time. Same privacy tradeoffs as AI Web Search apply — the AI generates its own queries and your search provider handles them per their policies. Your Flasky server relays this traffic but stores nothing; research progress lives only in your browser while the panel is open.
                                 </div>
                                 {% if ui_settings.ai_research_allowed %}
                                 <label class="list-item-sub">Max search rounds within one research round</label>
